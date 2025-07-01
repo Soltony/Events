@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Ticket } from 'lucide-react';
+import { Home, Ticket, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function MainNav() {
@@ -10,7 +10,8 @@ export function MainNav() {
 
   const routes = [
     { href: '/', label: 'Dashboard', icon: Home, active: pathname === '/' },
-    { href: '/events/1', label: 'Manage Event', icon: Ticket, active: pathname.startsWith('/events') },
+    { href: '/events/1', label: 'Manage Event', icon: Ticket, active: pathname.startsWith('/events/') && pathname !== '/events/new' },
+    { href: '/events/new', label: 'Create Event', icon: PlusCircle, active: pathname === '/events/new' },
   ];
 
   return (

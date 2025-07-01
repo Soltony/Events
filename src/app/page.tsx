@@ -22,8 +22,10 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center space-x-2">
-          <Button>
-            <PlusCircle className="mr-2 h-4 w-4" /> Create Event
+          <Button asChild>
+            <Link href="/events/new">
+              <PlusCircle className="mr-2 h-4 w-4" /> Create Event
+            </Link>
           </Button>
         </div>
       </div>
