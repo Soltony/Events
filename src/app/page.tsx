@@ -28,7 +28,7 @@ export default function PublicHomePage() {
       </div>
       
       {events === null && (
-        <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 md:gap-8 md:grid-cols-2 lg:grid-cols-3">
           {[...Array(3)].map((_, i) => (
             <Card key={i}>
               <Skeleton className="h-[266px] w-full rounded-t-lg" />
@@ -46,7 +46,7 @@ export default function PublicHomePage() {
       )}
 
       {events && (
-         <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
+         <div className="grid gap-4 md:gap-8 md:grid-cols-2 lg:grid-cols-3">
           {events.length > 0 ? (
             events.map((event) => (
               <Card key={event.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
