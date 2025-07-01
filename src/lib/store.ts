@@ -12,6 +12,7 @@ export interface Event {
   image: string;
   hint: string;
   category: string;
+  description: string;
 }
 
 const EVENTS_STORAGE_KEY = 'events-app-storage';
@@ -43,7 +44,7 @@ export const getEvents = (): Event[] => {
   }
 };
 
-export const addEvent = (eventData: { name: string; location: string; date: Date, category: string }): void => {
+export const addEvent = (eventData: { name: string; location: string; date: Date, category: string, description: string }): void => {
   const storage = getLocalStorage();
   if (!storage) {
     console.warn("localStorage not available, can't add event.");
@@ -59,6 +60,7 @@ export const addEvent = (eventData: { name: string; location: string; date: Date
     image: 'https://placehold.co/600x400.png',
     hint: 'event custom',
     category: eventData.category,
+    description: eventData.description,
   };
   const updatedEvents = [...events, newEvent];
   storage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(updatedEvents));

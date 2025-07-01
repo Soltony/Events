@@ -23,6 +23,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { addEvent } from '@/lib/store';
@@ -30,6 +31,7 @@ import { addEvent } from '@/lib/store';
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
   location: z.string().min(3, { message: 'Location must be at least 3 characters.' }),
+  description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   date: z.date({
     required_error: 'A date for the event is required.',
   }),
@@ -47,6 +49,7 @@ export default function CreateEventPage() {
     defaultValues: {
       name: '',
       location: '',
+      description: '',
       category: '',
     },
   });
@@ -81,6 +84,26 @@ export default function CreateEventPage() {
                     </FormControl>
                     <FormDescription>
                       This is the public name of your event.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Tell us a little bit about your event"
+                        className="resize-none"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      A brief, catchy description that will appear on the event page.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

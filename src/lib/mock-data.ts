@@ -1,13 +1,13 @@
 
 export const events = [
-    { id: 1, name: 'Tech Conference 2024', date: '2024-10-26', location: 'Metropolis Convention Center', image: 'https://placehold.co/600x400.png', hint: 'conference technology', category: 'Technology' },
-    { id: 2, name: 'Summer Music Festival', date: '2024-08-15', location: 'Greenfield Park', image: 'https://placehold.co/600x400.png', hint: 'music festival', category: 'Music' },
-    { id: 3, name: 'Art & Design Expo', date: '2024-11-05', location: 'The Modern Gallery', image: 'https://placehold.co/600x400.png', hint: 'art gallery', category: 'Art' },
+    { id: 1, name: 'Tech Conference 2024', date: '2024-10-26', location: 'Metropolis Convention Center', image: 'https://placehold.co/600x400.png', hint: 'conference technology', category: 'Technology', description: 'An annual conference for tech enthusiasts and professionals. Explore the latest trends in AI, software development, and cloud computing. Network with industry leaders and innovators.' },
+    { id: 2, name: 'Summer Music Festival', date: '2024-08-15', location: 'Greenfield Park', image: 'https://placehold.co/600x400.png', hint: 'music festival', category: 'Music', description: 'A three-day outdoor music festival featuring a diverse lineup of artists from rock, pop, and electronic genres. Enjoy live music, food trucks, and art installations under the summer sky.' },
+    { id: 3, name: 'Art & Design Expo', date: '2024-11-05', location: 'The Modern Gallery', image: 'https://placehold.co/600x400.png', hint: 'art gallery', category: 'Art', description: 'Discover contemporary art and design from emerging and established artists. The expo includes paintings, sculptures, photography, and interactive installations. Perfect for collectors and art lovers alike.' },
 ];
 
 export const ticketTypes = [
     { id: 1, eventId: 1, name: 'General Admission', price: 99.00, sold: 700, total: 1000 },
-    { id: 2, eventId: 1, name: 'VIP', price: 249.00, sold: 150, total: 200 },
+    { id: 2, eventId: 1, name: 'VIP Pass', price: 249.00, sold: 150, total: 200 },
     { id: 3, eventId: 2, name: 'Standard Ticket', price: 75.00, sold: 500, total: 1500 },
     { id: 4, eventId: 3, name: 'Gallery Pass', price: 30.00, sold: 250, total: 500 },
 ];

@@ -2,11 +2,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import Image from 'next/image';
 import { getEvents, type Event } from '@/lib/store';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { ArrowUpRight } from 'lucide-react';
 
 export default function PublicHomePage() {
   const [events, setEvents] = useState<Event[] | null>(null);
@@ -34,6 +37,9 @@ export default function PublicHomePage() {
                 <Skeleton className="h-6 w-3/4" />
                 <Skeleton className="h-5 w-1/2" />
               </CardContent>
+              <CardFooter className="p-6 pt-0">
+                  <Skeleton className="h-10 w-full" />
+              </CardFooter>
             </Card>
           ))}
         </div>
@@ -52,6 +58,11 @@ export default function PublicHomePage() {
                   <CardTitle>{event.name}</CardTitle>
                   <CardDescription>{event.date} - {event.location}</CardDescription>
                 </CardContent>
+                <CardFooter className="p-6 pt-0">
+                    <Button asChild className="w-full">
+                        <Link href={`/events/${event.id}`}>View Details & Buy Tickets <ArrowUpRight className="ml-auto h-4 w-4" /></Link>
+                    </Button>
+                </CardFooter>
               </Card>
             ))
           ) : (
