@@ -50,7 +50,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (data: any) => {
     try {
-      const response = await api.post('/api/Auth/login', data);
+      const requestData = {
+        PhoneNumber: data.phoneNumber,
+        Password: data.password,
+      };
+      const response = await api.post('/api/Auth/login', requestData);
       if (response.data.isSuccess) {
         const { accessToken, refreshToken } = response.data;
         const newTokens = { accessToken, refreshToken };
@@ -81,7 +85,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
         if(tokens){
-            await api.post('/api/Auth/logout', tokens);
+            const requestData = {
+                token: tokens.accessToken,
+                refreshToken: tokens.refreshToken,
+            };
+            await api.post('/api/Auth/logout', requestData);
         }
     } catch(error) {
         console.error("Logout failed on server, proceeding with client-side logout.", error);
