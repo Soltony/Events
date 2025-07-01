@@ -17,7 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 export function MainNav() {
   const pathname = usePathname();
   const [events, setEvents] = useState<Event[]>([]);
-  const isManagingEvents = pathname.startsWith('/events/') && pathname !== '/events/new';
+  const isManagingEvents = pathname.startsWith('/dashboard/events/') && pathname !== '/dashboard/events/new';
   const [isEventsOpen, setIsEventsOpen] = useState(isManagingEvents);
 
 
@@ -57,10 +57,10 @@ export function MainNav() {
                 {events.map((event) => (
                     <Link
                         key={event.id}
-                        href={`/events/${event.id}`}
+                        href={`/dashboard/events/${event.id}`}
                         className={cn(
                         'block rounded-md px-3 py-2 text-muted-foreground transition-colors hover:text-primary',
-                        pathname === `/events/${event.id}` && 'bg-muted text-primary'
+                        pathname === `/dashboard/events/${event.id}` && 'bg-muted text-primary'
                         )}
                     >
                         {event.name}
@@ -75,10 +75,10 @@ export function MainNav() {
       </Collapsible>
       
       <Link
-        href="/events/new"
+        href="/dashboard/events/new"
         className={cn(
           'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-          pathname === '/events/new' && 'bg-muted text-primary'
+          pathname === '/dashboard/events/new' && 'bg-muted text-primary'
         )}
       >
         <PlusCircle className="h-4 w-4" />

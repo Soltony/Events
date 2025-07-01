@@ -34,7 +34,7 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center space-x-2">
           <Button asChild>
-            <Link href="/events/new">
+            <Link href="/dashboard/events/new">
               <PlusCircle className="mr-2 h-4 w-4" /> Create Event
             </Link>
           </Button>
@@ -90,7 +90,7 @@ export default function DashboardPage() {
               </CardContent>
               <CardFooter className="p-6 pt-0">
                 <Button asChild className="w-full">
-                  <Link href={`/events/${event.id}`}>Manage Event <ArrowUpRight className="ml-auto h-4 w-4" /></Link>
+                  <Link href={`/dashboard/events/${event.id}`}>Manage Event <ArrowUpRight className="ml-auto h-4 w-4" /></Link>
                 </Button>
               </CardFooter>
             </Card>
@@ -101,7 +101,7 @@ export default function DashboardPage() {
                     <h3 className="text-2xl font-semibold tracking-tight">You haven't created any events yet</h3>
                     <p className="text-muted-foreground mt-2 mb-6">Let's get your first event set up.</p>
                     <Button asChild>
-                        <Link href="/events/new">
+                        <Link href="/dashboard/events/new">
                         <PlusCircle className="mr-2 h-4 w-4" /> Create Event
                         </Link>
                     </Button>
