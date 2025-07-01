@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -26,7 +26,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
     Select,
@@ -45,6 +44,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Form,
   FormControl,
   FormField,
@@ -55,11 +64,10 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
-import { PlusCircle } from 'lucide-react';
-import { mockUsers, mockRoles } from '@/lib/mock-data';
+import { Pencil, PlusCircle, Shield, Trash2 } from 'lucide-react';
+import { mockUsers, mockRoles, type Role } from '@/lib/mock-data';
 import { useToast } from "@/hooks/use-toast"
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
 
 const addUserFormSchema = z.object({
   name: z.string().min(1, { message: "Name is required." }),
@@ -77,21 +85,24 @@ const permissionModules = [
 ];
 const permissionActions = ['Create', 'Read', 'Update', 'Delete'];
 
-const createRoleFormSchema = z.object({
+const roleFormSchema = z.object({
     name: z.string().min(1, { message: "Role name is required." }),
     permissions: z.array(z.string()).refine((value) => value.some((item) => item), {
         message: "You have to select at least one permission.",
     }),
 });
 
-type CreateRoleFormValues = z.infer<typeof createRoleFormSchema>;
+type RoleFormValues = z.infer<typeof roleFormSchema>;
 
 export default function SettingsPage() {
     const { toast } = useToast();
     const [users, setUsers] = useState(mockUsers);
-    const [roles, setRoles] = useState(mockRoles);
+    const [roles, setRoles] = useState<Role[]>(mockRoles);
     const [isAddUserOpen, setIsAddUserOpen] = useState(false);
     const [isCreateRoleOpen, setIsCreateRoleOpen] = useState(false);
+    const [editingRole, setEditingRole] = useState<Role | null>(null);
+    const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
+
 
     const handleRoleChange = (userId: number, newRole: string) => {
         setUsers(users.map(user => user.id === userId ? { ...user, role: newRole } : user));
@@ -105,13 +116,27 @@ export default function SettingsPage() {
         },
     });
 
-    const createRoleForm = useForm<CreateRoleFormValues>({
-        resolver: zodResolver(createRoleFormSchema),
+    const createRoleForm = useForm<RoleFormValues>({
+        resolver: zodResolver(roleFormSchema),
         defaultValues: {
             name: "",
             permissions: [],
         },
     });
+    
+    const editRoleForm = useForm<RoleFormValues>({
+        resolver: zodResolver(roleFormSchema),
+    });
+
+    useEffect(() => {
+        if (editingRole) {
+            editRoleForm.reset({
+                name: editingRole.name,
+                permissions: editingRole.permissions,
+            });
+        }
+    }, [editingRole, editRoleForm]);
+
 
     function onAddUserSubmit(data: AddUserFormValues) {
         const newUser = {
@@ -127,10 +152,11 @@ export default function SettingsPage() {
         addUserForm.reset();
     }
 
-    function onCreateRoleSubmit(data: CreateRoleFormValues) {
-        const newRole = {
+    function onCreateRoleSubmit(data: RoleFormValues) {
+        const newRole: Role = {
             id: `role-${Math.random().toString(36).substring(2, 9)}`,
             name: data.name,
+            description: "Custom role with defined permissions.",
             permissions: data.permissions,
         };
         setRoles([...roles, newRole]);
@@ -139,7 +165,34 @@ export default function SettingsPage() {
             description: `Successfully created the ${data.name} role.`,
         });
         setIsCreateRoleOpen(false);
-        createRoleForm.reset();
+        createRoleForm.reset({ name: '', permissions: [] });
+    }
+
+    function onEditRoleSubmit(data: RoleFormValues) {
+        if (!editingRole) return;
+
+        const updatedRole: Role = {
+            ...editingRole,
+            name: data.name,
+            permissions: data.permissions,
+        };
+
+        setRoles(roles.map((r) => (r.id === editingRole.id ? updatedRole : r)));
+        toast({
+            title: "Role Updated",
+            description: `Successfully updated the ${data.name} role.`,
+        });
+        setEditingRole(null);
+    }
+
+    function handleDeleteRole() {
+        if (!roleToDelete) return;
+        setRoles(roles.filter((role) => role.id !== roleToDelete.id));
+        toast({
+            title: 'Role Deleted',
+            description: `The "${roleToDelete.name}" role has been deleted.`,
+        });
+        setRoleToDelete(null);
     }
 
 
@@ -369,30 +422,156 @@ export default function SettingsPage() {
                     </Dialog>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Role</TableHead>
-                                <TableHead>Permissions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {roles.map((role) => (
-                                <TableRow key={role.id}>
-                                    <TableCell className="font-medium">{role.name}</TableCell>
-                                    <TableCell>
-                                         <Badge variant={role.name === 'Admin' ? 'default' : 'secondary'}>
-                                            {role.permissions.length} permissions
-                                        </Badge>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                   <div className="space-y-4">
+                        {roles.map((role) => (
+                            <Card key={role.id}>
+                                <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                    <div className="flex items-center gap-4">
+                                        <Shield className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                                        <div>
+                                            <h3 className="font-semibold text-lg">{role.name}</h3>
+                                            <p className="text-sm text-muted-foreground">{role.description}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
+                                        <Button 
+                                            variant="outline" 
+                                            size="sm" 
+                                            onClick={() => setEditingRole(role)}
+                                            disabled={role.name === 'Admin'}
+                                        >
+                                            <Pencil className="mr-2 h-4 w-4" />
+                                            Edit Permissions
+                                        </Button>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            onClick={() => setRoleToDelete(role)}
+                                            disabled={role.name === 'Admin'}
+                                            aria-label="Delete role"
+                                        >
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
                 </CardContent>
             </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Edit Role Dialog */}
+      <Dialog open={!!editingRole} onOpenChange={(open) => !open && setEditingRole(null)}>
+        <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+                <DialogTitle>Edit Role: {editingRole?.name}</DialogTitle>
+                <DialogDescription>
+                    Modify the permissions for this role.
+                </DialogDescription>
+            </DialogHeader>
+            <Form {...editRoleForm}>
+                <form onSubmit={editRoleForm.handleSubmit(onEditRoleSubmit)} className="space-y-6">
+                    <FormField
+                        control={editRoleForm.control}
+                        name="name"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Role Name</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="e.g., Marketing" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={editRoleForm.control}
+                        name="permissions"
+                        render={() => (
+                            <FormItem>
+                                <div className="mb-4">
+                                    <FormLabel>Permissions</FormLabel>
+                                    <FormDescription>
+                                        Select the permissions for this role.
+                                    </FormDescription>
+                                </div>
+                                <ScrollArea className="h-72 rounded-md border">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-[180px]">Module</TableHead>
+                                            {permissionActions.map(action => <TableHead key={action}>{action}</TableHead>)}
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {permissionModules.map((module) => (
+                                            <TableRow key={module.name}>
+                                                <TableCell className="font-medium">{module.name}</TableCell>
+                                                {permissionActions.map(action => (
+                                                    <TableCell key={action} className="text-center">
+                                                        {module.permissions.includes(action) ? (
+                                                            <FormField
+                                                                control={editRoleForm.control}
+                                                                name="permissions"
+                                                                render={({ field }) => {
+                                                                    const permissionString = `${module.name}:${action}`;
+                                                                    return (
+                                                                        <FormItem className="flex items-center justify-center">
+                                                                        <FormControl>
+                                                                            <Checkbox
+                                                                                checked={field.value?.includes(permissionString)}
+                                                                                onCheckedChange={(checked) => {
+                                                                                    return checked
+                                                                                        ? field.onChange([...field.value, permissionString])
+                                                                                        : field.onChange(field.value?.filter((value) => value !== permissionString))
+                                                                                }}
+                                                                            />
+                                                                        </FormControl>
+                                                                        </FormItem>
+                                                                    )
+                                                                }}
+                                                            />
+                                                        ) : null}
+                                                    </TableCell>
+                                                ))}
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                                </ScrollArea>
+                                <FormMessage className="pt-2">{editRoleForm.formState.errors.permissions?.message}</FormMessage>
+                            </FormItem>
+                        )}
+                    />
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setEditingRole(null)}>Cancel</Button>
+                        <Button type="submit">Save Changes</Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Role Alert Dialog */}
+      <AlertDialog open={!!roleToDelete} onOpenChange={(open) => !open && setRoleToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the 
+              <span className="font-semibold"> {roleToDelete?.name} </span> 
+              role.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setRoleToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteRole}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }

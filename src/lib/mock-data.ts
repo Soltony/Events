@@ -1,4 +1,12 @@
 
+
+export interface Role {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+}
+
 export const events = [
     { id: 1, name: 'Tech Conference 2024', date: 'Oct 26, 2024', location: 'Metropolis Convention Center', image: ['https://placehold.co/600x400.png', 'https://placehold.co/600x400.png', 'https://placehold.co/600x400.png'], hint: 'tech conference', category: 'Technology', description: 'An annual conference for tech enthusiasts and professionals. Explore the latest trends in AI, software development, and cloud computing. Network with industry leaders and innovators.' },
     { id: 2, name: 'Summer Music Festival', date: 'Aug 15, 2024 - Aug 17, 2024', location: 'Greenfield Park', image: ['https://placehold.co/600x400.png'], hint: 'concert crowd', category: 'Music', description: 'A three-day outdoor music festival featuring a diverse lineup of artists from rock, pop, and electronic genres. Enjoy live music, food trucks, and art installations under the summer sky.' },
@@ -46,15 +54,17 @@ const allMockPermissions = Object.entries(permissionModulesForMock).flatMap(([mo
   actions.map(action => `${module}:${action}`)
 );
 
-export const mockRoles = [
+export const mockRoles: Role[] = [
     { 
       id: 'admin', 
       name: 'Admin', 
+      description: 'Full access to all modules and settings.',
       permissions: allMockPermissions 
     },
     { 
       id: 'event-manager', 
       name: 'Event Manager', 
+      description: 'Can create and manage events and view reports.',
       permissions: [
         'Events:Create', 'Events:Read', 'Events:Update', 'Events:Delete',
         'Attendees:Read', 'Attendees:Update',
@@ -63,12 +73,14 @@ export const mockRoles = [
     },
     { 
       id: 'support', 
-      name: 'Support', 
+      name: 'Support',
+      description: 'Can view and check in attendees.',
       permissions: ['Attendees:Read', 'Attendees:Update'] 
     },
     { 
       id: 'viewer', 
       name: 'Viewer', 
+      description: 'Can only view reports.',
       permissions: ['Reports:Read'] 
     },
 ];
