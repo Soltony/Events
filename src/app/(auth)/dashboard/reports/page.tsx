@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -18,9 +19,15 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { FileDown } from 'lucide-react';
-import { ticketTypes, promoCodes, events } from '@/lib/mock-data';
+import { ticketTypes, promoCodes } from '@/lib/mock-data';
+import { getEvents, type Event } from '@/lib/store';
 
 export default function ReportsPage() {
+    const [events, setEvents] = useState<Event[]>([]);
+
+    useEffect(() => {
+        setEvents(getEvents());
+    }, []);
     
     const promoCodeData = promoCodes.map(code => {
         let totalDiscount = 0;
