@@ -11,6 +11,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export function MainNav() {
   const pathname = usePathname();
@@ -50,6 +51,7 @@ export function MainNav() {
             <ChevronDown className={cn("ml-auto h-4 w-4 shrink-0 transition-transform duration-200", isEventsOpen && "rotate-180")} />
         </CollapsibleTrigger>
         <CollapsibleContent className="py-1">
+          <ScrollArea className="max-h-60">
             <div className="ml-4 pl-4 border-l space-y-1">
                 {events.map((event) => (
                     <Link
@@ -67,6 +69,7 @@ export function MainNav() {
                     <span className="block px-3 py-2 text-muted-foreground text-xs">No events created yet.</span>
                 )}
             </div>
+          </ScrollArea>
         </CollapsibleContent>
       </Collapsible>
       
