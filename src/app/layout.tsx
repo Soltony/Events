@@ -2,10 +2,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
-import { Logo } from '@/components/logo';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
 import { AuthProvider } from '@/context/auth-context';
+import { PublicHeader } from '@/components/public-header';
 
 export const metadata: Metadata = {
   title: 'EventFlow Tickets',
@@ -27,18 +25,7 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <AuthProvider>
           <div className="flex flex-col min-h-screen">
-              <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6">
-                  <Link href="/" className="flex items-center gap-2 font-semibold">
-                    <Logo />
-                    <span className="">EventFlow</span>
-                  </Link>
-                <div className="w-full flex-1">
-                  {/* Future Search bar can go here */}
-                </div>
-                <Button asChild>
-                    <Link href="/login">Organizer Login</Link>
-                </Button>
-              </header>
+              <PublicHeader />
               <main className="flex-1 bg-secondary">
                 <div className="container mx-auto p-4 lg:p-6">
                   {children}
