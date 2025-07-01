@@ -43,9 +43,29 @@ export const getEvents = (): Event[] => {
   const storedEvents = storage.getItem(EVENTS_STORAGE_KEY);
   if (storedEvents) {
     try {
-      return JSON.parse(storedEvents) as Event[];
+      const events: Event[] = JSON.parse(storedEvents);
+      
+      // This is a migration step to handle old data where `image` was a string.
+      // It checks if any event has a string for an image and fixes it.
+      const needsMigration = events.some(e => typeof (e as any).image === 'string');
+
+      if (needsMigration) {
+        const migratedEvents = events.map(e => {
+            if (typeof (e as any).image === 'string') {
+                return { ...e, image: [(e as any).image] };
+            }
+            return e;
+        });
+        // Save the corrected data back to localStorage to prevent this from running again.
+        storage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(migratedEvents));
+        return migratedEvents;
+      }
+
+      return events;
     } catch (e) {
-      console.error("Failed to parse events from localStorage", e);
+      console.error("Failed to parse events from localStorage, resetting data.", e);
+      // If parsing fails for any reason, reset to the initial state.
+      storage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(initialEvents));
       return initialEvents;
     }
   } else {
