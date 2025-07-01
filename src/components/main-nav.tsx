@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Ticket, PlusCircle, LineChart } from 'lucide-react';
+import { Home, Ticket, PlusCircle, LineChart, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function MainNav() {
@@ -54,6 +54,16 @@ export function MainNav() {
       >
         <LineChart className="h-4 w-4" />
         Reports
+      </Link>
+      <Link
+        href="/dashboard/settings"
+        className={cn(
+          'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+          pathname === '/dashboard/settings' && 'bg-muted text-primary'
+        )}
+      >
+        <Settings className="h-4 w-4" />
+        Settings
       </Link>
     </nav>
   );

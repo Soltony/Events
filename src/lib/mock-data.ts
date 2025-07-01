@@ -27,3 +27,17 @@ export const promoCodes = [
     { id: 2, eventId: 1, code: 'TECHVIP25', type: 'fixed', value: 25, uses: 12, maxUses: 50 },
     { id: 3, eventId: 2, code: 'SUMMER24', type: 'percentage', value: 20, uses: 100, maxUses: 200 },
 ];
+
+export const mockUsers = [
+    { id: 1, name: 'Alice Johnson', email: 'alice@example.com', role: 'Admin' },
+    { id: 2, name: 'Bob Williams', email: 'bob@example.com', role: 'Event Manager' },
+    { id: 3, name: 'Charlie Brown', email: 'charlie@example.com', role: 'Support' },
+    { id: 4, name: 'Diana Prince', email: 'diana@example.com', role: 'Event Manager' },
+];
+
+export const mockRoles = [
+    { id: 'admin', name: 'Admin', permissions: ['All Permissions'] },
+    { id: 'event-manager', name: 'Event Manager', permissions: ['Create Events', 'Edit Events', 'View Reports', 'Manage Attendees'] },
+    { id: 'support', name: 'Support', permissions: ['View Attendees', 'Check-in Attendees'] },
+    { id: 'viewer', name: 'Viewer', permissions: ['View Reports'] },
+];
