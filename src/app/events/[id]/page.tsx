@@ -1,5 +1,6 @@
 'use client';
 
+import { useParams } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -31,8 +32,9 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { cn } from "@/lib/utils";
 
-export default function EventDetailPage({ params }: { params: { id: string } }) {
-  const eventId = parseInt(params.id, 10);
+export default function EventDetailPage() {
+  const params = useParams<{ id: string }>();
+  const eventId = params.id ? parseInt(params.id, 10) : -1;
   const event = events.find((e) => e.id === eventId);
   const eventTicketTypes = ticketTypes.filter((t) => t.eventId === eventId);
   const eventAttendees = attendees.filter((a) => a.eventId === eventId);
