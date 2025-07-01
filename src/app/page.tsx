@@ -1,17 +1,22 @@
+
+'use client';
+
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlusCircle, ArrowUpRight } from "lucide-react";
 import Link from 'next/link';
 import Image from 'next/image';
 import RecommendationTool from '@/components/recommendation-tool';
-
-const events = [
-  { id: 1, name: 'Tech Conference 2024', date: '2024-10-26', location: 'Metropolis Convention Center', image: 'https://placehold.co/600x400.png', hint: 'conference technology' },
-  { id: 2, name: 'Summer Music Festival', date: '2024-08-15', location: 'Greenfield Park', image: 'https://placehold.co/600x400.png', hint: 'music festival' },
-  { id: 3, name: 'Art & Design Expo', date: '2024-11-05', location: 'The Modern Gallery', image: 'https://placehold.co/600x400.png', hint: 'art gallery' },
-];
+import { getEvents, type Event } from '@/lib/store';
 
 export default function DashboardPage() {
+  const [events, setEvents] = useState<Event[]>([]);
+
+  useEffect(() => {
+    setEvents(getEvents());
+  }, []);
+
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
       <div className="flex items-center justify-between space-y-2">

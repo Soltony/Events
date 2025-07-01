@@ -24,6 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { addEvent } from '@/lib/store';
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
@@ -48,7 +49,7 @@ export default function CreateEventPage() {
   });
 
   function onSubmit(data: EventFormValues) {
-    console.log('New event created:', data);
+    addEvent(data);
     toast({
       title: 'Event Created!',
       description: `Successfully created "${data.name}".`,

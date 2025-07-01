@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useParams } from 'next/navigation';
@@ -27,7 +28,8 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PlusCircle, DollarSign, FileDown, Ticket as TicketIcon } from 'lucide-react';
-import { events, ticketTypes, attendees, promoCodes } from '@/lib/mock-data';
+import { getEventById } from '@/lib/store';
+import { ticketTypes, attendees, promoCodes } from '@/lib/mock-data';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { cn } from "@/lib/utils";
@@ -35,7 +37,7 @@ import { cn } from "@/lib/utils";
 export default function EventDetailPage() {
   const params = useParams<{ id: string }>();
   const eventId = params.id ? parseInt(params.id, 10) : -1;
-  const event = events.find((e) => e.id === eventId);
+  const event = getEventById(eventId);
   const eventTicketTypes = ticketTypes.filter((t) => t.eventId === eventId);
   const eventAttendees = attendees.filter((a) => a.eventId === eventId);
   const eventPromoCodes = promoCodes.filter((p) => p.eventId === eventId);
