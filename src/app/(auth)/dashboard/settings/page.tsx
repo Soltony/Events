@@ -72,6 +72,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 const addUserFormSchema = z.object({
   name: z.string().min(1, { message: "Name is required." }),
   phoneNumber: z.string().min(1, { message: "Phone number is required." }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
   role: z.string({ required_error: "Please select a role." }),
 });
 
@@ -113,6 +114,7 @@ export default function SettingsPage() {
         defaultValues: {
           name: "",
           phoneNumber: "",
+          password: "",
         },
     });
 
@@ -251,6 +253,19 @@ export default function SettingsPage() {
                                         <FormLabel>Phone Number</FormLabel>
                                         <FormControl>
                                             <Input placeholder="+1234567890" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={addUserForm.control}
+                                name="password"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Password</FormLabel>
+                                        <FormControl>
+                                            <Input type="password" placeholder="••••••••" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -575,5 +590,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    
