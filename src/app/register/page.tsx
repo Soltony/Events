@@ -52,7 +52,7 @@ export default function RegisterPage() {
   async function onSubmit(data: RegisterFormValues) {
     setIsLoading(true);
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/Auth/register`, data);
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_AUTH_API_BASE_URL}/api/Auth/register`, data);
 
       if (response.data.isSuccess) {
         toast({
