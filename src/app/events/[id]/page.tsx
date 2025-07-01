@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Ticket, Calendar, MapPin } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 export default function PublicEventDetailPage() {
   const params = useParams<{ id: string }>();
@@ -79,9 +80,17 @@ export default function PublicEventDetailPage() {
   return (
     <div className="max-w-5xl mx-auto py-8">
       <Card className="overflow-hidden shadow-xl">
-        <CardHeader className="p-0">
-            <Image src={event.image} alt={event.name} width={1200} height={600} className="w-full object-cover aspect-[2/1]" data-ai-hint={event.hint} />
-        </CardHeader>
+        <Carousel className="w-full">
+            <CarouselContent>
+            {event.image.map((img, index) => (
+                <CarouselItem key={index}>
+                <Image src={img} alt={`${event.name} image ${index + 1}`} width={1200} height={600} className="w-full object-cover aspect-[2/1]" data-ai-hint={event.hint} />
+                </CarouselItem>
+            ))}
+            </CarouselContent>
+            <CarouselPrevious className="absolute left-4 hidden sm:flex" />
+            <CarouselNext className="absolute right-4 hidden sm:flex" />
+        </Carousel>
         <CardContent className="p-6 md:p-10">
             <div className="grid gap-8">
                 <div>

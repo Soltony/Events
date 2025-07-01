@@ -9,7 +9,7 @@ export interface Event {
   name: string;
   date: string;
   location: string;
-  image: string;
+  image: string[];
   hint: string;
   category: string;
   description: string;
@@ -90,7 +90,7 @@ const addTicketType = (ticketTypeData: Omit<TicketType, 'id' | 'sold'>): void =>
     storage.setItem(TICKET_TYPES_STORAGE_KEY, JSON.stringify(updatedTicketTypes));
 }
 
-export const addEvent = (eventData: { name: string; location: string; date: { from: Date; to?: Date }; category: string; description: string; tickets: { name: string; price: number; capacity: number }[] }): void => {
+export const addEvent = (eventData: { name: string; location: string; date: { from: Date; to?: Date }; category: string; description: string; images: string[]; tickets: { name: string; price: number; capacity: number }[] }): void => {
   const storage = getLocalStorage();
   if (!storage) {
     console.warn("localStorage not available, can't add event.");
@@ -110,7 +110,9 @@ export const addEvent = (eventData: { name: string; location: string; date: { fr
     name: eventData.name,
     location: eventData.location,
     date: dateString,
-    image: 'https://placehold.co/600x400.png',
+    image: eventData.images.length > 0 && eventData.images.some(img => img.length > 0)
+      ? eventData.images.filter(img => img.length > 0)
+      : ['https://placehold.co/600x400.png'],
     hint: 'event custom',
     category: eventData.category,
     description: eventData.description,

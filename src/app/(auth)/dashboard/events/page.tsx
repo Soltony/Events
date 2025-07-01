@@ -40,7 +40,7 @@ export default function ManageEventsPage() {
           events.map((event) => (
             <Card key={event.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
               <CardHeader className="p-0">
-                <Image src={event.image} alt={event.name} width={600} height={400} className="rounded-t-lg object-cover aspect-[3/2]" data-ai-hint={event.hint} />
+                <Image src={event.image[0]} alt={event.name} width={600} height={400} className="rounded-t-lg object-cover aspect-[3/2]" data-ai-hint={event.hint} />
               </CardHeader>
               <CardContent className="p-6 flex-1 space-y-2">
                 <Badge variant="outline">{event.category}</Badge>

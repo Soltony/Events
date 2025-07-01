@@ -40,6 +40,9 @@ const eventFormSchema = z.object({
     to: z.date().optional(),
   }),
   category: z.string({ required_error: 'Please select a category.' }),
+  images: z.array(z.object({
+    url: z.string().url({ message: "Please enter a valid URL." }).min(1, {message: "Image URL cannot be empty."})
+  })).min(1, { message: "Please add at least one image URL."}),
   tickets: z.array(z.object({
     name: z.string().min(1, { message: "Ticket name can't be empty."}),
     price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
@@ -60,17 +63,26 @@ export default function CreateEventPage() {
       location: '',
       description: '',
       category: '',
+      images: [{ url: 'https://placehold.co/600x400.png' }],
       tickets: [{ name: 'General Admission', price: 25, capacity: 100 }],
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields: ticketFields, append: appendTicket, remove: removeTicket } = useFieldArray({
     control: form.control,
     name: "tickets"
   });
 
+  const { fields: imageFields, append: appendImage, remove: removeImage } = useFieldArray({
+    control: form.control,
+    name: "images"
+  });
+
   function onSubmit(data: EventFormValues) {
-    addEvent(data);
+    addEvent({
+      ...data,
+      images: data.images.map(img => img.url),
+    });
     toast({
       title: 'Event Created!',
       description: `Successfully created "${data.name}".`,
@@ -220,6 +232,58 @@ export default function CreateEventPage() {
                   </FormItem>
                 )}
               />
+              
+              <Separator />
+
+              <div className="space-y-6">
+                <div>
+                    <FormLabel>Event Images</FormLabel>
+                    <FormDescription>Add one or more image URLs for your event gallery.</FormDescription>
+                    <FormMessage>{form.formState.errors.images?.message}</FormMessage>
+                </div>
+                
+                {imageFields.map((field, index) => (
+                   <Card key={field.id} className="p-4">
+                     <div className="flex gap-4 items-start">
+                      <FormField
+                          control={form.control}
+                          name={`images.${index}.url`}
+                          render={({ field }) => (
+                            <FormItem className="flex-1">
+                              <FormLabel className={cn(index !== 0 && "sr-only")}>Image URL</FormLabel>
+                              <FormControl>
+                                <Input {...field} placeholder="https://example.com/image.png" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <div className={cn("flex items-end h-full", index !== 0 && "pt-8")}>
+                          <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => removeImage(index)}
+                              disabled={imageFields.length <= 1}
+                          >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Remove image</span>
+                          </Button>
+                        </div>
+                     </div>
+                   </Card>
+                ))}
+                 <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => appendImage({ url: '' })}
+                    >
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Image URL
+                </Button>
+              </div>
+
+              <Separator />
 
               <div className="space-y-6">
                 <div>
@@ -228,7 +292,7 @@ export default function CreateEventPage() {
                     <FormMessage>{form.formState.errors.tickets?.message}</FormMessage>
                 </div>
 
-                {fields.map((field, index) => (
+                {ticketFields.map((field, index) => (
                   <Card key={field.id} className="p-4">
                     <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_120px_auto] gap-4 items-start">
                       <FormField
@@ -275,8 +339,8 @@ export default function CreateEventPage() {
                             type="button"
                             variant="outline"
                             size="icon"
-                            onClick={() => remove(index)}
-                            disabled={fields.length <= 1}
+                            onClick={() => removeTicket(index)}
+                            disabled={ticketFields.length <= 1}
                         >
                             <Trash2 className="h-4 w-4" />
                             <span className="sr-only">Remove tier</span>
@@ -288,7 +352,7 @@ export default function CreateEventPage() {
                  <Button
                     type="button"
                     variant="outline"
-                    onClick={() => append({ name: '', price: 0, capacity: 50 })}
+                    onClick={() => appendTicket({ name: '', price: 0, capacity: 50 })}
                     >
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Add Ticket Tier
