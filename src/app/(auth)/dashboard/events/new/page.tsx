@@ -2,11 +2,11 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -27,6 +27,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { addEvent } from '@/lib/store';
+import { Separator } from '@/components/ui/separator';
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
@@ -36,8 +37,11 @@ const eventFormSchema = z.object({
     required_error: 'A date for the event is required.',
   }),
   category: z.string({ required_error: 'Please select a category.' }),
-  price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
-  capacity: z.coerce.number().int().min(1, { message: 'Capacity must be at least 1.' }),
+  tickets: z.array(z.object({
+    name: z.string().min(1, { message: "Ticket name can't be empty."}),
+    price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
+    capacity: z.coerce.number().int().min(1, { message: 'Capacity must be at least 1.' }),
+  })).min(1, { message: 'You must have at least one ticket tier.'}),
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -53,9 +57,13 @@ export default function CreateEventPage() {
       location: '',
       description: '',
       category: '',
-      price: 0,
-      capacity: 100,
+      tickets: [{ name: 'General Admission', price: 25, capacity: 100 }],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "tickets"
   });
 
   function onSubmit(data: EventFormValues) {
@@ -64,7 +72,7 @@ export default function CreateEventPage() {
       title: 'Event Created!',
       description: `Successfully created "${data.name}".`,
     });
-    router.push('/dashboard');
+    router.push('/dashboard/events');
   }
 
   return (
@@ -157,40 +165,6 @@ export default function CreateEventPage() {
                   </FormItem>
                 )}
               />
-              <div className="grid md:grid-cols-2 gap-4">
-                <FormField
-                    control={form.control}
-                    name="price"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Price</FormLabel>
-                        <FormControl>
-                            <Input type="number" placeholder="e.g., 25" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                            The price for a general admission ticket.
-                        </FormDescription>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="capacity"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Capacity</FormLabel>
-                        <FormControl>
-                            <Input type="number" placeholder="e.g., 500" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                            Total number of tickets available.
-                        </FormDescription>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-              </div>
               <FormField
                 control={form.control}
                 name="date"
@@ -235,6 +209,83 @@ export default function CreateEventPage() {
                   </FormItem>
                 )}
               />
+
+              <div className="space-y-6">
+                <div>
+                    <FormLabel>Ticket Tiers</FormLabel>
+                    <FormDescription>Create one or more ticket types for your event.</FormDescription>
+                    <FormMessage>{form.formState.errors.tickets?.message}</FormMessage>
+                </div>
+
+                {fields.map((field, index) => (
+                  <Card key={field.id} className="p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_120px_auto] gap-4 items-start">
+                      <FormField
+                        control={form.control}
+                        name={`tickets.${index}.name`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className={cn(index !== 0 && "sr-only")}>Ticket Name</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="e.g., VIP Pass" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`tickets.${index}.price`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className={cn(index !== 0 && "sr-only")}>Price</FormLabel>
+                            <FormControl>
+                              <Input type="number" {...field} placeholder="e.g., 50" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`tickets.${index}.capacity`}
+                        render={({ field }) => (
+                          <FormItem>
+                             <FormLabel className={cn(index !== 0 && "sr-only")}>Quantity</FormLabel>
+                            <FormControl>
+                              <Input type="number" {...field} placeholder="e.g., 100"/>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className={cn("flex items-end h-full", index !== 0 && "pt-8")}>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => remove(index)}
+                            disabled={fields.length <= 1}
+                        >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Remove tier</span>
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+                 <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => append({ name: '', price: 0, capacity: 50 })}
+                    >
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Ticket Tier
+                </Button>
+              </div>
+
+              <Separator />
+
               <Button type="submit">Create Event</Button>
             </form>
           </Form>

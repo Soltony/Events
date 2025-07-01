@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -28,7 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { PlusCircle, DollarSign, FileDown, Ticket as TicketIcon } from 'lucide-react';
+import { PlusCircle, DollarSign, FileDown, Ticket as TicketIcon, ArrowLeft } from 'lucide-react';
 import { getEventById, type Event, getTicketTypes, type TicketType } from '@/lib/store';
 import { attendees, promoCodes } from '@/lib/mock-data';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
@@ -38,6 +38,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import RecommendationTool from '@/components/recommendation-tool';
 
 export default function EventDetailPage() {
+  const router = useRouter();
   const params = useParams<{ id: string }>();
   const eventId = params.id ? parseInt(params.id, 10) : -1;
   const [event, setEvent] = useState<Event | undefined | null>(null);
@@ -123,8 +124,12 @@ export default function EventDetailPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
-      <div className="flex items-center justify-between">
-        <div>
+       <div className="flex items-center gap-4">
+        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
+          <ArrowLeft className="h-4 w-4" />
+          <span className="sr-only">Back</span>
+        </Button>
+        <div className="flex-1">
             <h1 className="text-3xl font-bold tracking-tight">{event.name}</h1>
             <p className="text-muted-foreground">{event.date} at {event.location}</p>
         </div>

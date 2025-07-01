@@ -90,7 +90,7 @@ const addTicketType = (ticketTypeData: Omit<TicketType, 'id' | 'sold'>): void =>
     storage.setItem(TICKET_TYPES_STORAGE_KEY, JSON.stringify(updatedTicketTypes));
 }
 
-export const addEvent = (eventData: { name: string; location: string; date: Date, category: string, description: string, price: number, capacity: number }): void => {
+export const addEvent = (eventData: { name: string; location: string; date: Date, category: string, description: string, tickets: { name: string; price: number; capacity: number }[] }): void => {
   const storage = getLocalStorage();
   if (!storage) {
     console.warn("localStorage not available, can't add event.");
@@ -112,11 +112,13 @@ export const addEvent = (eventData: { name: string; location: string; date: Date
   const updatedEvents = [...events, newEvent];
   storage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(updatedEvents));
 
-  addTicketType({
-      eventId: newEventId,
-      name: 'General Admission',
-      price: eventData.price,
-      total: eventData.capacity,
+  eventData.tickets.forEach(ticket => {
+    addTicketType({
+        eventId: newEventId,
+        name: ticket.name,
+        price: ticket.price,
+        total: ticket.capacity,
+    });
   });
 };
 
