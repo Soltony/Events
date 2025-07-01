@@ -1,7 +1,7 @@
 
 'use client';
 
-import { events as initialEvents } from '@/lib/mock-data';
+import { events as initialEvents, ticketTypes as initialTicketTypes } from '@/lib/mock-data';
 import { format } from 'date-fns';
 
 export interface Event {
@@ -15,7 +15,17 @@ export interface Event {
   description: string;
 }
 
+export interface TicketType {
+  id: number;
+  eventId: number;
+  name: string;
+  price: number;
+  sold: number;
+  total: number;
+}
+
 const EVENTS_STORAGE_KEY = 'events-app-storage';
+const TICKET_TYPES_STORAGE_KEY = 'ticket-types-app-storage';
 
 const getLocalStorage = () => {
   if (typeof window !== 'undefined' && window.localStorage) {
@@ -44,7 +54,43 @@ export const getEvents = (): Event[] => {
   }
 };
 
-export const addEvent = (eventData: { name: string; location: string; date: Date, category: string, description: string }): void => {
+export const getTicketTypes = (): TicketType[] => {
+  const storage = getLocalStorage();
+  if (!storage) {
+    return initialTicketTypes;
+  }
+
+  const storedTicketTypes = storage.getItem(TICKET_TYPES_STORAGE_KEY);
+  if (storedTicketTypes) {
+    try {
+      return JSON.parse(storedTicketTypes) as TicketType[];
+    } catch (e) {
+      console.error("Failed to parse ticket types from localStorage", e);
+      return initialTicketTypes;
+    }
+  } else {
+    storage.setItem(TICKET_TYPES_STORAGE_KEY, JSON.stringify(initialTicketTypes));
+    return initialTicketTypes;
+  }
+};
+
+const addTicketType = (ticketTypeData: Omit<TicketType, 'id' | 'sold'>): void => {
+    const storage = getLocalStorage();
+    if (!storage) {
+        console.warn("localStorage not available, can't add ticket type.");
+        return;
+    }
+    const ticketTypes = getTicketTypes();
+    const newTicketType: TicketType = {
+        id: ticketTypes.length > 0 ? Math.max(...ticketTypes.map(t => t.id)) + 1 : 1,
+        sold: 0,
+        ...ticketTypeData,
+    };
+    const updatedTicketTypes = [...ticketTypes, newTicketType];
+    storage.setItem(TICKET_TYPES_STORAGE_KEY, JSON.stringify(updatedTicketTypes));
+}
+
+export const addEvent = (eventData: { name: string; location: string; date: Date, category: string, description: string, price: number, capacity: number }): void => {
   const storage = getLocalStorage();
   if (!storage) {
     console.warn("localStorage not available, can't add event.");
@@ -52,8 +98,9 @@ export const addEvent = (eventData: { name: string; location: string; date: Date
   }
 
   const events = getEvents();
+  const newEventId = events.length > 0 ? Math.max(...events.map(e => e.id)) + 1 : 1;
   const newEvent: Event = {
-    id: events.length > 0 ? Math.max(...events.map(e => e.id)) + 1 : 1,
+    id: newEventId,
     name: eventData.name,
     location: eventData.location,
     date: format(eventData.date, 'yyyy-MM-dd'),
@@ -64,6 +111,13 @@ export const addEvent = (eventData: { name: string; location: string; date: Date
   };
   const updatedEvents = [...events, newEvent];
   storage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(updatedEvents));
+
+  addTicketType({
+      eventId: newEventId,
+      name: 'General Admission',
+      price: eventData.price,
+      total: eventData.capacity,
+  });
 };
 
 export const getEventById = (id: number): Event | undefined => {

@@ -29,8 +29,8 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PlusCircle, DollarSign, FileDown, Ticket as TicketIcon } from 'lucide-react';
-import { getEventById, type Event } from '@/lib/store';
-import { ticketTypes, attendees, promoCodes } from '@/lib/mock-data';
+import { getEventById, type Event, getTicketTypes, type TicketType } from '@/lib/store';
+import { attendees, promoCodes } from '@/lib/mock-data';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { cn } from "@/lib/utils";
@@ -41,20 +41,22 @@ export default function EventDetailPage() {
   const params = useParams<{ id: string }>();
   const eventId = params.id ? parseInt(params.id, 10) : -1;
   const [event, setEvent] = useState<Event | undefined | null>(null);
+  const [eventTicketTypes, setEventTicketTypes] = useState<TicketType[]>([]);
+  const [eventAttendees, setEventAttendees] = useState(attendees.filter((a) => a.eventId === eventId));
+  const [eventPromoCodes, setEventPromoCodes] = useState(promoCodes.filter((p) => p.eventId === eventId));
+
 
   useEffect(() => {
     if (eventId !== -1) {
       const foundEvent = getEventById(eventId);
       setEvent(foundEvent);
+      const allTicketTypes = getTicketTypes();
+      setEventTicketTypes(allTicketTypes.filter((t) => t.eventId === eventId));
     } else {
         setEvent(undefined);
     }
   }, [eventId]);
 
-  const eventTicketTypes = ticketTypes.filter((t) => t.eventId === eventId);
-  const eventAttendees = attendees.filter((a) => a.eventId === eventId);
-  const eventPromoCodes = promoCodes.filter((p) => p.eventId === eventId);
-  
   if (event === null) {
     return (
         <div className="flex flex-1 flex-col gap-4 md:gap-8 p-4 lg:p-6">

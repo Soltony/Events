@@ -36,6 +36,8 @@ const eventFormSchema = z.object({
     required_error: 'A date for the event is required.',
   }),
   category: z.string({ required_error: 'Please select a category.' }),
+  price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
+  capacity: z.coerce.number().int().min(1, { message: 'Capacity must be at least 1.' }),
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -51,6 +53,8 @@ export default function CreateEventPage() {
       location: '',
       description: '',
       category: '',
+      price: 0,
+      capacity: 100,
     },
   });
 
@@ -153,6 +157,40 @@ export default function CreateEventPage() {
                   </FormItem>
                 )}
               />
+              <div className="grid md:grid-cols-2 gap-4">
+                <FormField
+                    control={form.control}
+                    name="price"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Price</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="e.g., 25" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                            The price for a general admission ticket.
+                        </FormDescription>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="capacity"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Capacity</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="e.g., 500" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                            Total number of tickets available.
+                        </FormDescription>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+              </div>
               <FormField
                 control={form.control}
                 name="date"

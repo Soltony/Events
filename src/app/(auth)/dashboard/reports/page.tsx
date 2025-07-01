@@ -19,14 +19,16 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { FileDown } from 'lucide-react';
-import { ticketTypes, promoCodes } from '@/lib/mock-data';
-import { getEvents, type Event } from '@/lib/store';
+import { promoCodes } from '@/lib/mock-data';
+import { getEvents, type Event, getTicketTypes, type TicketType } from '@/lib/store';
 
 export default function ReportsPage() {
     const [events, setEvents] = useState<Event[]>([]);
+    const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
 
     useEffect(() => {
         setEvents(getEvents());
+        setTicketTypes(getTicketTypes());
     }, []);
     
     const promoCodeData = promoCodes.map(code => {

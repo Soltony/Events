@@ -3,8 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { getEventById, type Event } from '@/lib/store';
-import { ticketTypes } from '@/lib/mock-data';
+import { getEventById, type Event, getTicketTypes, type TicketType } from '@/lib/store';
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,11 +15,14 @@ export default function PublicEventDetailPage() {
   const params = useParams<{ id: string }>();
   const eventId = params.id ? parseInt(params.id, 10) : -1;
   const [event, setEvent] = useState<Event | undefined | null>(null);
+  const [eventTicketTypes, setEventTicketTypes] = useState<TicketType[]>([]);
 
   useEffect(() => {
     if (eventId !== -1) {
       const foundEvent = getEventById(eventId);
       setEvent(foundEvent);
+      const allTicketTypes = getTicketTypes();
+      setEventTicketTypes(allTicketTypes.filter((t) => t.eventId === eventId));
     } else {
       setEvent(undefined);
     }
@@ -74,8 +76,6 @@ export default function PublicEventDetailPage() {
     );
   }
   
-  const eventTicketTypes = ticketTypes.filter((t) => t.eventId === event.id);
-
   return (
     <div className="max-w-5xl mx-auto py-8">
       <Card className="overflow-hidden shadow-xl">

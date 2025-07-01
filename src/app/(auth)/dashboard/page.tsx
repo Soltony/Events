@@ -6,16 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlusCircle, DollarSign, Ticket as TicketIcon, Calendar as CalendarIcon } from "lucide-react";
 import Link from 'next/link';
-import { getEvents, type Event } from '@/lib/store';
-import { ticketTypes } from '@/lib/mock-data';
+import { getEvents, type Event, getTicketTypes, type TicketType } from '@/lib/store';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 
 export default function DashboardPage() {
   const [events, setEvents] = useState<Event[]>([]);
+  const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
 
   useEffect(() => {
     setEvents(getEvents());
+    setTicketTypes(getTicketTypes());
   }, []);
 
   const totalRevenue = ticketTypes.reduce((sum, t) => sum + (t.sold * t.price), 0);
