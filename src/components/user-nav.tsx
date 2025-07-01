@@ -38,7 +38,7 @@ export function UserNav() {
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">Organizer</p>
             <p className="text-xs leading-none text-muted-foreground">
-              organizer@example.com
+              0912345678
             </p>
           </div>
         </DropdownMenuLabel>
@@ -53,3 +53,5 @@ export function UserNav() {
     </DropdownMenu>
   );
 }
+
+    

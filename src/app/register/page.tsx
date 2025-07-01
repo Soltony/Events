@@ -26,7 +26,6 @@ import { useToast } from '@/hooks/use-toast';
 const registerFormSchema = z.object({
   firstName: z.string().min(1, { message: 'First name is required.' }),
   lastName: z.string().min(1, { message: 'Last name is required.' }),
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
   phoneNumber: z.string().min(1, { message: 'Phone number is required.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
 });
@@ -43,7 +42,6 @@ export default function RegisterPage() {
     defaultValues: {
       firstName: '',
       lastName: '',
-      email: '',
       phoneNumber: '',
       password: '',
     },
@@ -106,14 +104,6 @@ export default function RegisterPage() {
                   )}
                 />
               </div>
-               <FormField control={form.control} name="email" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl><Input type="email" placeholder="you@example.com" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               <FormField control={form.control} name="phoneNumber" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Phone Number</FormLabel>
@@ -147,3 +137,5 @@ export default function RegisterPage() {
     </div>
   );
 }
+
+    

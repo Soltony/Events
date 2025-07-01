@@ -37,10 +37,10 @@ export const promoCodes = [
 ];
 
 export const mockUsers = [
-    { id: 1, name: 'Alice Johnson', email: 'alice@example.com', role: 'Admin' },
-    { id: 2, name: 'Bob Williams', email: 'bob@example.com', role: 'Event Manager' },
-    { id: 3, name: 'Charlie Brown', email: 'charlie@example.com', role: 'Support' },
-    { id: 4, name: 'Diana Prince', email: 'diana@example.com', role: 'Event Manager' },
+    { id: 1, name: 'Alice Johnson', phoneNumber: '0912345671', role: 'Admin' },
+    { id: 2, name: 'Bob Williams', phoneNumber: '0912345672', role: 'Event Manager' },
+    { id: 3, name: 'Charlie Brown', phoneNumber: '0912345673', role: 'Support' },
+    { id: 4, name: 'Diana Prince', phoneNumber: '0912345674', role: 'Event Manager' },
 ];
 
 const permissionModulesForMock = {
@@ -84,3 +84,5 @@ export const mockRoles: Role[] = [
       permissions: ['Reports:Read'] 
     },
 ];
+
+    

@@ -71,7 +71,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 const addUserFormSchema = z.object({
   name: z.string().min(1, { message: "Name is required." }),
-  email: z.string().email({ message: "Please enter a valid email." }),
+  phoneNumber: z.string().min(1, { message: "Phone number is required." }),
   role: z.string({ required_error: "Please select a role." }),
 });
 
@@ -112,7 +112,7 @@ export default function SettingsPage() {
         resolver: zodResolver(addUserFormSchema),
         defaultValues: {
           name: "",
-          email: "",
+          phoneNumber: "",
         },
     });
 
@@ -245,12 +245,12 @@ export default function SettingsPage() {
                             />
                              <FormField
                                 control={addUserForm.control}
-                                name="email"
+                                name="phoneNumber"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Email</FormLabel>
+                                        <FormLabel>Phone Number</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="john.doe@example.com" {...field} />
+                                            <Input placeholder="+1234567890" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -292,7 +292,7 @@ export default function SettingsPage() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Name</TableHead>
-                                <TableHead>Email</TableHead>
+                                <TableHead>Phone Number</TableHead>
                                 <TableHead className="w-[180px]">Role</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -300,7 +300,7 @@ export default function SettingsPage() {
                             {users.map((user) => (
                                 <TableRow key={user.id}>
                                     <TableCell className="font-medium">{user.name}</TableCell>
-                                    <TableCell>{user.email}</TableCell>
+                                    <TableCell>{user.phoneNumber}</TableCell>
                                     <TableCell>
                                         <Select value={user.role} onValueChange={(newRole) => handleRoleChange(user.id, newRole)}>
                                             <SelectTrigger>
@@ -575,3 +575,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
