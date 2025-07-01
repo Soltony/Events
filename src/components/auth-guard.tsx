@@ -1,28 +1,25 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/context/auth-context';
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const { isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
-    // This check ensures localStorage is accessed only on the client side.
-    if (typeof window !== 'undefined') {
-      const isOrganizer = localStorage.getItem('isOrganizer') === 'true';
-      if (!isOrganizer) {
-        router.replace('/login');
-      } else {
-        setIsAuthenticated(true);
-      }
+    // If loading is finished and user is not authenticated, redirect to login.
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/login');
     }
-  }, [router]);
+  }, [router, isAuthenticated, isLoading]);
 
-  // Render a loading state while we verify authentication.
-  if (isAuthenticated === null) {
+  // While loading auth state or if not authenticated (and about to be redirected),
+  // show a loading skeleton to prevent flashing the protected content.
+  if (isLoading || !isAuthenticated) {
     return (
         <div className="p-4 lg:p-6">
             <div className="space-y-4">
@@ -38,5 +35,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     )
   }
 
+  // If authenticated, render the children.
   return <>{children}</>;
 }

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,17 +12,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
 
 export function UserNav() {
-  const router = useRouter();
+  const { logout } = useAuth();
 
-  const handleLogout = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('isOrganizer');
-      router.push('/');
-      router.refresh();
-    }
+  const handleLogout = async () => {
+    await logout();
   };
 
   return (
