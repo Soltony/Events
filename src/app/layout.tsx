@@ -34,7 +34,7 @@ export default function RootLayout({
                 {/* Future Search bar can go here */}
               </div>
               <Button asChild>
-                  <Link href="/dashboard">Organizer Login</Link>
+                  <Link href="/login">Organizer Login</Link>
               </Button>
             </header>
             <main className="flex-1 bg-muted/40">
