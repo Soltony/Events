@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Ticket, PlusCircle, ChevronDown } from 'lucide-react';
+import { Home, Ticket, PlusCircle, ChevronDown, LineChart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { getEvents, type Event } from '@/lib/store';
@@ -83,6 +83,17 @@ export function MainNav() {
       >
         <PlusCircle className="h-4 w-4" />
         Create Event
+      </Link>
+      
+      <Link
+        href="/dashboard/reports"
+        className={cn(
+          'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+          pathname === '/dashboard/reports' && 'bg-muted text-primary'
+        )}
+      >
+        <LineChart className="h-4 w-4" />
+        Reports
       </Link>
     </nav>
   );
