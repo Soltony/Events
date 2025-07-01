@@ -3,7 +3,6 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/auth-context';
-import { PublicHeader } from '@/components/public-header';
 
 export const metadata: Metadata = {
   title: 'EventFlow Tickets',
@@ -25,7 +24,6 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <AuthProvider>
           <div className="flex flex-col min-h-screen">
-              <PublicHeader />
               <main className="flex-1 bg-secondary">
                 <div className="container mx-auto p-4 lg:p-6">
                   {children}
