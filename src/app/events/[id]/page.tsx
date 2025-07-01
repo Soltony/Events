@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import {
   Card,
@@ -28,19 +29,59 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PlusCircle, DollarSign, FileDown, Ticket as TicketIcon } from 'lucide-react';
-import { getEventById } from '@/lib/store';
+import { getEventById, type Event } from '@/lib/store';
 import { ticketTypes, attendees, promoCodes } from '@/lib/mock-data';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { cn } from "@/lib/utils";
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function EventDetailPage() {
   const params = useParams<{ id: string }>();
   const eventId = params.id ? parseInt(params.id, 10) : -1;
-  const event = getEventById(eventId);
+  const [event, setEvent] = useState<Event | undefined | null>(null);
+
+  useEffect(() => {
+    if (eventId !== -1) {
+      const foundEvent = getEventById(eventId);
+      setEvent(foundEvent);
+    } else {
+        setEvent(undefined);
+    }
+  }, [eventId]);
+
   const eventTicketTypes = ticketTypes.filter((t) => t.eventId === eventId);
   const eventAttendees = attendees.filter((a) => a.eventId === eventId);
   const eventPromoCodes = promoCodes.filter((p) => p.eventId === eventId);
+  
+  if (event === null) {
+    return (
+        <div className="flex flex-1 flex-col gap-4 md:gap-8 p-4 lg:p-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <Skeleton className="h-8 w-64 mb-2" />
+                    <Skeleton className="h-5 w-48" />
+                </div>
+                <Skeleton className="h-10 w-32" />
+            </div>
+            <Skeleton className="h-10 w-full" />
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Card><CardHeader className="space-y-2"><Skeleton className="h-5 w-24" /><Skeleton className="h-6 w-32" /></CardHeader><CardContent><Skeleton className="h-4 w-20" /></CardContent></Card>
+                <Card><CardHeader className="space-y-2"><Skeleton className="h-5 w-24" /><Skeleton className="h-6 w-32" /></CardHeader><CardContent><Skeleton className="h-4 w-20" /></CardContent></Card>
+                <Card><CardHeader className="space-y-2"><Skeleton className="h-5 w-24" /><Skeleton className="h-4 w-12" /></CardHeader><CardContent><Skeleton className="h-4 w-full" /></CardContent></Card>
+            </div>
+            <Card>
+                <CardHeader>
+                    <Skeleton className="h-7 w-48 mb-2" />
+                    <Skeleton className="h-4 w-80" />
+                </CardHeader>
+                <CardContent>
+                    <Skeleton className="min-h-[300px] w-full" />
+                </CardContent>
+            </Card>
+        </div>
+    );
+  }
 
   if (!event) {
     return (
