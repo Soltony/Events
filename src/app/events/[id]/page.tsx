@@ -29,13 +29,33 @@ export default function PublicEventDetailPage() {
   // Loading state
   if (event === null) {
     return (
-        <div className="max-w-4xl mx-auto">
-            <Skeleton className="w-full h-96 rounded-lg" />
-            <div className="mt-8 space-y-4">
-                <Skeleton className="h-10 w-3/4" />
-                <Skeleton className="h-6 w-1/2" />
-                <Skeleton className="h-20 w-full" />
-            </div>
+        <div className="max-w-5xl mx-auto py-8">
+            <Card className="overflow-hidden shadow-xl">
+              <Skeleton className="w-full h-[300px] md:h-[500px]" />
+              <CardContent className="p-6 md:p-10">
+                <div className="space-y-8">
+                  <div className="space-y-4">
+                    <Skeleton className="h-6 w-24 rounded-full" />
+                    <Skeleton className="h-12 w-3/4" />
+                    <div className="flex gap-6">
+                      <Skeleton className="h-6 w-48" />
+                      <Skeleton className="h-6 w-48" />
+                    </div>
+                  </div>
+                  <div className="border-t pt-8 space-y-4">
+                    <Skeleton className="h-8 w-64" />
+                    <Skeleton className="h-5 w-full" />
+                    <Skeleton className="h-5 w-full" />
+                    <Skeleton className="h-5 w-2/3" />
+                  </div>
+                  <div className="border-t pt-8 space-y-6">
+                    <Skeleton className="h-8 w-48" />
+                    <Skeleton className="h-32 w-full rounded-lg" />
+                    <Skeleton className="h-32 w-full rounded-lg" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
         </div>
     );
   }
@@ -43,8 +63,8 @@ export default function PublicEventDetailPage() {
   // Not found state
   if (!event) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Card>
+      <div className="flex items-center justify-center h-full py-20">
+        <Card className="p-8">
           <CardHeader>
             <CardTitle>Event Not Found</CardTitle>
             <CardDescription>The event you are looking for does not exist.</CardDescription>
@@ -57,42 +77,42 @@ export default function PublicEventDetailPage() {
   const eventTicketTypes = ticketTypes.filter((t) => t.eventId === event.id);
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <Card className="overflow-hidden">
+    <div className="max-w-5xl mx-auto py-8">
+      <Card className="overflow-hidden shadow-xl">
         <CardHeader className="p-0">
             <Image src={event.image} alt={event.name} width={1200} height={600} className="w-full object-cover aspect-[2/1]" data-ai-hint={event.hint} />
         </CardHeader>
-        <CardContent className="p-6 md:p-8">
-            <div className="grid gap-6">
+        <CardContent className="p-6 md:p-10">
+            <div className="grid gap-8">
                 <div>
-                    <Badge variant="outline" className="mb-2">{event.category}</Badge>
-                    <h1 className="text-4xl font-bold tracking-tight">{event.name}</h1>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-muted-foreground mt-2">
+                    <Badge variant="outline" className="mb-4 text-sm">{event.category}</Badge>
+                    <h1 className="text-4xl md:text-5xl font-bold tracking-tight">{event.name}</h1>
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-muted-foreground mt-4 text-lg">
                         <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
+                            <Calendar className="h-5 w-5" />
                             <span>{event.date}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4" />
+                            <MapPin className="h-5 w-5" />
                             <span>{event.location}</span>
                         </div>
                     </div>
                 </div>
 
-                <div>
-                    <h2 className="text-2xl font-semibold mb-2">About this Event</h2>
-                    <p className="text-muted-foreground whitespace-pre-wrap">{event.description}</p>
+                <div className="border-t pt-8">
+                    <h2 className="text-3xl font-semibold mb-4">About this Event</h2>
+                    <p className="text-base text-muted-foreground whitespace-pre-wrap leading-relaxed">{event.description}</p>
                 </div>
 
-                <div>
-                    <h2 className="text-2xl font-semibold mb-4">Tickets</h2>
+                <div className="border-t pt-8">
+                    <h2 className="text-3xl font-semibold mb-6">Tickets</h2>
                     <div className="space-y-4">
                         {eventTicketTypes.length > 0 ? (
                             eventTicketTypes.map(ticket => (
-                                <Card key={ticket.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4">
+                                <Card key={ticket.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 bg-secondary border-2 border-transparent hover:border-primary transition-colors">
                                     <div className="mb-4 md:mb-0">
-                                        <h3 className="font-bold text-lg">{ticket.name}</h3>
-                                        <p className="text-primary font-semibold text-xl">${ticket.price.toFixed(2)}</p>
+                                        <h3 className="font-bold text-xl">{ticket.name}</h3>
+                                        <p className="text-primary font-bold text-2xl">${ticket.price.toFixed(2)}</p>
                                         <p className="text-sm text-muted-foreground">{ticket.total - ticket.sold} tickets remaining</p>
                                     </div>
                                     <Button size="lg">

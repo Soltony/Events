@@ -37,7 +37,7 @@ export default function RootLayout({
                   <Link href="/login">Organizer Login</Link>
               </Button>
             </header>
-            <main className="flex-1 bg-muted/40">
+            <main className="flex-1 bg-secondary">
               <div className="container mx-auto p-4 lg:p-6">
                 {children}
               </div>

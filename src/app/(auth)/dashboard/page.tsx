@@ -79,7 +79,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
         {events.length > 0 ? (
           events.map((event) => (
-            <Card key={event.id} className="flex flex-col">
+            <Card key={event.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
               <CardHeader className="p-0">
                 <Image src={event.image} alt={event.name} width={600} height={400} className="rounded-t-lg object-cover aspect-[3/2]" data-ai-hint={event.hint} />
               </CardHeader>
