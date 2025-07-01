@@ -35,9 +35,40 @@ export const mockUsers = [
     { id: 4, name: 'Diana Prince', email: 'diana@example.com', role: 'Event Manager' },
 ];
 
+const permissionModulesForMock = {
+  'Events': ['Create', 'Read', 'Update', 'Delete'],
+  'Attendees': ['Read', 'Update'],
+  'Reports': ['Read'],
+  'Users & Roles': ['Create', 'Read', 'Update', 'Delete']
+};
+
+const allMockPermissions = Object.entries(permissionModulesForMock).flatMap(([module, actions]) =>
+  actions.map(action => `${module}:${action}`)
+);
+
 export const mockRoles = [
-    { id: 'admin', name: 'Admin', permissions: ['All Permissions'] },
-    { id: 'event-manager', name: 'Event Manager', permissions: ['Create Events', 'Edit Events', 'View Reports', 'Manage Attendees'] },
-    { id: 'support', name: 'Support', permissions: ['View Attendees', 'Check-in Attendees'] },
-    { id: 'viewer', name: 'Viewer', permissions: ['View Reports'] },
+    { 
+      id: 'admin', 
+      name: 'Admin', 
+      permissions: allMockPermissions 
+    },
+    { 
+      id: 'event-manager', 
+      name: 'Event Manager', 
+      permissions: [
+        'Events:Create', 'Events:Read', 'Events:Update', 'Events:Delete',
+        'Attendees:Read', 'Attendees:Update',
+        'Reports:Read'
+      ] 
+    },
+    { 
+      id: 'support', 
+      name: 'Support', 
+      permissions: ['Attendees:Read', 'Attendees:Update'] 
+    },
+    { 
+      id: 'viewer', 
+      name: 'Viewer', 
+      permissions: ['Reports:Read'] 
+    },
 ];

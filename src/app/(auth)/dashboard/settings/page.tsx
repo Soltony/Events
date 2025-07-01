@@ -58,6 +58,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { PlusCircle } from 'lucide-react';
 import { mockUsers, mockRoles } from '@/lib/mock-data';
 import { useToast } from "@/hooks/use-toast"
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 const addUserFormSchema = z.object({
   name: z.string().min(1, { message: "Name is required." }),
@@ -67,7 +69,13 @@ const addUserFormSchema = z.object({
 
 type AddUserFormValues = z.infer<typeof addUserFormSchema>;
 
-const allPermissions = ['All Permissions', 'Create Events', 'Edit Events', 'View Reports', 'Manage Attendees', 'View Attendees', 'Check-in Attendees'];
+const permissionModules = [
+    { name: 'Events', permissions: ['Create', 'Read', 'Update', 'Delete'] },
+    { name: 'Attendees', permissions: ['Read', 'Update'] },
+    { name: 'Reports', permissions: ['Read'] },
+    { name: 'Users & Roles', permissions: ['Create', 'Read', 'Update', 'Delete'] }
+];
+const permissionActions = ['Create', 'Read', 'Update', 'Delete'];
 
 const createRoleFormSchema = z.object({
     name: z.string().min(1, { message: "Role name is required." }),
@@ -270,11 +278,11 @@ export default function SettingsPage() {
                       <DialogTrigger asChild>
                         <Button><PlusCircle className="mr-2 h-4 w-4" /> Create Role</Button>
                       </DialogTrigger>
-                      <DialogContent className="sm:max-w-[425px]">
+                      <DialogContent className="sm:max-w-2xl">
                           <DialogHeader>
                               <DialogTitle>Create New Role</DialogTitle>
                               <DialogDescription>
-                                  Define a new role and set its permissions.
+                                  Define a new role and select the permissions for it.
                               </DialogDescription>
                           </DialogHeader>
                           <Form {...createRoleForm}>
@@ -303,41 +311,51 @@ export default function SettingsPage() {
                                                         Select the permissions for this new role.
                                                     </FormDescription>
                                                 </div>
-                                                <div className="space-y-2">
-                                                {allPermissions.map((permission) => (
-                                                    <FormField
-                                                        key={permission}
-                                                        control={createRoleForm.control}
-                                                        name="permissions"
-                                                        render={({ field }) => {
-                                                            return (
-                                                                <FormItem
-                                                                    key={permission}
-                                                                    className="flex flex-row items-start space-x-3 space-y-0"
-                                                                >
-                                                                    <FormControl>
-                                                                        <Checkbox
-                                                                            checked={field.value?.includes(permission)}
-                                                                            onCheckedChange={(checked) => {
-                                                                                const updatedPermissions = checked
-                                                                                    ? [...field.value, permission]
-                                                                                    : field.value?.filter(
-                                                                                        (value) => value !== permission
-                                                                                    );
-                                                                                field.onChange(updatedPermissions);
-                                                                            }}
-                                                                        />
-                                                                    </FormControl>
-                                                                    <FormLabel className="font-normal">
-                                                                        {permission}
-                                                                    </FormLabel>
-                                                                </FormItem>
-                                                            )
-                                                        }}
-                                                    />
-                                                ))}
-                                                </div>
-                                                <FormMessage />
+                                                <ScrollArea className="h-72 rounded-md border">
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead className="w-[180px]">Module</TableHead>
+                                                            {permissionActions.map(action => <TableHead key={action}>{action}</TableHead>)}
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {permissionModules.map((module) => (
+                                                            <TableRow key={module.name}>
+                                                                <TableCell className="font-medium">{module.name}</TableCell>
+                                                                {permissionActions.map(action => (
+                                                                    <TableCell key={action} className="text-center">
+                                                                        {module.permissions.includes(action) ? (
+                                                                            <FormField
+                                                                                control={createRoleForm.control}
+                                                                                name="permissions"
+                                                                                render={({ field }) => {
+                                                                                    const permissionString = `${module.name}:${action}`;
+                                                                                    return (
+                                                                                        <FormItem className="flex items-center justify-center">
+                                                                                        <FormControl>
+                                                                                            <Checkbox
+                                                                                                checked={field.value?.includes(permissionString)}
+                                                                                                onCheckedChange={(checked) => {
+                                                                                                    return checked
+                                                                                                        ? field.onChange([...field.value, permissionString])
+                                                                                                        : field.onChange(field.value?.filter((value) => value !== permissionString))
+                                                                                                }}
+                                                                                            />
+                                                                                        </FormControl>
+                                                                                        </FormItem>
+                                                                                    )
+                                                                                }}
+                                                                            />
+                                                                        ) : null}
+                                                                    </TableCell>
+                                                                ))}
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                                </ScrollArea>
+                                                <FormMessage className="pt-2">{createRoleForm.formState.errors.permissions?.message}</FormMessage>
                                             </FormItem>
                                         )}
                                     />
@@ -362,12 +380,10 @@ export default function SettingsPage() {
                             {roles.map((role) => (
                                 <TableRow key={role.id}>
                                     <TableCell className="font-medium">{role.name}</TableCell>
-                                    <TableCell className="space-x-1 space-y-1">
-                                        {role.permissions.map(permission => (
-                                            <Badge key={permission} variant={role.name === 'Admin' ? 'default' : 'secondary'}>
-                                                {permission}
-                                            </Badge>
-                                        ))}
+                                    <TableCell>
+                                         <Badge variant={role.name === 'Admin' ? 'default' : 'secondary'}>
+                                            {role.permissions.length} permissions
+                                        </Badge>
                                     </TableCell>
                                 </TableRow>
                             ))}
