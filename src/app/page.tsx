@@ -9,6 +9,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import RecommendationTool from '@/components/recommendation-tool';
 import { getEvents, type Event } from '@/lib/store';
+import { Badge } from '@/components/ui/badge';
 
 export default function DashboardPage() {
   const [events, setEvents] = useState<Event[]>([]);
@@ -41,7 +42,8 @@ export default function DashboardPage() {
             <CardHeader className="p-0">
               <Image src={event.image} alt={event.name} width={600} height={400} className="rounded-t-lg object-cover aspect-[3/2]" data-ai-hint={event.hint} />
             </CardHeader>
-            <CardContent className="p-6 flex-1">
+            <CardContent className="p-6 flex-1 space-y-2">
+              <Badge variant="outline">{event.category}</Badge>
               <CardTitle>{event.name}</CardTitle>
               <CardDescription>{event.date} - {event.location}</CardDescription>
             </CardContent>

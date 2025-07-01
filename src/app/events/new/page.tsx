@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { addEvent } from '@/lib/store';
@@ -32,6 +33,7 @@ const eventFormSchema = z.object({
   date: z.date({
     required_error: 'A date for the event is required.',
   }),
+  category: z.string({ required_error: 'Please select a category.' }),
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -45,6 +47,7 @@ export default function CreateEventPage() {
     defaultValues: {
       name: '',
       location: '',
+      category: '',
     },
   });
 
@@ -94,6 +97,34 @@ export default function CreateEventPage() {
                     </FormControl>
                     <FormDescription>
                       Where will your event be held?
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a category" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Technology">Technology</SelectItem>
+                        <SelectItem value="Music">Music</SelectItem>
+                        <SelectItem value="Art">Art</SelectItem>
+                        <SelectItem value="Community">Community</SelectItem>
+                        <SelectItem value="Business">Business</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      What type of event is it?
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
