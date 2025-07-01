@@ -35,6 +35,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { cn } from "@/lib/utils";
 import { Skeleton } from '@/components/ui/skeleton';
+import RecommendationTool from '@/components/recommendation-tool';
 
 export default function EventDetailPage() {
   const params = useParams<{ id: string }>();
@@ -302,6 +303,9 @@ export default function EventDetailPage() {
             </Card>
         </TabsContent>
       </Tabs>
+      <div className="mt-8">
+        <RecommendationTool />
+      </div>
     </div>
   );
 }

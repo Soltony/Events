@@ -7,10 +7,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { PlusCircle, ArrowUpRight, DollarSign, Ticket as TicketIcon, Calendar as CalendarIcon } from "lucide-react";
 import Link from 'next/link';
 import Image from 'next/image';
-import RecommendationTool from '@/components/recommendation-tool';
 import { getEvents, type Event } from '@/lib/store';
 import { ticketTypes } from '@/lib/mock-data';
 import { Badge } from '@/components/ui/badge';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 
 export default function DashboardPage() {
   const [events, setEvents] = useState<Event[]>([]);
@@ -22,6 +23,20 @@ export default function DashboardPage() {
   const totalRevenue = ticketTypes.reduce((sum, t) => sum + (t.sold * t.price), 0);
   const totalTicketsSold = ticketTypes.reduce((sum, t) => sum + t.sold, 0);
   const totalEvents = events.length;
+
+  const salesData = events.map(event => {
+    const eventTickets = ticketTypes.filter(t => t.eventId === event.id);
+    const ticketsSold = eventTickets.reduce((sum, t) => sum + t.sold, 0);
+    return { name: event.name, ticketsSold: ticketsSold };
+  }).filter(e => e.ticketsSold > 0);
+
+  const chartConfig = {
+    ticketsSold: {
+      label: "Tickets Sold",
+      color: "hsl(var(--primary))",
+    },
+  };
+
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
@@ -74,6 +89,30 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      <Card className="mt-4">
+        <CardHeader>
+            <CardTitle>Ticket Sales Overview</CardTitle>
+            <CardDescription>A summary of tickets sold per event.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            {salesData.length > 0 ? (
+                <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
+                    <BarChart accessibilityLayer data={salesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid vertical={false} />
+                        <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
+                        <YAxis />
+                        <Tooltip cursor={{fill: 'hsl(var(--muted))'}} content={<ChartTooltipContent />} />
+                        <Bar dataKey="ticketsSold" fill="var(--color-ticketsSold)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                </ChartContainer>
+            ) : (
+                <div className="flex items-center justify-center h-[250px] text-muted-foreground">
+                    No ticket sales data to display.
+                </div>
+            )}
+        </CardContent>
+      </Card>
+
       <h2 className="text-2xl font-bold tracking-tight mt-4">Your Events</h2>
       
       <div className="grid gap-4 md:gap-8 md:grid-cols-2 lg:grid-cols-3">
@@ -109,8 +148,6 @@ export default function DashboardPage() {
             </Card>
         )}
       </div>
-
-      <RecommendationTool />
     </div>
   );
 }
