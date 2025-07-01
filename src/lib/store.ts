@@ -90,7 +90,7 @@ const addTicketType = (ticketTypeData: Omit<TicketType, 'id' | 'sold'>): void =>
     storage.setItem(TICKET_TYPES_STORAGE_KEY, JSON.stringify(updatedTicketTypes));
 }
 
-export const addEvent = (eventData: { name: string; location: string; date: Date, category: string, description: string, tickets: { name: string; price: number; capacity: number }[] }): void => {
+export const addEvent = (eventData: { name: string; location: string; date: { from: Date; to?: Date }; category: string; description: string; tickets: { name: string; price: number; capacity: number }[] }): void => {
   const storage = getLocalStorage();
   if (!storage) {
     console.warn("localStorage not available, can't add event.");
@@ -99,11 +99,17 @@ export const addEvent = (eventData: { name: string; location: string; date: Date
 
   const events = getEvents();
   const newEventId = events.length > 0 ? Math.max(...events.map(e => e.id)) + 1 : 1;
+  
+  let dateString = format(eventData.date.from, 'MMM d, yyyy');
+  if (eventData.date.to) {
+      dateString = `${format(eventData.date.from, 'MMM d, yyyy')} - ${format(eventData.date.to, 'MMM d, yyyy')}`;
+  }
+
   const newEvent: Event = {
     id: newEventId,
     name: eventData.name,
     location: eventData.location,
-    date: format(eventData.date, 'yyyy-MM-dd'),
+    date: dateString,
     image: 'https://placehold.co/600x400.png',
     hint: 'event custom',
     category: eventData.category,

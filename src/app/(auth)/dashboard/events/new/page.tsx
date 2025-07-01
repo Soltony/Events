@@ -33,8 +33,11 @@ const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
   location: z.string().min(3, { message: 'Location must be at least 3 characters.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
-  date: z.date({
-    required_error: 'A date for the event is required.',
+  date: z.object({
+    from: z.date({
+      required_error: 'A start date for the event is required.',
+    }),
+    to: z.date().optional(),
   }),
   category: z.string({ required_error: 'Please select a category.' }),
   tickets: z.array(z.object({
@@ -177,33 +180,41 @@ export default function CreateEventPage() {
                           <Button
                             variant={'outline'}
                             className={cn(
-                              'w-[240px] pl-3 text-left font-normal',
-                              !field.value && 'text-muted-foreground'
+                              'w-full md:w-[300px] justify-start text-left font-normal',
+                              !field.value?.from && 'text-muted-foreground'
                             )}
                           >
-                            {field.value ? (
-                              format(field.value, 'PPP')
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value?.from ? (
+                              field.value.to ? (
+                                <>
+                                  {format(field.value.from, 'LLL dd, y')} -{' '}
+                                  {format(field.value.to, 'LLL dd, y')}
+                                </>
+                              ) : (
+                                format(field.value.from, 'LLL dd, y')
+                              )
                             ) : (
-                              <span>Pick a date</span>
+                              <span>Pick a date range</span>
                             )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
-                          mode="single"
+                          mode="range"
                           selected={field.value}
                           onSelect={field.onChange}
                           disabled={(date) =>
                             date < new Date(new Date().setHours(0, 0, 0, 0))
                           }
                           initialFocus
+                          numberOfMonths={2}
                         />
                       </PopoverContent>
                     </Popover>
                     <FormDescription>
-                      The date your event will take place.
+                      The start and end date for your event.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
