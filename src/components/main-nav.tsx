@@ -3,31 +3,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Ticket, PlusCircle, ChevronDown, LineChart } from 'lucide-react';
+import { Home, Ticket, PlusCircle, LineChart } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState, useEffect } from 'react';
-import { getEvents, type Event } from '@/lib/store';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 export function MainNav() {
   const pathname = usePathname();
-  const [events, setEvents] = useState<Event[]>([]);
-  const isManagingEvents = pathname.startsWith('/dashboard/events/') && pathname !== '/dashboard/events/new';
-  const [isEventsOpen, setIsEventsOpen] = useState(isManagingEvents);
-
-
-  useEffect(() => {
-    setEvents(getEvents());
-  }, []);
-  
-  useEffect(() => {
-    setIsEventsOpen(isManagingEvents);
-  }, [isManagingEvents]);
+  const isManagingEvents = (pathname === '/dashboard/events' || pathname.startsWith('/dashboard/events/')) && pathname !== '/dashboard/events/new';
 
   return (
     <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
@@ -42,37 +23,16 @@ export function MainNav() {
         Dashboard
       </Link>
 
-      <Collapsible open={isEventsOpen} onOpenChange={setIsEventsOpen} className="w-full">
-        <CollapsibleTrigger className={cn(
-            'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary w-full',
-            isManagingEvents && 'bg-muted text-primary'
-        )}>
-            <Ticket className="h-4 w-4" />
-            <span>Manage Events</span>
-            <ChevronDown className={cn("ml-auto h-4 w-4 shrink-0 transition-transform duration-200", isEventsOpen && "rotate-180")} />
-        </CollapsibleTrigger>
-        <CollapsibleContent className="py-1">
-          <ScrollArea className="max-h-60">
-            <div className="ml-4 pl-4 border-l space-y-1">
-                {events.map((event) => (
-                    <Link
-                        key={event.id}
-                        href={`/dashboard/events/${event.id}`}
-                        className={cn(
-                        'block rounded-md px-3 py-2 text-muted-foreground transition-colors hover:text-primary',
-                        pathname === `/dashboard/events/${event.id}` && 'bg-muted text-primary'
-                        )}
-                    >
-                        {event.name}
-                    </Link>
-                ))}
-                {events.length === 0 && (
-                    <span className="block px-3 py-2 text-muted-foreground text-xs">No events created yet.</span>
-                )}
-            </div>
-          </ScrollArea>
-        </CollapsibleContent>
-      </Collapsible>
+      <Link
+        href="/dashboard/events"
+        className={cn(
+          'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+          isManagingEvents && 'bg-muted text-primary'
+        )}
+      >
+        <Ticket className="h-4 w-4" />
+        Manage Events
+      </Link>
       
       <Link
         href="/dashboard/events/new"
