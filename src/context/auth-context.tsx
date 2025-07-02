@@ -4,12 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import axios from 'axios';
-
-const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_AUTH_API_BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
-});
+import api, { setAuthToken } from '@/lib/api';
 
 interface AuthTokens {
   accessToken: string;
@@ -38,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (storedTokens) {
         const parsedTokens = JSON.parse(storedTokens);
         setTokens(parsedTokens);
-        api.defaults.headers.common['Authorization'] = `Bearer ${parsedTokens.accessToken}`;
+        setAuthToken(parsedTokens.accessToken);
       }
     } catch (error) {
         console.error("Failed to parse auth tokens from localStorage", error);
@@ -60,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const newTokens = { accessToken, refreshToken };
         setTokens(newTokens);
         localStorage.setItem('authTokens', JSON.stringify(newTokens));
-        api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+        setAuthToken(accessToken);
         toast({
           title: 'Login Successful',
           description: 'Redirecting to your dashboard...',
@@ -86,8 +81,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
         if(tokens){
             const requestData = {
-                token: tokens.accessToken,
-                refreshToken: tokens.refreshToken,
+                AccessToken: tokens.accessToken,
+                RefreshToken: tokens.refreshToken,
             };
             await api.post('/api/Auth/logout', requestData);
         }
@@ -95,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error("Logout failed on server, proceeding with client-side logout.", error);
     } finally {
         setTokens(null);
-        delete api.defaults.headers.common['Authorization'];
+        setAuthToken(null);
         localStorage.removeItem('authTokens');
         // also clear event data for a full reset
         localStorage.removeItem('events-app-storage');

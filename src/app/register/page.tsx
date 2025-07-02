@@ -6,7 +6,6 @@ import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import axios from 'axios';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
@@ -22,6 +21,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import api from '@/lib/api';
 
 const registerFormSchema = z.object({
   firstName: z.string().min(1, { message: 'First name is required.' }),
@@ -50,7 +50,13 @@ export default function RegisterPage() {
   async function onSubmit(data: RegisterFormValues) {
     setIsLoading(true);
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_AUTH_API_BASE_URL}/api/Auth/register`, data);
+      const requestData = {
+          FirstName: data.firstName,
+          LastName: data.lastName,
+          PhoneNumber: data.phoneNumber,
+          Password: data.password,
+      };
+      const response = await api.post(`/api/Auth/register`, requestData);
 
       if (response.data.isSuccess) {
         toast({
@@ -137,5 +143,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-
-    
