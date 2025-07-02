@@ -6,7 +6,8 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import { CalendarIcon, PlusCircle, Trash2 } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Trash2, UploadCloud } from 'lucide-react';
+import Image from 'next/image';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -41,8 +42,8 @@ const eventFormSchema = z.object({
   }),
   category: z.string({ required_error: 'Please select a category.' }),
   images: z.array(z.object({
-    url: z.string().url({ message: "Please enter a valid URL." }).min(1, {message: "Image URL cannot be empty."})
-  })).min(1, { message: "Please add at least one image URL."}),
+    url: z.string().min(1, { message: "Image cannot be empty." })
+  })).min(1, { message: "Please upload at least one image."}),
   tickets: z.array(z.object({
     name: z.string().min(1, { message: "Ticket name can't be empty."}),
     price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
@@ -235,53 +236,87 @@ export default function CreateEventPage() {
               
               <Separator />
 
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div>
-                    <FormLabel>Event Images</FormLabel>
-                    <FormDescription>Add one or more image URLs for your event gallery.</FormDescription>
-                    <FormMessage>{form.formState.errors.images?.message}</FormMessage>
+                  <FormLabel>Event Images</FormLabel>
+                  <FormDescription>Upload one or more images for your event gallery.</FormDescription>
+                  <FormMessage className="pt-2">{form.formState.errors.images?.root?.message}</FormMessage>
                 </div>
-                
-                {imageFields.map((field, index) => (
-                   <Card key={field.id} className="p-4">
-                     <div className="flex gap-4 items-start">
-                      <FormField
-                          control={form.control}
-                          name={`images.${index}.url`}
-                          render={({ field }) => (
-                            <FormItem className="flex-1">
-                              <FormLabel className={cn(index !== 0 && "sr-only")}>Image URL</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="https://example.com/image.png" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <div className={cn("flex items-end h-full", index !== 0 && "pt-8")}>
-                          <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              onClick={() => removeImage(index)}
-                              disabled={imageFields.length <= 1}
-                          >
-                              <Trash2 className="h-4 w-4" />
-                              <span className="sr-only">Remove image</span>
-                          </Button>
-                        </div>
-                     </div>
-                   </Card>
-                ))}
-                 <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => appendImage({ url: '' })}
-                    >
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Image URL
-                </Button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {imageFields.map((item, index) => (
+                    <FormField
+                      key={item.id}
+                      control={form.control}
+                      name={`images.${index}.url`}
+                      render={({ field: { onChange, value } }) => {
+                        const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              onChange(reader.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        };
+
+                        return (
+                          <FormItem>
+                            <FormControl>
+                              <div className="aspect-video rounded-md relative group bg-muted border-dashed border flex items-center justify-center">
+                                {value ? (
+                                  <Image
+                                    src={value}
+                                    alt={`Event image ${index + 1}`}
+                                    fill
+                                    className="object-cover rounded-md"
+                                  />
+                                ) : null}
+                                <div className={`absolute inset-0 flex items-center justify-center gap-2 transition-opacity ${value ? 'bg-black/40 opacity-0 group-hover:opacity-100' : ''}`}>
+                                  <label htmlFor={`image-upload-${index}`} className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 px-3 cursor-pointer bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                                    <UploadCloud className="mr-2 h-4 w-4" />
+                                    {value ? 'Change' : 'Upload'}
+                                    <Input
+                                      id={`image-upload-${index}`}
+                                      type="file"
+                                      className="sr-only"
+                                      accept="image/png, image/jpeg, image/gif"
+                                      onChange={handleFileChange}
+                                    />
+                                  </label>
+                                  {imageFields.length > 1 && value ? (
+                                    <Button
+                                      type="button"
+                                      variant="destructive"
+                                      size="icon"
+                                      className="h-9 w-9"
+                                      onClick={() => removeImage(index)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                      <span className="sr-only">Remove image</span>
+                                    </Button>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
+                    />
+                  ))}
+                   <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => appendImage({ url: '' })}
+                      className="aspect-video h-full flex-col gap-2"
+                      >
+                      <PlusCircle className="h-6 w-6" />
+                      <span>Add Image</span>
+                  </Button>
+                </div>
               </div>
+
 
               <Separator />
 
