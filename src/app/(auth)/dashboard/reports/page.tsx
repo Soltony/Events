@@ -19,43 +19,78 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { FileDown } from 'lucide-react';
-import { promoCodes } from '@/lib/mock-data';
-import { getEvents, type Event, getTicketTypes, type TicketType } from '@/lib/store';
+import { getReportsData } from '@/lib/actions';
+import { Skeleton } from '@/components/ui/skeleton';
+import { format } from 'date-fns';
+import type { TicketType, PromoCode } from '@prisma/client';
+
+interface DailySale {
+    date: Date;
+    eventName: string;
+    ticketsSold: number;
+    revenue: number;
+}
+
+interface ProductSale extends TicketType {
+    event: { name: string };
+}
+
+interface PromoCodeReport extends PromoCode {
+    event: { name: string };
+    totalDiscount: number;
+}
+
+interface ReportsData {
+    productSales: ProductSale[];
+    dailySales: DailySale[];
+    promoCodes: PromoCodeReport[];
+}
 
 export default function ReportsPage() {
-    const [events, setEvents] = useState<Event[]>([]);
-    const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
+    const [data, setData] = useState<ReportsData | null>(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        setEvents(getEvents());
-        setTicketTypes(getTicketTypes());
+        async function fetchData() {
+            try {
+                setLoading(true);
+                const reportsData = await getReportsData();
+                setData(reportsData);
+            } catch (error) {
+                console.error("Failed to fetch reports data:", error);
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchData();
     }, []);
-    
-    const promoCodeData = promoCodes.map(code => {
-        let totalDiscount = 0;
-        if (code.type === 'percentage') {
-            const avgTicketPrice = 50;
-            totalDiscount = code.uses * (avgTicketPrice * (code.value / 100));
-        } else {
-            totalDiscount = code.uses * code.value;
-        }
-        return {
-            ...code,
-            totalDiscount,
-        };
-    });
 
-    const dailySalesData = events.map(event => {
-        const eventTickets = ticketTypes.filter(t => t.eventId === event.id);
-        const ticketsSold = eventTickets.reduce((sum, t) => sum + t.sold, 0);
-        const revenue = eventTickets.reduce((sum, t) => sum + (t.sold * t.price), 0);
-        return {
-            date: event.date,
-            eventName: event.name,
-            ticketsSold,
-            revenue
-        }
-    });
+    if (loading || !data) {
+        return (
+            <div className="flex flex-1 flex-col gap-4 md:gap-8">
+                <div className="space-y-2">
+                    <Skeleton className="h-8 w-32" />
+                    <Skeleton className="h-4 w-96" />
+                </div>
+                <div className="space-y-8">
+                    {[...Array(3)].map((_, i) => (
+                        <Card key={i}>
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <div className="space-y-2">
+                                    <Skeleton className="h-6 w-48" />
+                                    <Skeleton className="h-4 w-80" />
+                                </div>
+                                <Skeleton className="h-10 w-40" />
+                            </CardHeader>
+                            <CardContent>
+                               <Skeleton className="h-40 w-full" />
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            </div>
+        )
+    }
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
@@ -90,18 +125,18 @@ export default function ReportsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {ticketTypes.map((ticket) => {
-                  const event = events.find(e => e.id === ticket.eventId);
-                  return (
+                {data.productSales.map((ticket) => (
                     <TableRow key={ticket.id}>
                       <TableCell className="font-medium">{ticket.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{event?.name || 'N/A'}</TableCell>
+                      <TableCell className="text-muted-foreground">{ticket.event?.name || 'N/A'}</TableCell>
                       <TableCell className="text-right">{ticket.sold}</TableCell>
-                      <TableCell className="text-right">${ticket.price.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">${(ticket.sold * ticket.price).toLocaleString()}</TableCell>
+                      <TableCell className="text-right">${Number(ticket.price).toFixed(2)}</TableCell>
+                      <TableCell className="text-right">${(ticket.sold * Number(ticket.price)).toLocaleString()}</TableCell>
                     </TableRow>
-                  )
-                })}
+                ))}
+                {data.productSales.length === 0 && (
+                    <TableRow><TableCell colSpan={5} className="text-center h-24">No product sales data.</TableCell></TableRow>
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -129,17 +164,17 @@ export default function ReportsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {dailySalesData.map((sale, index) => (
+                {data.dailySales.map((sale, index) => (
                     <TableRow key={index}>
-                        <TableCell>{sale.date}</TableCell>
+                        <TableCell>{format(new Date(sale.date), 'LLL dd, y')}</TableCell>
                         <TableCell className="font-medium">{sale.eventName}</TableCell>
                         <TableCell className="text-right">{sale.ticketsSold.toLocaleString()}</TableCell>
                         <TableCell className="text-right">${sale.revenue.toLocaleString()}</TableCell>
                     </TableRow>
                 ))}
-                 {dailySalesData.length === 0 && (
+                 {data.dailySales.length === 0 && (
                     <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground">No sales data available.</TableCell>
+                        <TableCell colSpan={4} className="text-center h-24">No sales data available.</TableCell>
                     </TableRow>
                 )}
               </TableBody>
@@ -169,20 +204,17 @@ export default function ReportsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {promoCodeData.map((code) => {
-                     const event = events.find(e => e.id === code.eventId);
-                     return (
-                        <TableRow key={code.id}>
-                            <TableCell className="font-mono">{code.code}</TableCell>
-                            <TableCell className="text-muted-foreground">{event?.name || 'N/A'}</TableCell>
-                            <TableCell className="text-right">{code.uses} / {code.maxUses}</TableCell>
-                            <TableCell className="text-right">${code.totalDiscount.toFixed(2)}</TableCell>
-                        </TableRow>
-                     )
-                })}
-                 {promoCodeData.length === 0 && (
+                {data.promoCodes.map((code) => (
+                    <TableRow key={code.id}>
+                        <TableCell className="font-mono">{code.code}</TableCell>
+                        <TableCell className="text-muted-foreground">{code.event?.name || 'N/A'}</TableCell>
+                        <TableCell className="text-right">{code.uses} / {code.maxUses}</TableCell>
+                        <TableCell className="text-right">${code.totalDiscount.toFixed(2)}</TableCell>
+                    </TableRow>
+                ))}
+                 {data.promoCodes.length === 0 && (
                     <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground">No promo code data available.</TableCell>
+                        <TableCell colSpan={4} className="text-center h-24">No promo code data available.</TableCell>
                     </TableRow>
                 )}
               </TableBody>

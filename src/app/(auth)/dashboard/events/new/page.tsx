@@ -6,8 +6,9 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import { CalendarIcon, PlusCircle, Trash2, UploadCloud } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Trash2, UploadCloud, Loader2 } from 'lucide-react';
 import Image from 'next/image';
+import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -27,7 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { addEvent } from '@/lib/store';
+import { addEvent } from '@/lib/actions';
 import { Separator } from '@/components/ui/separator';
 
 const eventFormSchema = z.object({
@@ -47,7 +48,7 @@ const eventFormSchema = z.object({
   tickets: z.array(z.object({
     name: z.string().min(1, { message: "Ticket name can't be empty."}),
     price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
-    capacity: z.coerce.number().int().min(1, { message: 'Capacity must be at least 1.' }),
+    total: z.coerce.number().int().min(1, { message: 'Capacity must be at least 1.' }),
   })).min(1, { message: 'You must have at least one ticket tier.'}),
 });
 
@@ -56,6 +57,7 @@ type EventFormValues = z.infer<typeof eventFormSchema>;
 export default function CreateEventPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
@@ -64,8 +66,8 @@ export default function CreateEventPage() {
       location: '',
       description: '',
       category: '',
-      images: [{ url: 'https://placehold.co/600x400.png' }],
-      tickets: [{ name: 'General Admission', price: 25, capacity: 100 }],
+      images: [{ url: '' }],
+      tickets: [{ name: 'General Admission', price: 25, total: 100 }],
     },
   });
 
@@ -79,16 +81,29 @@ export default function CreateEventPage() {
     name: "images"
   });
 
-  function onSubmit(data: EventFormValues) {
-    addEvent({
-      ...data,
-      images: data.images.map(img => img.url),
-    });
-    toast({
-      title: 'Event Created!',
-      description: `Successfully created "${data.name}".`,
-    });
-    router.push('/dashboard/events');
+  async function onSubmit(data: EventFormValues) {
+    setIsSubmitting(true);
+    try {
+        const eventData = {
+            ...data,
+            images: data.images.map(img => img.url).filter(url => url), // send only non-empty urls
+        };
+        await addEvent(eventData);
+        toast({
+            title: 'Event Created!',
+            description: `Successfully created "${data.name}".`,
+        });
+        router.push('/dashboard/events');
+    } catch (error) {
+        console.error("Failed to create event:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to create event. Please try again.',
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
   }
 
   return (
@@ -263,7 +278,7 @@ export default function CreateEventPage() {
                         return (
                           <FormItem>
                             <FormControl>
-                              <div className="aspect-video rounded-md relative group bg-muted border-dashed border flex items-center justify-center">
+                              <div className="aspect-video rounded-md relative group bg-muted border-dashed border-2 flex items-center justify-center">
                                 {value ? (
                                   <Image
                                     src={value}
@@ -272,7 +287,7 @@ export default function CreateEventPage() {
                                     className="object-cover rounded-md"
                                   />
                                 ) : null}
-                                <div className={`absolute inset-0 flex items-center justify-center gap-2 transition-opacity ${value ? 'bg-black/40 opacity-0 group-hover:opacity-100' : ''}`}>
+                                <div className={`absolute inset-0 flex items-center justify-center gap-2 transition-opacity ${value ? 'bg-black/40 opacity-0 group-hover:opacity-100' : 'bg-transparent'}`}>
                                   <label htmlFor={`image-upload-${index}`} className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 px-3 cursor-pointer bg-secondary text-secondary-foreground hover:bg-secondary/80">
                                     <UploadCloud className="mr-2 h-4 w-4" />
                                     {value ? 'Change' : 'Upload'}
@@ -358,7 +373,7 @@ export default function CreateEventPage() {
                       />
                       <FormField
                         control={form.control}
-                        name={`tickets.${index}.capacity`}
+                        name={`tickets.${index}.total`}
                         render={({ field }) => (
                           <FormItem>
                              <FormLabel className={cn(index !== 0 && "sr-only")}>Quantity</FormLabel>
@@ -387,7 +402,7 @@ export default function CreateEventPage() {
                  <Button
                     type="button"
                     variant="outline"
-                    onClick={() => appendTicket({ name: '', price: 0, capacity: 50 })}
+                    onClick={() => appendTicket({ name: '', price: 0, total: 50 })}
                     >
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Add Ticket Tier
@@ -396,7 +411,10 @@ export default function CreateEventPage() {
 
               <Separator />
 
-              <Button type="submit">Create Event</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Create Event
+              </Button>
             </form>
           </Form>
         </CardContent>

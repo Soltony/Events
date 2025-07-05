@@ -29,36 +29,49 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PlusCircle, DollarSign, FileDown, Ticket as TicketIcon, ArrowLeft } from 'lucide-react';
-import { getEventById, type Event, getTicketTypes, type TicketType } from '@/lib/store';
-import { attendees, promoCodes } from '@/lib/mock-data';
+import { getEventDetails } from '@/lib/actions';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { cn } from "@/lib/utils";
 import { Skeleton } from '@/components/ui/skeleton';
 import RecommendationTool from '@/components/recommendation-tool';
+import type { Event, TicketType, Attendee, PromoCode } from '@prisma/client';
+import { format } from 'date-fns';
+
+interface EventDetails extends Event {
+    ticketTypes: TicketType[];
+    attendees: (Attendee & { ticketType: TicketType })[];
+    promoCodes: PromoCode[];
+}
 
 export default function EventDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const eventId = params.id ? parseInt(params.id, 10) : -1;
-  const [event, setEvent] = useState<Event | undefined | null>(null);
-  const [eventTicketTypes, setEventTicketTypes] = useState<TicketType[]>([]);
-  const [eventAttendees, setEventAttendees] = useState(attendees.filter((a) => a.eventId === eventId));
-  const [eventPromoCodes, setEventPromoCodes] = useState(promoCodes.filter((p) => p.eventId === eventId));
-
+  const [event, setEvent] = useState<EventDetails | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (eventId !== -1) {
-      const foundEvent = getEventById(eventId);
-      setEvent(foundEvent);
-      const allTicketTypes = getTicketTypes();
-      setEventTicketTypes(allTicketTypes.filter((t) => t.eventId === eventId));
+      const fetchEvent = async () => {
+        try {
+            setLoading(true);
+            const foundEvent = await getEventDetails(eventId);
+            setEvent(foundEvent);
+        } catch (e) {
+            console.error("Failed to fetch event details", e);
+            setEvent(null);
+        } finally {
+            setLoading(false);
+        }
+      };
+      fetchEvent();
     } else {
-        setEvent(undefined);
+        setLoading(false);
     }
   }, [eventId]);
 
-  if (event === null) {
+  if (loading) {
     return (
         <div className="flex flex-1 flex-col gap-4 md:gap-8 p-4 lg:p-6">
             <div className="flex items-center justify-between">
@@ -100,7 +113,7 @@ export default function EventDetailPage() {
     );
   }
   
-  const chartData = eventTicketTypes.map(item => ({
+  const chartData = event.ticketTypes.map(item => ({
     name: item.name,
     sold: item.sold,
     remaining: item.total - item.sold,
@@ -117,10 +130,14 @@ export default function EventDetailPage() {
     },
   };
 
-  const totalSold = eventTicketTypes.reduce((sum, t) => sum + t.sold, 0);
-  const totalCapacity = eventTicketTypes.reduce((sum, t) => sum + t.total, 0);
-  const totalRevenue = eventTicketTypes.reduce((sum, t) => sum + (t.sold * t.price), 0);
+  const totalSold = event.ticketTypes.reduce((sum, t) => sum + t.sold, 0);
+  const totalCapacity = event.ticketTypes.reduce((sum, t) => sum + t.total, 0);
+  const totalRevenue = event.ticketTypes.reduce((sum, t) => sum + (t.sold * Number(t.price)), 0);
   const selloutPercentage = totalCapacity > 0 ? (totalSold / totalCapacity) * 100 : 0;
+  
+  const eventDate = event.endDate 
+    ? `${format(new Date(event.startDate), 'LLL dd, y')} - ${format(new Date(event.endDate), 'LLL dd, y')}`
+    : format(new Date(event.startDate), 'LLL dd, y');
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
@@ -131,7 +148,7 @@ export default function EventDetailPage() {
         </Button>
         <div className="flex-1">
             <h1 className="text-3xl font-bold tracking-tight">{event.name}</h1>
-            <p className="text-muted-foreground">{event.date} at {event.location}</p>
+            <p className="text-muted-foreground">{eventDate} at {event.location}</p>
         </div>
         <Button>
           <FileDown className="mr-2 h-4 w-4" />
@@ -203,7 +220,7 @@ export default function EventDetailPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Attendees</CardTitle>
-                    <CardDescription>Manage attendee check-ins. {eventAttendees.length} people have tickets.</CardDescription>
+                    <CardDescription>Manage attendee check-ins. {event.attendees.length} people have tickets.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -217,14 +234,14 @@ export default function EventDetailPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {eventAttendees.map((attendee) => (
+                            {event.attendees.map((attendee) => (
                                 <TableRow key={attendee.id}>
                                     <TableCell>
                                         <Checkbox checked={attendee.checkedIn} aria-label={`Check in ${attendee.name}`} />
                                     </TableCell>
                                     <TableCell className="font-medium">{attendee.name}</TableCell>
                                     <TableCell>
-                                        <Badge variant={attendee.ticketType === 'VIP' ? 'default' : 'secondary'}>{attendee.ticketType}</Badge>
+                                        <Badge variant={attendee.ticketType.name === 'VIP' ? 'default' : 'secondary'}>{attendee.ticketType.name}</Badge>
                                     </TableCell>
                                     <TableCell>{attendee.email}</TableCell>
                                     <TableCell className="text-right">
@@ -260,12 +277,12 @@ export default function EventDetailPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {eventTicketTypes.map((ticket) => (
+                            {event.ticketTypes.map((ticket) => (
                                 <TableRow key={ticket.id}>
                                     <TableCell className="font-medium">{ticket.name}</TableCell>
-                                    <TableCell>${ticket.price.toFixed(2)}</TableCell>
+                                    <TableCell>${Number(ticket.price).toFixed(2)}</TableCell>
                                     <TableCell>{ticket.sold} / {ticket.total}</TableCell>
-                                    <TableCell>${(ticket.sold * ticket.price).toLocaleString()}</TableCell>
+                                    <TableCell>${(ticket.sold * Number(ticket.price)).toLocaleString()}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -294,12 +311,12 @@ export default function EventDetailPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {eventPromoCodes.map((code) => (
+                            {event.promoCodes.map((code) => (
                                 <TableRow key={code.id}>
                                     <TableCell className="font-mono">{code.code}</TableCell>
-                                    <TableCell className="capitalize">{code.type}</TableCell>
+                                    <TableCell className="capitalize">{code.type.toLowerCase()}</TableCell>
                                     <TableCell>
-                                        {code.type === 'percentage' ? `${code.value}% off` : `$${code.value.toFixed(2)} off`}
+                                        {code.type === 'PERCENTAGE' ? `${code.value}% off` : `$${Number(code.value).toFixed(2)} off`}
                                     </TableCell>
                                     <TableCell>{code.uses} / {code.maxUses} uses</TableCell>
                                 </TableRow>

@@ -7,14 +7,36 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { PlusCircle, ArrowUpRight } from "lucide-react";
 import Link from 'next/link';
 import Image from 'next/image';
-import { getEvents, type Event } from '@/lib/store';
+import { getEvents } from '@/lib/actions';
 import { Badge } from '@/components/ui/badge';
+import type { Event } from '@prisma/client';
+import { format } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
+
+function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
+    if (endDate) {
+      return `${format(new Date(startDate), 'LLL dd, y')} - ${format(new Date(endDate), 'LLL dd, y')}`;
+    }
+    return format(new Date(startDate), 'LLL dd, y');
+}
 
 export default function ManageEventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setEvents(getEvents());
+    async function fetchData() {
+        try {
+            setLoading(true);
+            const fetchedEvents = await getEvents();
+            setEvents(fetchedEvents);
+        } catch (error) {
+            console.error("Failed to fetch events:", error);
+        } finally {
+            setLoading(false);
+        }
+    }
+    fetchData();
   }, []);
 
   return (
@@ -36,16 +58,24 @@ export default function ManageEventsPage() {
       </div>
       
       <div className="grid gap-4 md:gap-8 md:grid-cols-2 lg:grid-cols-3">
-        {events.length > 0 ? (
+        {loading ? (
+            [...Array(3)].map((_, i) => (
+                <Card key={i}>
+                    <CardHeader className="p-0"><Skeleton className="w-full aspect-[3/2] rounded-t-lg" /></CardHeader>
+                    <CardContent className="p-6 space-y-2"><Skeleton className="h-5 w-20" /><Skeleton className="h-7 w-3/4" /><Skeleton className="h-5 w-1/2" /></CardContent>
+                    <CardFooter className="p-6 pt-0"><Skeleton className="h-10 w-full" /></CardFooter>
+                </Card>
+            ))
+        ) : events.length > 0 ? (
           events.map((event) => (
             <Card key={event.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
               <CardHeader className="p-0">
-                <Image src={event.image[0]} alt={event.name} width={600} height={400} className="rounded-t-lg object-cover aspect-[3/2]" data-ai-hint={event.hint} />
+                <Image src={event.image[0]} alt={event.name} width={600} height={400} className="rounded-t-lg object-cover aspect-[3/2]" data-ai-hint={event.hint ?? 'event'} />
               </CardHeader>
               <CardContent className="p-6 flex-1 space-y-2">
                 <Badge variant="outline">{event.category}</Badge>
                 <CardTitle>{event.name}</CardTitle>
-                <CardDescription>{event.date} - {event.location}</CardDescription>
+                <CardDescription>{formatEventDate(event.startDate, event.endDate)} - {event.location}</CardDescription>
               </CardContent>
               <CardFooter className="p-6 pt-0">
                 <Button asChild className="w-full">

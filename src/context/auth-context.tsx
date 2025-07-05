@@ -104,9 +104,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTokens(null);
         setAuthToken(null);
         localStorage.removeItem('authTokens');
-        // also clear event data for a full reset
-        localStorage.removeItem('events-app-storage');
-        localStorage.removeItem('ticket-types-app-storage');
         router.push('/');
         setIsLoading(false);
     }
