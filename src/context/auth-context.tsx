@@ -50,18 +50,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         Password: data.password,
       };
       const response = await api.post('/api/Auth/login', requestData);
-      if (response.data.isSuccess) {
-        const { accessToken, refreshToken } = response.data;
-        const newTokens = { accessToken, refreshToken };
-        setTokens(newTokens);
-        localStorage.setItem('authTokens', JSON.stringify(newTokens));
-        setAuthToken(accessToken);
-        toast({
-          title: 'Login Successful',
-          description: 'Redirecting to your dashboard...',
-        });
-        router.push('/dashboard');
-        router.refresh();
+
+      if (response.data && response.data.isSuccess) {
+        // Handle both camelCase (accessToken) and PascalCase (AccessToken) from server
+        const { accessToken, refreshToken, AccessToken, RefreshToken } = response.data;
+        const resolvedAccessToken = accessToken || AccessToken;
+        const resolvedRefreshToken = refreshToken || RefreshToken;
+
+        if (resolvedAccessToken) {
+          const newTokens = { accessToken: resolvedAccessToken, refreshToken: resolvedRefreshToken };
+          setTokens(newTokens);
+          localStorage.setItem('authTokens', JSON.stringify(newTokens));
+          setAuthToken(resolvedAccessToken);
+          
+          toast({
+            title: 'Login Successful',
+            description: 'Redirecting to your dashboard...',
+          });
+          
+          router.push('/dashboard');
+          router.refresh();
+        } else {
+          throw new Error('Login failed: Authentication tokens were not provided in the response.');
+        }
+
       } else {
         throw new Error(response.data.errors?.join(', ') || 'Login failed');
       }
