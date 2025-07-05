@@ -100,13 +100,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     } catch(error) {
         console.error("Logout failed on server, proceeding with client-side logout.", error);
-    } finally {
-        setTokens(null);
-        setAuthToken(null);
-        localStorage.removeItem('authTokens');
-        router.push('/');
-        setIsLoading(false);
     }
+    
+    // This logic now runs after the try/catch block has completed, avoiding a race condition.
+    setTokens(null);
+    setAuthToken(null);
+    localStorage.removeItem('authTokens');
+    router.push('/');
+    setIsLoading(false);
   };
 
   const isAuthenticated = !isLoading && !!tokens;
