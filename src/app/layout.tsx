@@ -8,6 +8,7 @@ import { AuthStatus } from '@/components/auth-status';
 export const metadata: Metadata = {
   title: 'EventFlow Tickets',
   description: 'The ultimate solution for event ticketing.',
+  icons: null,
 };
 
 export default function RootLayout({
