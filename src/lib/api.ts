@@ -4,7 +4,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_AUTH_API_BASE_URL,
+  baseURL: '/', // All requests will go to the Next.js server
   headers: { 'Content-Type': 'application/json' },
 });
 

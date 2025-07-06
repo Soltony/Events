@@ -56,7 +56,7 @@ export default function RegisterPage() {
           PhoneNumber: data.phoneNumber,
           Password: data.password,
       };
-      const response = await api.post(`/api/Auth/register`, requestData);
+      const response = await api.post(`/api/auth/register`, requestData);
 
       if (response.data.isSuccess) {
         toast({

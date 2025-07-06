@@ -185,7 +185,7 @@ export async function addUser(data: any) {
 
     // Step 1: Register user with the external auth server
     try {
-        const authApiUrl = process.env.NEXT_PUBLIC_AUTH_API_BASE_URL;
+        const authApiUrl = process.env.AUTH_API_BASE_URL;
         if (!authApiUrl) {
             throw new Error("Authentication API URL is not configured.");
         }

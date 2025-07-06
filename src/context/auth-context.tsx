@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         PhoneNumber: data.phoneNumber,
         Password: data.password,
       };
-      const response = await api.post('/api/Auth/login', requestData);
+      const response = await api.post('/api/auth/login', requestData);
 
       if (response.data && response.data.isSuccess) {
         const { accessToken, refreshToken, AccessToken, RefreshToken } = response.data;
@@ -117,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 AccessToken: currentTokens.accessToken,
                 RefreshToken: currentTokens.refreshToken,
             };
-            await api.post('/api/Auth/logout', requestData);
+            await api.post('/api/auth/logout', requestData);
         } catch(error) {
             console.error("Server logout failed, but client is logged out.", error);
         }
