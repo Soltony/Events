@@ -85,18 +85,18 @@ const addUserFormSchema = z.object({
 
 type AddUserFormValues = z.infer<typeof addUserFormSchema>;
 
-const permissionModules = [
-    { name: 'Events', permissions: ['Create', 'Read', 'Update', 'Delete'] },
-    { name: 'Attendees', permissions: ['Read', 'Update'] },
-    { name: 'Reports', permissions: ['Read'] },
-    { name: 'Users & Roles', permissions: ['Create', 'Read', 'Update', 'Delete'] }
+const availablePermissions = [
+    { id: 'Dashboard', label: 'View Dashboard' },
+    { id: 'Create Event', label: 'Create New Events' },
+    { id: 'Manage Events', label: 'Manage Existing Events' },
+    { id: 'Reports', label: 'View Reports' },
+    { id: 'Settings', label: 'Access Settings & Manage Users' },
 ];
-const permissionActions = ['Create', 'Read', 'Update', 'Delete'];
 
 const roleFormSchema = z.object({
     name: z.string().min(1, { message: "Role name is required." }),
     description: z.string().optional(),
-    permissions: z.array(z.string()).refine((value) => value.some((item) => item), {
+    permissions: z.array(z.string()).refine((value) => value.length > 0, {
         message: "You have to select at least one permission.",
     }),
 });
@@ -110,7 +110,7 @@ export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     
     const [isAddUserOpen, setIsAddUserOpen] = useState(false);
-    const [isCreateRoleOpen, setIsCreateRoleOpen] = useState(false);
+    const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<Role | null>(null);
     const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
 
@@ -199,7 +199,7 @@ export default function SettingsPage() {
             }
             await fetchData();
             setEditingRole(null);
-            setIsCreateRoleOpen(false);
+            setIsRoleDialogOpen(false);
             roleForm.reset();
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: `Failed to save role.` });
@@ -220,6 +220,11 @@ export default function SettingsPage() {
              toast({ variant: 'destructive', title: 'Error', description: e.message || 'Failed to delete role.' });
         }
     }
+    
+    const openRoleDialog = (role: Role | null) => {
+        setEditingRole(role);
+        setIsRoleDialogOpen(true);
+    };
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
@@ -331,32 +336,37 @@ export default function SettingsPage() {
                         <CardTitle>Roles</CardTitle>
                         <CardDescription>Define roles and their permissions within the application.</CardDescription>
                     </div>
-                     <Button onClick={() => { setEditingRole(null); setIsCreateRoleOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Create Role</Button>
+                     <Button onClick={() => openRoleDialog(null)}><PlusCircle className="mr-2 h-4 w-4" /> Create Role</Button>
                 </CardHeader>
                 <CardContent>
-                   <div className="space-y-4">
-                        {roles.map((role) => (
-                            <Card key={role.id}>
-                                <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                    <div className="flex items-center gap-4">
-                                        <Shield className="h-8 w-8 text-muted-foreground flex-shrink-0" />
-                                        <div>
-                                            <h3 className="font-semibold text-lg">{role.name}</h3>
-                                            <p className="text-sm text-muted-foreground">{role.description}</p>
+                   <ScrollArea className="h-[calc(100vh-22rem)]">
+                        <div className="space-y-4 pr-6">
+                            {roles.map((role) => (
+                                <Card key={role.id} className="hover:shadow-md transition-shadow">
+                                    <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                        <div className="flex items-center gap-4">
+                                            <div className="bg-primary/10 text-primary p-3 rounded-full">
+                                                <Shield className="h-6 w-6" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-semibold text-lg">{role.name}</h3>
+                                                <p className="text-sm text-muted-foreground">{role.description}</p>
+                                                <p className="text-xs text-primary font-medium mt-1">{role.permissions.length} permissions granted</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
-                                        <Button variant="outline" size="sm" onClick={() => setEditingRole(role)} disabled={role.name === 'Admin'}>
-                                            <Pencil className="mr-2 h-4 w-4" />Edit Permissions
-                                        </Button>
-                                        <Button variant="ghost" size="icon" onClick={() => setRoleToDelete(role)} disabled={role.name === 'Admin'} aria-label="Delete role">
-                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
+                                        <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
+                                            <Button variant="outline" size="sm" onClick={() => openRoleDialog(role)} disabled={role.name === 'Admin'}>
+                                                <Pencil className="mr-2 h-4 w-4" />Edit
+                                            </Button>
+                                            <Button variant="ghost" size="icon" onClick={() => setRoleToDelete(role)} disabled={role.name === 'Admin'} aria-label="Delete role">
+                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                            </Button>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                   </ScrollArea>
                 </CardContent>
             </Card>
         </TabsContent>
@@ -364,11 +374,11 @@ export default function SettingsPage() {
       )}
 
       {/* Role Create/Edit Dialog */}
-      <Dialog open={isCreateRoleOpen || !!editingRole} onOpenChange={(open) => { if (!open) { setIsCreateRoleOpen(false); setEditingRole(null); }}}>
-        <DialogContent className="sm:max-w-2xl">
+      <Dialog open={isRoleDialogOpen} onOpenChange={(open) => { if (!open) { setIsRoleDialogOpen(false); setEditingRole(null); }}}>
+        <DialogContent className="sm:max-w-md">
             <DialogHeader>
                 <DialogTitle>{editingRole ? `Edit Role: ${editingRole.name}` : 'Create New Role'}</DialogTitle>
-                <DialogDescription>{editingRole ? 'Modify the permissions for this role.' : 'Define a new role and select the permissions for it.'}</DialogDescription>
+                <DialogDescription>{editingRole ? 'Modify the permissions for this role.' : 'Define a new role and select the pages it can access.'}</DialogDescription>
             </DialogHeader>
             <Form {...roleForm}>
                 <form onSubmit={roleForm.handleSubmit(onRoleSubmit)} className="space-y-6">
@@ -378,39 +388,55 @@ export default function SettingsPage() {
                     <FormField control={roleForm.control} name="description" render={({ field }) => (
                         <FormItem><FormLabel>Description</FormLabel><FormControl><Input placeholder="Briefly describe this role" {...field} /></FormControl><FormMessage /></FormItem>
                     )}/>
-                    <FormField control={roleForm.control} name="permissions" render={() => (
-                        <FormItem>
-                            <div className="mb-4"><FormLabel>Permissions</FormLabel><FormDescription>Select the permissions for this role.</FormDescription></div>
-                            <ScrollArea className="h-72 rounded-md border">
-                                <Table><TableHeader><TableRow><TableHead className="w-[180px]">Module</TableHead>{permissionActions.map(action => <TableHead key={action}>{action}</TableHead>)}</TableRow></TableHeader>
-                                    <TableBody>
-                                    {permissionModules.map((module) => (
-                                        <TableRow key={module.name}>
-                                            <TableCell className="font-medium">{module.name}</TableCell>
-                                            {permissionActions.map(action => (
-                                                <TableCell key={action} className="text-center">
-                                                {module.permissions.includes(action) ? (
-                                                    <FormField control={roleForm.control} name="permissions" render={({ field }) => {
-                                                        const permissionString = `${module.name}:${action}`;
-                                                        return (<FormItem className="flex items-center justify-center">
-                                                                <FormControl><Checkbox checked={field.value?.includes(permissionString)} onCheckedChange={(checked) => {
-                                                                    return checked ? field.onChange([...field.value, permissionString]) : field.onChange(field.value?.filter((value) => value !== permissionString))
-                                                                }}/></FormControl>
-                                                                </FormItem>)
-                                                    }}/>
-                                                ) : null}
-                                                </TableCell>
-                                            ))}
-                                        </TableRow>
+                    <FormField
+                        control={roleForm.control}
+                        name="permissions"
+                        render={() => (
+                            <FormItem>
+                                <div className="mb-4">
+                                    <FormLabel>Permissions</FormLabel>
+                                    <FormDescription>Select the pages this role can access.</FormDescription>
+                                </div>
+                                <div className="space-y-3">
+                                {availablePermissions.map((item) => (
+                                    <FormField
+                                        key={item.id}
+                                        control={roleForm.control}
+                                        name="permissions"
+                                        render={({ field }) => {
+                                        return (
+                                            <FormItem
+                                                className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"
+                                            >
+                                                <FormControl>
+                                                <Checkbox
+                                                    checked={field.value?.includes(item.id)}
+                                                    onCheckedChange={(checked) => {
+                                                    return checked
+                                                        ? field.onChange([...(field.value || []), item.id])
+                                                        : field.onChange(
+                                                            field.value?.filter(
+                                                                (value) => value !== item.id
+                                                            )
+                                                        )
+                                                    }}
+                                                />
+                                                </FormControl>
+                                                <FormLabel className="font-normal">
+                                                    {item.label}
+                                                </FormLabel>
+                                            </FormItem>
+                                        )
+                                        }}
+                                    />
                                     ))}
-                                    </TableBody>
-                                </Table>
-                            </ScrollArea>
-                            <FormMessage className="pt-2">{roleForm.formState.errors.permissions?.message}</FormMessage>
-                        </FormItem>
-                    )}/>
+                                </div>
+                                <FormMessage className="pt-2"/>
+                            </FormItem>
+                        )}
+                        />
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => { setIsCreateRoleOpen(false); setEditingRole(null); }}>Cancel</Button>
+                        <Button type="button" variant="outline" onClick={() => { setIsRoleDialogOpen(false); setEditingRole(null); }}>Cancel</Button>
                         <Button type="submit" disabled={roleForm.formState.isSubmitting}>
                             {roleForm.formState.isSubmitting && <Loader2 className="animate-spin mr-2" />}Save Changes
                         </Button>
@@ -438,3 +464,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    

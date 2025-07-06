@@ -14,12 +14,7 @@ async function main() {
     create: {
         name: 'Admin',
         description: 'Administrator with all permissions',
-        permissions: [
-            'Events:Create', 'Events:Read', 'Events:Update', 'Events:Delete',
-            'Attendees:Read', 'Attendees:Update',
-            'Reports:Read',
-            'Users & Roles:Create', 'Users & Roles:Read', 'Users & Roles:Update', 'Users & Roles:Delete'
-        ]
+        permissions: ['Dashboard', 'Create Event', 'Manage Events', 'Reports', 'Settings']
     }
   });
 
@@ -29,11 +24,7 @@ async function main() {
     create: {
         name: 'Organizer',
         description: 'Can manage events and attendees',
-        permissions: [
-            'Events:Create', 'Events:Read', 'Events:Update',
-            'Attendees:Read', 'Attendees:Update',
-            'Reports:Read'
-        ]
+        permissions: ['Dashboard', 'Create Event', 'Manage Events', 'Reports']
     }
   });
   
@@ -139,3 +130,5 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
+
+    
