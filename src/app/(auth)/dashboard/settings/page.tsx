@@ -71,6 +71,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getUsersAndRoles, addUser, createRole, updateRole, deleteRole, updateUserRole } from '@/lib/actions';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
 interface UserWithRole extends User {
     role: Role;
@@ -478,3 +479,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
