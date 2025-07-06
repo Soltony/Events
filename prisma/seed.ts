@@ -7,24 +7,48 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('Start seeding ...');
 
-  // Create Roles
+  // Create Roles with granular permissions
   const adminRole = await prisma.role.upsert({
     where: { name: 'Admin' },
-    update: {},
+    update: {
+      description: 'Administrator with all permissions',
+      permissions: [
+        'Dashboard:View', 'Dashboard:Create', 'Dashboard:Update', 'Dashboard:Delete',
+        'Events:View', 'Events:Create', 'Events:Update', 'Events:Delete',
+        'Reports:View', 'Reports:Create', 'Reports:Update', 'Reports:Delete',
+        'Settings:View', 'Settings:Create', 'Settings:Update', 'Settings:Delete'
+      ]
+    },
     create: {
         name: 'Admin',
         description: 'Administrator with all permissions',
-        permissions: ['Dashboard', 'Create Event', 'Manage Events', 'Reports', 'Settings']
+        permissions: [
+          'Dashboard:View', 'Dashboard:Create', 'Dashboard:Update', 'Dashboard:Delete',
+          'Events:View', 'Events:Create', 'Events:Update', 'Events:Delete',
+          'Reports:View', 'Reports:Create', 'Reports:Update', 'Reports:Delete',
+          'Settings:View', 'Settings:Create', 'Settings:Update', 'Settings:Delete'
+        ]
     }
   });
 
   const organizerRole = await prisma.role.upsert({
     where: { name: 'Organizer' },
-    update: {},
+    update: {
+      description: 'Can manage events and view reports',
+      permissions: [
+        'Dashboard:View', 
+        'Events:View', 'Events:Create', 'Events:Update',
+        'Reports:View'
+      ]
+    },
     create: {
         name: 'Organizer',
-        description: 'Can manage events and attendees',
-        permissions: ['Dashboard', 'Create Event', 'Manage Events', 'Reports']
+        description: 'Can manage events and view reports',
+        permissions: [
+          'Dashboard:View', 
+          'Events:View', 'Events:Create', 'Events:Update',
+          'Reports:View'
+        ]
     }
   });
   
@@ -46,6 +70,9 @@ async function main() {
   console.log(`Created admin user: ${adminUser.firstName}`);
 
   // Clean up existing events to avoid duplicates during re-seeding
+  await prisma.attendee.deleteMany({});
+  await prisma.promoCode.deleteMany({});
+  await prisma.ticketType.deleteMany({});
   await prisma.event.deleteMany({});
 
   // Create Events
@@ -117,6 +144,36 @@ async function main() {
     }
   });
   console.log(`Created event: ${event3.name}`);
+  
+  const event1Tickets = await prisma.ticketType.findMany({ where: { eventId: event1.id } });
+  
+  const generalTicketId = event1Tickets.find(t => t.name === 'General Admission')?.id;
+  const vipTicketId = event1Tickets.find(t => t.name === 'VIP Pass')?.id;
+
+  if (generalTicketId && vipTicketId) {
+    // Create Attendees
+    await prisma.attendee.createMany({
+        data: [
+          {
+              name: 'John Doe',
+              email: 'john.doe@example.com',
+              eventId: event1.id,
+              ticketTypeId: generalTicketId,
+              userId: adminUser.id,
+              checkedIn: true,
+          },
+          {
+              name: 'Jane Smith',
+              email: 'jane.smith@example.com',
+              eventId: event1.id,
+              ticketTypeId: vipTicketId,
+              userId: adminUser.id,
+              checkedIn: false,
+          }
+        ]
+    });
+    console.log('Created attendees for Tech Summit.');
+  }
 
 
   console.log('Seeding finished.');

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -64,11 +65,12 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Pencil, PlusCircle, Shield, Trash2, Loader2 } from 'lucide-react';
+import { Pencil, PlusCircle, Shield, Trash2, Loader2, ChevronRight } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast"
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getUsersAndRoles, addUser, createRole, updateRole, deleteRole, updateUserRole } from '@/lib/actions';
+import { cn } from '@/lib/utils';
 
 interface UserWithRole extends User {
     role: Role;
@@ -84,13 +86,15 @@ const addUserFormSchema = z.object({
 
 type AddUserFormValues = z.infer<typeof addUserFormSchema>;
 
-const availablePermissions = [
-    { id: 'Dashboard', label: 'View Dashboard' },
-    { id: 'Create Event', label: 'Create New Events' },
-    { id: 'Manage Events', label: 'Manage Existing Events' },
-    { id: 'Reports', label: 'View Reports' },
-    { id: 'Settings', label: 'Access Settings & Manage Users' },
+const permissionCategories = [
+  { id: 'Dashboard', label: 'Dashboard' },
+  { id: 'Events', label: 'Events' },
+  { id: 'Reports', label: 'Reports' },
+  { id: 'Settings', label: 'Settings' },
 ];
+
+const permissionActions = ['View', 'Create', 'Update', 'Delete'];
+
 
 const roleFormSchema = z.object({
     name: z.string().min(1, { message: "Role name is required." }),
@@ -374,76 +378,83 @@ export default function SettingsPage() {
 
       {/* Role Create/Edit Dialog */}
       <Dialog open={isRoleDialogOpen} onOpenChange={(open) => { if (!open) { setIsRoleDialogOpen(false); setEditingRole(null); }}}>
-        <DialogContent className="sm:max-w-md flex flex-col max-h-[90vh]">
+        <DialogContent className="sm:max-w-2xl flex flex-col max-h-[90vh]">
             <DialogHeader>
                 <DialogTitle>{editingRole ? `Edit Role: ${editingRole.name}` : 'Create New Role'}</DialogTitle>
-                <DialogDescription>{editingRole ? 'Modify the permissions for this role.' : 'Define a new role and select the pages it can access.'}</DialogDescription>
+                <DialogDescription>{editingRole ? 'Modify the permissions for this role.' : 'Define a new role and select the granular permissions it has for each page.'}</DialogDescription>
             </DialogHeader>
             <Form {...roleForm}>
                 <form onSubmit={roleForm.handleSubmit(onRoleSubmit)} className="flex-1 flex flex-col min-h-0">
-                    <ScrollArea className="flex-1 -mx-6 px-6">
-                      <div className="space-y-6 py-4">
-                        <FormField control={roleForm.control} name="name" render={({ field }) => (
-                            <FormItem><FormLabel>Role Name</FormLabel><FormControl><Input placeholder="e.g., Marketing" {...field} /></FormControl><FormMessage /></FormItem>
-                        )}/>
-                        <FormField control={roleForm.control} name="description" render={({ field }) => (
-                            <FormItem><FormLabel>Description</FormLabel><FormControl><Input placeholder="Briefly describe this role" {...field} /></FormControl><FormMessage /></FormItem>
-                        )}/>
-                        <FormField
-                            control={roleForm.control}
-                            name="permissions"
-                            render={() => (
-                                <FormItem>
-                                    <div className="mb-4">
-                                        <FormLabel>Permissions</FormLabel>
-                                        <FormDescription>Select the pages this role can access.</FormDescription>
-                                    </div>
-                                    <div className="space-y-3">
-                                    {availablePermissions.map((item) => (
-                                        <FormField
-                                            key={item.id}
-                                            control={roleForm.control}
-                                            name="permissions"
-                                            render={({ field }) => {
-                                            return (
-                                                <FormItem
-                                                    className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"
-                                                >
-                                                    <FormControl>
-                                                    <Checkbox
-                                                        checked={field.value?.includes(item.id)}
-                                                        onCheckedChange={(checked) => {
-                                                        return checked
-                                                            ? field.onChange([...(field.value || []), item.id])
-                                                            : field.onChange(
-                                                                field.value?.filter(
-                                                                    (value) => value !== item.id
-                                                                )
-                                                            )
-                                                        }}
-                                                    />
-                                                    </FormControl>
-                                                    <FormLabel className="font-normal">
-                                                        {item.label}
-                                                    </FormLabel>
-                                                </FormItem>
-                                            )
-                                            }}
-                                        />
-                                        ))}
-                                    </div>
-                                    <FormMessage className="pt-2"/>
-                                </FormItem>
-                            )}
+                  <div className="space-y-4 px-1">
+                      <FormField control={roleForm.control} name="name" render={({ field }) => (
+                          <FormItem><FormLabel>Role Name</FormLabel><FormControl><Input placeholder="e.g., Event Manager" {...field} /></FormControl><FormMessage /></FormItem>
+                      )}/>
+                      <FormField control={roleForm.control} name="description" render={({ field }) => (
+                          <FormItem><FormLabel>Description</FormLabel><FormControl><Input placeholder="Briefly describe this role's purpose" {...field} /></FormControl><FormMessage /></FormItem>
+                      )}/>
+                  </div>
+                  
+                  <Separator className="my-6" />
+
+                  <ScrollArea className="flex-1 -mx-6 px-6">
+                      <div className="space-y-2 px-1">
+                          <FormLabel>Permissions</FormLabel>
+                          <FormDescription>Select the actions this role can perform on each page.</FormDescription>
+                          <FormMessage>{roleForm.formState.errors.permissions?.root?.message || roleForm.formState.errors.permissions?.message}</FormMessage>
+                      </div>
+                      <div className="space-y-4 pt-4">
+                          <FormField
+                              control={roleForm.control}
+                              name="permissions"
+                              render={({ field }) => (
+                                <div className="space-y-4">
+                                    {permissionCategories.map((category) => (
+                                        <Card key={category.id}>
+                                            <CardHeader className="p-4">
+                                                <CardTitle className="text-base">{category.label}</CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="p-4 pt-0">
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2">
+                                                    {permissionActions.map((action) => {
+                                                        const permissionId = `${category.id}:${action}`;
+                                                        return (
+                                                            <FormItem key={permissionId} className="flex flex-row items-center space-x-2 space-y-0">
+                                                                <FormControl>
+                                                                    <Checkbox
+                                                                        checked={field.value?.includes(permissionId)}
+                                                                        onCheckedChange={(checked) => {
+                                                                            const currentPermissions = field.value || [];
+                                                                            return checked
+                                                                                ? field.onChange([...currentPermissions, permissionId])
+                                                                                : field.onChange(
+                                                                                    currentPermissions.filter(
+                                                                                        (value) => value !== permissionId
+                                                                                    )
+                                                                                );
+                                                                        }}
+                                                                    />
+                                                                </FormControl>
+                                                                <FormLabel className="text-sm font-normal">
+                                                                    {action}
+                                                                </FormLabel>
+                                                            </FormItem>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                              )}
                             />
-                        </div>
-                    </ScrollArea>
-                    <DialogFooter className="pt-6 border-t -mx-6 px-6 mt-auto bg-background">
-                        <Button type="button" variant="outline" onClick={() => { setIsRoleDialogOpen(false); setEditingRole(null); }}>Cancel</Button>
-                        <Button type="submit" disabled={roleForm.formState.isSubmitting}>
-                            {roleForm.formState.isSubmitting && <Loader2 className="animate-spin mr-2" />}Save Changes
-                        </Button>
-                    </DialogFooter>
+                      </div>
+                  </ScrollArea>
+                  <DialogFooter className="pt-6 border-t -mx-6 px-6 mt-auto bg-background sticky bottom-0">
+                      <Button type="button" variant="outline" onClick={() => { setIsRoleDialogOpen(false); setEditingRole(null); }}>Cancel</Button>
+                      <Button type="submit" disabled={roleForm.formState.isSubmitting}>
+                          {roleForm.formState.isSubmitting && <Loader2 className="animate-spin mr-2" />}Save Changes
+                      </Button>
+                  </DialogFooter>
                 </form>
             </Form>
         </DialogContent>
