@@ -450,7 +450,7 @@ export default function SettingsPage() {
                             />
                       </div>
                   </ScrollArea>
-                  <DialogFooter className="pt-6 border-t -mx-6 px-6 mt-auto bg-background sticky bottom-0">
+                  <DialogFooter className="pt-6 border-t -mx-6 px-6 bg-background sticky bottom-0">
                       <Button type="button" variant="outline" onClick={() => { setIsRoleDialogOpen(false); setEditingRole(null); }}>Cancel</Button>
                       <Button type="submit" disabled={roleForm.formState.isSubmitting}>
                           {roleForm.formState.isSubmitting && <Loader2 className="animate-spin mr-2" />}Save Changes
@@ -479,3 +479,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
