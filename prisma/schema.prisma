@@ -1,98 +1,88 @@
 // prisma/schema.prisma
+
 datasource db {
-  provider     = "mysql"
+  provider     = "postgresql"
   url          = env("DATABASE_URL")
-  relationMode = "prisma"
 }
 
 generator client {
   provider      = "prisma-client-js"
-  // This is the crucial change to fix the deployment error
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 model User {
-  id          String     @id @default(cuid())
+  id          String   @id @default(uuid())
   firstName   String
   lastName    String
-  phoneNumber String     @unique
+  phoneNumber String   @unique
   roleId      String
-  role        Role       @relation(fields: [roleId], references: [id])
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  attendees   Attendee[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  role        Role     @relation(fields: [roleId], references: [id])
 }
 
 model Role {
-  id          String   @id @default(cuid())
+  id          String   @id @default(uuid())
   name        String   @unique
   description String?
   permissions String[]
-  users       User[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  users       User[]
 }
 
 model Event {
   id          Int          @id @default(autoincrement())
   name        String
-  description String       @db.Text
+  description String
   startDate   DateTime
   endDate     DateTime?
   location    String
   category    String
   image       String[]
   hint        String?
-  ticketTypes TicketType[]
-  promoCodes  PromoCode[]
-  attendees   Attendee[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  ticketTypes TicketType[]
+  attendees   Attendee[]
+  promoCodes  PromoCode[]
 }
 
 model TicketType {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   name      String
-  price     Decimal  @db.Decimal(10, 2)
+  price     Decimal   @db.Decimal(10, 2)
   total     Int
-  sold      Int      @default(0)
+  sold      Int       @default(0)
   eventId   Int
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
   attendees Attendee[]
-
-  @@index([eventId])
 }
 
 model Attendee {
-  id           String     @id @default(cuid())
+  id           Int        @id @default(autoincrement())
   name         String
   email        String
   checkedIn    Boolean    @default(false)
-  ticketTypeId Int
   eventId      Int
-  userId       String?
-  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
-  event        Event      @relation(fields: [eventId], references: [id])
-  user         User?      @relation(fields: [userId], references: [id])
+  ticketTypeId Int
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
-
-  @@index([ticketTypeId])
-  @@index([eventId])
-  @@index([userId])
+  event        Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
 }
 
 model PromoCode {
-  id        Int      @id @default(autoincrement())
-  code      String   @unique
-  type      String // PERCENTAGE or FIXED
-  value     Decimal  @db.Decimal(10, 2)
+  id        Int       @id @default(autoincrement())
+  code      String    @unique
+  type      String    // PERCENTAGE or FIXED
+  value     Decimal   @db.Decimal(10, 2)
   maxUses   Int
-  uses      Int      @default(0)
+  uses      Int       @default(0)
   eventId   Int
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([eventId])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }
