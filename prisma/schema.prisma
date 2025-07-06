@@ -1,24 +1,23 @@
-// prisma/schema.prisma
-
-datasource db {
-  provider     = "postgresql"
-  url          = env("DATABASE_URL")
-}
 
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+  provider        = "prisma-client-js"
+  binaryTargets   = ["native", "linux-musl-openssl-1.1.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   firstName   String
   lastName    String
-  phoneNumber String   @unique
+  phoneNumber String    @unique
   roleId      String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  role        Role     @relation(fields: [roleId], references: [id])
+  role        Role      @relation(fields: [roleId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model Role {
@@ -26,38 +25,36 @@ model Role {
   name        String   @unique
   description String?
   permissions String[]
+  users       User[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  users       User[]
 }
 
 model Event {
   id          Int          @id @default(autoincrement())
   name        String
-  description String
+  description String       @db.Text
   startDate   DateTime
   endDate     DateTime?
   location    String
   category    String
   image       String[]
   hint        String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
   ticketTypes TicketType[]
   attendees   Attendee[]
   promoCodes  PromoCode[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
 
 model TicketType {
-  id        Int       @id @default(autoincrement())
-  name      String
-  price     Decimal   @db.Decimal(10, 2)
-  total     Int
-  sold      Int       @default(0)
-  eventId   Int
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  id      Int      @id @default(autoincrement())
+  name    String
+  price   Decimal  @db.Decimal(10, 2)
+  total   Int
+  sold    Int      @default(0)
+  eventId Int
+  event   Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   attendees Attendee[]
 }
 
@@ -65,24 +62,22 @@ model Attendee {
   id           Int        @id @default(autoincrement())
   name         String
   email        String
-  checkedIn    Boolean    @default(false)
-  eventId      Int
   ticketTypeId Int
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  event        Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
   ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
+  eventId      Int
+  event        Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  checkedIn    Boolean    @default(false)
+  checkedInAt  DateTime?
 }
 
 model PromoCode {
-  id        Int       @id @default(autoincrement())
-  code      String    @unique
-  type      String    // PERCENTAGE or FIXED
-  value     Decimal   @db.Decimal(10, 2)
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  type      String   // PERCENTAGE or FIXED
+  value     Decimal
   maxUses   Int
-  uses      Int       @default(0)
+  uses      Int      @default(0)
   eventId   Int
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 }

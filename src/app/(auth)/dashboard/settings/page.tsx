@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -375,67 +374,71 @@ export default function SettingsPage() {
 
       {/* Role Create/Edit Dialog */}
       <Dialog open={isRoleDialogOpen} onOpenChange={(open) => { if (!open) { setIsRoleDialogOpen(false); setEditingRole(null); }}}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md flex flex-col max-h-[90vh]">
             <DialogHeader>
                 <DialogTitle>{editingRole ? `Edit Role: ${editingRole.name}` : 'Create New Role'}</DialogTitle>
                 <DialogDescription>{editingRole ? 'Modify the permissions for this role.' : 'Define a new role and select the pages it can access.'}</DialogDescription>
             </DialogHeader>
             <Form {...roleForm}>
-                <form onSubmit={roleForm.handleSubmit(onRoleSubmit)} className="space-y-6">
-                    <FormField control={roleForm.control} name="name" render={({ field }) => (
-                        <FormItem><FormLabel>Role Name</FormLabel><FormControl><Input placeholder="e.g., Marketing" {...field} /></FormControl><FormMessage /></FormItem>
-                    )}/>
-                    <FormField control={roleForm.control} name="description" render={({ field }) => (
-                        <FormItem><FormLabel>Description</FormLabel><FormControl><Input placeholder="Briefly describe this role" {...field} /></FormControl><FormMessage /></FormItem>
-                    )}/>
-                    <FormField
-                        control={roleForm.control}
-                        name="permissions"
-                        render={() => (
-                            <FormItem>
-                                <div className="mb-4">
-                                    <FormLabel>Permissions</FormLabel>
-                                    <FormDescription>Select the pages this role can access.</FormDescription>
-                                </div>
-                                <div className="space-y-3">
-                                {availablePermissions.map((item) => (
-                                    <FormField
-                                        key={item.id}
-                                        control={roleForm.control}
-                                        name="permissions"
-                                        render={({ field }) => {
-                                        return (
-                                            <FormItem
-                                                className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"
-                                            >
-                                                <FormControl>
-                                                <Checkbox
-                                                    checked={field.value?.includes(item.id)}
-                                                    onCheckedChange={(checked) => {
-                                                    return checked
-                                                        ? field.onChange([...(field.value || []), item.id])
-                                                        : field.onChange(
-                                                            field.value?.filter(
-                                                                (value) => value !== item.id
+                <form onSubmit={roleForm.handleSubmit(onRoleSubmit)} className="flex-1 flex flex-col min-h-0">
+                    <ScrollArea className="flex-1 -mx-6 px-6">
+                      <div className="space-y-6 py-4">
+                        <FormField control={roleForm.control} name="name" render={({ field }) => (
+                            <FormItem><FormLabel>Role Name</FormLabel><FormControl><Input placeholder="e.g., Marketing" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <FormField control={roleForm.control} name="description" render={({ field }) => (
+                            <FormItem><FormLabel>Description</FormLabel><FormControl><Input placeholder="Briefly describe this role" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <FormField
+                            control={roleForm.control}
+                            name="permissions"
+                            render={() => (
+                                <FormItem>
+                                    <div className="mb-4">
+                                        <FormLabel>Permissions</FormLabel>
+                                        <FormDescription>Select the pages this role can access.</FormDescription>
+                                    </div>
+                                    <div className="space-y-3">
+                                    {availablePermissions.map((item) => (
+                                        <FormField
+                                            key={item.id}
+                                            control={roleForm.control}
+                                            name="permissions"
+                                            render={({ field }) => {
+                                            return (
+                                                <FormItem
+                                                    className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"
+                                                >
+                                                    <FormControl>
+                                                    <Checkbox
+                                                        checked={field.value?.includes(item.id)}
+                                                        onCheckedChange={(checked) => {
+                                                        return checked
+                                                            ? field.onChange([...(field.value || []), item.id])
+                                                            : field.onChange(
+                                                                field.value?.filter(
+                                                                    (value) => value !== item.id
+                                                                )
                                                             )
-                                                        )
-                                                    }}
-                                                />
-                                                </FormControl>
-                                                <FormLabel className="font-normal">
-                                                    {item.label}
-                                                </FormLabel>
-                                            </FormItem>
-                                        )
-                                        }}
-                                    />
-                                    ))}
-                                </div>
-                                <FormMessage className="pt-2"/>
-                            </FormItem>
-                        )}
-                        />
-                    <DialogFooter>
+                                                        }}
+                                                    />
+                                                    </FormControl>
+                                                    <FormLabel className="font-normal">
+                                                        {item.label}
+                                                    </FormLabel>
+                                                </FormItem>
+                                            )
+                                            }}
+                                        />
+                                        ))}
+                                    </div>
+                                    <FormMessage className="pt-2"/>
+                                </FormItem>
+                            )}
+                            />
+                        </div>
+                    </ScrollArea>
+                    <DialogFooter className="pt-6 border-t -mx-6 px-6 mt-auto bg-background">
                         <Button type="button" variant="outline" onClick={() => { setIsRoleDialogOpen(false); setEditingRole(null); }}>Cancel</Button>
                         <Button type="submit" disabled={roleForm.formState.isSubmitting}>
                             {roleForm.formState.isSubmitting && <Loader2 className="animate-spin mr-2" />}Save Changes
@@ -464,5 +467,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    
