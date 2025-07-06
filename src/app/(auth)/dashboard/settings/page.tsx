@@ -76,7 +76,8 @@ interface UserWithRole extends User {
 }
 
 const addUserFormSchema = z.object({
-  name: z.string().min(1, { message: "Name is required." }),
+  firstName: z.string().min(1, { message: "First name is required." }),
+  lastName: z.string().min(1, { message: "Last name is required." }),
   phoneNumber: z.string().min(1, { message: "Phone number is required." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
   roleId: z.string({ required_error: "Please select a role." }),
@@ -148,7 +149,8 @@ export default function SettingsPage() {
     const addUserForm = useForm<AddUserFormValues>({
         resolver: zodResolver(addUserFormSchema),
         defaultValues: {
-          name: "",
+          firstName: "",
+          lastName: "",
           phoneNumber: "",
           password: "",
         },
@@ -176,13 +178,13 @@ export default function SettingsPage() {
             await addUser(data);
             toast({
                 title: "User Added",
-                description: `Successfully added ${data.name}.`,
+                description: `Successfully added ${data.firstName} ${data.lastName}.`,
             });
             await fetchData();
             setIsAddUserOpen(false);
             addUserForm.reset();
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Failed to add user.' });
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to add user.' });
         }
     }
 
@@ -261,9 +263,14 @@ export default function SettingsPage() {
                         </DialogHeader>
                         <Form {...addUserForm}>
                           <form onSubmit={addUserForm.handleSubmit(onAddUserSubmit)} className="space-y-4">
-                             <FormField control={addUserForm.control} name="name" render={({ field }) => (
-                                <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input placeholder="John Doe" {...field} /></FormControl><FormMessage /></FormItem>
-                             )}/>
+                             <div className="grid grid-cols-2 gap-4">
+                                <FormField control={addUserForm.control} name="firstName" render={({ field }) => (
+                                    <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="John" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                 <FormField control={addUserForm.control} name="lastName" render={({ field }) => (
+                                    <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Doe" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                            </div>
                              <FormField control={addUserForm.control} name="phoneNumber" render={({ field }) => (
                                 <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="+1234567890" {...field} /></FormControl><FormMessage /></FormItem>
                              )}/>

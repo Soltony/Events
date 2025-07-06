@@ -89,25 +89,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   
   const logout = async () => {
-    setIsLoading(true);
-    try {
-        if(tokens){
-            const requestData = {
-                AccessToken: tokens.accessToken,
-                RefreshToken: tokens.refreshToken,
-            };
-            await api.post('/api/Auth/logout', requestData);
-        }
-    } catch(error) {
-        console.error("Logout failed on server, proceeding with client-side logout.", error);
-    }
+    const currentTokens = tokens;
     
-    // This logic now runs after the try/catch block has completed, avoiding a race condition.
+    // Immediately clear client-side state
     setTokens(null);
     setAuthToken(null);
     localStorage.removeItem('authTokens');
     router.push('/');
-    setIsLoading(false);
+
+    if (currentTokens) {
+        try {
+            const requestData = {
+                AccessToken: currentTokens.accessToken,
+                RefreshToken: currentTokens.refreshToken,
+            };
+            await api.post('/api/Auth/logout', requestData);
+        } catch(error) {
+            // Silently fail or log for debugging, as client is already logged out.
+            console.error("Server logout failed, but client is logged out.", error);
+        }
+    }
   };
 
   const isAuthenticated = !isLoading && !!tokens;

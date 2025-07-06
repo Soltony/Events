@@ -1,8 +1,10 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
 import type { Role } from '@prisma/client';
+import axios from 'axios';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -172,15 +174,43 @@ export async function getUsersAndRoles() {
 }
 
 export async function addUser(data: any) {
-    // In a real app, hash the password before saving
+    const { firstName, lastName, phoneNumber, password, roleId } = data;
+
+    // Step 1: Register user with the external auth server
+    try {
+        const authApiUrl = process.env.NEXT_PUBLIC_AUTH_API_BASE_URL;
+        if (!authApiUrl) {
+            throw new Error("Authentication API URL is not configured.");
+        }
+        
+        const registrationData = {
+            FirstName: firstName,
+            LastName: lastName,
+            PhoneNumber: phoneNumber,
+            Password: password,
+        };
+        
+        const response = await axios.post(`${authApiUrl}/api/Auth/register`, registrationData);
+
+        if (!response.data.isSuccess) {
+            throw new Error(response.data.errors?.join(', ') || 'Authentication server registration failed.');
+        }
+    } catch (error: any) {
+        console.error("Error registering user with auth server:", error);
+        const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'An unknown error occurred during registration.';
+        throw new Error(`Failed to register user: ${errorMessage}`);
+    }
+
+    // Step 2: Create the user in the local database
     const user = await prisma.user.create({
         data: {
-            ...data,
-            name: undefined, // remove combined name
-            firstName: data.name.split(' ')[0] || '',
-            lastName: data.name.split(' ')[1] || '',
+            firstName,
+            lastName,
+            phoneNumber,
+            roleId,
         }
     });
+
     revalidatePath('/dashboard/settings');
     return serialize(user);
 }
