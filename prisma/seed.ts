@@ -76,13 +76,6 @@ async function main() {
           { name: 'Student Pass', price: 99.00, total: 200, sold: 85 },
         ]
       },
-      attendees: {
-        create: [
-            { name: 'Alice Johnson', email: 'alice.j@example.com', checkedIn: true, ticketTypeId: 1 },
-            { name: 'Bob Williams', email: 'bob.w@example.com', checkedIn: false, ticketTypeId: 1 },
-            { name: 'Charlie Brown', email: 'charlie.b@example.com', checkedIn: true, ticketTypeId: 2 },
-        ]
-      },
       promoCodes: {
         create: [
           { code: 'EARLYBIRD25', type: 'PERCENTAGE', value: 25, maxUses: 200, uses: 150 },

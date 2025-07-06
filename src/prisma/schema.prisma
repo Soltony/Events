@@ -2,9 +2,9 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider      = "prisma-client-js"
-  // This is the key fix for the "libssl" error. It ensures a compatible query engine is used.
-  binaryTargets = ["native", "linux-musl"]
+  provider = "prisma-client-js"
+  // This line is crucial for compatibility with the deployment environment.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -32,7 +32,7 @@ model Role {
 model Event {
   id          Int          @id @default(autoincrement())
   name        String
-  description String       @db.Text
+  description String
   startDate   DateTime
   endDate     DateTime?
   location    String
@@ -45,23 +45,23 @@ model Event {
 }
 
 model TicketType {
-  id         Int        @id @default(autoincrement())
-  name       String
-  price      Decimal    @db.Decimal(10, 2)
-  total      Int
-  sold       Int        @default(0)
-  eventId    Int
-  event      Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  attendees  Attendee[]
+  id        Int        @id @default(autoincrement())
+  name      String
+  price     Decimal
+  total     Int
+  sold      Int        @default(0)
+  eventId   Int
+  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  attendees Attendee[]
 }
 
 model PromoCode {
   id      Int     @id @default(autoincrement())
   code    String  @unique
-  type    String // 'PERCENTAGE' or 'FIXED'
-  value   Decimal @db.Decimal(10, 2)
-  uses    Int     @default(0)
+  type    String // e.g., PERCENTAGE, FIXED
+  value   Decimal
   maxUses Int
+  uses    Int     @default(0)
   eventId Int
   event   Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }
@@ -72,10 +72,7 @@ model Attendee {
   email        String
   checkedIn    Boolean    @default(false)
   ticketTypeId Int
-  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
   eventId      Int
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
   event        Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@unique([email, eventId]) // An email can only be an attendee for an event once.
-  @@index([eventId])
 }
