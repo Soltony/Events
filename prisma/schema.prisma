@@ -1,24 +1,79 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-generator client {
-  provider      = "prisma-client-js"
-  // This is the key fix for the "libssl" error. It ensures a compatible query engine is used.
-  binaryTargets = ["native", "linux-musl"]
-}
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+model Event {
+  id          Int          @id @default(autoincrement())
+  name        String
+  description String
+  startDate   DateTime
+  endDate     DateTime?
+  location    String
+  category    String
+  image       String[]
+  hint        String?
+  ticketTypes TicketType[]
+  attendees   Attendee[]
+  promoCodes  PromoCode[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model TicketType {
+  id         Int        @id @default(autoincrement())
+  name       String
+  price      Decimal
+  total      Int
+  sold       Int        @default(0)
+  eventId    Int
+  event      Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  attendees  Attendee[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+model PromoCode {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  type      String // PERCENTAGE or FIXED
+  value     Decimal
+  maxUses   Int
+  uses      Int      @default(0)
+  eventId   Int
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Attendee {
+  id           Int        @id @default(autoincrement())
+  name         String
+  email        String
+  checkedIn    Boolean    @default(false)
+  eventId      Int
+  event        Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ticketTypeId Int
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
 model User {
-  id          String @id @default(cuid())
+  id          String   @id @default(cuid())
   firstName   String
   lastName    String
-  phoneNumber String @unique
+  phoneNumber String   @unique
   roleId      String
-  role        Role   @relation(fields: [roleId], references: [id])
+  role        Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Role {
@@ -27,55 +82,6 @@ model Role {
   description String?
   permissions String[]
   users       User[]
-}
-
-model Event {
-  id          Int          @id @default(autoincrement())
-  name        String
-  description String       @db.Text
-  startDate   DateTime
-  endDate     DateTime?
-  location    String
-  category    String
-  image       String[]
-  hint        String?
-  ticketTypes TicketType[]
-  promoCodes  PromoCode[]
-  attendees   Attendee[]
-}
-
-model TicketType {
-  id         Int        @id @default(autoincrement())
-  name       String
-  price      Decimal    @db.Decimal(10, 2)
-  total      Int
-  sold       Int        @default(0)
-  eventId    Int
-  event      Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  attendees  Attendee[]
-}
-
-model PromoCode {
-  id      Int     @id @default(autoincrement())
-  code    String  @unique
-  type    String // 'PERCENTAGE' or 'FIXED'
-  value   Decimal @db.Decimal(10, 2)
-  uses    Int     @default(0)
-  maxUses Int
-  eventId Int
-  event   Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
-}
-
-model Attendee {
-  id           Int        @id @default(autoincrement())
-  name         String
-  email        String
-  checkedIn    Boolean    @default(false)
-  ticketTypeId Int
-  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
-  eventId      Int
-  event        Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@unique([email, eventId]) // An email can only be an attendee for an event once.
-  @@index([eventId])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
