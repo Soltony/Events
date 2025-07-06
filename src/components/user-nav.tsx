@@ -16,12 +16,19 @@ import {
 import { useAuth } from "@/context/auth-context";
 
 export function UserNav() {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const router = useRouter();
 
   const handleLogout = async () => {
     await logout();
   };
+  
+  const getInitials = () => {
+    if (user?.firstName && user?.lastName) {
+        return `${user.firstName[0]}${user.lastName[0]}`;
+    }
+    return 'U';
+  }
 
   return (
     <DropdownMenu>
@@ -29,18 +36,27 @@ export function UserNav() {
         <Button variant="ghost" className="relative h-9 w-9 rounded-full">
           <Avatar className="h-9 w-9">
             <AvatarImage src="https://placehold.co/40x40.png" alt="@user" data-ai-hint="profile person" />
-            <AvatarFallback>U</AvatarFallback>
+            <AvatarFallback>{getInitials()}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">Organizer</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              0912345678
-            </p>
-          </div>
+            {user ? (
+                <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{user.firstName} {user.lastName}</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                    {user.phoneNumber}
+                    </p>
+                </div>
+            ) : (
+                 <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">Organizer</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                        Not logged in
+                    </p>
+                </div>
+            )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
@@ -53,5 +69,3 @@ export function UserNav() {
     </DropdownMenu>
   );
 }
-
-    

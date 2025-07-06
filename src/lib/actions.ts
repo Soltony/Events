@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
-import type { Role } from '@prisma/client';
+import type { Role, User } from '@prisma/client';
 import axios from 'axios';
 
 // Helper to ensure data is serializable
@@ -171,6 +171,13 @@ export async function getUsersAndRoles() {
     });
     const roles = await prisma.role.findMany();
     return serialize({ users, roles });
+}
+
+export async function getUserByPhoneNumber(phoneNumber: string): Promise<User | null> {
+    const user = await prisma.user.findUnique({
+        where: { phoneNumber },
+    });
+    return serialize(user);
 }
 
 export async function addUser(data: any) {

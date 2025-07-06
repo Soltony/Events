@@ -5,6 +5,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import api, { setAuthToken } from '@/lib/api';
+import { getUserByPhoneNumber } from '@/lib/actions';
+import type { User } from '@prisma/client';
 
 interface AuthTokens {
   accessToken: string;
@@ -13,6 +15,7 @@ interface AuthTokens {
 
 interface AuthContextType {
   tokens: AuthTokens | null;
+  user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (data: any) => Promise<void>;
@@ -23,6 +26,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
@@ -30,14 +34,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const storedTokens = localStorage.getItem('authTokens');
-      if (storedTokens) {
+      const storedUser = localStorage.getItem('authUser');
+
+      if (storedTokens && storedUser) {
         const parsedTokens = JSON.parse(storedTokens);
+        const parsedUser = JSON.parse(storedUser);
         setTokens(parsedTokens);
+        setUser(parsedUser);
         setAuthToken(parsedTokens.accessToken);
       }
     } catch (error) {
-        console.error("Failed to parse auth tokens from localStorage", error);
+        console.error("Failed to parse auth data from localStorage", error);
         localStorage.removeItem('authTokens');
+        localStorage.removeItem('authUser');
     } finally {
         setIsLoading(false);
     }
@@ -52,7 +61,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await api.post('/api/Auth/login', requestData);
 
       if (response.data && response.data.isSuccess) {
-        // Handle both camelCase (accessToken) and PascalCase (AccessToken) from server
         const { accessToken, refreshToken, AccessToken, RefreshToken } = response.data;
         const resolvedAccessToken = accessToken || AccessToken;
         const resolvedRefreshToken = refreshToken || RefreshToken;
@@ -60,8 +68,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (resolvedAccessToken) {
           const newTokens = { accessToken: resolvedAccessToken, refreshToken: resolvedRefreshToken };
           setTokens(newTokens);
-          localStorage.setItem('authTokens', JSON.stringify(newTokens));
           setAuthToken(resolvedAccessToken);
+          
+          const userData = await getUserByPhoneNumber(data.phoneNumber);
+          setUser(userData);
+          
+          localStorage.setItem('authTokens', JSON.stringify(newTokens));
+          localStorage.setItem('authUser', JSON.stringify(userData));
           
           toast({
             title: 'Login Successful',
@@ -91,10 +104,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     const currentTokens = tokens;
     
-    // Immediately clear client-side state
+    setUser(null);
     setTokens(null);
     setAuthToken(null);
     localStorage.removeItem('authTokens');
+    localStorage.removeItem('authUser');
     router.push('/');
 
     if (currentTokens) {
@@ -105,16 +119,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             };
             await api.post('/api/Auth/logout', requestData);
         } catch(error) {
-            // Silently fail or log for debugging, as client is already logged out.
             console.error("Server logout failed, but client is logged out.", error);
         }
     }
   };
 
-  const isAuthenticated = !isLoading && !!tokens;
+  const isAuthenticated = !isLoading && !!tokens && !!user;
 
   return (
-    <AuthContext.Provider value={{ tokens, isAuthenticated, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ tokens, user, isAuthenticated, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
