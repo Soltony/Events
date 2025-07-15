@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/auth-context';
 import { AuthStatus } from '@/components/auth-status';
+import { SidebarProvider } from '@/components/ui/sidebar';
 
 export const metadata: Metadata = {
   title: 'EventFlow Tickets',
@@ -25,17 +26,19 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased" suppressHydrationWarning={true}>
         <AuthProvider>
-          <div className="flex flex-col min-h-screen relative">
-              <div className="absolute top-4 right-4 z-10">
-                <AuthStatus />
-              </div>
-              <main className="flex-1 bg-secondary">
-                <div className="container mx-auto p-4 lg:p-6">
-                  {children}
+          <SidebarProvider>
+            <div className="flex flex-col min-h-screen relative">
+                <div className="absolute top-4 right-4 z-10">
+                  <AuthStatus />
                 </div>
-              </main>
-          </div>
-          <Toaster />
+                <main className="flex-1 bg-secondary">
+                  <div className="container mx-auto p-4 lg:p-6">
+                    {children}
+                  </div>
+                </main>
+            </div>
+            <Toaster />
+          </SidebarProvider>
         </AuthProvider>
       </body>
     </html>

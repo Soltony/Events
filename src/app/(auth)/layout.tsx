@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Menu, PanelLeft } from 'lucide-react';
 import AuthGuard from '@/components/auth-guard';
-import { SidebarProvider, Sidebar, SidebarTrigger, SidebarContent, SidebarHeader, SidebarFooter } from '@/components/ui/sidebar';
+import { Sidebar, SidebarTrigger, SidebarContent, SidebarHeader, SidebarFooter } from '@/components/ui/sidebar';
 
 export default function AuthLayout({
   children,
@@ -16,7 +16,6 @@ export default function AuthLayout({
 }>) {
   return (
     <AuthGuard>
-      <SidebarProvider>
         <div className="grid min-h-screen w-full bg-background">
           <Sidebar>
             <SidebarContent className="flex flex-col">
@@ -49,7 +48,6 @@ export default function AuthLayout({
             </main>
           </div>
         </div>
-      </SidebarProvider>
     </AuthGuard>
   );
 }
