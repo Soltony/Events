@@ -4,67 +4,36 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Ticket, PlusCircle, LineChart, Settings } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 
 export function MainNav() {
   const pathname = usePathname();
   const isManagingEvents = (pathname === '/dashboard/events' || pathname.startsWith('/dashboard/events/')) && pathname !== '/dashboard/events/new';
 
-  return (
-    <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-      <Link
-        href="/dashboard"
-        className={cn(
-          'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-          pathname === '/dashboard' && 'bg-muted text-primary'
-        )}
-      >
-        <Home className="h-4 w-4" />
-        Dashboard
-      </Link>
+  const navItems = [
+    { href: "/dashboard", label: "Dashboard", icon: Home, isActive: pathname === '/dashboard' },
+    { href: "/dashboard/events/new", label: "Create Event", icon: PlusCircle, isActive: pathname === '/dashboard/events/new' },
+    { href: "/dashboard/events", label: "Manage Events", icon: Ticket, isActive: isManagingEvents },
+    { href: "/dashboard/reports", label: "Reports", icon: LineChart, isActive: pathname === '/dashboard/reports' },
+    { href: "/dashboard/settings", label: "Settings", icon: Settings, isActive: pathname === '/dashboard/settings' },
+  ];
 
-      <Link
-        href="/dashboard/events/new"
-        className={cn(
-          'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-          pathname === '/dashboard/events/new' && 'bg-muted text-primary'
-        )}
-      >
-        <PlusCircle className="h-4 w-4" />
-        Create Event
-      </Link>
-      
-      <Link
-        href="/dashboard/events"
-        className={cn(
-          'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-          isManagingEvents && 'bg-muted text-primary'
-        )}
-      >
-        <Ticket className="h-4 w-4" />
-        Manage Events
-      </Link>
-      
-      <Link
-        href="/dashboard/reports"
-        className={cn(
-          'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-          pathname === '/dashboard/reports' && 'bg-muted text-primary'
-        )}
-      >
-        <LineChart className="h-4 w-4" />
-        Reports
-      </Link>
-      <Link
-        href="/dashboard/settings"
-        className={cn(
-          'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-          pathname === '/dashboard/settings' && 'bg-muted text-primary'
-        )}
-      >
-        <Settings className="h-4 w-4" />
-        Settings
-      </Link>
-    </nav>
+  return (
+    <SidebarMenu className="px-2 lg:px-4">
+      {navItems.map((item) => (
+        <SidebarMenuItem key={item.href}>
+          <SidebarMenuButton
+            asChild
+            isActive={item.isActive}
+            tooltip={item.label}
+          >
+            <Link href={item.href}>
+              <item.icon />
+              <span>{item.label}</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      ))}
+    </SidebarMenu>
   );
 }
