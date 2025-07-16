@@ -169,7 +169,7 @@ export default function SettingsPage() {
             roleForm.reset({
                 name: editingRole.name,
                 description: editingRole.description || '',
-                permissions: (editingRole.permissions as string).split(','),
+                permissions: Array.isArray(editingRole.permissions) ? editingRole.permissions : [],
             });
         } else {
             roleForm.reset({ name: '', description: '', permissions: [] });
@@ -196,7 +196,7 @@ export default function SettingsPage() {
         try {
             const roleData = {
                 ...data,
-                permissions: data.permissions.join(','),
+                permissions: data.permissions,
             };
 
             if (editingRole) {
@@ -360,7 +360,7 @@ export default function SettingsPage() {
                                             <div>
                                                 <h3 className="font-semibold text-lg">{role.name}</h3>
                                                 <p className="text-sm text-muted-foreground">{role.description}</p>
-                                                <p className="text-xs text-primary font-medium mt-1">{((role.permissions as string) || '').split(',').length} permissions granted</p>
+                                                <p className="text-xs text-primary font-medium mt-1">{(role.permissions as string[]).length} permissions granted</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
@@ -484,5 +484,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    
