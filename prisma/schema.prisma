@@ -5,66 +5,25 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 model Event {
   id          Int          @id @default(autoincrement())
   name        String
-  description String?
+  description String
   startDate   DateTime
   endDate     DateTime?
   location    String
-  category    String?
+  category    String
   image       String?
   hint        String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
-  ticketTypes TicketType[]
   attendees   Attendee[]
+  ticketTypes TicketType[]
   promoCodes  PromoCode[]
-}
-
-model TicketType {
-  id        Int       @id @default(autoincrement())
-  name      String
-  price     Decimal   @db.Decimal(10, 2)
-  total     Int
-  sold      Int       @default(0)
-  event     Event     @relation(fields: [eventId], references: [id])
-  eventId   Int
-  attendees Attendee[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-}
-
-model Attendee {
-  id           String     @id @default(uuid())
-  name         String
-  email        String
-  checkedIn    Boolean    @default(false)
-  event        Event      @relation(fields: [eventId], references: [id])
-  eventId      Int
-  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
-  ticketTypeId Int
-  user         User?      @relation(fields: [userId], references: [id])
-  userId       String?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-}
-
-model PromoCode {
-  id      String   @id @default(uuid())
-  code    String   @unique
-  type    String // PERCENTAGE or FIXED
-  value   Decimal  @db.Decimal(10, 2)
-  uses    Int      @default(0)
-  maxUses Int
-  event   Event    @relation(fields: [eventId], references: [id])
-  eventId Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model User {
@@ -72,11 +31,11 @@ model User {
   firstName   String
   lastName    String
   phoneNumber String     @unique
-  role        Role       @relation(fields: [roleId], references: [id])
-  roleId      String
-  attendees   Attendee[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+  roleId      String
+  role        Role       @relation(fields: [roleId], references: [id])
+  attendees   Attendee[]
 }
 
 model Role {
@@ -87,4 +46,45 @@ model Role {
   users       User[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model Attendee {
+  id           Int        @id @default(autoincrement())
+  name         String
+  email        String
+  eventId      Int
+  event        Event      @relation(fields: [eventId], references: [id])
+  ticketTypeId Int
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
+  userId       String?
+  user         User?      @relation(fields: [userId], references: [id])
+  checkedIn    Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model TicketType {
+  id        Int        @id @default(autoincrement())
+  name      String
+  price     Decimal    @db.Decimal(10, 2)
+  total     Int
+  sold      Int        @default(0)
+  eventId   Int
+  event     Event      @relation(fields: [eventId], references: [id])
+  attendees Attendee[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model PromoCode {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  type      String // PERCENTAGE or FIXED
+  value     Decimal  @db.Decimal(10, 2)
+  maxUses   Int
+  uses      Int      @default(0)
+  eventId   Int
+  event     Event    @relation(fields: [eventId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
