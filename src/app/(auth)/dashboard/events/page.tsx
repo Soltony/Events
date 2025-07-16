@@ -67,6 +67,7 @@ export default function ManageEventsPage() {
                 </Card>
             ))
         ) : events.length > 0 ? (
+<<<<<<< HEAD
           events.map((event) => (
             <Card key={event.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
               <CardHeader className="p-0">
@@ -84,6 +85,28 @@ export default function ManageEventsPage() {
               </CardFooter>
             </Card>
           ))
+=======
+          events.map((event) => {
+            const imageUrl = event.image ? (event.image as string).split(',')[0] : 'https://placehold.co/600x400.png';
+            return (
+              <Card key={event.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
+                <CardHeader className="p-0">
+                  <Image src={imageUrl} alt={event.name} width={600} height={400} className="rounded-t-lg object-cover aspect-[3/2]" data-ai-hint={event.hint ?? 'event'} />
+                </CardHeader>
+                <CardContent className="p-6 flex-1 space-y-2">
+                  <Badge variant="outline">{event.category}</Badge>
+                  <CardTitle>{event.name}</CardTitle>
+                  <CardDescription>{formatEventDate(event.startDate, event.endDate)} - {event.location}</CardDescription>
+                </CardContent>
+                <CardFooter className="p-6 pt-0">
+                  <Button asChild className="w-full">
+                    <Link href={`/dashboard/events/${event.id}`}>Manage Event <ArrowUpRight className="ml-auto h-4 w-4" /></Link>
+                  </Button>
+                </CardFooter>
+              </Card>
+            )
+          })
+>>>>>>> 73c52e249cbb696d18533b1e0da241d74abcbd4e
         ) : (
             <Card className="md:col-span-2 lg:col-span-4 flex items-center justify-center p-8 text-center">
                 <div>

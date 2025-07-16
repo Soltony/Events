@@ -3,12 +3,16 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import {
   Tabs,
@@ -28,8 +32,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { PlusCircle, DollarSign, FileDown, Ticket as TicketIcon, ArrowLeft } from 'lucide-react';
-import { getEventDetails } from '@/lib/actions';
+import { PlusCircle, DollarSign, FileDown, Ticket as TicketIcon, ArrowLeft, Loader2 } from 'lucide-react';
+import { getEventDetails, addTicketType } from '@/lib/actions';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { cn } from "@/lib/utils";
@@ -37,6 +41,25 @@ import { Skeleton } from '@/components/ui/skeleton';
 import RecommendationTool from '@/components/recommendation-tool';
 import type { Event, TicketType, Attendee, PromoCode } from '@prisma/client';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
 
 interface EventDetails extends Event {
     ticketTypes: TicketType[];
@@ -44,32 +67,73 @@ interface EventDetails extends Event {
     promoCodes: PromoCode[];
 }
 
+const addTicketTypeSchema = z.object({
+  name: z.string().min(1, { message: "Ticket name is required." }),
+  price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
+  total: z.coerce.number().int().min(1, { message: 'Quantity must be at least 1.' }),
+});
+
+type AddTicketTypeFormValues = z.infer<typeof addTicketTypeSchema>;
+
 export default function EventDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const eventId = params.id ? parseInt(params.id, 10) : -1;
   const [event, setEvent] = useState<EventDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAddTicketTypeOpen, setIsAddTicketTypeOpen] = useState(false);
+  const { toast } = useToast();
+
+  const fetchEvent = async () => {
+    try {
+      setLoading(true);
+      const foundEvent = await getEventDetails(eventId);
+      setEvent(foundEvent);
+    } catch (e) {
+      console.error("Failed to fetch event details", e);
+      setEvent(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (eventId !== -1) {
-      const fetchEvent = async () => {
-        try {
-            setLoading(true);
-            const foundEvent = await getEventDetails(eventId);
-            setEvent(foundEvent);
-        } catch (e) {
-            console.error("Failed to fetch event details", e);
-            setEvent(null);
-        } finally {
-            setLoading(false);
-        }
-      };
       fetchEvent();
     } else {
         setLoading(false);
     }
   }, [eventId]);
+
+  const form = useForm<AddTicketTypeFormValues>({
+    resolver: zodResolver(addTicketTypeSchema),
+    defaultValues: {
+      name: '',
+      price: 0,
+      total: 100,
+    },
+  });
+
+  const onAddTicketTypeSubmit = async (data: AddTicketTypeFormValues) => {
+    try {
+      await addTicketType(eventId, data);
+      toast({
+        title: 'Ticket Type Added',
+        description: `Successfully added the "${data.name}" ticket type.`,
+      });
+      await fetchEvent(); // Refetch event data
+      setIsAddTicketTypeOpen(false);
+      form.reset();
+    } catch (error) {
+      console.error("Failed to add ticket type:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to add ticket type. Please try again.',
+      });
+    }
+  };
+
 
   if (loading) {
     return (
@@ -264,7 +328,40 @@ export default function EventDetailPage() {
                         <CardTitle>Ticket Tiers</CardTitle>
                         <CardDescription>Manage ticket types and quantities for your event.</CardDescription>
                     </div>
-                    <Button><PlusCircle className="mr-2 h-4 w-4" /> Add Ticket Type</Button>
+                    <Dialog open={isAddTicketTypeOpen} onOpenChange={setIsAddTicketTypeOpen}>
+                      <DialogTrigger asChild>
+                        <Button><PlusCircle className="mr-2 h-4 w-4" /> Add Ticket Type</Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Add New Ticket Type</DialogTitle>
+                          <DialogDescription>
+                              Fill out the details for the new ticket tier.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <Form {...form}>
+                          <form onSubmit={form.handleSubmit(onAddTicketTypeSubmit)} className="space-y-4">
+                             <FormField control={form.control} name="name" render={({ field }) => (
+                                <FormItem><FormLabel>Ticket Name</FormLabel><FormControl><Input placeholder="e.g. General Admission" {...field} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                            <div className="grid grid-cols-2 gap-4">
+                               <FormField control={form.control} name="price" render={({ field }) => (
+                                  <FormItem><FormLabel>Price (ETB)</FormLabel><FormControl><Input type="number" placeholder="500" {...field} /></FormControl><FormMessage /></FormItem>
+                               )}/>
+                               <FormField control={form.control} name="total" render={({ field }) => (
+                                  <FormItem><FormLabel>Quantity</FormLabel><FormControl><Input type="number" placeholder="100" {...field} /></FormControl><FormMessage /></FormItem>
+                               )}/>
+                            </div>
+                            <DialogFooter>
+                                <Button type="button" variant="outline" onClick={() => setIsAddTicketTypeOpen(false)}>Cancel</Button>
+                                <Button type="submit" disabled={form.formState.isSubmitting}>
+                                    {form.formState.isSubmitting && <Loader2 className="animate-spin mr-2" />} Add Ticket
+                                </Button>
+                            </DialogFooter>
+                          </form>
+                        </Form>
+                      </DialogContent>
+                    </Dialog>
                 </CardHeader>
                 <CardContent>
                     <Table>

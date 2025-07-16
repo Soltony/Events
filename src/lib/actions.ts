@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
-import type { Role, User } from '@prisma/client';
+import type { Role, User, TicketType } from '@prisma/client';
 import axios from 'axios';
 
 // Helper to ensure data is serializable
@@ -65,7 +65,6 @@ export async function addEvent(data: any) {
             startDate: eventData.date.from,
             endDate: eventData.date.to,
             date: undefined, // remove old date field
-            image: images, // Correctly assign the array to the 'image' field
         },
     });
 
@@ -82,6 +81,17 @@ export async function addEvent(data: any) {
     revalidatePath('/dashboard/events/new');
     revalidatePath('/');
     return serialize(newEvent);
+}
+
+export async function addTicketType(eventId: number, data: Omit<TicketType, 'id' | 'eventId' | 'createdAt' | 'updatedAt' | 'sold'>) {
+    const newTicketType = await prisma.ticketType.create({
+        data: {
+            ...data,
+            eventId: eventId,
+        }
+    });
+    revalidatePath(`/dashboard/events/${eventId}`);
+    return serialize(newTicketType);
 }
 
 
@@ -232,7 +242,7 @@ export async function updateUserRole(userId: string, roleId: string) {
 }
 
 export async function createRole(data: Omit<Role, 'id'>) {
-    const role = await prisma.role.create({ data });
+    const role = await prisma.role.create({ data: data as any });
     revalidatePath('/dashboard/settings');
     return serialize(role);
 }
@@ -240,7 +250,7 @@ export async function createRole(data: Omit<Role, 'id'>) {
 export async function updateRole(id: string, data: Partial<Role>) {
     const role = await prisma.role.update({
         where: { id },
-        data,
+        data: data as any,
     });
     revalidatePath('/dashboard/settings');
     return serialize(role);
