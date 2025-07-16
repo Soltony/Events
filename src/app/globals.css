@@ -86,15 +86,6 @@
 
 @layer components {
     [data-sidebar="sidebar"] {
-        background-color: #6d4c41;
-        background-image:
-            linear-gradient(30deg, #61443a 12%, transparent 12.5%, transparent 87%, #61443a 87.5%, #61443a),
-            linear-gradient(150deg, #61443a 12%, transparent 12.5%, transparent 87%, #61443a 87.5%, #61443a),
-            linear-gradient(30deg, #61443a 12%, transparent 12.5%, transparent 87%, #61443a 87.5%, #61443a),
-            linear-gradient(150deg, #61443a 12%, transparent 12.5%, transparent 87%, #61443a 87.5%, #61443a),
-            linear-gradient(60deg, #61443a22 25%, transparent 25.5%, transparent 75%, #61443a22 75%, #61443a22),
-            linear-gradient(60deg, #61443a22 25%, transparent 25.5%, transparent 75%, #61443a22 75%, #61443a22);
-        background-size: 80px 140px;
-        background-position: 0 0, 0 0, 40px 70px, 40px 70px, 0 0, 40px 70px;
+        background-color: #a1663a;
     }
 }
