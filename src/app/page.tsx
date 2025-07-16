@@ -16,12 +16,11 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     return format(new Date(startDate), 'LLL dd, y');
 }
 
-
 export default async function PublicHomePage() {
   const events: Event[] = await getPublicEvents();
 
   return (
-    <div className="flex flex-1 flex-col gap-4 md:gap-8">
+    <div className="flex flex-1 flex-col gap-4 md:gap-8 p-4 lg:p-6">
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">Upcoming Events</h1>
         <p className="text-muted-foreground">
@@ -32,7 +31,7 @@ export default async function PublicHomePage() {
        <div className="grid gap-4 md:gap-8 md:grid-cols-2 lg:grid-cols-4">
         {events.length > 0 ? (
           events.map((event) => {
-            const imageUrl = event.image ? (event.image as string).split(',')[0] : 'https://placehold.co/600x400.png';
+            const imageUrl = event.image && typeof event.image === 'string' ? event.image.split(',')[0] : 'https://placehold.co/600x400.png';
             return (
               <Card key={event.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
                 <CardHeader className="p-0">

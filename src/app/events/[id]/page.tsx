@@ -33,10 +33,10 @@ export default async function PublicEventDetailPage({ params }: { params: { id: 
     notFound();
   }
   
-  const images = event.image ? (event.image as string).split(',') : ['https://placehold.co/1200x600.png'];
+  const images = event.image && typeof event.image === 'string' ? event.image.split(',') : ['https://placehold.co/1200x600.png'];
 
   return (
-    <div className="max-w-5xl mx-auto py-8">
+    <div className="container mx-auto py-8">
       <Card className="overflow-hidden shadow-xl">
         <Carousel className="w-full">
             <CarouselContent>
