@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -361,7 +360,7 @@ export default function SettingsPage() {
                                             <div>
                                                 <h3 className="font-semibold text-lg">{role.name}</h3>
                                                 <p className="text-sm text-muted-foreground">{role.description}</p>
-                                                <p className="text-xs text-primary font-medium mt-1">{(role.permissions as string[]).length} permissions granted</p>
+                                                <p className="text-xs text-primary font-medium mt-1">{(Array.isArray(role.permissions) ? role.permissions : []).length} permissions granted</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
@@ -485,3 +484,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
