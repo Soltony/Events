@@ -241,11 +241,11 @@ export default function EventDetailPage() {
                                     </TableCell>
                                     <TableCell className="font-medium">{attendee.name}</TableCell>
                                     <TableCell>
-                                        <Badge variant={attendee.ticketType.name === 'VIP' ? 'default' : 'secondary'}>{attendee.ticketType.name}</Badge>
+                                        <Badge variant={attendee.ticketType.name === 'VIP Pass' ? 'default' : 'secondary'}>{attendee.ticketType.name}</Badge>
                                     </TableCell>
                                     <TableCell>{attendee.email}</TableCell>
                                     <TableCell className="text-right">
-                                        <Badge variant="outline" className={cn(attendee.checkedIn ? 'bg-accent text-accent-foreground border-transparent' : '')}>
+                                        <Badge variant="outline" className={cn(attendee.checkedIn ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-transparent' : '')}>
                                             {attendee.checkedIn ? 'Checked In' : 'Awaiting'}
                                         </Badge>
                                     </TableCell>
@@ -318,7 +318,7 @@ export default function EventDetailPage() {
                                     <TableCell>
                                         {code.type === 'PERCENTAGE' ? `${code.value}% off` : `$${Number(code.value).toFixed(2)} off`}
                                     </TableCell>
-                                    <TableCell>{code.uses} / {code.maxUses} uses</TableCell>
+                                    <TableCell>{code.uses} / {code.maxUses}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>

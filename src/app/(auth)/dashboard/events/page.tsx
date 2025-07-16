@@ -57,9 +57,9 @@ export default function ManageEventsPage() {
         </div>
       </div>
       
-      <div className="grid gap-4 md:gap-8 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:gap-8 md:grid-cols-2 lg:grid-cols-4">
         {loading ? (
-            [...Array(3)].map((_, i) => (
+            [...Array(4)].map((_, i) => (
                 <Card key={i}>
                     <CardHeader className="p-0"><Skeleton className="w-full aspect-[3/2] rounded-t-lg" /></CardHeader>
                     <CardContent className="p-6 space-y-2"><Skeleton className="h-5 w-20" /><Skeleton className="h-7 w-3/4" /><Skeleton className="h-5 w-1/2" /></CardContent>
@@ -70,7 +70,7 @@ export default function ManageEventsPage() {
           events.map((event) => (
             <Card key={event.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
               <CardHeader className="p-0">
-                <Image src={event.image[0]} alt={event.name} width={600} height={400} className="rounded-t-lg object-cover aspect-[3/2]" data-ai-hint={event.hint ?? 'event'} />
+                <Image src={Array.isArray(event.image) ? event.image[0] : event.image} alt={event.name} width={600} height={400} className="rounded-t-lg object-cover aspect-[3/2]" data-ai-hint={event.hint ?? 'event'} />
               </CardHeader>
               <CardContent className="p-6 flex-1 space-y-2">
                 <Badge variant="outline">{event.category}</Badge>
@@ -85,7 +85,7 @@ export default function ManageEventsPage() {
             </Card>
           ))
         ) : (
-            <Card className="md:col-span-2 lg:col-span-3 flex items-center justify-center p-8 text-center">
+            <Card className="md:col-span-2 lg:col-span-4 flex items-center justify-center p-8 text-center">
                 <div>
                     <h3 className="text-2xl font-semibold tracking-tight">You haven't created any events yet</h3>
                     <p className="text-muted-foreground mt-2 mb-6">Let's get your first event set up.</p>
