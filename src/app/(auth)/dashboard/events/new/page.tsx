@@ -24,16 +24,17 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { addEvent } from '@/lib/actions';
 import { Separator } from '@/components/ui/separator';
+import { ethiopianLocations } from '@/lib/locations';
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
-  location: z.string().min(3, { message: 'Location must be at least 3 characters.' }),
+  location: z.string().min(1, { message: 'Please select a location.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   date: z.object({
     from: z.date({
@@ -154,9 +155,23 @@ export default function CreateEventPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Location</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Metropolis Convention Center" {...field} />
-                    </FormControl>
+                     <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a location" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                           {ethiopianLocations.map((cityGroup) => (
+                            <SelectGroup key={cityGroup.city}>
+                              <SelectLabel>{cityGroup.city}</SelectLabel>
+                              {cityGroup.areas.map(area => (
+                                <SelectItem key={`${cityGroup.city}-${area}`} value={`${area}, ${cityGroup.city}`}>{area}</SelectItem>
+                              ))}
+                            </SelectGroup>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     <FormDescription>
                       Where will your event be held?
                     </FormDescription>
