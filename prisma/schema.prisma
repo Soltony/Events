@@ -1,98 +1,96 @@
 
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  // The 'linux-musl-openssl-3.0.x' target is essential for running in some containerized environments
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
 datasource db {
   provider = "sqlite"
   url      = "file:./dev.db"
 }
 
-generator client {
-  provider        = "prisma-client-js"
-  binaryTargets   = ["native", "linux-musl-openssl-3.0.x"]
-}
-
+// User and Role Management
 model User {
-  id          String @id @default(cuid())
+  id          String   @id @default(cuid())
   firstName   String
   lastName    String
-  phoneNumber String @unique
+  phoneNumber String   @unique
   roleId      String
-  role        Role   @relation(fields: [roleId], references: [id])
+  role        Role     @relation(fields: [roleId], references: [id])
   attendees   Attendee[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Role {
-  id          String @id @default(cuid())
-  name        String @unique
+  id          String   @id @default(cuid())
+  name        String   @unique
   description String?
-  permissions String // Comma-separated list
+  permissions String?
   users       User[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
+// Event and Ticketing
 model Event {
-  id          Int      @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   name        String
   description String
   startDate   DateTime
   endDate     DateTime?
   location    String
   category    String
-  image       String // Comma-separated list of URLs
+  image       String?
   hint        String?
-  ticketTypes TicketType[]
   attendees   Attendee[]
+  ticketTypes TicketType[]
   promoCodes  PromoCode[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 }
 
 model TicketType {
-  id      Int    @id @default(autoincrement())
+  id      Int       @id @default(autoincrement())
   name    String
   price   Decimal
   total   Int
-  sold    Int    @default(0)
+  sold    Int       @default(0)
   eventId Int
-  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event   Event     @relation(fields: [eventId], references: [id])
   attendees Attendee[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model Attendee {
-  id            Int      @id @default(autoincrement())
+  id            Int         @id @default(autoincrement())
   name          String
   email         String
-  checkedIn     Boolean  @default(false)
-  userId        String?
-  user          User?    @relation(fields: [userId], references: [id])
+  checkedIn     Boolean     @default(false)
   eventId       Int
-  event         Event    @relation(fields: [eventId], references: [id])
   ticketTypeId  Int
-  ticketType    TicketType @relation(fields: [ticketTypeId], references: [id])
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([email, eventId])
+  userId        String?
+  event         Event       @relation(fields: [eventId], references: [id])
+  ticketType    TicketType  @relation(fields: [ticketTypeId], references: [id])
+  user          User?       @relation(fields: [userId], references: [id])
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 }
 
 model PromoCode {
-  id      Int      @id @default(autoincrement())
-  code    String   @unique
-  type    String   // PERCENTAGE or FIXED
-  value   Decimal
-  maxUses Int
-  uses    Int      @default(0)
-  eventId Int
-  event   Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        Int       @id @default(autoincrement())
+  code      String    @unique
+  type      String // "PERCENTAGE" or "FIXED"
+  value     Decimal
+  maxUses   Int
+  uses      Int       @default(0)
+  eventId   Int
+  event     Event     @relation(fields: [eventId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }

@@ -32,7 +32,7 @@ export default async function PublicEventDetailPage({ params }: { params: { id: 
     notFound();
   }
   
-  const images = (event.image as string).split(',');
+  const images = event.image ? (event.image as string).split(',') : ['https://placehold.co/1200x600.png'];
 
   return (
     <div className="max-w-5xl mx-auto py-8">
@@ -85,7 +85,7 @@ export default async function PublicEventDetailPage({ params }: { params: { id: 
                                         <Ticket className="mr-2 h-5 w-5" />
                                         Buy Ticket
                                     </Button>
-                                </Card>
+                                 </Card>
                             ))
                         ) : (
                             <p className="text-muted-foreground">Tickets are not yet available for this event.</p>
