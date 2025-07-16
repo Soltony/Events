@@ -92,7 +92,7 @@ export default function DashboardPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${data.totalRevenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">ETB {data.totalRevenue.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">From all ticket sales</p>
           </CardContent>
         </Card>

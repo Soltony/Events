@@ -130,8 +130,8 @@ export default function ReportsPage() {
                       <TableCell className="font-medium">{ticket.name}</TableCell>
                       <TableCell className="text-muted-foreground">{ticket.event?.name || 'N/A'}</TableCell>
                       <TableCell className="text-right">{ticket.sold}</TableCell>
-                      <TableCell className="text-right">${Number(ticket.price).toFixed(2)}</TableCell>
-                      <TableCell className="text-right">${(ticket.sold * Number(ticket.price)).toLocaleString()}</TableCell>
+                      <TableCell className="text-right">ETB {Number(ticket.price).toFixed(2)}</TableCell>
+                      <TableCell className="text-right">ETB {(ticket.sold * Number(ticket.price)).toLocaleString()}</TableCell>
                     </TableRow>
                 ))}
                 {data.productSales.length === 0 && (
@@ -169,7 +169,7 @@ export default function ReportsPage() {
                         <TableCell>{format(new Date(sale.date), 'LLL dd, y')}</TableCell>
                         <TableCell className="font-medium">{sale.eventName}</TableCell>
                         <TableCell className="text-right">{sale.ticketsSold.toLocaleString()}</TableCell>
-                        <TableCell className="text-right">${sale.revenue.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">ETB {sale.revenue.toLocaleString()}</TableCell>
                     </TableRow>
                 ))}
                  {data.dailySales.length === 0 && (
@@ -209,7 +209,7 @@ export default function ReportsPage() {
                         <TableCell className="font-mono">{code.code}</TableCell>
                         <TableCell className="text-muted-foreground">{code.event?.name || 'N/A'}</TableCell>
                         <TableCell className="text-right">{code.uses} / {code.maxUses}</TableCell>
-                        <TableCell className="text-right">${code.totalDiscount.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">ETB {code.totalDiscount.toFixed(2)}</TableCell>
                     </TableRow>
                 ))}
                  {data.promoCodes.length === 0 && (

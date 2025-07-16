@@ -1,3 +1,4 @@
+
 import { getEventById } from '@/lib/actions';
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -78,7 +79,7 @@ export default async function PublicEventDetailPage({ params }: { params: { id: 
                                 <Card key={ticket.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 bg-secondary border-2 border-transparent hover:border-primary transition-colors">
                                     <div className="mb-4 md:mb-0">
                                         <h3 className="font-bold text-xl">{ticket.name}</h3>
-                                        <p className="text-primary font-bold text-2xl">${Number(ticket.price).toFixed(2)}</p>
+                                        <p className="text-primary font-bold text-2xl">ETB {Number(ticket.price).toFixed(2)}</p>
                                         <p className="text-sm text-muted-foreground">{ticket.total - ticket.sold} tickets remaining</p>
                                     </div>
                                     <Button size="lg">

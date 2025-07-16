@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
-import type { Role, User } from '@prisma/client';
+import type { Role, User, TicketType } from '@prisma/client';
 import axios from 'axios';
 
 // Helper to ensure data is serializable
@@ -81,6 +81,17 @@ export async function addEvent(data: any) {
     revalidatePath('/dashboard/events/new');
     revalidatePath('/');
     return serialize(newEvent);
+}
+
+export async function addTicketType(eventId: number, data: Omit<TicketType, 'id' | 'eventId' | 'createdAt' | 'updatedAt' | 'sold'>) {
+    const newTicketType = await prisma.ticketType.create({
+        data: {
+            ...data,
+            eventId: eventId,
+        }
+    });
+    revalidatePath(`/dashboard/events/${eventId}`);
+    return serialize(newTicketType);
 }
 
 
