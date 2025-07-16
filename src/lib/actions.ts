@@ -57,7 +57,7 @@ export async function getEventDetails(id: number) {
 }
 
 export async function addEvent(data: any) {
-    const { tickets, ...eventData } = data;
+    const { tickets, images, ...eventData } = data;
     
     const newEvent = await prisma.event.create({
         data: {
@@ -65,7 +65,7 @@ export async function addEvent(data: any) {
             startDate: eventData.date.from,
             endDate: eventData.date.to,
             date: undefined, // remove old date field
-            image: eventData.images
+            image: images, // Correctly assign the array to the 'image' field
         },
     });
 
