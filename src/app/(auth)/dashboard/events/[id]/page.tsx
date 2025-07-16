@@ -172,7 +172,7 @@ export default function EventDetailPage() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${totalRevenue.toLocaleString()}</div>
+                <div className="text-2xl font-bold">ETB {totalRevenue.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">from {totalSold.toLocaleString()} tickets sold</p>
               </CardContent>
             </Card>
@@ -280,9 +280,9 @@ export default function EventDetailPage() {
                             {event.ticketTypes.map((ticket) => (
                                 <TableRow key={ticket.id}>
                                     <TableCell className="font-medium">{ticket.name}</TableCell>
-                                    <TableCell>${Number(ticket.price).toFixed(2)}</TableCell>
+                                    <TableCell>ETB {Number(ticket.price).toFixed(2)}</TableCell>
                                     <TableCell>{ticket.sold} / {ticket.total}</TableCell>
-                                    <TableCell>${(ticket.sold * Number(ticket.price)).toLocaleString()}</TableCell>
+                                    <TableCell>ETB {(ticket.sold * Number(ticket.price)).toLocaleString()}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -316,7 +316,7 @@ export default function EventDetailPage() {
                                     <TableCell className="font-mono">{code.code}</TableCell>
                                     <TableCell className="capitalize">{code.type.toLowerCase()}</TableCell>
                                     <TableCell>
-                                        {code.type === 'PERCENTAGE' ? `${code.value}% off` : `$${Number(code.value).toFixed(2)} off`}
+                                        {code.type === 'PERCENTAGE' ? `${code.value}% off` : `ETB ${Number(code.value).toFixed(2)} off`}
                                     </TableCell>
                                     <TableCell>{code.uses} / {code.maxUses}</TableCell>
                                 </TableRow>
