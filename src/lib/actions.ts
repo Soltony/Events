@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
-import type { Role, User, TicketType, PromoCode, PromoCodeType } from '@prisma/client';
+import type { Role, User, TicketType, PromoCode, PromoCodeType, Event } from '@prisma/client';
 import axios from 'axios';
 
 // Helper to ensure data is serializable
@@ -21,9 +21,10 @@ export async function getEvents() {
   return serialize(events);
 }
 
-export async function getPublicEvents() {
+export async function getPublicEvents(): Promise<(Event & { ticketTypes: TicketType[] })[]> {
     const events = await prisma.event.findMany({
         where: { startDate: { gte: new Date() } },
+        include: { ticketTypes: true },
         orderBy: { startDate: 'asc' },
     });
     return serialize(events);

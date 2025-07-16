@@ -1,4 +1,6 @@
 
+'use client';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +9,14 @@ import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
 import { getPublicEvents } from '@/lib/actions';
 import { format } from 'date-fns';
-import type { Event } from '@prisma/client';
+import type { Event, TicketType } from '@prisma/client';
+import { useState, useEffect } from 'react';
+import EventDetailModal from '@/components/event-detail-modal';
+import { Skeleton } from '@/components/ui/skeleton';
+
+interface EventWithTickets extends Event {
+    ticketTypes: TicketType[];
+}
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
     if (endDate) {
@@ -16,8 +25,33 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     return format(new Date(startDate), 'LLL dd, y');
 }
 
-export default async function PublicHomePage() {
-  const events: Event[] = await getPublicEvents();
+export default function PublicHomePage() {
+  const [events, setEvents] = useState<EventWithTickets[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedEvent, setSelectedEvent] = useState<EventWithTickets | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+        try {
+            setLoading(true);
+            const fetchedEvents = await getPublicEvents();
+            setEvents(fetchedEvents);
+        } catch (error) {
+            console.error("Failed to fetch events:", error);
+        } finally {
+            setLoading(false);
+        }
+    }
+    fetchData();
+  }, []);
+  
+  const handleOpenModal = (event: EventWithTickets) => {
+    setSelectedEvent(event);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedEvent(null);
+  };
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8 p-4 lg:p-6">
@@ -29,7 +63,15 @@ export default async function PublicHomePage() {
       </div>
       
        <div className="grid gap-4 md:gap-8 md:grid-cols-2 lg:grid-cols-4">
-        {events.length > 0 ? (
+        {loading ? (
+             [...Array(4)].map((_, i) => (
+                <Card key={i}>
+                    <CardHeader className="p-0"><Skeleton className="w-full aspect-[3/2] rounded-t-lg" /></CardHeader>
+                    <CardContent className="p-6 space-y-2"><Skeleton className="h-5 w-20" /><Skeleton className="h-7 w-3/4" /><Skeleton className="h-5 w-1/2" /></CardContent>
+                    <CardFooter className="p-6 pt-0"><Skeleton className="h-10 w-full" /></CardFooter>
+                </Card>
+            ))
+        ) : events.length > 0 ? (
           events.map((event) => {
             const imageUrl = event.image && typeof event.image === 'string' ? event.image.split(',')[0] : 'https://placehold.co/600x400.png';
             return (
@@ -43,8 +85,8 @@ export default async function PublicHomePage() {
                   <CardDescription>{formatEventDate(event.startDate, event.endDate)} - {event.location}</CardDescription>
                 </CardContent>
                 <CardFooter className="p-6 pt-0">
-                    <Button asChild className="w-full">
-                        <Link href={`/events/${event.id}`}>View Details & Buy Tickets <ArrowUpRight className="ml-auto h-4 w-4" /></Link>
+                    <Button onClick={() => handleOpenModal(event)} className="w-full">
+                        View Details & Buy Tickets <ArrowUpRight className="ml-auto h-4 w-4" />
                     </Button>
                 </CardFooter>
               </Card>
@@ -59,6 +101,14 @@ export default async function PublicHomePage() {
             </Card>
         )}
       </div>
+
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          isOpen={!!selectedEvent}
+          onClose={handleCloseModal}
+        />
+      )}
     </div>
   );
 }
