@@ -65,7 +65,7 @@ export async function addEvent(data: any) {
             ...eventData,
             startDate: eventData.date.from,
             endDate: eventData.date.to,
-            image: data.images.map((img: {url: string}) => img.url).filter((url: string) => url), // handle images correctly
+            image: images.map((img: {url: string}) => img.url).filter((url: string) => !!url).join(','),
             date: undefined, // remove old date field
         },
     });

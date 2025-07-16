@@ -84,11 +84,7 @@ export default function CreateEventPage() {
   async function onSubmit(data: EventFormValues) {
     setIsSubmitting(true);
     try {
-        const eventData = {
-            ...data,
-            image: data.images.map(img => img.url).filter(url => url).join(','), // send as comma-separated string
-        };
-        await addEvent(eventData);
+        await addEvent(data);
         toast({
             title: 'Event Created!',
             description: `Successfully created "${data.name}".`,
