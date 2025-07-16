@@ -62,6 +62,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface EventDetails extends Event {
     ticketTypes: TicketType[];
@@ -330,36 +331,38 @@ export default function EventDetailPage() {
                     <CardDescription>Manage attendee check-ins. {event.attendees.length} people have tickets.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-[50px]">Check-in</TableHead>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Ticket Type</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead className="text-right">Status</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {event.attendees.map((attendee) => (
-                                <TableRow key={attendee.id}>
-                                    <TableCell>
-                                        <Checkbox checked={attendee.checkedIn} aria-label={`Check in ${attendee.name}`} />
-                                    </TableCell>
-                                    <TableCell className="font-medium">{attendee.name}</TableCell>
-                                    <TableCell>
-                                        <Badge variant={attendee.ticketType.name === 'VIP Pass' ? 'default' : 'secondary'}>{attendee.ticketType.name}</Badge>
-                                    </TableCell>
-                                    <TableCell>{attendee.email}</TableCell>
-                                    <TableCell className="text-right">
-                                        <Badge variant="outline" className={cn(attendee.checkedIn ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-transparent' : '')}>
-                                            {attendee.checkedIn ? 'Checked In' : 'Awaiting'}
-                                        </Badge>
-                                    </TableCell>
+                    <ScrollArea className="h-[400px]">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-[50px]">Check-in</TableHead>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Ticket Type</TableHead>
+                                    <TableHead>Email</TableHead>
+                                    <TableHead className="text-right">Status</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {event.attendees.map((attendee) => (
+                                    <TableRow key={attendee.id}>
+                                        <TableCell>
+                                            <Checkbox checked={attendee.checkedIn} aria-label={`Check in ${attendee.name}`} />
+                                        </TableCell>
+                                        <TableCell className="font-medium">{attendee.name}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={attendee.ticketType.name === 'VIP Pass' ? 'default' : 'secondary'}>{attendee.ticketType.name}</Badge>
+                                        </TableCell>
+                                        <TableCell>{attendee.email}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Badge variant="outline" className={cn(attendee.checkedIn ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-transparent' : '')}>
+                                                {attendee.checkedIn ? 'Checked In' : 'Awaiting'}
+                                            </Badge>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
                 </CardContent>
             </Card>
         </TabsContent>
@@ -407,26 +410,28 @@ export default function EventDetailPage() {
                     </Dialog>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Type</TableHead>
-                                <TableHead>Price</TableHead>
-                                <TableHead>Sold / Total</TableHead>
-                                <TableHead>Revenue</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {event.ticketTypes.map((ticket) => (
-                                <TableRow key={ticket.id}>
-                                    <TableCell className="font-medium">{ticket.name}</TableCell>
-                                    <TableCell>ETB {Number(ticket.price).toFixed(2)}</TableCell>
-                                    <TableCell>{ticket.sold} / {ticket.total}</TableCell>
-                                    <TableCell>ETB {(ticket.sold * Number(ticket.price)).toLocaleString()}</TableCell>
+                    <ScrollArea className="h-[400px]">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Price</TableHead>
+                                    <TableHead>Sold / Total</TableHead>
+                                    <TableHead>Revenue</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {event.ticketTypes.map((ticket) => (
+                                    <TableRow key={ticket.id}>
+                                        <TableCell className="font-medium">{ticket.name}</TableCell>
+                                        <TableCell>ETB {Number(ticket.price).toFixed(2)}</TableCell>
+                                        <TableCell>{ticket.sold} / {ticket.total}</TableCell>
+                                        <TableCell>ETB {(ticket.sold * Number(ticket.price)).toLocaleString()}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
                 </CardContent>
             </Card>
         </TabsContent>
@@ -499,28 +504,30 @@ export default function EventDetailPage() {
                     </Dialog>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Code</TableHead>
-                                <TableHead>Type</TableHead>
-                                <TableHead>Value</TableHead>
-                                <TableHead>Usage</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {event.promoCodes.map((code) => (
-                                <TableRow key={code.id}>
-                                    <TableCell className="font-mono">{code.code}</TableCell>
-                                    <TableCell className="capitalize">{code.type.toLowerCase()}</TableCell>
-                                    <TableCell>
-                                        {code.type === 'PERCENTAGE' ? `${code.value}% off` : `ETB ${Number(code.value).toFixed(2)} off`}
-                                    </TableCell>
-                                    <TableCell>{code.uses} / {code.maxUses}</TableCell>
+                    <ScrollArea className="h-[400px]">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Code</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Value</TableHead>
+                                    <TableHead>Usage</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {event.promoCodes.map((code) => (
+                                    <TableRow key={code.id}>
+                                        <TableCell className="font-mono">{code.code}</TableCell>
+                                        <TableCell className="capitalize">{code.type.toLowerCase()}</TableCell>
+                                        <TableCell>
+                                            {code.type === 'PERCENTAGE' ? `${code.value}% off` : `ETB ${Number(code.value).toFixed(2)} off`}
+                                        </TableCell>
+                                        <TableCell>{code.uses} / {code.maxUses}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
                 </CardContent>
             </Card>
         </TabsContent>

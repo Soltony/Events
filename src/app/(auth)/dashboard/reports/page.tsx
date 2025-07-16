@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -23,6 +24,7 @@ import { getReportsData } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import type { TicketType, PromoCode } from '@prisma/client';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface DailySale {
     date: Date;
@@ -114,31 +116,33 @@ export default function ReportsPage() {
             </Button>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Event</TableHead>
-                  <TableHead className="text-right">Quantity Sold</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
-                  <TableHead className="text-right">Revenue</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.productSales.map((ticket) => (
-                    <TableRow key={ticket.id}>
-                      <TableCell className="font-medium">{ticket.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{ticket.event?.name || 'N/A'}</TableCell>
-                      <TableCell className="text-right">{ticket.sold}</TableCell>
-                      <TableCell className="text-right">ETB {Number(ticket.price).toFixed(2)}</TableCell>
-                      <TableCell className="text-right">ETB {(ticket.sold * Number(ticket.price)).toLocaleString()}</TableCell>
+            <ScrollArea className="h-[300px]">
+                <Table>
+                <TableHeader>
+                    <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Event</TableHead>
+                    <TableHead className="text-right">Quantity Sold</TableHead>
+                    <TableHead className="text-right">Price</TableHead>
+                    <TableHead className="text-right">Revenue</TableHead>
                     </TableRow>
-                ))}
-                {data.productSales.length === 0 && (
-                    <TableRow><TableCell colSpan={5} className="text-center h-24">No product sales data.</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                    {data.productSales.map((ticket) => (
+                        <TableRow key={ticket.id}>
+                        <TableCell className="font-medium">{ticket.name}</TableCell>
+                        <TableCell className="text-muted-foreground">{ticket.event?.name || 'N/A'}</TableCell>
+                        <TableCell className="text-right">{ticket.sold}</TableCell>
+                        <TableCell className="text-right">ETB {Number(ticket.price).toFixed(2)}</TableCell>
+                        <TableCell className="text-right">ETB {(ticket.sold * Number(ticket.price)).toLocaleString()}</TableCell>
+                        </TableRow>
+                    ))}
+                    {data.productSales.length === 0 && (
+                        <TableRow><TableCell colSpan={5} className="text-center h-24">No product sales data.</TableCell></TableRow>
+                    )}
+                </TableBody>
+                </Table>
+            </ScrollArea>
           </CardContent>
         </Card>
 
@@ -154,31 +158,33 @@ export default function ReportsPage() {
             </Button>
           </CardHeader>
           <CardContent>
-             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Event</TableHead>
-                  <TableHead className="text-right">Tickets Sold</TableHead>
-                  <TableHead className="text-right">Net Revenue</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.dailySales.map((sale, index) => (
-                    <TableRow key={index}>
-                        <TableCell>{format(new Date(sale.date), 'LLL dd, y')}</TableCell>
-                        <TableCell className="font-medium">{sale.eventName}</TableCell>
-                        <TableCell className="text-right">{sale.ticketsSold.toLocaleString()}</TableCell>
-                        <TableCell className="text-right">ETB {sale.revenue.toLocaleString()}</TableCell>
-                    </TableRow>
-                ))}
-                 {data.dailySales.length === 0 && (
+             <ScrollArea className="h-[300px]">
+                <Table>
+                <TableHeader>
                     <TableRow>
-                        <TableCell colSpan={4} className="text-center h-24">No sales data available.</TableCell>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Event</TableHead>
+                    <TableHead className="text-right">Tickets Sold</TableHead>
+                    <TableHead className="text-right">Net Revenue</TableHead>
                     </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                    {data.dailySales.map((sale, index) => (
+                        <TableRow key={index}>
+                            <TableCell>{format(new Date(sale.date), 'LLL dd, y')}</TableCell>
+                            <TableCell className="font-medium">{sale.eventName}</TableCell>
+                            <TableCell className="text-right">{sale.ticketsSold.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">ETB {sale.revenue.toLocaleString()}</TableCell>
+                        </TableRow>
+                    ))}
+                    {data.dailySales.length === 0 && (
+                        <TableRow>
+                            <TableCell colSpan={4} className="text-center h-24">No sales data available.</TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+                </Table>
+            </ScrollArea>
           </CardContent>
         </Card>
 
@@ -194,31 +200,33 @@ export default function ReportsPage() {
             </Button>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Event</TableHead>
-                  <TableHead className="text-right">Usage</TableHead>
-                  <TableHead className="text-right">Total Discount (est.)</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.promoCodes.map((code) => (
-                    <TableRow key={code.id}>
-                        <TableCell className="font-mono">{code.code}</TableCell>
-                        <TableCell className="text-muted-foreground">{code.event?.name || 'N/A'}</TableCell>
-                        <TableCell className="text-right">{code.uses} / {code.maxUses}</TableCell>
-                        <TableCell className="text-right">ETB {code.totalDiscount.toFixed(2)}</TableCell>
-                    </TableRow>
-                ))}
-                 {data.promoCodes.length === 0 && (
+            <ScrollArea className="h-[300px]">
+                <Table>
+                <TableHeader>
                     <TableRow>
-                        <TableCell colSpan={4} className="text-center h-24">No promo code data available.</TableCell>
+                    <TableHead>Code</TableHead>
+                    <TableHead>Event</TableHead>
+                    <TableHead className="text-right">Usage</TableHead>
+                    <TableHead className="text-right">Total Discount (est.)</TableHead>
                     </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                    {data.promoCodes.map((code) => (
+                        <TableRow key={code.id}>
+                            <TableCell className="font-mono">{code.code}</TableCell>
+                            <TableCell className="text-muted-foreground">{code.event?.name || 'N/A'}</TableCell>
+                            <TableCell className="text-right">{code.uses} / {code.maxUses}</TableCell>
+                            <TableCell className="text-right">ETB {code.totalDiscount.toFixed(2)}</TableCell>
+                        </TableRow>
+                    ))}
+                    {data.promoCodes.length === 0 && (
+                        <TableRow>
+                            <TableCell colSpan={4} className="text-center h-24">No promo code data available.</TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+                </Table>
+            </ScrollArea>
           </CardContent>
         </Card>
       </div>
