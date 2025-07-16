@@ -29,10 +29,8 @@ export default function RootLayout({
               <div className="absolute top-4 right-4 z-10">
                 <AuthStatus />
               </div>
-              <main className="flex-1 bg-secondary">
-                <div className="container mx-auto p-4 lg:p-6">
-                  {children}
-                </div>
+              <main className="flex-1 bg-background">
+                {children}
               </main>
           </div>
           <Toaster />

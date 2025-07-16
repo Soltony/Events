@@ -57,7 +57,7 @@ export async function getEventDetails(id: number) {
 }
 
 export async function addEvent(data: any) {
-    const { tickets, ...eventData } = data;
+    const { tickets, images, ...eventData } = data;
     
     const newEvent = await prisma.event.create({
         data: {
