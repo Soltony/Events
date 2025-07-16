@@ -65,7 +65,6 @@ export async function addEvent(data: any) {
             startDate: eventData.date.from,
             endDate: eventData.date.to,
             date: undefined, // remove old date field
-            image: eventData.images
         },
     });
 
@@ -232,7 +231,7 @@ export async function updateUserRole(userId: string, roleId: string) {
 }
 
 export async function createRole(data: Omit<Role, 'id'>) {
-    const role = await prisma.role.create({ data });
+    const role = await prisma.role.create({ data: data as any });
     revalidatePath('/dashboard/settings');
     return serialize(role);
 }
@@ -240,7 +239,7 @@ export async function createRole(data: Omit<Role, 'id'>) {
 export async function updateRole(id: string, data: Partial<Role>) {
     const role = await prisma.role.update({
         where: { id },
-        data,
+        data: data as any,
     });
     revalidatePath('/dashboard/settings');
     return serialize(role);

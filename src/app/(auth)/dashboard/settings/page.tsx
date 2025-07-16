@@ -169,7 +169,7 @@ export default function SettingsPage() {
             roleForm.reset({
                 name: editingRole.name,
                 description: editingRole.description || '',
-                permissions: editingRole.permissions,
+                permissions: (editingRole.permissions as string).split(','),
             });
         } else {
             roleForm.reset({ name: '', description: '', permissions: [] });
@@ -194,11 +194,16 @@ export default function SettingsPage() {
 
     async function onRoleSubmit(data: RoleFormValues) {
         try {
+            const roleData = {
+                ...data,
+                permissions: data.permissions.join(','),
+            };
+
             if (editingRole) {
-                await updateRole(editingRole.id, data);
+                await updateRole(editingRole.id, roleData);
                 toast({ title: "Role Updated", description: `Successfully updated the ${data.name} role.` });
             } else {
-                await createRole(data);
+                await createRole(roleData);
                 toast({ title: "Role Created", description: `Successfully created the ${data.name} role.` });
             }
             await fetchData();
@@ -355,7 +360,7 @@ export default function SettingsPage() {
                                             <div>
                                                 <h3 className="font-semibold text-lg">{role.name}</h3>
                                                 <p className="text-sm text-muted-foreground">{role.description}</p>
-                                                <p className="text-xs text-primary font-medium mt-1">{role.permissions.length} permissions granted</p>
+                                                <p className="text-xs text-primary font-medium mt-1">{((role.permissions as string) || '').split(',').length} permissions granted</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
@@ -479,5 +484,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    

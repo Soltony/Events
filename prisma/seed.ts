@@ -17,7 +17,7 @@ async function main() {
         'Events:View', 'Events:Create', 'Events:Update', 'Events:Delete',
         'Reports:View', 'Reports:Create', 'Reports:Update', 'Reports:Delete',
         'Settings:View', 'Settings:Create', 'Settings:Update', 'Settings:Delete'
-      ]
+      ].join(',')
     },
     create: {
         name: 'Admin',
@@ -27,7 +27,7 @@ async function main() {
           'Events:View', 'Events:Create', 'Events:Update', 'Events:Delete',
           'Reports:View', 'Reports:Create', 'Reports:Update', 'Reports:Delete',
           'Settings:View', 'Settings:Create', 'Settings:Update', 'Settings:Delete'
-        ]
+        ].join(',')
     }
   });
 
@@ -39,7 +39,7 @@ async function main() {
         'Dashboard:View', 
         'Events:View', 'Events:Create', 'Events:Update',
         'Reports:View'
-      ]
+      ].join(',')
     },
     create: {
         name: 'Organizer',
@@ -48,7 +48,7 @@ async function main() {
           'Dashboard:View', 
           'Events:View', 'Events:Create', 'Events:Update',
           'Reports:View'
-        ]
+        ].join(',')
     }
   });
   
@@ -86,7 +86,7 @@ async function main() {
       endDate: addDays(today, 32),
       location: 'Metropolis Convention Center',
       category: 'Technology',
-      image: ['https://placehold.co/600x400.png'],
+      image: 'https://placehold.co/600x400.png',
       hint: 'technology conference',
       ticketTypes: {
         create: [
@@ -113,7 +113,7 @@ async function main() {
       endDate: addDays(today, 61),
       location: 'Sunshine Valley Park',
       category: 'Music',
-      image: ['https://placehold.co/600x400.png'],
+      image: 'https://placehold.co/600x400.png',
       hint: 'music festival',
       ticketTypes: {
         create: [
@@ -134,7 +134,7 @@ async function main() {
       startDate: addDays(today, 15),
       location: 'The Downtown Gallery',
       category: 'Art',
-      image: ['https://placehold.co/600x400.png'],
+      image: 'https://placehold.co/600x400.png',
       hint: 'art gallery',
       ticketTypes: {
         create: [

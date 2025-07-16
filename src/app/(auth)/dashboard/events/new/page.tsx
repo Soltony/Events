@@ -86,7 +86,7 @@ export default function CreateEventPage() {
     try {
         const eventData = {
             ...data,
-            images: data.images.map(img => img.url).filter(url => url), // send only non-empty urls
+            image: data.images.map(img => img.url).filter(url => url).join(','), // send as comma-separated string
         };
         await addEvent(eventData);
         toast({

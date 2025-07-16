@@ -32,12 +32,14 @@ export default async function PublicEventDetailPage({ params }: { params: { id: 
     notFound();
   }
   
+  const images = (event.image as string).split(',');
+
   return (
     <div className="max-w-5xl mx-auto py-8">
       <Card className="overflow-hidden shadow-xl">
         <Carousel className="w-full">
             <CarouselContent>
-            {event.image.map((img, index) => (
+            {images.map((img, index) => (
                 <CarouselItem key={index}>
                 <Image src={img} alt={`${event.name} image ${index + 1}`} width={1200} height={600} className="w-full object-cover aspect-[2/1]" data-ai-hint={event.hint ?? 'event'} />
                 </CarouselItem>
