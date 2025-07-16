@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Image from 'next/image';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Badge } from '@/components/ui/badge';
@@ -42,7 +42,7 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
                     <DialogHeader className="text-left mb-6">
                         <Badge variant="outline" className="mb-2 w-min whitespace-nowrap">{event.category}</Badge>
                         <DialogTitle className="text-3xl font-bold tracking-tight">{event.name}</DialogTitle>
-                        <DialogDescription as="div" className="text-lg text-muted-foreground space-y-2 pt-2">
+                        <div className="text-lg text-muted-foreground space-y-2 pt-2">
                              <div className="flex items-center gap-2">
                                 <Calendar className="h-5 w-5" />
                                 <span>{formatEventDate(event.startDate, event.endDate)}</span>
@@ -51,7 +51,7 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
                                 <MapPin className="h-5 w-5" />
                                 <span>{event.location}</span>
                             </div>
-                        </DialogDescription>
+                        </div>
                     </DialogHeader>
 
                     <div className="space-y-6">
