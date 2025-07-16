@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -33,7 +34,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PlusCircle, DollarSign, FileDown, Ticket as TicketIcon, ArrowLeft, Loader2 } from 'lucide-react';
-import { getEventDetails, addTicketType } from '@/lib/actions';
+import { getEventDetails, addTicketType, addPromoCode } from '@/lib/actions';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { cn } from "@/lib/utils";
@@ -60,6 +61,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface EventDetails extends Event {
     ticketTypes: TicketType[];
@@ -75,6 +77,16 @@ const addTicketTypeSchema = z.object({
 
 type AddTicketTypeFormValues = z.infer<typeof addTicketTypeSchema>;
 
+const addPromoCodeSchema = z.object({
+  code: z.string().min(3, { message: "Promo code must be at least 3 characters." }).max(20, { message: "Promo code cannot exceed 20 characters."}),
+  type: z.enum(['PERCENTAGE', 'FIXED']),
+  value: z.coerce.number().min(0, { message: "Value must be a positive number." }),
+  maxUses: z.coerce.number().int().min(1, { message: "Usage limit must be at least 1." }),
+});
+
+type AddPromoCodeFormValues = z.infer<typeof addPromoCodeSchema>;
+
+
 export default function EventDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -82,6 +94,7 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState<EventDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAddTicketTypeOpen, setIsAddTicketTypeOpen] = useState(false);
+  const [isAddPromoCodeOpen, setIsAddPromoCodeOpen] = useState(false);
   const { toast } = useToast();
 
   const fetchEvent = async () => {
@@ -105,12 +118,22 @@ export default function EventDetailPage() {
     }
   }, [eventId]);
 
-  const form = useForm<AddTicketTypeFormValues>({
+  const ticketForm = useForm<AddTicketTypeFormValues>({
     resolver: zodResolver(addTicketTypeSchema),
     defaultValues: {
       name: '',
       price: 0,
       total: 100,
+    },
+  });
+  
+  const promoCodeForm = useForm<AddPromoCodeFormValues>({
+    resolver: zodResolver(addPromoCodeSchema),
+    defaultValues: {
+      code: '',
+      type: 'PERCENTAGE',
+      value: 10,
+      maxUses: 100,
     },
   });
 
@@ -123,7 +146,7 @@ export default function EventDetailPage() {
       });
       await fetchEvent(); // Refetch event data
       setIsAddTicketTypeOpen(false);
-      form.reset();
+      ticketForm.reset();
     } catch (error) {
       console.error("Failed to add ticket type:", error);
       toast({
@@ -133,6 +156,26 @@ export default function EventDetailPage() {
       });
     }
   };
+  
+  const onAddPromoCodeSubmit = async (data: AddPromoCodeFormValues) => {
+    try {
+      await addPromoCode(eventId, data);
+       toast({
+        title: 'Promo Code Created',
+        description: `Successfully created the "${data.code}" promo code.`,
+      });
+      await fetchEvent(); // Refetch event data
+      setIsAddPromoCodeOpen(false);
+      promoCodeForm.reset();
+    } catch (error) {
+       console.error("Failed to add promo code:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to create promo code. Please try again.',
+      });
+    }
+  }
 
 
   if (loading) {
@@ -339,23 +382,23 @@ export default function EventDetailPage() {
                               Fill out the details for the new ticket tier.
                           </DialogDescription>
                         </DialogHeader>
-                        <Form {...form}>
-                          <form onSubmit={form.handleSubmit(onAddTicketTypeSubmit)} className="space-y-4">
-                             <FormField control={form.control} name="name" render={({ field }) => (
+                        <Form {...ticketForm}>
+                          <form onSubmit={ticketForm.handleSubmit(onAddTicketTypeSubmit)} className="space-y-4">
+                             <FormField control={ticketForm.control} name="name" render={({ field }) => (
                                 <FormItem><FormLabel>Ticket Name</FormLabel><FormControl><Input placeholder="e.g. General Admission" {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <div className="grid grid-cols-2 gap-4">
-                               <FormField control={form.control} name="price" render={({ field }) => (
+                               <FormField control={ticketForm.control} name="price" render={({ field }) => (
                                   <FormItem><FormLabel>Price (ETB)</FormLabel><FormControl><Input type="number" placeholder="500" {...field} /></FormControl><FormMessage /></FormItem>
                                )}/>
-                               <FormField control={form.control} name="total" render={({ field }) => (
+                               <FormField control={ticketForm.control} name="total" render={({ field }) => (
                                   <FormItem><FormLabel>Quantity</FormLabel><FormControl><Input type="number" placeholder="100" {...field} /></FormControl><FormMessage /></FormItem>
                                )}/>
                             </div>
                             <DialogFooter>
                                 <Button type="button" variant="outline" onClick={() => setIsAddTicketTypeOpen(false)}>Cancel</Button>
-                                <Button type="submit" disabled={form.formState.isSubmitting}>
-                                    {form.formState.isSubmitting && <Loader2 className="animate-spin mr-2" />} Add Ticket
+                                <Button type="submit" disabled={ticketForm.formState.isSubmitting}>
+                                    {ticketForm.formState.isSubmitting && <Loader2 className="animate-spin mr-2" />} Add Ticket
                                 </Button>
                             </DialogFooter>
                           </form>
@@ -395,7 +438,65 @@ export default function EventDetailPage() {
                         <CardTitle>Promotional Codes</CardTitle>
                         <CardDescription>Create and manage discount codes to boost sales.</CardDescription>
                     </div>
-                    <Button><PlusCircle className="mr-2 h-4 w-4" /> Create Code</Button>
+                    <Dialog open={isAddPromoCodeOpen} onOpenChange={setIsAddPromoCodeOpen}>
+                        <DialogTrigger asChild>
+                            <Button><PlusCircle className="mr-2 h-4 w-4" /> Create Code</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Create New Promo Code</DialogTitle>
+                                <DialogDescription>
+                                    Configure a new discount code for your event.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <Form {...promoCodeForm}>
+                                <form onSubmit={promoCodeForm.handleSubmit(onAddPromoCodeSubmit)} className="space-y-4">
+                                    <FormField control={promoCodeForm.control} name="code" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Code</FormLabel>
+                                            <FormControl><Input placeholder="e.g., EARLYBIRD25" {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}/>
+                                    <FormField control={promoCodeForm.control} name="type" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Discount Type</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl><SelectTrigger><SelectValue placeholder="Select a discount type" /></SelectTrigger></FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="PERCENTAGE">Percentage</SelectItem>
+                                                    <SelectItem value="FIXED">Fixed Amount</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}/>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <FormField control={promoCodeForm.control} name="value" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Value</FormLabel>
+                                                <FormControl><Input type="number" placeholder={promoCodeForm.getValues('type') === 'PERCENTAGE' ? '25' : '100'} {...field} /></FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}/>
+                                        <FormField control={promoCodeForm.control} name="maxUses" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Usage Limit</FormLabel>
+                                                <FormControl><Input type="number" placeholder="100" {...field} /></FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}/>
+                                    </div>
+                                    <DialogFooter>
+                                        <Button type="button" variant="outline" onClick={() => setIsAddPromoCodeOpen(false)}>Cancel</Button>
+                                        <Button type="submit" disabled={promoCodeForm.formState.isSubmitting}>
+                                            {promoCodeForm.formState.isSubmitting && <Loader2 className="animate-spin mr-2" />} Create Code
+                                        </Button>
+                                    </DialogFooter>
+                                </form>
+                            </Form>
+                        </DialogContent>
+                    </Dialog>
                 </CardHeader>
                 <CardContent>
                     <Table>

@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
-import type { Role, User, TicketType } from '@prisma/client';
+import type { Role, User, TicketType, PromoCode, PromoCodeType } from '@prisma/client';
 import axios from 'axios';
 
 // Helper to ensure data is serializable
@@ -92,6 +92,17 @@ export async function addTicketType(eventId: number, data: Omit<TicketType, 'id'
     });
     revalidatePath(`/dashboard/events/${eventId}`);
     return serialize(newTicketType);
+}
+
+export async function addPromoCode(eventId: number, data: { code: string; type: PromoCodeType; value: number; maxUses: number; }) {
+    const newPromoCode = await prisma.promoCode.create({
+        data: {
+            ...data,
+            eventId: eventId,
+        }
+    });
+    revalidatePath(`/dashboard/events/${eventId}`);
+    return serialize(newPromoCode);
 }
 
 
