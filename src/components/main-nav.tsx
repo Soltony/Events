@@ -15,8 +15,8 @@ export function MainNav() {
       <Link
         href="/dashboard"
         className={cn(
-          'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-          pathname === '/dashboard' && 'bg-muted text-primary'
+          'flex items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground transition-all hover:text-sidebar-accent-foreground hover:bg-sidebar-accent',
+          pathname === '/dashboard' && 'bg-sidebar-accent text-sidebar-accent-foreground'
         )}
       >
         <Home className="h-4 w-4" />
@@ -26,8 +26,8 @@ export function MainNav() {
       <Link
         href="/dashboard/events/new"
         className={cn(
-          'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-          pathname === '/dashboard/events/new' && 'bg-muted text-primary'
+          'flex items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground transition-all hover:text-sidebar-accent-foreground hover:bg-sidebar-accent',
+          pathname === '/dashboard/events/new' && 'bg-sidebar-accent text-sidebar-accent-foreground'
         )}
       >
         <PlusCircle className="h-4 w-4" />
@@ -37,8 +37,8 @@ export function MainNav() {
       <Link
         href="/dashboard/events"
         className={cn(
-          'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-          isManagingEvents && 'bg-muted text-primary'
+          'flex items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground transition-all hover:text-sidebar-accent-foreground hover:bg-sidebar-accent',
+          isManagingEvents && 'bg-sidebar-accent text-sidebar-accent-foreground'
         )}
       >
         <Ticket className="h-4 w-4" />
@@ -48,8 +48,8 @@ export function MainNav() {
       <Link
         href="/dashboard/reports"
         className={cn(
-          'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-          pathname === '/dashboard/reports' && 'bg-muted text-primary'
+          'flex items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground transition-all hover:text-sidebar-accent-foreground hover:bg-sidebar-accent',
+          pathname === '/dashboard/reports' && 'bg-sidebar-accent text-sidebar-accent-foreground'
         )}
       >
         <LineChart className="h-4 w-4" />
@@ -58,8 +58,8 @@ export function MainNav() {
       <Link
         href="/dashboard/settings"
         className={cn(
-          'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-          pathname === '/dashboard/settings' && 'bg-muted text-primary'
+          'flex items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground transition-all hover:text-sidebar-accent-foreground hover:bg-sidebar-accent',
+          pathname === '/dashboard/settings' && 'bg-sidebar-accent text-sidebar-accent-foreground'
         )}
       >
         <Settings className="h-4 w-4" />
