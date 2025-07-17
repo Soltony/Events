@@ -104,9 +104,9 @@ export default function PublicHomePage() {
         </Select>
       </div>
       
-       <div className="grid gap-4 md:gap-8 md:grid-cols-2 lg:grid-cols-4">
+       <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {loading ? (
-             [...Array(4)].map((_, i) => (
+             [...Array(5)].map((_, i) => (
                 <Card key={i}>
                     <CardHeader className="p-0"><Skeleton className="w-full aspect-[3/2] rounded-t-lg" /></CardHeader>
                     <CardContent className="p-6 space-y-2"><Skeleton className="h-5 w-20" /><Skeleton className="h-7 w-3/4" /><Skeleton className="h-5 w-1/2" /></CardContent>
