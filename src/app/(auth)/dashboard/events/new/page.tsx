@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { CalendarIcon, PlusCircle, Trash2, UploadCloud, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { useState } from 'react';
+import axios from 'axios';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -59,6 +60,7 @@ export default function CreateEventPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState<number | null>(null);
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
@@ -275,12 +277,24 @@ export default function CreateEventPage() {
                       control={form.control}
                       name={`images.${index}.url`}
                       render={({ field: { onChange, value } }) => {
-                        const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                        const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                           const file = e.target.files?.[0];
                           if (file) {
+                            setIsUploading(index);
                             const reader = new FileReader();
-                            reader.onloadend = () => {
-                              onChange(reader.result as string);
+                            reader.onloadend = async () => {
+                              try {
+                                const response = await axios.post('/api/upload', { file: reader.result });
+                                if (response.data.success) {
+                                  onChange(response.data.url);
+                                } else {
+                                  toast({ variant: 'destructive', title: 'Upload failed', description: response.data.error });
+                                }
+                              } catch (error) {
+                                toast({ variant: 'destructive', title: 'Upload failed', description: 'An error occurred while uploading the image.' });
+                              } finally {
+                                setIsUploading(null);
+                              }
                             };
                             reader.readAsDataURL(file);
                           }
@@ -290,7 +304,12 @@ export default function CreateEventPage() {
                           <FormItem>
                             <FormControl>
                               <div className="aspect-video rounded-md relative group bg-muted border-dashed border-2 flex items-center justify-center">
-                                {value ? (
+                                {isUploading === index && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
+                                        <Loader2 className="h-8 w-8 animate-spin text-white" />
+                                    </div>
+                                )}
+                                {value && ! (isUploading === index) ? (
                                   <Image
                                     src={value}
                                     alt={`Event image ${index + 1}`}
@@ -298,7 +317,7 @@ export default function CreateEventPage() {
                                     className="object-cover rounded-md"
                                   />
                                 ) : null}
-                                <div className={`absolute inset-0 flex items-center justify-center gap-2 transition-opacity ${value ? 'bg-black/40 opacity-0 group-hover:opacity-100' : 'bg-transparent'}`}>
+                                <div className={`absolute inset-0 flex items-center justify-center gap-2 transition-opacity ${value ? 'bg-black/40 opacity-0 group-hover:opacity-100' : 'bg-transparent'} ${isUploading === index ? 'opacity-0' : ''}`}>
                                   <label htmlFor={`image-upload-${index}`} className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 px-3 cursor-pointer bg-secondary text-secondary-foreground hover:bg-secondary/80">
                                     <UploadCloud className="mr-2 h-4 w-4" />
                                     {value ? 'Change' : 'Upload'}
@@ -308,6 +327,7 @@ export default function CreateEventPage() {
                                       className="sr-only"
                                       accept="image/png, image/jpeg, image/gif"
                                       onChange={handleFileChange}
+                                      disabled={isUploading !== null}
                                     />
                                   </label>
                                   {imageFields.length > 1 && value ? (
@@ -317,6 +337,7 @@ export default function CreateEventPage() {
                                       size="icon"
                                       className="h-9 w-9"
                                       onClick={() => removeImage(index)}
+                                      disabled={isUploading !== null}
                                     >
                                       <Trash2 className="h-4 w-4" />
                                       <span className="sr-only">Remove image</span>
@@ -336,6 +357,7 @@ export default function CreateEventPage() {
                       variant="outline"
                       onClick={() => appendImage({ url: '' })}
                       className="aspect-video h-full flex-col gap-2"
+                      disabled={isUploading !== null}
                       >
                       <PlusCircle className="h-6 w-6" />
                       <span>Add Image</span>
@@ -422,8 +444,8 @@ export default function CreateEventPage() {
 
               <Separator />
 
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={isSubmitting || isUploading !== null}>
+                {(isSubmitting || isUploading !== null) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Event
               </Button>
             </form>
