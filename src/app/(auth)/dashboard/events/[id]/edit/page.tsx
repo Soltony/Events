@@ -82,6 +82,7 @@ export default function EditEventPage() {
         setLoading(true);
         const event = await getEventById(eventId);
         if (event) {
+          const imageUrls = typeof event.image === 'string' && event.image ? event.image.split(',') : [];
           form.reset({
             name: event.name,
             location: event.location,
@@ -91,7 +92,7 @@ export default function EditEventPage() {
               from: new Date(event.startDate),
               to: event.endDate ? new Date(event.endDate) : undefined,
             },
-            images: event.image ? event.image.split(',').map(url => ({ url })) : [],
+            images: imageUrls.map(url => ({ url })),
           });
         } else {
             toast({ variant: 'destructive', title: 'Error', description: 'Event not found.' });
