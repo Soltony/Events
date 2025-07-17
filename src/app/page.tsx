@@ -108,9 +108,9 @@ export default function PublicHomePage() {
         {loading ? (
              [...Array(5)].map((_, i) => (
                 <Card key={i}>
-                    <CardHeader className="p-0"><Skeleton className="w-full aspect-[3/2] rounded-t-lg" /></CardHeader>
-                    <CardContent className="p-6 space-y-2"><Skeleton className="h-5 w-20" /><Skeleton className="h-7 w-3/4" /><Skeleton className="h-5 w-1/2" /></CardContent>
-                    <CardFooter className="p-6 pt-0"><Skeleton className="h-10 w-full" /></CardFooter>
+                    <CardHeader className="p-0"><Skeleton className="w-full aspect-video rounded-t-lg" /></CardHeader>
+                    <CardContent className="p-3 space-y-1"><Skeleton className="h-4 w-16" /><Skeleton className="h-5 w-3/4" /><Skeleton className="h-4 w-1/2" /></CardContent>
+                    <CardFooter className="p-3 pt-0"><Skeleton className="h-9 w-full" /></CardFooter>
                 </Card>
             ))
         ) : filteredEvents.length > 0 ? (
@@ -119,15 +119,15 @@ export default function PublicHomePage() {
             return (
               <Card key={event.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
                 <CardHeader className="p-0">
-                  <Image src={imageUrl} alt={event.name} width={600} height={400} className="rounded-t-lg object-cover aspect-[3/2]" data-ai-hint={event.hint ?? 'event'} />
+                  <Image src={imageUrl} alt={event.name} width={600} height={338} className="rounded-t-lg object-cover aspect-video" data-ai-hint={event.hint ?? 'event'} />
                 </CardHeader>
-                <CardContent className="p-6 flex-1 space-y-2">
-                  <Badge variant="outline">{event.category}</Badge>
-                  <CardTitle>{event.name}</CardTitle>
-                  <CardDescription>{formatEventDate(event.startDate, event.endDate)} - {event.location}</CardDescription>
+                <CardContent className="p-3 flex-1 space-y-1">
+                  <Badge variant="outline" className="text-xs">{event.category}</Badge>
+                  <CardTitle className="text-base leading-tight">{event.name}</CardTitle>
+                  <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)} - {event.location}</CardDescription>
                 </CardContent>
-                <CardFooter className="p-6 pt-0">
-                    <Button onClick={() => handleOpenModal(event)} className="w-full">
+                <CardFooter className="p-3 pt-0">
+                    <Button onClick={() => handleOpenModal(event)} className="w-full" size="sm">
                         View Details & Buy Tickets <ArrowUpRight className="ml-auto h-4 w-4" />
                     </Button>
                 </CardFooter>
