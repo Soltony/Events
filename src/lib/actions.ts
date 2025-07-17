@@ -85,6 +85,30 @@ export async function addEvent(data: any) {
     return serialize(newEvent);
 }
 
+export async function updateEvent(id: number, data: any) {
+    const { images, ...eventData } = data;
+
+    const updatedEvent = await prisma.event.update({
+        where: { id },
+        data: {
+            ...eventData,
+            startDate: eventData.date.from,
+            endDate: eventData.date.to,
+            image: images.map((img: {url: string}) => img.url).filter((url: string) => !!url).join(','),
+            date: undefined,
+        }
+    });
+
+    revalidatePath('/dashboard/events');
+    revalidatePath(`/dashboard/events/${id}`);
+    revalidatePath(`/dashboard/events/${id}/edit`);
+    revalidatePath(`/events/${id}`);
+    revalidatePath('/');
+
+    return serialize(updatedEvent);
+}
+
+
 export async function addTicketType(eventId: number, data: Omit<TicketType, 'id' | 'eventId' | 'createdAt' | 'updatedAt' | 'sold'>) {
     const newTicketType = await prisma.ticketType.create({
         data: {
