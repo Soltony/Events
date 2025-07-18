@@ -11,6 +11,7 @@ import { CalendarIcon, PlusCircle, Trash2, UploadCloud, Loader2, ArrowLeft } fro
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import dynamic from 'next/dynamic';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -26,15 +27,19 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { updateEvent, getEventById } from '@/lib/actions';
 import { Separator } from '@/components/ui/separator';
-import { ethiopianLocations } from '@/lib/locations';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Event } from '@prisma/client';
+
+const LocationPicker = dynamic(() => import('@/components/location-picker'), { 
+    ssr: false,
+    loading: () => <Skeleton className="h-[400px] w-full" />
+});
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
@@ -240,29 +245,24 @@ export default function EditEventPage() {
                 control={form.control}
                 name="location"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Location</FormLabel>
-                     <Select onValueChange={field.onChange} value={field.value}>
+                    <FormItem>
+                        <FormLabel>Location</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a location" />
-                          </SelectTrigger>
+                            <LocationPicker
+                                value={field.value}
+                                onChange={(location) => {
+                                    field.onChange(location.display_name);
+                                }}
+                            />
                         </FormControl>
-                        <SelectContent>
-                           {ethiopianLocations.map((cityGroup) => (
-                            <SelectGroup key={cityGroup.city}>
-                              <SelectLabel>{cityGroup.city}</SelectLabel>
-                              {cityGroup.areas.map(area => (
-                                <SelectItem key={`${cityGroup.city}-${area}`} value={`${area}, ${cityGroup.city}`}>{area}</SelectItem>
-                              ))}
-                            </SelectGroup>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    <FormMessage />
-                  </FormItem>
+                         <FormDescription>
+                          Search for a location or click on the map to set the event venue.
+                        </FormDescription>
+                        <FormMessage />
+                    </FormItem>
                 )}
-              />
+               />
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -467,5 +467,3 @@ export default function EditEventPage() {
     </div>
   );
 }
-
-    
