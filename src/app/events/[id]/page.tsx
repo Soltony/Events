@@ -85,20 +85,24 @@ export default function PublicEventDetailPage({ params }: { params: { id: string
     )
   }
   
-  const images = typeof event.image === 'string' && event.image ? event.image.split(',') : ['https://placehold.co/1200x600.png'];
+  const images = (typeof event.image === 'string' && event.image) 
+    ? event.image.split(',').filter(img => img) 
+    : [];
+  
+  const displayImages = images.length > 0 ? images : ['https://placehold.co/1200x600.png'];
 
   return (
     <div className="container mx-auto py-8">
       <Card className="overflow-hidden shadow-xl">
         <Carousel className="w-full">
             <CarouselContent>
-            {images.map((img, index) => (
+            {displayImages.map((img, index) => (
                 <CarouselItem key={index}>
                 <Image src={img} alt={`${event.name} image ${index + 1}`} width={1200} height={600} className="w-full object-cover aspect-[2/1]" data-ai-hint={event.hint ?? 'event'} />
                 </CarouselItem>
             ))}
             </CarouselContent>
-            {images.length > 1 && (
+            {displayImages.length > 1 && (
                 <>
                     <CarouselPrevious className="absolute left-4 hidden sm:flex" />
                     <CarouselNext className="absolute right-4 hidden sm:flex" />

@@ -63,7 +63,7 @@ export default function MyTicketsPage() {
         ) : tickets.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {tickets.map((ticket) => {
-                     const imageUrl = typeof ticket.event.image === 'string' && ticket.event.image ? ticket.event.image.split(',')[0] : 'https://placehold.co/600x400.png';
+                     const imageUrl = (typeof ticket.event.image === 'string' && ticket.event.image) ? ticket.event.image.split(',')[0] : 'https://placehold.co/600x400.png';
                     return (
                         <Card key={ticket.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
                              <CardHeader className="p-0">

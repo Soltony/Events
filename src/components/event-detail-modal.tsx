@@ -50,7 +50,12 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
     });
   };
 
-  const images = typeof event.image === 'string' && event.image ? event.image.split(',') : ['https://placehold.co/1200x600.png'];
+  const images = (typeof event.image === 'string' && event.image) 
+    ? event.image.split(',').filter(img => img) 
+    : [];
+  
+  const displayImages = images.length > 0 ? images : ['https://placehold.co/1200x600.png'];
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -111,7 +116,7 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
              <div className="order-1 md:order-2">
                 <Carousel className="w-full h-full">
                     <CarouselContent className="h-full">
-                    {images.map((img, index) => (
+                    {displayImages.map((img, index) => (
                         <CarouselItem key={index} className="h-full">
                             <div className="relative w-full h-64 md:h-full">
                                 <Image src={img} alt={`${event.name} image ${index + 1}`} fill className="object-cover rounded-t-lg md:rounded-r-lg md:rounded-t-none" data-ai-hint={event.hint ?? 'event'} />
@@ -119,7 +124,7 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
                         </CarouselItem>
                     ))}
                     </CarouselContent>
-                     {images.length > 1 && (
+                     {displayImages.length > 1 && (
                         <>
                             <CarouselPrevious className="absolute left-4 hidden sm:flex" />
                             <CarouselNext className="absolute right-4 hidden sm:flex" />
