@@ -14,20 +14,22 @@ export function AuthStatus() {
 
   const isDashboardPage = pathname.startsWith('/dashboard');
 
+  // Do not render the component on dashboard pages, as UserNav is in the header there.
   if (isDashboardPage) {
     return null;
   }
   
   if (isLoading) {
-    return <Skeleton className="h-10 w-28 rounded-md" />;
+    return <Skeleton className="h-10 w-full rounded-md" />;
   }
 
   if (isAuthenticated) {
+    // We only show UserNav on non-dashboard pages from here.
     return <UserNav />;
   }
 
   return (
-    <Button asChild>
+    <Button asChild className="w-full">
       <Link href="/login">Organizer Login</Link>
     </Button>
   );

@@ -15,6 +15,7 @@ import EventDetailModal from '@/components/event-detail-modal';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AuthStatus } from "@/components/auth-status";
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
@@ -82,7 +83,7 @@ export default function PublicHomePage() {
             Discover events and get your tickets.
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
           <div className="relative flex-1 md:flex-initial md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input 
@@ -93,7 +94,7 @@ export default function PublicHomePage() {
             />
           </div>
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-full md:w-[200px]">
+            <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="Filter by category" />
             </SelectTrigger>
             <SelectContent>
@@ -102,10 +103,13 @@ export default function PublicHomePage() {
               ))}
             </SelectContent>
           </Select>
+          <div className="w-full sm:w-auto">
+             <AuthStatus />
+          </div>
         </div>
       </div>
       
-       <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+       <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {loading ? (
              [...Array(10)].map((_, i) => (
                 <Card key={i}>

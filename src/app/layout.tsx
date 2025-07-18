@@ -26,9 +26,6 @@ export default function RootLayout({
       <body className="font-body antialiased" suppressHydrationWarning={true}>
         <AuthProvider>
           <div className="flex flex-col min-h-screen relative">
-              <div className="absolute top-4 right-4 z-10">
-                <AuthStatus />
-              </div>
               <main className="flex-1 bg-background">
                 {children}
               </main>
