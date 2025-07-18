@@ -75,38 +75,39 @@ export default function PublicHomePage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8 p-4 lg:p-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Upcoming Events</h1>
-        <p className="text-muted-foreground">
-          Discover events and get your tickets.
-        </p>
-      </div>
-
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input 
-            placeholder="Search events by name, description, or location..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">Upcoming Events</h1>
+          <p className="text-muted-foreground">
+            Discover events and get your tickets.
+          </p>
         </div>
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-full md:w-[200px]">
-            <SelectValue placeholder="Filter by category" />
-          </SelectTrigger>
-          <SelectContent>
-            {categories.map(category => (
-              <SelectItem key={category} value={category}>{category}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+          <div className="relative flex-1 md:flex-initial md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input 
+              placeholder="Search events..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-full md:w-[200px]">
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map(category => (
+                <SelectItem key={category} value={category}>{category}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       
        <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {loading ? (
-             [...Array(5)].map((_, i) => (
+             [...Array(10)].map((_, i) => (
                 <Card key={i}>
                     <CardHeader className="p-0"><Skeleton className="w-full aspect-video rounded-t-lg" /></CardHeader>
                     <CardContent className="p-3 space-y-1"><Skeleton className="h-4 w-16" /><Skeleton className="h-5 w-3/4" /><Skeleton className="h-4 w-1/2" /></CardContent>
@@ -135,7 +136,7 @@ export default function PublicHomePage() {
             )
           })
         ) : (
-            <Card className="md:col-span-2 lg:col-span-4 flex items-center justify-center p-8 text-center">
+            <Card className="sm:col-span-2 lg:col-span-3 xl:col-span-5 flex items-center justify-center p-8 text-center">
                 <div>
                     <h3 className="text-2xl font-semibold tracking-tight">No Events Found</h3>
                     <p className="text-muted-foreground mt-2 mb-6">Try adjusting your search or filter criteria.</p>
