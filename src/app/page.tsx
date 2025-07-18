@@ -112,11 +112,8 @@ export default function PublicHomePage() {
         </div>
       </div>
       
-      <div className="text-center my-4 md:my-8">
+      <div className="text-center my-4">
         <h1 className="text-3xl font-bold tracking-tight">Upcoming Events</h1>
-        <p className="text-muted-foreground">
-          Discover events and get your tickets.
-        </p>
       </div>
       
        <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
