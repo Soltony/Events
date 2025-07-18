@@ -1,6 +1,7 @@
 
 'use client';
 
+import 'leaflet/dist/leaflet.css';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -201,4 +202,3 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
         </div>
     );
 }
-
