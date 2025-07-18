@@ -6,10 +6,13 @@ import Image from 'next/image';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MapPin, Ticket } from 'lucide-react';
+import { Calendar, MapPin, Ticket, Loader2 } from 'lucide-react';
 import type { Event, TicketType } from '@prisma/client';
 import { format } from 'date-fns';
 import { ScrollArea } from './ui/scroll-area';
+import { useTransition } from 'react';
+import { purchaseTicket } from '@/lib/actions';
+import { useToast } from '@/hooks/use-toast';
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
@@ -29,7 +32,23 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 }
 
 export default function EventDetailModal({ event, isOpen, onClose }: EventDetailModalProps) {
+  const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
+
   if (!event) return null;
+  
+  const handlePurchase = (ticketTypeId: number) => {
+    startTransition(async () => {
+      const result = await purchaseTicket(ticketTypeId, event.id);
+      if (result?.error) {
+        toast({
+          variant: 'destructive',
+          title: 'Purchase Failed',
+          description: result.error,
+        });
+      }
+    });
+  };
 
   const images = typeof event.image === 'string' && event.image ? event.image.split(',') : ['https://placehold.co/1200x600.png'];
 
@@ -69,11 +88,15 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
                                             <div className="mb-3 sm:mb-0">
                                                 <h4 className="font-semibold text-base">{ticket.name}</h4>
                                                 <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-lg">ETB {Number(ticket.price).toFixed(2)}</p>
-                                                <p className="text-xs text-muted-foreground">{ticket.total - ticket.sold} remaining</p>
+                                                <p className="text-xs text-muted-foreground">{ticket.total - ticket.sold > 0 ? `${ticket.total - ticket.sold} remaining` : 'Sold Out'}</p>
                                             </div>
-                                            <Button className="w-full sm:w-auto shrink-0 bg-accent hover:bg-accent/90 text-accent-foreground">
-                                                <Ticket className="mr-2 h-4 w-4" />
-                                                Buy Ticket
+                                            <Button 
+                                              onClick={() => handlePurchase(ticket.id)}
+                                              disabled={isPending || ticket.total - ticket.sold <= 0}
+                                              className="w-full sm:w-auto shrink-0 bg-accent hover:bg-accent/90 text-accent-foreground"
+                                            >
+                                                {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Ticket className="mr-2 h-4 w-4" />}
+                                                {ticket.total - ticket.sold > 0 ? 'Buy Ticket' : 'Sold Out'}
                                             </Button>
                                         </div>
                                     ))

@@ -1,15 +1,21 @@
 
 
+'use client';
+
 import { getEventById } from '@/lib/actions';
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Ticket, Calendar, MapPin } from 'lucide-react';
+import { Ticket, Calendar, MapPin, Loader2 } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import { notFound } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import type { Event, TicketType } from '@prisma/client';
+import { useEffect, useState, useTransition } from 'react';
+import { purchaseTicket } from '@/lib/actions';
+import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
@@ -22,16 +28,61 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     return format(new Date(startDate), 'LLL dd, y');
 }
 
-export default async function PublicEventDetailPage({ params }: { params: { id: string } }) {
+export default function PublicEventDetailPage({ params }: { params: { id: string } }) {
   const eventId = parseInt(params.id, 10);
-  if (isNaN(eventId)) {
-    notFound();
-  }
+  const { toast } = useToast();
+  const [isPending, startTransition] = useTransition();
+  const [event, setEvent] = useState<EventWithTickets | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const event: EventWithTickets | null = await getEventById(eventId);
+  useEffect(() => {
+    if (isNaN(eventId)) {
+        notFound();
+    }
+    async function fetchEvent() {
+        setLoading(true);
+        const eventData = await getEventById(eventId);
+        if (!eventData) {
+            notFound();
+        }
+        setEvent(eventData);
+        setLoading(false);
+    }
+    fetchEvent();
+  }, [eventId]);
 
-  if (!event) {
-    notFound();
+  const handlePurchase = (ticketTypeId: number) => {
+    startTransition(async () => {
+      const result = await purchaseTicket(ticketTypeId, eventId);
+      if (result?.error) {
+        toast({
+          variant: 'destructive',
+          title: 'Purchase Failed',
+          description: result.error,
+        });
+      }
+    });
+  };
+  
+  if (loading || !event) {
+    return (
+        <div className="container mx-auto py-8">
+            <Card className="overflow-hidden shadow-xl">
+                <Skeleton className="w-full aspect-[2/1]" />
+                <CardContent className="p-6 md:p-10 space-y-8">
+                    <Skeleton className="h-6 w-24" />
+                    <Skeleton className="h-12 w-3/4" />
+                    <div className="flex gap-6">
+                        <Skeleton className="h-6 w-1/3" />
+                        <Skeleton className="h-6 w-1/3" />
+                    </div>
+                    <div className="border-t my-8"></div>
+                    <Skeleton className="h-8 w-48 mb-4" />
+                    <Skeleton className="h-24 w-full" />
+                </CardContent>
+            </Card>
+        </div>
+    )
   }
   
   const images = typeof event.image === 'string' && event.image ? event.image.split(',') : ['https://placehold.co/1200x600.png'];
@@ -88,11 +139,16 @@ export default async function PublicEventDetailPage({ params }: { params: { id: 
                                         <div className="mb-4 md:mb-0">
                                             <h3 className="font-bold text-xl">{ticket.name}</h3>
                                             <p className="text-primary font-bold text-2xl">ETB {Number(ticket.price).toFixed(2)}</p>
-                                            <p className="text-sm text-muted-foreground">{ticket.total - ticket.sold} tickets remaining</p>
+                                            <p className="text-sm text-muted-foreground">{ticket.total - ticket.sold > 0 ? `${ticket.total - ticket.sold} tickets remaining` : 'Sold Out'}</p>
                                         </div>
-                                        <Button size="lg" className="shrink-0">
-                                            <Ticket className="mr-2 h-5 w-5" />
-                                            Buy Ticket
+                                        <Button 
+                                          size="lg" 
+                                          className="shrink-0"
+                                          onClick={() => handlePurchase(ticket.id)}
+                                          disabled={isPending || ticket.total - ticket.sold <= 0}
+                                        >
+                                            {isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Ticket className="mr-2 h-5 w-5" />}
+                                            {ticket.total - ticket.sold > 0 ? 'Buy Ticket' : 'Sold Out'}
                                         </Button>
                                     </Card>
                                 ))

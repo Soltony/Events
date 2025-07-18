@@ -3,8 +3,9 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
-import type { Role, User, TicketType, PromoCode, PromoCodeType, Event } from '@prisma/client';
+import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee } from '@prisma/client';
 import axios from 'axios';
+import { redirect } from 'next/navigation';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -302,4 +303,73 @@ export async function deleteRole(id: string) {
     const role = await prisma.role.delete({ where: { id } });
     revalidatePath('/dashboard/settings');
     return serialize(role);
+}
+
+// Ticket/Attendee Actions
+export async function purchaseTicket(ticketTypeId: number, eventId: number) {
+  'use server';
+  
+  try {
+    const ticket = await prisma.$transaction(async (tx) => {
+      // 1. Find the ticket type and lock the row for update
+      const ticketType = await tx.ticketType.findUnique({
+        where: { id: ticketTypeId },
+      });
+
+      if (!ticketType) {
+        throw new Error('Ticket type not found.');
+      }
+      if (ticketType.sold >= ticketType.total) {
+        throw new Error('This ticket type is sold out.');
+      }
+
+      // 2. Create the attendee/ticket record
+      // In a real app, this would use the logged-in customer's info.
+      const newAttendee = await tx.attendee.create({
+        data: {
+          name: 'Public Customer', // Placeholder
+          email: `customer+${Date.now()}@example.com`, // Placeholder
+          eventId,
+          ticketTypeId,
+          checkedIn: false,
+        },
+      });
+
+      // 3. Increment the sold count for the ticket type
+      await tx.ticketType.update({
+        where: { id: ticketTypeId },
+        data: { sold: { increment: 1 } },
+      });
+
+      return newAttendee;
+    });
+
+    revalidatePath(`/events/${eventId}`);
+    revalidatePath('/');
+    
+    // 4. Redirect to confirmation page
+    redirect(`/ticket/${ticket.id}/confirmation`);
+
+  } catch (error: any) {
+    console.error("Ticket purchase failed:", error);
+    // In a real app, you would handle this more gracefully,
+    // maybe returning an error message to the UI.
+    return { error: error.message };
+  }
+}
+
+export async function getTicketDetailsForConfirmation(attendeeId: number) {
+    const attendee = await prisma.attendee.findUnique({
+        where: { id: attendeeId },
+        include: {
+            event: true,
+            ticketType: true,
+        },
+    });
+
+    if (!attendee) {
+        return null;
+    }
+
+    return serialize(attendee);
 }
