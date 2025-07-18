@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -46,12 +47,23 @@ const eventFormSchema = z.object({
     to: z.date().optional(),
   }),
   category: z.string({ required_error: 'Please select a category.' }),
+  otherCategory: z.string().optional(),
   images: z.array(z.object({
     url: z.string().min(1, { message: "Image cannot be empty." })
   })).min(1, { message: "Please upload at least one image."}),
+}).refine(data => {
+    if (data.category === 'Other') {
+        return !!data.otherCategory && data.otherCategory.length > 0;
+    }
+    return true;
+}, {
+    message: 'Please specify the category.',
+    path: ['otherCategory'],
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
+
+const defaultCategories = ["Technology", "Music", "Art", "Community", "Business"];
 
 export default function EditEventPage() {
   const router = useRouter();
@@ -69,9 +81,12 @@ export default function EditEventPage() {
       location: '',
       description: '',
       category: '',
+      otherCategory: '',
       images: [],
     },
   });
+
+  const watchedCategory = form.watch('category');
 
   useEffect(() => {
     if (eventId === -1) {
@@ -85,11 +100,14 @@ export default function EditEventPage() {
         const event = await getEventById(eventId);
         if (event) {
           const imageUrls = typeof event.image === 'string' && event.image ? event.image.split(',') : [];
+          const isOtherCategory = event.category && !defaultCategories.includes(event.category);
+          
           form.reset({
             name: event.name,
             location: event.location,
             description: event.description,
-            category: event.category,
+            category: isOtherCategory ? 'Other' : event.category,
+            otherCategory: isOtherCategory ? event.category : '',
             date: {
               from: new Date(event.startDate),
               to: event.endDate ? new Date(event.endDate) : undefined,
@@ -119,7 +137,12 @@ export default function EditEventPage() {
   async function onSubmit(data: EventFormValues) {
     setIsSubmitting(true);
     try {
-        await updateEvent(eventId, data);
+        const finalData = {
+            ...data,
+            category: data.category === 'Other' ? data.otherCategory : data.category,
+        };
+
+        await updateEvent(eventId, finalData);
         toast({
             title: 'Event Updated!',
             description: `Successfully updated "${data.name}".`,
@@ -240,31 +263,44 @@ export default function EditEventPage() {
                   </FormItem>
                 )}
               />
-               <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a category" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Technology">Technology</SelectItem>
-                        <SelectItem value="Music">Music</SelectItem>
-                        <SelectItem value="Art">Art</SelectItem>
-                        <SelectItem value="Community">Community</SelectItem>
-                        <SelectItem value="Business">Business</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Category</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a category" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                           {defaultCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                           <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {watchedCategory === 'Other' && (
+                  <FormField
+                    control={form.control}
+                    name="otherCategory"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Custom Category</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Charity, Food Festival" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 )}
-              />
+              </div>
               <FormField
                 control={form.control}
                 name="date"
@@ -431,3 +467,5 @@ export default function EditEventPage() {
     </div>
   );
 }
+
+    

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -44,6 +45,7 @@ const eventFormSchema = z.object({
     to: z.date().optional(),
   }),
   category: z.string({ required_error: 'Please select a category.' }),
+  otherCategory: z.string().optional(),
   images: z.array(z.object({
     url: z.string().min(1, { message: "Image cannot be empty." })
   })).min(1, { message: "Please upload at least one image."}),
@@ -52,6 +54,14 @@ const eventFormSchema = z.object({
     price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
     total: z.coerce.number().int().min(1, { message: 'Capacity must be at least 1.' }),
   })).min(1, { message: 'You must have at least one ticket tier.'}),
+}).refine(data => {
+    if (data.category === 'Other') {
+        return !!data.otherCategory && data.otherCategory.length > 0;
+    }
+    return true;
+}, {
+    message: 'Please specify the category.',
+    path: ['otherCategory'],
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -69,10 +79,13 @@ export default function CreateEventPage() {
       location: '',
       description: '',
       category: '',
+      otherCategory: '',
       images: [{ url: '' }],
       tickets: [{ name: 'General Admission', price: 25, total: 100 }],
     },
   });
+
+  const watchedCategory = form.watch('category');
 
   const { fields: ticketFields, append: appendTicket, remove: removeTicket } = useFieldArray({
     control: form.control,
@@ -87,7 +100,11 @@ export default function CreateEventPage() {
   async function onSubmit(data: EventFormValues) {
     setIsSubmitting(true);
     try {
-        await addEvent(data);
+        const finalData = {
+            ...data,
+            category: data.category === 'Other' ? data.otherCategory : data.category,
+        };
+        await addEvent(finalData);
         toast({
             title: 'Event Created!',
             description: `Successfully created "${data.name}".`,
@@ -181,34 +198,54 @@ export default function CreateEventPage() {
                   </FormItem>
                 )}
               />
-               <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a category" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Technology">Technology</SelectItem>
-                        <SelectItem value="Music">Music</SelectItem>
-                        <SelectItem value="Art">Art</SelectItem>
-                        <SelectItem value="Community">Community</SelectItem>
-                        <SelectItem value="Business">Business</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      What type of event is it?
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a category" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Technology">Technology</SelectItem>
+                            <SelectItem value="Music">Music</SelectItem>
+                            <SelectItem value="Art">Art</SelectItem>
+                            <SelectItem value="Community">Community</SelectItem>
+                            <SelectItem value="Business">Business</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                         <FormDescription>
+                          What type of event is it?
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {watchedCategory === 'Other' && (
+                    <FormField
+                      control={form.control}
+                      name="otherCategory"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Custom Category</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., Charity, Food Festival" {...field} />
+                          </FormControl>
+                           <FormDescription>
+                            Please specify your category.
+                           </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+              </div>
               <FormField
                 control={form.control}
                 name="date"
@@ -455,3 +492,5 @@ export default function CreateEventPage() {
     </div>
   );
 }
+
+    
