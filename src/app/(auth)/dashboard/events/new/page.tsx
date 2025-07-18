@@ -11,7 +11,6 @@ import { CalendarIcon, PlusCircle, Trash2, UploadCloud, Loader2 } from 'lucide-r
 import Image from 'next/image';
 import { useState } from 'react';
 import axios from 'axios';
-import dynamic from 'next/dynamic';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -33,17 +32,10 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { addEvent } from '@/lib/actions';
 import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
-
-const LocationPicker = dynamic(() => import('@/components/location-picker'), { 
-    ssr: false,
-    loading: () => <Skeleton className="h-[400px] w-full" />
-});
-
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
-  location: z.string().min(1, { message: 'Please select a location.' }),
+  location: z.string().min(1, { message: 'Please enter a location.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   date: z.object({
     from: z.date({
@@ -182,14 +174,10 @@ export default function CreateEventPage() {
                     <FormItem>
                         <FormLabel>Location</FormLabel>
                         <FormControl>
-                            <LocationPicker
-                                onChange={(location) => {
-                                    field.onChange(location.display_name);
-                                }}
-                            />
+                            <Input placeholder="e.g. Millennium Hall, Addis Ababa" {...field} />
                         </FormControl>
                          <FormDescription>
-                          Search for a location or click on the map to set the event venue.
+                          Enter the event venue or address.
                         </FormDescription>
                         <FormMessage />
                     </FormItem>
