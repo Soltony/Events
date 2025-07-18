@@ -332,7 +332,7 @@ export default function CreateEventPage() {
                                         <Loader2 className="h-8 w-8 animate-spin text-white" />
                                     </div>
                                 )}
-                                {value && ! (isUploading === index) ? (
+                                {value && !(isUploading === index) ? (
                                   <Image
                                     src={value}
                                     alt={`Event image ${index + 1}`}
