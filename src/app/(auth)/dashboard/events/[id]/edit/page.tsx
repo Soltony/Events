@@ -11,6 +11,7 @@ import { CalendarIcon, PlusCircle, Trash2, UploadCloud, Loader2, ArrowLeft } fro
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import dynamic from 'next/dynamic';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -34,6 +35,11 @@ import { updateEvent, getEventById } from '@/lib/actions';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Event } from '@prisma/client';
+
+const LocationPicker = dynamic(() => import('@/components/location-picker'), {
+    ssr: false,
+    loading: () => <Skeleton className="h-[450px] w-full" />,
+});
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
@@ -242,10 +248,10 @@ export default function EditEventPage() {
                     <FormItem>
                         <FormLabel>Location</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g. Millennium Hall, Addis Ababa" {...field} />
+                          <LocationPicker {...field} />
                         </FormControl>
                          <FormDescription>
-                          Enter the event venue or address.
+                          Search for a location or click on the map to set the event venue.
                         </FormDescription>
                         <FormMessage />
                     </FormItem>
