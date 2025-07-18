@@ -329,8 +329,8 @@ export async function purchaseTicket(ticketTypeId: number, eventId: number) {
         data: {
           name: 'Public Customer', // Placeholder
           email: `customer+${Date.now()}@example.com`, // Placeholder
-          eventId,
-          ticketTypeId,
+          eventId: eventId,
+          ticketTypeId: ticketTypeId,
           checkedIn: false,
         },
       });
