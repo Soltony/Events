@@ -34,7 +34,7 @@ export default async function PublicEventDetailPage({ params }: { params: { id: 
     notFound();
   }
   
-  const images = event.image && typeof event.image === 'string' ? event.image.split(',') : ['https://placehold.co/1200x600.png'];
+  const images = typeof event.image === 'string' && event.image ? event.image.split(',') : ['https://placehold.co/1200x600.png'];
 
   return (
     <div className="container mx-auto py-8">

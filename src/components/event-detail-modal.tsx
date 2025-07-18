@@ -31,7 +31,7 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 export default function EventDetailModal({ event, isOpen, onClose }: EventDetailModalProps) {
   if (!event) return null;
 
-  const images = event.image && typeof event.image === 'string' ? event.image.split(',') : ['https://placehold.co/1200x600.png'];
+  const images = typeof event.image === 'string' && event.image ? event.image.split(',') : ['https://placehold.co/1200x600.png'];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
