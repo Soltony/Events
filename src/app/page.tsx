@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowUpRight, Search } from 'lucide-react';
+import { ArrowUpRight, Search, Ticket } from 'lucide-react';
 import { getPublicEvents } from '@/lib/actions';
 import { format } from 'date-fns';
 import type { Event, TicketType } from '@prisma/client';
@@ -94,7 +94,7 @@ export default function PublicHomePage() {
             />
           </div>
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-full sm:w-[200px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Filter by category" />
             </SelectTrigger>
             <SelectContent>
@@ -103,6 +103,12 @@ export default function PublicHomePage() {
               ))}
             </SelectContent>
           </Select>
+           <Button asChild variant="outline" className="w-full sm:w-auto">
+              <Link href="/tickets">
+                  <Ticket className="mr-2 h-4 w-4" />
+                  My Tickets
+              </Link>
+          </Button>
           <div className="w-full sm:w-auto">
              <AuthStatus />
           </div>
