@@ -39,7 +39,6 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { cn } from "@/lib/utils";
 import { Skeleton } from '@/components/ui/skeleton';
-import RecommendationTool from '@/components/recommendation-tool';
 import type { Event, TicketType, Attendee, PromoCode } from '@prisma/client';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -532,9 +531,6 @@ export default function EventDetailPage() {
             </Card>
         </TabsContent>
       </Tabs>
-      <div className="mt-8">
-        <RecommendationTool />
-      </div>
     </div>
   );
 }
