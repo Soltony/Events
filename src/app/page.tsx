@@ -77,11 +77,8 @@ export default function PublicHomePage() {
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8 p-4 lg:p-6">
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">Upcoming Events</h1>
-          <p className="text-muted-foreground">
-            Discover events and get your tickets.
-          </p>
+        <div className="flex-shrink-0">
+          <Image src="https://placehold.co/250x60.png" alt="Nibkera Tickets Logo" width={250} height={60} data-ai-hint="logo nibkera" />
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
           <div className="relative flex-1 md:flex-initial md:w-64">
@@ -113,6 +110,13 @@ export default function PublicHomePage() {
              <AuthStatus />
           </div>
         </div>
+      </div>
+      
+      <div className="text-center my-4 md:my-8">
+        <h1 className="text-3xl font-bold tracking-tight">Upcoming Events</h1>
+        <p className="text-muted-foreground">
+          Discover events and get your tickets.
+        </p>
       </div>
       
        <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
