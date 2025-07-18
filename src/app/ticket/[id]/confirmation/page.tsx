@@ -54,6 +54,13 @@ export default function TicketConfirmationPage() {
                 
                 setTicket(ticketDetails);
 
+                // Save ticket to local storage for "My Tickets" page
+                const myTickets = JSON.parse(localStorage.getItem('myTickets') || '[]');
+                if (!myTickets.includes(ticketDetails.id)) {
+                    myTickets.push(ticketDetails.id);
+                    localStorage.setItem('myTickets', JSON.stringify(myTickets));
+                }
+
                 const qrCodeData = JSON.stringify({
                     ticketId: ticketDetails.id,
                     eventId: ticketDetails.eventId,
@@ -173,9 +180,12 @@ export default function TicketConfirmationPage() {
                     </div>
                      <div className="border-t my-8"></div>
 
-                    <div className="flex justify-center">
+                    <div className="flex justify-center gap-4">
                         <Button asChild variant="outline">
                             <Link href="/">Back to All Events</Link>
+                        </Button>
+                         <Button asChild>
+                            <Link href="/tickets">Go to My Tickets</Link>
                         </Button>
                     </div>
 

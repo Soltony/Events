@@ -377,3 +377,22 @@ export async function getTicketDetailsForConfirmation(attendeeId: number) {
 
     return serialize(attendee);
 }
+
+export async function getTicketsByIds(ids: number[]) {
+    const tickets = await prisma.attendee.findMany({
+        where: {
+            id: {
+                in: ids,
+            },
+        },
+        include: {
+            event: true,
+            ticketType: true,
+        },
+        orderBy: {
+            createdAt: 'desc',
+        }
+    });
+
+    return serialize(tickets);
+}
