@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
-import type { LatLngExpression, LatLng, Map } from 'leaflet';
+import type { LatLngExpression, LatLng, Map as LeafletMap } from 'leaflet';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -58,16 +58,15 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
   const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
   const [position, setPosition] = useState<LatLngExpression>(ETHIOPIA_CENTER);
   const [isSearching, setIsSearching] = useState(false);
-  const mapRef = useRef<Map | null>(null);
+  const mapRef = useRef<LeafletMap | null>(null);
   
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
-  
-  // This effect will run when the component unmounts, cleaning up the map instance.
+
+  // This effect ensures that the map instance is properly removed on unmount.
   useEffect(() => {
     return () => {
       if (mapRef.current) {
         mapRef.current.remove();
-        mapRef.current = null;
       }
     };
   }, []);
@@ -154,7 +153,7 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
             zoom={6}
             maxBounds={ETHIOPIA_BOUNDS}
             className="h-full w-full rounded-md"
-            whenCreated={(mapInstance) => { mapRef.current = mapInstance; }}
+            whenCreated={(map) => { mapRef.current = map; }}
         >
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
