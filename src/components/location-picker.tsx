@@ -113,8 +113,6 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
       setPosition([pos.lat, pos.lng]);
   }
 
-  const positionKey = Array.isArray(position) ? position.join(',') : 'default';
-
   return (
     <div>
       <div className="relative mb-2">
@@ -143,15 +141,13 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
             </ScrollArea>
         </Card>
       )}
-      <div id="map-container" className="h-[400px] w-full bg-muted rounded-md">
+      <div className="h-[400px] w-full bg-muted rounded-md">
          {isMounted && (
             <MapContainer
-                key={positionKey}
                 center={position}
                 zoom={6}
                 maxBounds={ETHIOPIA_BOUNDS}
                 className="h-full w-full rounded-md"
-                placeholder={<div className="h-full w-full bg-muted animate-pulse" />}
             >
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
