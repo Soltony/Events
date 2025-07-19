@@ -58,13 +58,8 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
   const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
   const [position, setPosition] = useState<LatLngExpression>(ETHIOPIA_CENTER);
   const [isSearching, setIsSearching] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
   
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
-  
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   useEffect(() => {
     // If value is a valid lat,lng pair, use it. Otherwise, use search query.
@@ -142,22 +137,21 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
         </Card>
       )}
       <div className="h-[400px] w-full bg-muted rounded-md">
-         {isMounted && (
-            <MapContainer
-                center={position}
-                zoom={6}
-                maxBounds={ETHIOPIA_BOUNDS}
-                className="h-full w-full rounded-md"
-            >
-                <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                <Marker position={position} />
-                <MapUpdater position={position} />
-                <MapClickHandler setPosition={handlePositionChange} onChange={onChange} />
-            </MapContainer>
-         )}
+         <MapContainer
+            key={Array.isArray(position) ? position.join(',') : String(position)}
+            center={position}
+            zoom={6}
+            maxBounds={ETHIOPIA_BOUNDS}
+            className="h-full w-full rounded-md"
+        >
+            <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <Marker position={position} />
+            <MapUpdater position={position} />
+            <MapClickHandler setPosition={handlePositionChange} onChange={onChange} />
+        </MapContainer>
       </div>
     </div>
   );
