@@ -77,6 +77,7 @@ export default function CreateEventPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState<number | null>(null);
+  const [imagePreviews, setImagePreviews] = useState<Record<number, string>>({});
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
@@ -102,6 +103,21 @@ export default function CreateEventPage() {
     control: form.control,
     name: "images"
   });
+
+  const handleRemoveImage = (index: number) => {
+    removeImage(index);
+    const newPreviews = { ...imagePreviews };
+    delete newPreviews[index];
+    // Re-index subsequent previews
+    Object.keys(newPreviews).forEach(key => {
+        const numericKey = parseInt(key);
+        if (numericKey > index) {
+            newPreviews[numericKey - 1] = newPreviews[numericKey];
+            delete newPreviews[numericKey];
+        }
+    });
+    setImagePreviews(newPreviews);
+  }
 
   async function onSubmit(data: EventFormValues) {
     setIsSubmitting(true);
@@ -313,6 +329,7 @@ export default function CreateEventPage() {
                             setIsUploading(index);
                             const reader = new FileReader();
                             reader.onloadend = async () => {
+                              setImagePreviews(prev => ({...prev, [index]: reader.result as string}));
                               try {
                                 const response = await axios.post('/api/upload', { file: reader.result });
                                 if (response.data.success) {
@@ -329,6 +346,8 @@ export default function CreateEventPage() {
                             reader.readAsDataURL(file);
                           }
                         };
+                        
+                        const displayUrl = imagePreviews[index] || value;
 
                         return (
                           <FormItem>
@@ -339,18 +358,18 @@ export default function CreateEventPage() {
                                         <Loader2 className="h-8 w-8 animate-spin text-white" />
                                     </div>
                                 )}
-                                {value && !(isUploading === index) ? (
+                                {displayUrl && !(isUploading === index) ? (
                                   <Image
-                                    src={value}
+                                    src={displayUrl}
                                     alt={`Event image ${index + 1}`}
                                     fill
                                     className="object-cover rounded-md"
                                   />
                                 ) : null}
-                                <div className={`absolute inset-0 flex items-center justify-center gap-2 transition-opacity ${value ? 'bg-black/40 opacity-0 group-hover:opacity-100' : 'bg-transparent'} ${isUploading === index ? 'opacity-0' : ''}`}>
+                                <div className={`absolute inset-0 flex items-center justify-center gap-2 transition-opacity ${displayUrl ? 'bg-black/40 opacity-0 group-hover:opacity-100' : 'bg-transparent'} ${isUploading === index ? 'opacity-0' : ''}`}>
                                   <label htmlFor={`image-upload-${index}`} className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 px-3 cursor-pointer bg-secondary text-secondary-foreground hover:bg-secondary/80">
                                     <UploadCloud className="mr-2 h-4 w-4" />
-                                    {value ? 'Change' : 'Upload'}
+                                    {displayUrl ? 'Change' : 'Upload'}
                                     <Input
                                       id={`image-upload-${index}`}
                                       type="file"
@@ -360,13 +379,13 @@ export default function CreateEventPage() {
                                       disabled={isUploading !== null}
                                     />
                                   </label>
-                                  {imageFields.length > 1 && value ? (
+                                  {imageFields.length > 1 && displayUrl ? (
                                     <Button
                                       type="button"
                                       variant="destructive"
                                       size="icon"
                                       className="h-9 w-9"
-                                      onClick={() => removeImage(index)}
+                                      onClick={() => handleRemoveImage(index)}
                                       disabled={isUploading !== null}
                                     >
                                       <Trash2 className="h-4 w-4" />
