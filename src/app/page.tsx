@@ -11,7 +11,6 @@ import { getPublicEvents } from '@/lib/actions';
 import { format } from 'date-fns';
 import type { Event, TicketType } from '@prisma/client';
 import { useState, useEffect, useMemo } from 'react';
-import EventDetailModal from '@/components/event-detail-modal';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -31,7 +30,6 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 export default function PublicHomePage() {
   const [events, setEvents] = useState<EventWithTickets[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedEvent, setSelectedEvent] = useState<EventWithTickets | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
@@ -65,14 +63,6 @@ export default function PublicHomePage() {
       return matchesCategory && matchesSearch;
     });
   }, [events, searchQuery, selectedCategory]);
-  
-  const handleOpenModal = (event: EventWithTickets) => {
-    setSelectedEvent(event);
-  };
-
-  const handleCloseModal = () => {
-    setSelectedEvent(null);
-  };
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8 p-4 lg:p-6">
@@ -139,8 +129,10 @@ export default function PublicHomePage() {
                   <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)} - {event.location}</CardDescription>
                 </CardContent>
                 <CardFooter className="p-3 pt-0">
-                    <Button onClick={() => handleOpenModal(event)} className="w-full" size="sm">
-                        View Details & Buy Tickets <ArrowUpRight className="ml-auto h-4 w-4" />
+                    <Button asChild className="w-full" size="sm">
+                       <Link href={`/events/${event.id}`}>
+                         View Details & Buy Tickets <ArrowUpRight className="ml-auto h-4 w-4" />
+                       </Link>
                     </Button>
                 </CardFooter>
               </Card>
@@ -155,14 +147,6 @@ export default function PublicHomePage() {
             </Card>
         )}
       </div>
-
-      {selectedEvent && (
-        <EventDetailModal
-          event={selectedEvent}
-          isOpen={!!selectedEvent}
-          onClose={handleCloseModal}
-        />
-      )}
     </div>
   );
 }
