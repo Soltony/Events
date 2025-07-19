@@ -21,7 +21,7 @@ export default function AuthLayout({
           <div className="flex h-full max-h-screen flex-col gap-2">
             <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
               <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-                <Image src="https://placehold.co/150x40.png" alt="Nibkera Tickets Logo" width={150} height={40} className="object-contain" data-ai-hint="logo nibtera" />
+                <Image src="https://sdmntprwestus2.oaiusercontent.com/files/00000000-3fe4-61f8-ad48-fc57e9f36849/raw?se=2025-07-19T09%3A14%3A18Z&sp=r&sv=2024-08-04&sr=b&scid=50db1888-8a8c-5f2e-8d5d-d41402fb4415&skoid=add8ee7d-5fc7-451e-b06e-a82b2276cf62&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-07-19T02%3A21%3A06Z&ske=2025-07-20T02%3A21%3A06Z&sks=b&skv=2024-08-04&sig=MyAXfeV%2BQY0NDXL4I2f/IKkhwhOo2UiOacqRxRhoYIU%3D" alt="Nibkera Tickets Logo" width={150} height={40} className="object-contain" data-ai-hint="logo nibtera" />
               </Link>
             </div>
             <div className="flex-1 overflow-y-auto">
@@ -48,7 +48,7 @@ export default function AuthLayout({
                     href="/dashboard"
                     className="flex items-center gap-2 text-lg font-semibold"
                   >
-                     <Image src="https://placehold.co/150x40.png" alt="Nibkera Tickets Logo" width={150} height={40} className="object-contain" data-ai-hint="logo nibtera" />
+                     <Image src="https://sdmntprwestus2.oaiusercontent.com/files/00000000-3fe4-61f8-ad48-fc57e9f36849/raw?se=2025-07-19T09%3A14%3A18Z&sp=r&sv=2024-08-04&sr=b&scid=50db1888-8a8c-5f2e-8d5d-d41402fb4415&skoid=add8ee7d-5fc7-451e-b06e-a82b2276cf62&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-07-19T02%3A21%3A06Z&ske=2025-07-20T02%3A21%3A06Z&sks=b&skv=2024-08-04&sig=MyAXfeV%2BQY0NDXL4I2f/IKkhwhOo2UiOacqRxRhoYIU%3D" alt="Nibkera Tickets Logo" width={150} height={40} className="object-contain" data-ai-hint="logo nibtera" />
                   </Link>
                 </div>
                 <div className="flex-1 overflow-y-auto">

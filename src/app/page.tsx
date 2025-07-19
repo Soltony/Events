@@ -69,7 +69,7 @@ export default function PublicHomePage() {
     <div className="flex flex-1 flex-col gap-4 md:gap-8 p-4 lg:p-6">
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex-shrink-0">
-          <Image src="https://placehold.co/250x60.png" alt="NibTera Tickets Logo" width={250} height={60} data-ai-hint="logo nibtera" />
+          <Image src="https://sdmntprwestus2.oaiusercontent.com/files/00000000-3fe4-61f8-ad48-fc57e9f36849/raw?se=2025-07-19T09%3A14%3A18Z&sp=r&sv=2024-08-04&sr=b&scid=50db1888-8a8c-5f2e-8d5d-d41402fb4415&skoid=add8ee7d-5fc7-451e-b06e-a82b2276cf62&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2025-07-19T02%3A21%3A06Z&ske=2025-07-20T02%3A21%3A06Z&sks=b&skv=2024-08-04&sig=MyAXfeV%2BQY0NDXL4I2f/IKkhwhOo2UiOacqRxRhoYIU%3D" alt="NibTera Tickets Logo" width={250} height={60} data-ai-hint="logo nibtera" />
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
           <div className="relative flex-1 md:flex-initial md:w-64">
@@ -122,7 +122,9 @@ export default function PublicHomePage() {
             return (
               <Card key={event.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
                 <CardHeader className="p-0">
-                  <Image src={imageUrl} alt={event.name} width={600} height={338} className="rounded-t-lg object-cover aspect-video" data-ai-hint={event.hint ?? 'event'} />
+                  <Link href={`/events/${event.id}`}>
+                    <Image src={imageUrl} alt={event.name} width={600} height={338} className="rounded-t-lg object-cover aspect-video" data-ai-hint={event.hint ?? 'event'} />
+                  </Link>
                 </CardHeader>
                 <CardContent className="p-3 flex-1 space-y-1">
                   <Badge variant="outline" className="text-xs">{event.category}</Badge>
