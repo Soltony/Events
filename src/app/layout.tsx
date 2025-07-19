@@ -6,7 +6,7 @@ import { AuthProvider } from '@/context/auth-context';
 import { AuthStatus } from '@/components/auth-status';
 
 export const metadata: Metadata = {
-  title: 'EventFlow Tickets',
+  title: 'NibTera Tickets',
   description: 'The ultimate solution for event ticketing.',
   icons: null,
 };
