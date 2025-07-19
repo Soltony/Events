@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
-import type { LatLngExpression, LatLng } from 'leaflet';
+import type { LatLngExpression, LatLng, Map } from 'leaflet';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -54,24 +54,32 @@ function MapClickHandler({ setPosition, onChange }: { setPosition: (pos: LatLng)
 }
 
 export default function LocationPicker({ value, onChange }: LocationPickerProps) {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(value || '');
   const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
   const [position, setPosition] = useState<LatLngExpression>(ETHIOPIA_CENTER);
   const [isSearching, setIsSearching] = useState(false);
+  const [map, setMap] = useState<Map | null>(null);
   
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   useEffect(() => {
-    // If value is a valid lat,lng pair, use it. Otherwise, use search query.
+    return () => {
+      if (map) {
+        map.remove();
+      }
+    };
+  }, [map]);
+
+  useEffect(() => {
     if (value) {
         const parts = value.split(',').map(p => parseFloat(p.trim()));
         if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
              setPosition([parts[0], parts[1]]);
-        } else {
-             setSearchQuery(value);
+        } else if (searchQuery !== value) {
+            setSearchQuery(value);
         }
     }
-  }, []);
+  }, [value, searchQuery]);
 
   const handleSearch = useCallback(async (query: string) => {
     if (query.length < 3) {
@@ -93,8 +101,10 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
   }, []);
 
   useEffect(() => {
-    handleSearch(debouncedSearchQuery);
-  }, [debouncedSearchQuery, handleSearch]);
+    if (debouncedSearchQuery && debouncedSearchQuery !== value) {
+        handleSearch(debouncedSearchQuery);
+    }
+  }, [debouncedSearchQuery, handleSearch, value]);
 
   const handleSelectSuggestion = (suggestion: NominatimResult) => {
     const newPosition: LatLngExpression = [parseFloat(suggestion.lat), parseFloat(suggestion.lon)];
@@ -138,11 +148,11 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
       )}
       <div className="h-[400px] w-full bg-muted rounded-md">
          <MapContainer
-            key={Array.isArray(position) ? position.join(',') : String(position)}
             center={position}
             zoom={6}
             maxBounds={ETHIOPIA_BOUNDS}
             className="h-full w-full rounded-md"
+            whenCreated={setMap}
         >
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
