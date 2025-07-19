@@ -141,7 +141,7 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
             center={position}
             zoom={6}
             maxBounds={ETHIOPIA_BOUNDS}
-            style={{ height: '100%', width: '100%' }}
+            className="h-full w-full rounded-md"
         >
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
