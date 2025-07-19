@@ -5,21 +5,11 @@ import 'leaflet/dist/leaflet.css';
 import { useState, useEffect, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import type { LatLngExpression, LatLng } from 'leaflet';
-import L from 'leaflet';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2 } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
-
-// Fix for default Leaflet icon issue with webpack
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
-
 
 interface LocationPickerProps {
   value: string;
@@ -33,7 +23,7 @@ interface NominatimResult {
   lon: string;
 }
 
-const ETHIOPIA_BOUNDS: L.LatLngBoundsExpression = [
+const ETHIOPIA_BOUNDS: LatLngExpression = [
     [3.398, 32.996], // Southwest
     [14.85, 48.005], // Northeast
 ];
