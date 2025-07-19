@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import type { LatLngExpression, LatLng, Map } from 'leaflet';
 import { Input } from '@/components/ui/input';
@@ -58,17 +58,19 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
   const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
   const [position, setPosition] = useState<LatLngExpression>(ETHIOPIA_CENTER);
   const [isSearching, setIsSearching] = useState(false);
-  const [map, setMap] = useState<Map | null>(null);
+  const mapRef = useRef<Map | null>(null);
   
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
-
+  
+  // This effect will run when the component unmounts, cleaning up the map instance.
   useEffect(() => {
     return () => {
-      if (map) {
-        map.remove();
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
       }
     };
-  }, [map]);
+  }, []);
 
   useEffect(() => {
     if (value) {
@@ -152,7 +154,7 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
             zoom={6}
             maxBounds={ETHIOPIA_BOUNDS}
             className="h-full w-full rounded-md"
-            whenCreated={setMap}
+            whenCreated={(mapInstance) => { mapRef.current = mapInstance; }}
         >
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
