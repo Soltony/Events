@@ -58,8 +58,13 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
   const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
   const [position, setPosition] = useState<LatLngExpression>(ETHIOPIA_CENTER);
   const [isSearching, setIsSearching] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     // If value is a valid lat,lng pair, use it. Otherwise, use search query.
@@ -108,6 +113,8 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
       setPosition([pos.lat, pos.lng]);
   }
 
+  const positionKey = Array.isArray(position) ? position.join(',') : 'default';
+
   return (
     <div>
       <div className="relative mb-2">
@@ -136,21 +143,25 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
             </ScrollArea>
         </Card>
       )}
-      <div className="h-[400px] w-full bg-muted rounded-md">
-        <MapContainer
-            center={position}
-            zoom={6}
-            maxBounds={ETHIOPIA_BOUNDS}
-            className="h-full w-full rounded-md"
-        >
-            <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <Marker position={position} />
-            <MapUpdater position={position} />
-            <MapClickHandler setPosition={handlePositionChange} onChange={onChange} />
-        </MapContainer>
+      <div id="map-container" className="h-[400px] w-full bg-muted rounded-md">
+         {isMounted && (
+            <MapContainer
+                key={positionKey}
+                center={position}
+                zoom={6}
+                maxBounds={ETHIOPIA_BOUNDS}
+                className="h-full w-full rounded-md"
+                placeholder={<div className="h-full w-full bg-muted animate-pulse" />}
+            >
+                <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <Marker position={position} />
+                <MapUpdater position={position} />
+                <MapClickHandler setPosition={handlePositionChange} onChange={onChange} />
+            </MapContainer>
+         )}
       </div>
     </div>
   );
