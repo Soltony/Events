@@ -15,8 +15,8 @@ export default function AuthLayout({
 }>) {
   return (
     <AuthGuard>
-      <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-        <div className="hidden border-r bg-sidebar md:block">
+      <div className="relative flex min-h-screen w-full">
+        <div className="hidden md:block fixed top-0 left-0 h-full w-[220px] lg:w-[280px] border-r bg-sidebar">
           <div className="flex h-full max-h-screen flex-col gap-2">
             <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
               <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
@@ -24,13 +24,13 @@ export default function AuthLayout({
                 <span className="">EventFlow</span>
               </Link>
             </div>
-            <div className="flex-1">
+            <div className="flex-1 overflow-y-auto">
               <MainNav />
             </div>
           </div>
         </div>
-        <div className="flex flex-col">
-          <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6">
+        <div className="flex flex-col flex-1 md:ml-[220px] lg:ml-[280px]">
+          <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30">
             <Sheet>
               <SheetTrigger asChild>
                 <Button
@@ -42,17 +42,19 @@ export default function AuthLayout({
                   <span className="sr-only">Toggle navigation menu</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="flex flex-col">
-                <nav className="grid gap-2 text-lg font-medium">
+              <SheetContent side="left" className="flex flex-col p-0 w-[280px]">
+                 <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
                   <Link
                     href="/dashboard"
-                    className="flex items-center gap-2 text-lg font-semibold mb-4"
+                    className="flex items-center gap-2 text-lg font-semibold"
                   >
                     <Logo />
                     <span>EventFlow</span>
                   </Link>
+                </div>
+                <div className="flex-1 overflow-y-auto">
                   <MainNav />
-                </nav>
+                </div>
               </SheetContent>
             </Sheet>
             <div className="w-full flex-1">
