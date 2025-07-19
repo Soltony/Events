@@ -1,8 +1,9 @@
 
+
 import { MainNav } from '@/components/main-nav';
-import { Logo } from '@/components/logo';
 import { UserNav } from '@/components/user-nav';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
@@ -20,8 +21,7 @@ export default function AuthLayout({
           <div className="flex h-full max-h-screen flex-col gap-2">
             <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
               <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-                <Logo />
-                <span className="">EventFlow</span>
+                <Image src="https://storage.googleapis.com/project-pincher-testing/downloads/f0a4f5f5-f81d-4001-ba76-0b81d770c3c8.png" alt="Nibkera Tickets Logo" width={150} height={40} className="object-contain" />
               </Link>
             </div>
             <div className="flex-1 overflow-y-auto">
@@ -48,8 +48,7 @@ export default function AuthLayout({
                     href="/dashboard"
                     className="flex items-center gap-2 text-lg font-semibold"
                   >
-                    <Logo />
-                    <span>EventFlow</span>
+                     <Image src="https://storage.googleapis.com/project-pincher-testing/downloads/f0a4f5f5-f81d-4001-ba76-0b81d770c3c8.png" alt="Nibkera Tickets Logo" width={150} height={40} className="object-contain" />
                   </Link>
                 </div>
                 <div className="flex-1 overflow-y-auto">
