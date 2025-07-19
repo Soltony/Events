@@ -1,12 +1,12 @@
 
 'use client';
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import Image from 'next/image';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MapPin, Ticket, Loader2 } from 'lucide-react';
+import { Calendar, MapPin, Ticket, Loader2, X } from 'lucide-react';
 import type { Event, TicketType } from '@prisma/client';
 import { format } from 'date-fns';
 import { ScrollArea } from './ui/scroll-area';
@@ -59,33 +59,55 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl p-0">
-        <div className="grid md:grid-cols-2">
-            <div className="p-8 flex flex-col order-2 md:order-1">
-                <ScrollArea className="flex-1 pr-6 -mr-6">
-                    <DialogHeader className="text-left mb-6">
-                        <Badge variant="outline" className="mb-2 w-min whitespace-nowrap">{event.category}</Badge>
-                        <DialogTitle className="text-3xl font-bold tracking-tight">{event.name}</DialogTitle>
-                        <div className="text-lg text-muted-foreground space-y-2 pt-2">
-                             <div className="flex items-center gap-2">
-                                <Calendar className="h-5 w-5" />
-                                <span>{formatEventDate(event.startDate, event.endDate)}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <MapPin className="h-5 w-5" />
-                                <span>{event.location}</span>
-                            </div>
+      <DialogContent className="max-w-4xl p-0 grid grid-cols-1 md:grid-cols-2 gap-0">
+         <div className="relative order-1 md:order-2">
+            <Carousel className="w-full h-full">
+                <CarouselContent className="h-full">
+                {displayImages.map((img, index) => (
+                    <CarouselItem key={index} className="h-full">
+                        <div className="relative w-full h-64 md:h-full">
+                            <Image src={img} alt={`${event.name} image ${index + 1}`} fill className="object-cover rounded-t-lg md:rounded-r-lg md:rounded-t-none" data-ai-hint={event.hint ?? 'event'} />
                         </div>
-                    </DialogHeader>
+                    </CarouselItem>
+                ))}
+                </CarouselContent>
+                    {displayImages.length > 1 && (
+                    <>
+                        <CarouselPrevious className="absolute left-4 hidden sm:flex" />
+                        <CarouselNext className="absolute right-4 hidden sm:flex" />
+                    </>
+                )}
+            </Carousel>
+             <DialogClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground md:hidden">
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+            </DialogClose>
+        </div>
+        <div className="p-8 flex flex-col order-2 md:order-1 max-h-[90vh] md:max-h-auto">
+            <DialogHeader className="text-left mb-4">
+                <Badge variant="outline" className="mb-2 w-min whitespace-nowrap">{event.category}</Badge>
+                <DialogTitle className="text-3xl font-bold tracking-tight">{event.name}</DialogTitle>
+                <div className="text-lg text-muted-foreground space-y-2 pt-2">
+                        <div className="flex items-center gap-2">
+                        <Calendar className="h-5 w-5" />
+                        <span>{formatEventDate(event.startDate, event.endDate)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <MapPin className="h-5 w-5" />
+                        <span>{event.location}</span>
+                    </div>
+                </div>
+            </DialogHeader>
 
-                    <div className="space-y-6">
-                        <div>
-                            <h3 className="text-xl font-semibold mb-2">About this Event</h3>
-                            <p className="text-base text-muted-foreground whitespace-pre-wrap leading-relaxed">{event.description}</p>
-                        </div>
-                        
-                        <div>
-                             <h3 className="text-xl font-semibold mb-4">Tickets</h3>
+            <div className="flex-grow min-h-0 flex flex-col gap-6">
+                <div>
+                    <h3 className="text-xl font-semibold mb-2">About this Event</h3>
+                    <p className="text-base text-muted-foreground whitespace-pre-wrap leading-relaxed">{event.description}</p>
+                </div>
+                
+                <div className="flex flex-col min-h-0">
+                        <h3 className="text-xl font-semibold mb-4">Tickets</h3>
+                        <ScrollArea className="flex-1 -mr-6 pr-6">
                             <div className="space-y-3">
                                 {event.ticketTypes.length > 0 ? (
                                     event.ticketTypes.map(ticket => (
@@ -96,9 +118,9 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
                                                 <p className="text-xs text-muted-foreground">{ticket.total - ticket.sold > 0 ? `${ticket.total - ticket.sold} remaining` : 'Sold Out'}</p>
                                             </div>
                                             <Button 
-                                              onClick={() => handlePurchase(ticket.id)}
-                                              disabled={isPending || ticket.total - ticket.sold <= 0}
-                                              className="w-full sm:w-auto shrink-0 bg-accent hover:bg-accent/90 text-accent-foreground"
+                                                onClick={() => handlePurchase(ticket.id)}
+                                                disabled={isPending || ticket.total - ticket.sold <= 0}
+                                                className="w-full sm:w-auto shrink-0 bg-accent hover:bg-accent/90 text-accent-foreground"
                                             >
                                                 {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Ticket className="mr-2 h-4 w-4" />}
                                                 {ticket.total - ticket.sold > 0 ? 'Buy Ticket' : 'Sold Out'}
@@ -109,29 +131,9 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
                                     <p className="text-muted-foreground">Tickets are not yet available for this event.</p>
                                 )}
                             </div>
-                        </div>
-                    </div>
-                </ScrollArea>
+                        </ScrollArea>
+                </div>
             </div>
-             <div className="order-1 md:order-2">
-                <Carousel className="w-full h-full">
-                    <CarouselContent className="h-full">
-                    {displayImages.map((img, index) => (
-                        <CarouselItem key={index} className="h-full">
-                            <div className="relative w-full h-64 md:h-full">
-                                <Image src={img} alt={`${event.name} image ${index + 1}`} fill className="object-cover rounded-t-lg md:rounded-r-lg md:rounded-t-none" data-ai-hint={event.hint ?? 'event'} />
-                            </div>
-                        </CarouselItem>
-                    ))}
-                    </CarouselContent>
-                     {displayImages.length > 1 && (
-                        <>
-                            <CarouselPrevious className="absolute left-4 hidden sm:flex" />
-                            <CarouselNext className="absolute right-4 hidden sm:flex" />
-                        </>
-                    )}
-                </Carousel>
-             </div>
         </div>
       </DialogContent>
     </Dialog>
