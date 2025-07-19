@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -68,7 +69,7 @@ export default function PublicHomePage() {
     <div className="flex flex-1 flex-col gap-4 md:gap-8 p-4 lg:p-6">
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex-shrink-0">
-          <Image src="https://storage.googleapis.com/project-pincher-testing/downloads/f0a4f5f5-f81d-4001-ba76-0b81d770c3c8.png" alt="NibTera Tickets Logo" width={250} height={60} data-ai-hint="logo nibtera" />
+          <Image src="https://placehold.co/250x60.png" alt="NibTera Tickets Logo" width={250} height={60} data-ai-hint="logo nibtera" />
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
           <div className="relative flex-1 md:flex-initial md:w-64">
