@@ -78,7 +78,7 @@ export default function EditEventPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState<number | null>(null);
-  const [imagePreviews, setImagePreviews] = useState<Record<number, string>>({});
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
@@ -120,6 +120,7 @@ export default function EditEventPage() {
             },
             images: imageUrls.length > 0 ? imageUrls.map(url => ({ url })) : [{ url: '' }],
           });
+          setImagePreviews(imageUrls);
         } else {
             toast({ variant: 'destructive', title: 'Error', description: 'Event not found.' });
             router.push('/dashboard/events');
@@ -142,17 +143,7 @@ export default function EditEventPage() {
   
   const handleRemoveImage = (index: number) => {
     removeImage(index);
-    const newPreviews = { ...imagePreviews };
-    delete newPreviews[index];
-    // Re-index subsequent previews
-    Object.keys(newPreviews).forEach(key => {
-        const numericKey = parseInt(key);
-        if (numericKey > index) {
-            newPreviews[numericKey - 1] = newPreviews[numericKey];
-            delete newPreviews[numericKey];
-        }
-    });
-    setImagePreviews(newPreviews);
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
   }
 
   async function onSubmit(data: EventFormValues) {
@@ -383,7 +374,11 @@ export default function EditEventPage() {
                              setIsUploading(index);
                              const reader = new FileReader();
                              reader.onloadend = async () => {
-                                 setImagePreviews(prev => ({...prev, [index]: reader.result as string}));
+                                 setImagePreviews(prev => {
+                                     const newPreviews = [...prev];
+                                     newPreviews[index] = reader.result as string;
+                                     return newPreviews;
+                                 });
                                try {
                                  const response = await axios.post('/api/upload', { file: reader.result });
                                  if (response.data.success) {
@@ -458,7 +453,10 @@ export default function EditEventPage() {
                    <Button
                       type="button"
                       variant="outline"
-                      onClick={() => appendImage({ url: '' })}
+                      onClick={() => {
+                          appendImage({ url: '' });
+                          setImagePreviews(prev => [...prev, '']);
+                      }}
                       className="aspect-video h-full flex-col gap-2"
                       disabled={isUploading !== null}
                       >
