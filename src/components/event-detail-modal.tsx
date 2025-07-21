@@ -43,8 +43,11 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
     startTransition(async () => {
       try {
         await purchaseTicket(ticketTypeId, event.id);
+        // On success, the redirect will happen and this part of the code will not be reached.
       } catch (error: any) {
-         if (error.digest?.includes('NEXT_REDIRECT')) {
+        // Only catch actual errors, not the redirect signal.
+        if (error.digest?.includes('NEXT_REDIRECT')) {
+          // This is the redirect signal, so we re-throw it to let Next.js handle it.
           throw error;
         }
         toast({
