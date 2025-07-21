@@ -84,8 +84,8 @@ export default function RegisterPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
-      <div className="mx-auto flex w-full max-w-sm flex-col items-center text-center">
-        <div className="mb-8">
+      <div className="mx-auto flex w-full max-w-sm flex-col items-center">
+        <div className="mb-6">
           <Image
             src="/images/logo.png"
             alt="NibTera Tickets Logo"
@@ -96,7 +96,7 @@ export default function RegisterPage() {
           />
         </div>
         <Card className="w-full">
-          <CardHeader>
+          <CardHeader className="text-left">
             <CardTitle className="text-2xl">Create an Organizer Account</CardTitle>
             <CardDescription>
               Fill in the details below to get started.
@@ -107,7 +107,7 @@ export default function RegisterPage() {
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <FormField control={form.control} name="firstName" render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="text-left">
                         <FormLabel>First Name</FormLabel>
                         <FormControl><Input placeholder="John" {...field} /></FormControl>
                         <FormMessage />
@@ -115,7 +115,7 @@ export default function RegisterPage() {
                     )}
                   />
                   <FormField control={form.control} name="lastName" render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="text-left">
                         <FormLabel>Last Name</FormLabel>
                         <FormControl><Input placeholder="Doe" {...field} /></FormControl>
                         <FormMessage />
@@ -124,7 +124,7 @@ export default function RegisterPage() {
                   />
                 </div>
                 <FormField control={form.control} name="phoneNumber" render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="text-left">
                       <FormLabel>Phone Number</FormLabel>
                       <FormControl><Input placeholder="+1234567890" {...field} /></FormControl>
                       <FormMessage />
@@ -132,7 +132,7 @@ export default function RegisterPage() {
                   )}
                 />
                 <FormField control={form.control} name="password" render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="text-left">
                       <FormLabel>Password</FormLabel>
                       <FormControl><PasswordInput placeholder="••••••••" {...field} /></FormControl>
                       <FormMessage />
