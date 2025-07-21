@@ -31,6 +31,7 @@ export default function PublicEventDetailPage({ params }: { params: { id: string
   const eventId = parseInt(params.id, 10);
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
+  const [loadingTicketId, setLoadingTicketId] = useState<number | null>(null);
   const [event, setEvent] = useState<EventWithTickets | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -51,6 +52,7 @@ export default function PublicEventDetailPage({ params }: { params: { id: string
   }, [eventId]);
 
   const handlePurchase = (ticketTypeId: number) => {
+    setLoadingTicketId(ticketTypeId);
     startTransition(async () => {
       const result = await purchaseTicket(ticketTypeId, eventId);
       if (result?.error) {
@@ -59,6 +61,7 @@ export default function PublicEventDetailPage({ params }: { params: { id: string
           title: 'Purchase Failed',
           description: result.error,
         });
+        setLoadingTicketId(null);
       }
     });
   };
@@ -148,24 +151,27 @@ export default function PublicEventDetailPage({ params }: { params: { id: string
                 <h3 className="text-2xl font-semibold mb-4">Tickets</h3>
                 <div className="space-y-4">
                     {event.ticketTypes.length > 0 ? (
-                        event.ticketTypes.map(ticket => (
-                            <div key={ticket.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-lg border bg-secondary/50">
-                                <div className="mb-3 sm:mb-0">
-                                    <h4 className="font-semibold text-lg">{ticket.name}</h4>
-                                    <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">ETB {Number(ticket.price).toFixed(2)}</p>
-                                    <p className="text-sm text-muted-foreground">{ticket.total - ticket.sold > 0 ? `${ticket.total - ticket.sold} remaining` : 'Sold Out'}</p>
+                        event.ticketTypes.map(ticket => {
+                            const isLoading = isPending && loadingTicketId === ticket.id;
+                            return (
+                                <div key={ticket.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-lg border bg-secondary/50">
+                                    <div className="mb-3 sm:mb-0">
+                                        <h4 className="font-semibold text-lg">{ticket.name}</h4>
+                                        <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">ETB {Number(ticket.price).toFixed(2)}</p>
+                                        <p className="text-sm text-muted-foreground">{ticket.total - ticket.sold > 0 ? `${ticket.total - ticket.sold} remaining` : 'Sold Out'}</p>
+                                    </div>
+                                    <Button 
+                                        onClick={() => handlePurchase(ticket.id)}
+                                        disabled={isPending || ticket.total - ticket.sold <= 0}
+                                        className="w-full sm:w-auto shrink-0 bg-accent hover:bg-accent/90 text-accent-foreground"
+                                        size="lg"
+                                    >
+                                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Ticket className="mr-2 h-4 w-4" />}
+                                        {ticket.total - ticket.sold > 0 ? 'Buy Ticket' : 'Sold Out'}
+                                    </Button>
                                 </div>
-                                <Button 
-                                    onClick={() => handlePurchase(ticket.id)}
-                                    disabled={isPending || ticket.total - ticket.sold <= 0}
-                                    className="w-full sm:w-auto shrink-0 bg-accent hover:bg-accent/90 text-accent-foreground"
-                                    size="lg"
-                                >
-                                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Ticket className="mr-2 h-4 w-4" />}
-                                    {ticket.total - ticket.sold > 0 ? 'Buy Ticket' : 'Sold Out'}
-                                </Button>
-                            </div>
-                        ))
+                            )
+                        })
                     ) : (
                         <p className="text-muted-foreground">Tickets are not yet available for this event.</p>
                     )}
