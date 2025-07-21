@@ -54,9 +54,6 @@ export default function PublicEventDetailPage() {
   const handlePurchase = (ticketTypeId: number) => {
     setLoadingTicketId(ticketTypeId);
     startTransition(async () => {
-      // This will now correctly redirect on success.
-      // If purchaseTicket throws a real error, startTransition will catch it.
-      // The NEXT_REDIRECT error will not be caught here by the user, it will be handled by Next.js.
       await purchaseTicket(ticketTypeId, eventId);
     });
   };
@@ -91,7 +88,7 @@ export default function PublicEventDetailPage() {
   }
   
   const images = (typeof event.image === 'string' && event.image) 
-    ? event.image.split(',').filter(img => img) 
+    ? event.image.split(',').filter(img => img && img.trim() !== '') 
     : [];
   
   const displayImages = images.length > 0 ? images : ['https://placehold.co/1200x600.png'];
