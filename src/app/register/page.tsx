@@ -87,7 +87,7 @@ export default function RegisterPage() {
       <div className="mx-auto flex w-full max-w-sm flex-col items-center text-center">
         <div className="mb-8">
           <Image
-            src="/image/nibtickets.jpg"
+            src="/images/logo.png"
             alt="NibTera Tickets Logo"
             width={240}
             height={80}
