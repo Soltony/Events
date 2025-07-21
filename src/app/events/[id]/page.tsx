@@ -54,16 +54,22 @@ export default function PublicEventDetailPage() {
   const handlePurchase = (ticketTypeId: number) => {
     setLoadingTicketId(ticketTypeId);
     startTransition(async () => {
-      const result = await purchaseTicket(ticketTypeId, eventId);
-      if (result?.error) {
+      try {
+        await purchaseTicket(ticketTypeId, eventId);
+        // On success, the redirect will happen and this part of the code will not be reached.
+      } catch (error: any) {
+        // Only catch actual errors, not the redirect signal.
+        if (error.digest?.includes('NEXT_REDIRECT')) {
+          // This is the redirect signal, so we re-throw it to let Next.js handle it.
+          throw error;
+        }
         toast({
           variant: 'destructive',
           title: 'Purchase Failed',
-          description: result.error,
+          description: error.message || 'An unexpected error occurred.',
         });
+        setLoadingTicketId(null);
       }
-      // Only set loading to null if there is an error, success will redirect.
-      setLoadingTicketId(null);
     });
   };
   
