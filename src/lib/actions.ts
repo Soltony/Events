@@ -59,15 +59,19 @@ export async function getEventDetails(id: number) {
 }
 
 export async function addEvent(data: any) {
-    const { tickets, images, ...eventData } = data;
+    const { tickets, images, date, ...eventData } = data;
+
+    // Determine the final category and remove the temporary 'otherCategory' field
+    const finalCategory = eventData.category === 'Other' ? eventData.otherCategory : eventData.category;
+    delete eventData.otherCategory;
     
     const newEvent = await prisma.event.create({
         data: {
             ...eventData,
-            startDate: eventData.date.from,
-            endDate: eventData.date.to,
+            category: finalCategory,
+            startDate: date.from,
+            endDate: date.to,
             image: images.map((img: {url: string}) => img.url).filter((url: string) => !!url).join(','),
-            date: undefined, // remove old date field
         },
     });
 
@@ -239,10 +243,10 @@ export async function addUser(data: any) {
         }
         
         const registrationData = {
-            FirstName: firstName,
-            LastName: lastName,
-            PhoneNumber: phoneNumber,
-            Password: password,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            phoneNumber: data.phoneNumber,
+            password: data.password,
         };
         
         const response = await axios.post(`${authApiUrl}/api/Auth/register`, registrationData);
@@ -306,7 +310,7 @@ export async function deleteRole(id: string) {
 }
 
 // Ticket/Attendee Actions
-export async function purchaseTicket(ticketTypeId: number, eventId: number) {
+export async function purchaseTicket(eventId: number, ticketTypeId: number) {
   'use server';
   
   try {
@@ -361,7 +365,12 @@ export async function purchaseTicket(ticketTypeId: number, eventId: number) {
 
   } catch (error: any) {
     console.error("Ticket purchase failed:", error);
-    return { error: error.message };
+    // In case of a real error (not a redirect), we can return it
+    if (!error.digest?.startsWith('NEXT_REDIRECT')) {
+      return { error: error.message };
+    }
+    // If it is a redirect, we need to re-throw it to be handled by Next.js
+    throw error;
   }
 }
 
