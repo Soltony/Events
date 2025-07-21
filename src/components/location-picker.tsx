@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import type { LatLngExpression, LatLng, Map as LeafletMap } from 'leaflet';
 import { Input } from '@/components/ui/input';
@@ -58,6 +58,12 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
   const [suggestions, setSuggestions] = useState<NominatimResult[]>([]);
   const [position, setPosition] = useState<LatLngExpression>(ETHIOPIA_CENTER);
   const [isSearching, setIsSearching] = useState(false);
+  const mapRef = useRef<LeafletMap | null>(null);
+
+  const [isClient, setIsClient] = useState(false)
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
   
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
@@ -109,9 +115,6 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
       setPosition([pos.lat, pos.lng]);
   }
 
-  // Generate a key from the position to force remounting the map container
-  const mapKey = Array.isArray(position) ? position.join(',') : 'initial';
-
   return (
     <div>
       <div className="relative mb-2">
@@ -140,21 +143,24 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
             </ScrollArea>
         </Card>
       )}
-      <div key={mapKey} className="h-[400px] w-full bg-muted rounded-md">
-         <MapContainer
-            center={position}
-            zoom={6}
-            maxBounds={ETHIOPIA_BOUNDS}
-            className="h-full w-full rounded-md"
-        >
-            <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <Marker position={position} />
-            <MapUpdater position={position} />
-            <MapClickHandler setPosition={handlePositionChange} onChange={onChange} />
-        </MapContainer>
+      <div className="h-[400px] w-full bg-muted rounded-md">
+         {isClient && (
+            <MapContainer
+                center={position}
+                zoom={6}
+                maxBounds={ETHIOPIA_BOUNDS}
+                className="h-full w-full rounded-md"
+                whenCreated={(mapInstance) => { mapRef.current = mapInstance }}
+            >
+                <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <Marker position={position} />
+                <MapUpdater position={position} />
+                <MapClickHandler setPosition={handlePositionChange} onChange={onChange} />
+            </MapContainer>
+         )}
       </div>
     </div>
   );
