@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
@@ -82,65 +83,77 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex items-center justify-center py-12">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Create an Organizer Account</CardTitle>
-          <CardDescription>
-            Fill in the details below to get started.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                 <FormField control={form.control} name="firstName" render={({ field }) => (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
+      <div className="mx-auto flex w-full max-w-sm flex-col items-center text-center">
+        <div className="mb-8">
+          <Image
+            src="/image/nibtickets.jpg"
+            alt="NibTera Tickets Logo"
+            width={240}
+            height={80}
+            className="object-contain"
+            priority
+          />
+        </div>
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle className="text-2xl">Create an Organizer Account</CardTitle>
+            <CardDescription>
+              Fill in the details below to get started.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField control={form.control} name="firstName" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>First Name</FormLabel>
+                        <FormControl><Input placeholder="John" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField control={form.control} name="lastName" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last Name</FormLabel>
+                        <FormControl><Input placeholder="Doe" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField control={form.control} name="phoneNumber" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>First Name</FormLabel>
-                      <FormControl><Input placeholder="John" {...field} /></FormControl>
+                      <FormLabel>Phone Number</FormLabel>
+                      <FormControl><Input placeholder="+1234567890" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                 <FormField control={form.control} name="lastName" render={({ field }) => (
+                <FormField control={form.control} name="password" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Last Name</FormLabel>
-                      <FormControl><Input placeholder="Doe" {...field} /></FormControl>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl><PasswordInput placeholder="••••••••" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </div>
-              <FormField control={form.control} name="phoneNumber" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone Number</FormLabel>
-                    <FormControl><Input placeholder="+1234567890" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField control={form.control} name="password" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl><PasswordInput placeholder="••••••••" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Account
-              </Button>
-            </form>
-          </Form>
-           <div className="mt-4 text-center text-sm">
-            Already have an account?{" "}
-            <Link href="/login" className="underline">
-              Log in
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Create Account
+                </Button>
+              </form>
+            </Form>
+            <div className="mt-4 text-center text-sm">
+              Already have an account?{" "}
+              <Link href="/login" className="underline">
+                Log in
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
