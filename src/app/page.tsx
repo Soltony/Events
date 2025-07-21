@@ -69,7 +69,7 @@ export default function PublicHomePage() {
     <div className="flex flex-1 flex-col gap-4 md:gap-8 p-4 lg:p-6">
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex-shrink-0">
-          <Image src="https://placehold.co/170x40.png" alt="NibTera Tickets Logo" width={170} height={40} data-ai-hint="logo nibtera" />
+          <Image src="/images/logo.png" alt="NibTera Tickets Logo" width={250} height={60} data-ai-hint="logo nibtera" />
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
           <div className="relative flex-1 md:flex-initial md:w-64">
