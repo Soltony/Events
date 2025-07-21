@@ -10,7 +10,7 @@ import { Calendar, MapPin, Ticket, Loader2, X } from 'lucide-react';
 import type { Event, TicketType } from '@prisma/client';
 import { format } from 'date-fns';
 import { ScrollArea } from './ui/scroll-area';
-import { useTransition } from 'react';
+import { useTransition, useState } from 'react';
 import { purchaseTicket } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 
@@ -34,18 +34,25 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 export default function EventDetailModal({ event, isOpen, onClose }: EventDetailModalProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  const [loadingTicketId, setLoadingTicketId] = useState<number | null>(null);
 
   if (!event) return null;
   
   const handlePurchase = (ticketTypeId: number) => {
+    setLoadingTicketId(ticketTypeId);
     startTransition(async () => {
-      const result = await purchaseTicket(ticketTypeId, event.id);
-      if (result?.error) {
+      try {
+        await purchaseTicket(ticketTypeId, event.id);
+      } catch (error: any) {
+         if (error.digest?.includes('NEXT_REDIRECT')) {
+          throw error;
+        }
         toast({
           variant: 'destructive',
           title: 'Purchase Failed',
-          description: result.error,
+          description: error.message || 'An unexpected error occurred.',
         });
+        setLoadingTicketId(null);
       }
     });
   };
@@ -59,7 +66,7 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl p-0 grid grid-cols-1 md:grid-cols-2 gap-0">
+      <DialogContent className="max-w-3xl p-0 grid grid-cols-1 md:grid-cols-2 gap-0">
          <div className="relative order-1 md:order-2">
             <Carousel className="w-full h-full">
                 <CarouselContent className="h-full">
@@ -83,50 +90,54 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
                 <span className="sr-only">Close</span>
             </DialogClose>
         </div>
-        <div className="p-8 flex flex-col order-2 md:order-1 max-h-[90vh] md:max-h-auto">
+        <div className="p-6 flex flex-col order-2 md:order-1 max-h-[90vh] md:max-h-auto">
             <DialogHeader className="text-left mb-4">
                 <Badge variant="outline" className="mb-2 w-min whitespace-nowrap">{event.category}</Badge>
-                <DialogTitle className="text-3xl font-bold tracking-tight">{event.name}</DialogTitle>
-                <div className="text-lg text-muted-foreground space-y-2 pt-2">
+                <DialogTitle className="text-2xl font-bold tracking-tight">{event.name}</DialogTitle>
+                <div className="text-base text-muted-foreground space-y-1 pt-2">
                         <div className="flex items-center gap-2">
-                        <Calendar className="h-5 w-5" />
+                        <Calendar className="h-4 w-4" />
                         <span>{formatEventDate(event.startDate, event.endDate)}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5" />
+                        <MapPin className="h-4 w-4" />
                         <span>{event.location}</span>
                     </div>
                 </div>
             </DialogHeader>
 
-            <div className="flex-grow min-h-0 flex flex-col gap-6">
+            <div className="flex-grow min-h-0 flex flex-col gap-4">
                 <div>
-                    <h3 className="text-xl font-semibold mb-2">About this Event</h3>
-                    <p className="text-base text-muted-foreground whitespace-pre-wrap leading-relaxed">{event.description}</p>
+                    <h3 className="text-lg font-semibold mb-1">About this Event</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{event.description}</p>
                 </div>
                 
                 <div className="flex flex-col min-h-0">
-                        <h3 className="text-xl font-semibold mb-4">Tickets</h3>
-                        <ScrollArea className="flex-1 -mr-6 pr-6">
+                        <h3 className="text-lg font-semibold mb-2">Tickets</h3>
+                        <ScrollArea className="flex-1 -mr-4 pr-4">
                             <div className="space-y-3">
                                 {event.ticketTypes.length > 0 ? (
-                                    event.ticketTypes.map(ticket => (
-                                        <div key={ticket.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-lg border bg-secondary/50">
-                                            <div className="mb-3 sm:mb-0">
-                                                <h4 className="font-semibold text-base">{ticket.name}</h4>
-                                                <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-lg">ETB {Number(ticket.price).toFixed(2)}</p>
-                                                <p className="text-xs text-muted-foreground">{ticket.total - ticket.sold > 0 ? `${ticket.total - ticket.sold} remaining` : 'Sold Out'}</p>
+                                    event.ticketTypes.map(ticket => {
+                                        const isLoading = isPending && loadingTicketId === ticket.id;
+                                        return (
+                                            <div key={ticket.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 rounded-lg border bg-secondary/50">
+                                                <div className="mb-2 sm:mb-0">
+                                                    <h4 className="font-semibold text-base">{ticket.name}</h4>
+                                                    <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-base">ETB {Number(ticket.price).toFixed(2)}</p>
+                                                    <p className="text-xs text-muted-foreground">{ticket.total - ticket.sold > 0 ? `${ticket.total - ticket.sold} remaining` : 'Sold Out'}</p>
+                                                </div>
+                                                <Button 
+                                                    onClick={() => handlePurchase(ticket.id)}
+                                                    disabled={isLoading || ticket.total - ticket.sold <= 0}
+                                                    className="w-full sm:w-auto shrink-0 bg-accent hover:bg-accent/90 text-accent-foreground"
+                                                    size="sm"
+                                                >
+                                                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Ticket className="mr-2 h-4 w-4" />}
+                                                    {ticket.total - ticket.sold > 0 ? 'Buy' : 'Sold Out'}
+                                                </Button>
                                             </div>
-                                            <Button 
-                                                onClick={() => handlePurchase(ticket.id)}
-                                                disabled={isPending || ticket.total - ticket.sold <= 0}
-                                                className="w-full sm:w-auto shrink-0 bg-accent hover:bg-accent/90 text-accent-foreground"
-                                            >
-                                                {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Ticket className="mr-2 h-4 w-4" />}
-                                                {ticket.total - ticket.sold > 0 ? 'Buy Ticket' : 'Sold Out'}
-                                            </Button>
-                                        </div>
-                                    ))
+                                        )
+                                    })
                                 ) : (
                                     <p className="text-muted-foreground">Tickets are not yet available for this event.</p>
                                 )}
