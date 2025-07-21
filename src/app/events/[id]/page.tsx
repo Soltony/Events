@@ -14,7 +14,6 @@ import { useEffect, useState, useTransition } from 'react';
 import { purchaseTicket } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
@@ -27,8 +26,9 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     return format(new Date(startDate), 'LLL dd, y');
 }
 
-export default function PublicEventDetailPage({ params }: { params: { id: string } }) {
-  const eventId = parseInt(params.id, 10);
+export default function PublicEventDetailPage() {
+  const params = useParams<{ id: string }>();
+  const eventId = params ? parseInt(params.id, 10) : NaN;
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [loadingTicketId, setLoadingTicketId] = useState<number | null>(null);
@@ -61,8 +61,9 @@ export default function PublicEventDetailPage({ params }: { params: { id: string
           title: 'Purchase Failed',
           description: result.error,
         });
-        setLoadingTicketId(null);
       }
+      // Only set loading to null if there is an error, success will redirect.
+      setLoadingTicketId(null);
     });
   };
   
@@ -162,7 +163,7 @@ export default function PublicEventDetailPage({ params }: { params: { id: string
                                     </div>
                                     <Button 
                                         onClick={() => handlePurchase(ticket.id)}
-                                        disabled={isPending || ticket.total - ticket.sold <= 0}
+                                        disabled={isLoading || ticket.total - ticket.sold <= 0}
                                         className="w-full sm:w-auto shrink-0 bg-accent hover:bg-accent/90 text-accent-foreground"
                                         size="lg"
                                     >
