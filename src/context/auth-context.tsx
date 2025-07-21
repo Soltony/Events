@@ -54,13 +54,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (data: any) => {
     try {
+      // Use camelCase for the request payload
       const requestData = {
-        PhoneNumber: data.phoneNumber,
-        Password: data.password,
+        phoneNumber: data.phoneNumber,
+        password: data.password,
       };
       const response = await api.post('/api/auth/login', requestData);
 
       if (response.data && response.data.isSuccess) {
+        // The response might use PascalCase, so handle both possibilities
         const { accessToken, refreshToken, AccessToken, RefreshToken } = response.data;
         const resolvedAccessToken = accessToken || AccessToken;
         const resolvedRefreshToken = refreshToken || RefreshToken;

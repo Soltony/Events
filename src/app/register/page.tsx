@@ -52,11 +52,12 @@ export default function RegisterPage() {
   async function onSubmit(data: RegisterFormValues) {
     setIsLoading(true);
     try {
+      // Use camelCase for the request payload to match API expectation
       const requestData = {
-          FirstName: data.firstName,
-          LastName: data.lastName,
-          PhoneNumber: data.phoneNumber,
-          Password: data.password,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          phoneNumber: data.phoneNumber,
+          password: data.password,
       };
       const response = await api.post(`/api/auth/register`, requestData);
 
@@ -85,9 +86,9 @@ export default function RegisterPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
       <div className="mx-auto flex w-full max-w-sm flex-col items-center">
-        <div>
+        <div className="mb-6">
           <Image
-            src="/images/logo.png"
+            src="/image/nibtickets.jpg"
             alt="NibTera Tickets Logo"
             width={240}
             height={80}
