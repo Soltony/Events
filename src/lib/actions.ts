@@ -324,7 +324,9 @@ export async function purchaseTicket(ticketTypeId: number, eventId: number) {
       }
 
       // 2. Create the attendee/ticket record
-      // In a real app, this would use the logged-in customer's info.
+      // This connects the purchase to the default Admin user since there's no logged-in customer.
+      const adminUserId = 'b1e55c84-9055-4eb5-8bd4-a262538f7e66'; // From seed.ts
+      
       const newAttendee = await tx.attendee.create({
         data: {
           name: 'Public Customer', // Placeholder
@@ -334,6 +336,9 @@ export async function purchaseTicket(ticketTypeId: number, eventId: number) {
           },
           ticketType: {
             connect: { id: ticketTypeId },
+          },
+          user: {
+            connect: { id: adminUserId },
           },
           checkedIn: false,
         },
@@ -356,8 +361,6 @@ export async function purchaseTicket(ticketTypeId: number, eventId: number) {
 
   } catch (error: any) {
     console.error("Ticket purchase failed:", error);
-    // In a real app, you would handle this more gracefully,
-    // maybe returning an error message to the UI.
     return { error: error.message };
   }
 }
