@@ -63,7 +63,6 @@ export async function addEvent(data: any) {
 
     // Determine the final category and remove the temporary 'otherCategory' field
     const finalCategory = eventData.category === 'Other' ? eventData.otherCategory : eventData.category;
-    delete eventData.otherCategory;
     
     const newEvent = await prisma.event.create({
         data: {
@@ -71,7 +70,8 @@ export async function addEvent(data: any) {
             category: finalCategory,
             startDate: date.from,
             endDate: date.to,
-            image: images.map((img: {url: string}) => img.url).filter((url: string) => !!url).join(','),
+            image: images?.[0]?.url || null, // Save only the first image URL
+            otherCategory: undefined,
         },
     });
 
@@ -91,15 +91,15 @@ export async function addEvent(data: any) {
 }
 
 export async function updateEvent(id: number, data: any) {
-    const { images, ...eventData } = data;
+    const { images, date, ...eventData } = data;
 
     const updatedEvent = await prisma.event.update({
         where: { id },
         data: {
             ...eventData,
-            startDate: eventData.date.from,
-            endDate: eventData.date.to,
-            image: images.map((img: {url: string}) => img.url).filter((url: string) => !!url).join(','),
+            startDate: date.from,
+            endDate: date.to,
+            image: images?.[0]?.url || null,
             date: undefined,
         }
     });
@@ -242,14 +242,14 @@ export async function addUser(data: any) {
             throw new Error("Authentication API URL is not configured.");
         }
         
-        const registrationData = {
+        const requestData = {
             firstName: data.firstName,
             lastName: data.lastName,
             phoneNumber: data.phoneNumber,
             password: data.password,
         };
         
-        const response = await axios.post(`${authApiUrl}/api/Auth/register`, registrationData);
+        const response = await axios.post(`${authApiUrl}/api/Auth/register`, requestData);
 
         if (!response.data.isSuccess) {
             throw new Error(response.data.errors?.join(', ') || 'Authentication server registration failed.');
@@ -310,7 +310,7 @@ export async function deleteRole(id: string) {
 }
 
 // Ticket/Attendee Actions
-export async function purchaseTicket(eventId: number, ticketTypeId: number) {
+export async function purchaseTicket(ticketTypeId: number, eventId: number) {
   'use server';
   
   try {
@@ -335,15 +335,9 @@ export async function purchaseTicket(eventId: number, ticketTypeId: number) {
         data: {
           name: 'Public Customer', // Placeholder
           email: `customer+${Date.now()}@example.com`, // Placeholder
-          event: {
-            connect: { id: eventId },
-          },
-          ticketType: {
-            connect: { id: ticketTypeId },
-          },
-          user: {
-            connect: { id: adminUserId },
-          },
+          eventId: eventId,
+          ticketTypeId: ticketTypeId,
+          userId: adminUserId,
           checkedIn: false,
         },
       });
