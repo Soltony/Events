@@ -5,15 +5,15 @@ export async function POST(req: NextRequest) {
   try {
     const { file } = await req.json();
 
-    if (!file) {
-      return NextResponse.json({ success: false, error: 'No file data provided.' }, { status: 400 });
+    if (!file || typeof file !== 'string' || !file.startsWith('data:image/')) {
+      return NextResponse.json({ success: false, error: 'Invalid file data provided. Expected a data URI.' }, { status: 400 });
     }
 
-    // In a real-world scenario, you would upload the file to a cloud storage service (e.g., Firebase Storage, S3)
+    // In a real-world scenario, you would upload the base64-decoded data to a cloud storage service (e.g., Firebase Storage, S3)
     // and return the public URL.
-    // For this implementation, we will return a standard placeholder URL to ensure the app works correctly.
-    // Using a dimension-less placeholder allows the `next/image` component to fill the container responsively.
-    const imageUrl = 'https://placehold.co/1200x600.png';
+    // For this prototype, we will simply return the received data URI directly.
+    // This allows the frontend to use the exact uploaded image without needing a separate storage backend for this demo.
+    const imageUrl = file;
 
     return NextResponse.json({ success: true, url: imageUrl });
   } catch (error) {

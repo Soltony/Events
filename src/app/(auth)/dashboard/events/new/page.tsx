@@ -64,12 +64,13 @@ const eventFormSchema = z.object({
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
 
+const DEFAULT_IMAGE_PLACEHOLDER = 'https://placehold.co/600x400.png';
+
 export default function CreateEventPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState<number | null>(null);
-  const [imagePreviews, setImagePreviews] = useState<string[]>(['']);
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
@@ -85,6 +86,7 @@ export default function CreateEventPage() {
   });
 
   const watchedCategory = form.watch('category');
+  const watchedImages = form.watch('images');
 
   const { fields: ticketFields, append: appendTicket, remove: removeTicket } = useFieldArray({
     control: form.control,
@@ -98,7 +100,6 @@ export default function CreateEventPage() {
 
   const handleRemoveImage = (index: number) => {
     removeImage(index);
-    setImagePreviews(prev => prev.filter((_, i) => i !== index));
   }
 
   async function onSubmit(data: EventFormValues) {
@@ -304,18 +305,13 @@ export default function CreateEventPage() {
                       key={item.id}
                       control={form.control}
                       name={`images.${index}.url`}
-                      render={({ field: { onChange, value } }) => {
+                      render={({ field: { onChange, value, ...fieldProps } }) => {
                         const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                           const file = e.target.files?.[0];
                           if (file) {
                             setIsUploading(index);
                             const reader = new FileReader();
                             reader.onloadend = async () => {
-                              setImagePreviews(prev => {
-                                  const newPreviews = [...prev];
-                                  newPreviews[index] = reader.result as string;
-                                  return newPreviews;
-                              });
                               try {
                                 const response = await axios.post('/api/upload', { file: reader.result });
                                 if (response.data.success) {
@@ -333,7 +329,7 @@ export default function CreateEventPage() {
                           }
                         };
                         
-                        const displayUrl = imagePreviews[index] || value;
+                        const displayUrl = watchedImages[index]?.url;
 
                         return (
                           <FormItem>
@@ -350,6 +346,11 @@ export default function CreateEventPage() {
                                     alt={`Event image ${index + 1}`}
                                     fill
                                     className="object-cover rounded-md"
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.src = DEFAULT_IMAGE_PLACEHOLDER;
+                                      target.srcset = '';
+                                    }}
                                   />
                                 ) : null}
                                 <div className={`absolute inset-0 flex items-center justify-center gap-2 transition-opacity ${displayUrl ? 'bg-black/40 opacity-0 group-hover:opacity-100' : 'bg-transparent'} ${isUploading === index ? 'opacity-0' : ''}`}>
@@ -363,6 +364,7 @@ export default function CreateEventPage() {
                                       accept="image/png, image/jpeg, image/gif"
                                       onChange={handleFileChange}
                                       disabled={isUploading !== null}
+                                      {...fieldProps}
                                     />
                                   </label>
                                   {imageFields.length > 1 && displayUrl ? (
@@ -390,10 +392,7 @@ export default function CreateEventPage() {
                    <Button
                       type="button"
                       variant="outline"
-                      onClick={() => {
-                          appendImage({ url: '' });
-                          setImagePreviews(prev => [...prev, '']);
-                      }}
+                      onClick={() => appendImage({ url: '' })}
                       className="aspect-video h-full flex-col gap-2"
                       disabled={isUploading !== null}
                       >
