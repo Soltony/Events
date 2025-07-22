@@ -104,6 +104,9 @@ export default function LoginPage() {
             </div>
           </CardContent>
         </Card>
+        <Button asChild variant="outline" className="w-full mt-4">
+            <Link href="/">Back to Home Page</Link>
+        </Button>
       </div>
     </div>
   );
