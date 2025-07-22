@@ -7,7 +7,7 @@ import * as z from 'zod';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,7 +42,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
+       <Button asChild variant="outline" className="absolute top-4 left-4">
+            <Link href="/"><ArrowLeft className="mr-2 h-4 w-4" />Back to Home</Link>
+        </Button>
       <div className="mx-auto flex w-full max-w-sm flex-col items-center text-center">
         <div className="mb-4">
           <Image
@@ -104,9 +107,6 @@ export default function LoginPage() {
             </div>
           </CardContent>
         </Card>
-        <Button asChild variant="outline" className="w-full mt-4">
-            <Link href="/">Back to Home Page</Link>
-        </Button>
       </div>
     </div>
   );
