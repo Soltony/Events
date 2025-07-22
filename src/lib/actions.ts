@@ -98,14 +98,14 @@ export async function updateEvent(id: number, data: any) {
 
     // Determine the final category
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
+
+    const eventDataForUpdate = { ...eventData };
+    delete eventDataForUpdate.otherCategory;
     
     const updatedEvent = await prisma.event.update({
         where: { id },
         data: {
-            name: eventData.name,
-            description: eventData.description,
-            location: eventData.location,
-            image: eventData.image,
+            ...eventDataForUpdate,
             category: finalCategory,
             startDate: date.from,
             endDate: date.to,
@@ -318,63 +318,73 @@ export async function deleteRole(id: string) {
 }
 
 // Ticket/Attendee Actions
-export async function purchaseTicket(ticketTypeId: number, eventId: number) {
+interface PurchaseRequest {
+  eventId: number;
+  tickets: { id: number; quantity: number }[];
+  promoCode?: string;
+}
+
+export async function purchaseTickets(request: PurchaseRequest) {
   'use server';
   
   try {
-    const ticket = await prisma.$transaction(async (tx) => {
-      // 1. Find the ticket type and lock the row for update
-      const ticketType = await tx.ticketType.findUnique({
-        where: { id: ticketTypeId },
-      });
+    const newAttendees: Attendee[] = [];
+    
+    await prisma.$transaction(async (tx) => {
+        const adminUserId = 'b1e55c84-9055-4eb5-8bd4-a262538f7e66'; // From seed.ts
 
-      if (!ticketType) {
-        throw new Error('Ticket type not found.');
-      }
-      if (ticketType.sold >= ticketType.total) {
-        throw new Error('This ticket type is sold out.');
-      }
-
-      // 2. Create the attendee/ticket record
-      // This connects the purchase to the default Admin user since there's no logged-in customer.
-      const adminUserId = 'b1e55c84-9055-4eb5-8bd4-a262538f7e66'; // From seed.ts
-      
-      const newAttendee = await tx.attendee.create({
-        data: {
-          name: 'Public Customer', // Placeholder
-          email: `customer+${Date.now()}@example.com`, // Placeholder
-          eventId: eventId,
-          ticketTypeId: ticketTypeId,
-          userId: adminUserId,
-          checkedIn: false,
-        },
-      });
-
-      // 3. Increment the sold count for the ticket type
-      await tx.ticketType.update({
-        where: { id: ticketTypeId },
-        data: { sold: { increment: 1 } },
-      });
-
-      return newAttendee;
+        for (const ticket of request.tickets) {
+            const ticketType = await tx.ticketType.findUnique({ where: { id: ticket.id } });
+            if (!ticketType) throw new Error(`Ticket type with id ${ticket.id} not found.`);
+            if ((ticketType.total - ticketType.sold) < ticket.quantity) {
+                throw new Error(`Not enough tickets available for ${ticketType.name}.`);
+            }
+            
+            for (let i = 0; i < ticket.quantity; i++) {
+                const newAttendee = await tx.attendee.create({
+                    data: {
+                        name: 'Public Customer', // Placeholder
+                        email: `customer+${Date.now()}@example.com`,
+                        eventId: request.eventId,
+                        ticketTypeId: ticket.id,
+                        userId: adminUserId,
+                        checkedIn: false,
+                    },
+                });
+                newAttendees.push(newAttendee);
+            }
+            
+            await tx.ticketType.update({
+                where: { id: ticket.id },
+                data: { sold: { increment: ticket.quantity } },
+            });
+        }
+        
+        if (request.promoCode) {
+            await tx.promoCode.update({
+                where: { code: request.promoCode },
+                data: { uses: { increment: 1 } },
+            });
+        }
     });
 
-    revalidatePath(`/events/${eventId}`);
+    revalidatePath(`/events/${request.eventId}`);
     revalidatePath('/');
     
-    // 4. Redirect to confirmation page
-    redirect(`/ticket/${ticket.id}/confirmation`);
+    // Redirect to the first ticket's confirmation page.
+    if (newAttendees.length > 0) {
+        redirect(`/ticket/${newAttendees[0].id}/confirmation`);
+    }
 
   } catch (error: any) {
     console.error("Ticket purchase failed:", error);
-    // In case of a real error (not a redirect), we can return it
     if (!error.digest?.startsWith('NEXT_REDIRECT')) {
       return { error: error.message };
     }
-    // If it is a redirect, we need to re-throw it to be handled by Next.js
     throw error;
   }
 }
+
 
 export async function getTicketDetailsForConfirmation(attendeeId: number) {
     const attendee = await prisma.attendee.findUnique({
@@ -409,4 +419,17 @@ export async function getTicketsByIds(ids: number[]) {
     });
 
     return serialize(tickets);
+}
+
+export async function validatePromoCode(eventId: number, code: string): Promise<PromoCode | null> {
+    const promoCode = await prisma.promoCode.findFirst({
+        where: {
+            code: code,
+            eventId: eventId,
+            uses: {
+                lt: prisma.promoCode.fields.maxUses
+            }
+        }
+    });
+    return serialize(promoCode);
 }

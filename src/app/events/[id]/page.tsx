@@ -1,21 +1,30 @@
 
 'use client';
 
-import { getEventById } from '@/lib/actions';
+import { getEventById, validatePromoCode } from '@/lib/actions';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Ticket, Calendar, MapPin, Loader2 } from 'lucide-react';
+import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart } from 'lucide-react';
 import { notFound, useParams } from 'next/navigation';
 import { format } from 'date-fns';
-import type { Event, TicketType } from '@prisma/client';
-import { useEffect, useState, useTransition } from 'react';
-import { purchaseTicket } from '@/lib/actions';
+import type { Event, TicketType, PromoCode } from '@prisma/client';
+import { useEffect, useState, useTransition, useMemo } from 'react';
+import { purchaseTickets } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
+}
+
+type SelectedTicket = {
+  id: number;
+  name: string;
+  price: number;
+  quantity: number;
 }
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
@@ -29,9 +38,14 @@ export default function PublicEventDetailPage() {
   const params = useParams<{ id: string }>();
   const eventId = params ? parseInt(params.id, 10) : NaN;
   const [isPending, startTransition] = useTransition();
-  const [loadingTicketId, setLoadingTicketId] = useState<number | null>(null);
   const [event, setEvent] = useState<EventWithTickets | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedTickets, setSelectedTickets] = useState<Record<number, SelectedTicket>>({});
+  const [promoCode, setPromoCode] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
+  const [discount, setDiscount] = useState(0);
+  const [isPromoLoading, setIsPromoLoading] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (isNaN(eventId)) {
@@ -49,10 +63,74 @@ export default function PublicEventDetailPage() {
     fetchEvent();
   }, [eventId]);
 
-  const handlePurchase = (ticketTypeId: number) => {
-    setLoadingTicketId(ticketTypeId);
+  const subtotal = useMemo(() => {
+    return Object.values(selectedTickets).reduce((acc, ticket) => acc + ticket.price * ticket.quantity, 0);
+  }, [selectedTickets]);
+
+  const total = useMemo(() => {
+    return subtotal - discount;
+  }, [subtotal, discount]);
+  
+  const totalItems = useMemo(() => {
+      return Object.values(selectedTickets).reduce((acc, ticket) => acc + ticket.quantity, 0);
+  }, [selectedTickets]);
+
+  const updateTicketQuantity = (ticketType: TicketType, quantity: number) => {
+    setSelectedTickets(prev => {
+      const newSelected = { ...prev };
+      if (quantity > 0) {
+        newSelected[ticketType.id] = {
+          id: ticketType.id,
+          name: ticketType.name,
+          price: Number(ticketType.price),
+          quantity: quantity,
+        };
+      } else {
+        delete newSelected[ticketType.id];
+      }
+      return newSelected;
+    });
+  };
+
+  const handleApplyPromoCode = async () => {
+    if (!promoCode) return;
+    setIsPromoLoading(true);
+    try {
+        const result = await validatePromoCode(eventId, promoCode);
+        if (result) {
+            setAppliedPromo(result);
+            toast({ title: "Success", description: "Promo code applied!" });
+        } else {
+            setAppliedPromo(null);
+            toast({ variant: 'destructive', title: "Error", description: "Invalid or expired promo code." });
+        }
+    } catch (e) {
+        setAppliedPromo(null);
+        toast({ variant: 'destructive', title: "Error", description: "Could not validate promo code." });
+    } finally {
+        setIsPromoLoading(false);
+    }
+  };
+  
+  useEffect(() => {
+    if (appliedPromo) {
+      if (appliedPromo.type === 'PERCENTAGE') {
+        setDiscount(subtotal * (Number(appliedPromo.value) / 100));
+      } else if (appliedPromo.type === 'FIXED') {
+        setDiscount(Number(appliedPromo.value));
+      }
+    } else {
+      setDiscount(0);
+    }
+  }, [appliedPromo, subtotal]);
+
+  const handlePurchase = () => {
     startTransition(async () => {
-      await purchaseTicket(ticketTypeId, eventId);
+      await purchaseTickets({
+          eventId,
+          tickets: Object.values(selectedTickets),
+          promoCode: appliedPromo?.code,
+      });
     });
   };
   
@@ -124,23 +202,24 @@ export default function PublicEventDetailPage() {
                 <div className="space-y-4">
                     {event.ticketTypes.length > 0 ? (
                         event.ticketTypes.map(ticket => {
-                            const isLoading = isPending && loadingTicketId === ticket.id;
+                            const selectedQuantity = selectedTickets[ticket.id]?.quantity || 0;
+                            const remaining = ticket.total - ticket.sold;
                             return (
                                 <div key={ticket.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-lg border bg-secondary/50">
                                     <div className="mb-3 sm:mb-0">
                                         <h4 className="font-semibold text-lg">{ticket.name}</h4>
                                         <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">ETB {Number(ticket.price).toFixed(2)}</p>
-                                        <p className="text-sm text-muted-foreground">{ticket.total - ticket.sold > 0 ? `${ticket.total - ticket.sold} remaining` : 'Sold Out'}</p>
+                                        <p className="text-sm text-muted-foreground">{remaining > 0 ? `${remaining} remaining` : 'Sold Out'}</p>
                                     </div>
-                                    <Button 
-                                        onClick={() => handlePurchase(ticket.id)}
-                                        disabled={isLoading || ticket.total - ticket.sold <= 0}
-                                        className="w-full sm:w-auto shrink-0 bg-accent hover:bg-accent/90 text-accent-foreground"
-                                        size="lg"
-                                    >
-                                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Ticket className="mr-2 h-4 w-4" />}
-                                        {ticket.total - ticket.sold > 0 ? 'Buy Ticket' : 'Sold Out'}
-                                    </Button>
+                                    <div className="flex items-center gap-2">
+                                        <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.max(0, selectedQuantity - 1))} disabled={selectedQuantity === 0}>
+                                            <MinusCircle className="h-4 w-4" />
+                                        </Button>
+                                        <span className="w-10 text-center font-bold">{selectedQuantity}</span>
+                                        <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))} disabled={remaining === 0 || selectedQuantity >= remaining}>
+                                            <PlusCircle className="h-4 w-4" />
+                                        </Button>
+                                    </div>
                                 </div>
                             )
                         })
@@ -149,6 +228,55 @@ export default function PublicEventDetailPage() {
                     )}
                 </div>
             </div>
+
+            {totalItems > 0 && (
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Order Summary</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex justify-between">
+                            <span>Subtotal ({totalItems} items)</span>
+                            <span className="font-semibold">ETB {subtotal.toFixed(2)}</span>
+                        </div>
+                        <div className="flex gap-2">
+                            <Input 
+                                placeholder="Promo Code" 
+                                value={promoCode}
+                                onChange={e => setPromoCode(e.target.value)}
+                                className="flex-grow"
+                            />
+                            <Button onClick={handleApplyPromoCode} disabled={isPromoLoading || !promoCode}>
+                                {isPromoLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Apply
+                            </Button>
+                        </div>
+                        {appliedPromo && (
+                             <div className="flex justify-between text-green-600">
+                                <span>Discount ({appliedPromo.code})</span>
+                                <span className="font-semibold">- ETB {discount.toFixed(2)}</span>
+                            </div>
+                        )}
+                        <div className="border-t"></div>
+                        <div className="flex justify-between text-xl font-bold">
+                            <span>Total</span>
+                            <span>ETB {total.toFixed(2)}</span>
+                        </div>
+                    </CardContent>
+                    <CardFooter>
+                         <Button 
+                            onClick={handlePurchase}
+                            disabled={isPending || totalItems === 0}
+                            className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+                            size="lg"
+                        >
+                            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
+                            Purchase Tickets
+                        </Button>
+                    </CardFooter>
+                </Card>
+            )}
+
         </div>
       </div>
     </div>
