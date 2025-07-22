@@ -59,10 +59,10 @@ export async function getEventDetails(id: number) {
 }
 
 export async function addEvent(data: any) {
-    const { tickets, date, ...eventData } = data;
+    const { tickets, date, otherCategory, ...eventData } = data;
 
     // Determine the final category and remove the temporary 'otherCategory' field
-    const finalCategory = eventData.category === 'Other' ? eventData.otherCategory : eventData.category;
+    const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
     
     const newEvent = await prisma.event.create({
         data: {
@@ -70,7 +70,6 @@ export async function addEvent(data: any) {
             category: finalCategory,
             startDate: date.from,
             endDate: date.to,
-            otherCategory: undefined,
         },
     });
 
@@ -90,15 +89,18 @@ export async function addEvent(data: any) {
 }
 
 export async function updateEvent(id: number, data: any) {
-    const { date, ...eventData } = data;
+    const { date, otherCategory, ...eventData } = data;
+
+    // Determine the final category
+    const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
 
     const updatedEvent = await prisma.event.update({
         where: { id },
         data: {
             ...eventData,
+            category: finalCategory,
             startDate: date.from,
             endDate: date.to,
-            date: undefined,
         }
     });
 
