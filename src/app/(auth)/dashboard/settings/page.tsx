@@ -72,6 +72,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getUsersAndRoles, addUser, createRole, updateRole, deleteRole, updateUserRole } from '@/lib/actions';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { PasswordInput } from '@/components/ui/password-input';
 
 interface UserWithRole extends User {
     role: Role;
@@ -155,7 +156,7 @@ export default function SettingsPage() {
         defaultValues: {
           firstName: "",
           lastName: "",
-          phoneNumber: "",
+          phoneNumber: "0912345678",
           password: "",
         },
     });
@@ -286,10 +287,10 @@ export default function SettingsPage() {
                                 )}/>
                             </div>
                              <FormField control={addUserForm.control} name="phoneNumber" render={({ field }) => (
-                                <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="+1234567890" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="0912345678" {...field} /></FormControl><FormMessage /></FormItem>
                              )}/>
                             <FormField control={addUserForm.control} name="password" render={({ field }) => (
-                                <FormItem><FormLabel>Password</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Password</FormLabel><FormControl><PasswordInput placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
                              <FormField control={addUserForm.control} name="roleId" render={({ field }) => (
                                 <FormItem><FormLabel>Role</FormLabel>
@@ -419,7 +420,7 @@ export default function SettingsPage() {
                                                   <CardTitle className="text-base">{category.label}</CardTitle>
                                               </CardHeader>
                                               <CardContent className="p-4 pt-0">
-                                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2">
+                                                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                                                       {permissionActions.map((action) => {
                                                           const permissionId = `${category.id}:${action}`;
                                                           return (
@@ -484,3 +485,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
