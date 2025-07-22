@@ -59,7 +59,7 @@ export async function getEventDetails(id: number) {
 }
 
 export async function addEvent(data: any) {
-    const { tickets, images, date, ...eventData } = data;
+    const { tickets, date, ...eventData } = data;
 
     // Determine the final category and remove the temporary 'otherCategory' field
     const finalCategory = eventData.category === 'Other' ? eventData.otherCategory : eventData.category;
@@ -70,7 +70,6 @@ export async function addEvent(data: any) {
             category: finalCategory,
             startDate: date.from,
             endDate: date.to,
-            image: images.map((img: {url: string}) => img.url).join(','),
             otherCategory: undefined,
         },
     });
@@ -91,7 +90,7 @@ export async function addEvent(data: any) {
 }
 
 export async function updateEvent(id: number, data: any) {
-    const { images, date, ...eventData } = data;
+    const { date, ...eventData } = data;
 
     const updatedEvent = await prisma.event.update({
         where: { id },
@@ -99,7 +98,6 @@ export async function updateEvent(id: number, data: any) {
             ...eventData,
             startDate: date.from,
             endDate: date.to,
-            image: images.map((img: {url: string}) => img.url).join(','),
             date: undefined,
         }
     });
@@ -310,7 +308,7 @@ export async function deleteRole(id: string) {
 }
 
 // Ticket/Attendee Actions
-export async function purchaseTicket(eventId: number, ticketTypeId: number) {
+export async function purchaseTicket(ticketTypeId: number, eventId: number) {
   'use server';
   
   try {
@@ -402,5 +400,3 @@ export async function getTicketsByIds(ids: number[]) {
 
     return serialize(tickets);
 }
-
-    

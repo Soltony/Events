@@ -2,11 +2,11 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
-import { CalendarIcon, PlusCircle, Trash2, UploadCloud, Loader2, ArrowLeft } from 'lucide-react';
+import { CalendarIcon, UploadCloud, Loader2, ArrowLeft } from 'lucide-react';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -32,7 +32,6 @@ import { useToast } from '@/hooks/use-toast';
 import { updateEvent, getEventById } from '@/lib/actions';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Event } from '@prisma/client';
 import LocationInput from '@/components/location-input';
 
 const eventFormSchema = z.object({
@@ -47,9 +46,7 @@ const eventFormSchema = z.object({
   }),
   category: z.string({ required_error: 'Please select a category.' }),
   otherCategory: z.string().optional(),
-  images: z.array(z.object({
-    url: z.string().min(1, { message: "Image cannot be empty." })
-  })).min(1, { message: "Please upload at least one image."}),
+  image: z.string().optional(),
 }).refine(data => {
     if (data.category === 'Other') {
         return !!data.otherCategory && data.otherCategory.length > 0;
@@ -72,7 +69,8 @@ export default function EditEventPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [isUploading, setIsUploading] = useState<number | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
@@ -82,12 +80,11 @@ export default function EditEventPage() {
       location: '',
       category: '',
       otherCategory: '',
-      images: [],
+      image: '',
     },
   });
 
   const watchedCategory = form.watch('category');
-  const watchedImages = form.watch('images');
 
   useEffect(() => {
     if (eventId === -1) {
@@ -100,7 +97,6 @@ export default function EditEventPage() {
         setLoading(true);
         const event = await getEventById(eventId);
         if (event) {
-          const imageUrls = typeof event.image === 'string' && event.image ? event.image.split(',') : [];
           const isOtherCategory = event.category && !defaultCategories.includes(event.category);
           
           form.reset({
@@ -113,8 +109,11 @@ export default function EditEventPage() {
               from: new Date(event.startDate),
               to: event.endDate ? new Date(event.endDate) : undefined,
             },
-            images: imageUrls.length > 0 ? imageUrls.map(url => ({ url })) : [],
+            image: event.image || '',
           });
+          if (event.image) {
+            setPreviewImage(event.image);
+          }
         } else {
             toast({ variant: 'destructive', title: 'Error', description: 'Event not found.' });
             router.push('/dashboard/events');
@@ -129,15 +128,6 @@ export default function EditEventPage() {
 
     fetchEvent();
   }, [eventId, form, router, toast]);
-
-  const { fields: imageFields, append: appendImage, remove: removeImage } = useFieldArray({
-    control: form.control,
-    name: "images"
-  });
-  
-  const handleRemoveImage = (index: number) => {
-    removeImage(index);
-  }
 
   async function onSubmit(data: EventFormValues) {
     setIsSubmitting(true);
@@ -164,6 +154,33 @@ export default function EditEventPage() {
         setIsSubmitting(false);
     }
   }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        setIsUploading(true);
+        setPreviewImage(URL.createObjectURL(file)); // Local preview
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          try {
+            const response = await axios.post('/api/upload', { file: reader.result });
+            if (response.data.success) {
+              form.setValue('image', response.data.url);
+              setPreviewImage(response.data.url); // Final URL
+            } else {
+              toast({ variant: 'destructive', title: 'Upload failed', description: response.data.error });
+              setPreviewImage(form.getValues('image')); // Revert to original on failure
+            }
+          } catch (error) {
+            toast({ variant: 'destructive', title: 'Upload failed', description: 'An error occurred.' });
+            setPreviewImage(form.getValues('image'));
+          } finally {
+            setIsUploading(false);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    };
 
   if (loading) {
     return (
@@ -354,117 +371,63 @@ export default function EditEventPage() {
 
               <div className="space-y-4">
                 <div>
-                  <FormLabel>Event Images</FormLabel>
-                  <FormDescription>Update the images for your event gallery.</FormDescription>
-                  <FormMessage className="pt-2">{form.formState.errors.images?.root?.message}</FormMessage>
+                  <FormLabel>Event Image</FormLabel>
+                  <FormDescription>Update the image for your event gallery.</FormDescription>
+                   <FormMessage className="pt-2">{form.formState.errors.image?.message}</FormMessage>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {imageFields.map((item, index) => (
-                    <FormField
-                      key={item.id}
+                <div className="w-full max-w-sm">
+                   <FormField
                       control={form.control}
-                      name={`images.${index}.url`}
-                      render={({ field: { onChange, value, ...fieldProps } }) => {
-                        const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                             setIsUploading(index);
-                             const reader = new FileReader();
-                             reader.onloadend = async () => {
-                               try {
-                                 const response = await axios.post('/api/upload', { file: reader.result });
-                                 if (response.data.success) {
-                                   onChange(response.data.url);
-                                 } else {
-                                   toast({ variant: 'destructive', title: 'Upload failed', description: response.data.error });
-                                 }
-                               } catch (error) {
-                                 toast({ variant: 'destructive', title: 'Upload failed', description: 'An error occurred while uploading the image.' });
-                               } finally {
-                                 setIsUploading(null);
-                               }
-                             };
-                             reader.readAsDataURL(file);
-                          }
-                        };
-                        
-                        const displayUrl = watchedImages[index]?.url;
-
-                        return (
-                          <FormItem>
-                            <FormControl>
-                              <div className="aspect-video rounded-md relative group bg-muted border-dashed border-2 flex items-center justify-center">
-                                {isUploading === index && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
-                                        <Loader2 className="h-8 w-8 animate-spin text-white" />
-                                    </div>
-                                )}
-                                {displayUrl && !(isUploading === index) ? (
-                                  <Image
-                                    src={displayUrl}
-                                    alt={`Event image ${index + 1}`}
-                                    fill
-                                    className="object-cover rounded-md"
-                                    onError={(e) => {
-                                      const target = e.target as HTMLImageElement;
-                                      target.src = DEFAULT_IMAGE_PLACEHOLDER;
-                                      target.srcset = '';
-                                    }}
+                      name="image"
+                      render={({ field }) => (
+                      <FormItem>
+                          <FormControl>
+                            <div className="aspect-video rounded-md relative group bg-muted border-dashed border-2 flex items-center justify-center">
+                              {isUploading && (
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
+                                      <Loader2 className="h-8 w-8 animate-spin text-white" />
+                                  </div>
+                              )}
+                              {previewImage && !isUploading ? (
+                                <Image
+                                  src={previewImage}
+                                  alt="Event image preview"
+                                  fill
+                                  className="object-cover rounded-md"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.src = DEFAULT_IMAGE_PLACEHOLDER;
+                                    target.srcset = '';
+                                  }}
+                                />
+                              ) : null}
+                              <div className={`absolute inset-0 flex items-center justify-center gap-2 transition-opacity ${previewImage ? 'bg-black/40 opacity-0 group-hover:opacity-100' : 'bg-transparent'} ${isUploading ? 'opacity-0' : ''}`}>
+                                <label htmlFor="image-upload" className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 px-3 cursor-pointer bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                                  <UploadCloud className="mr-2 h-4 w-4" />
+                                  {previewImage ? 'Change' : 'Upload'}
+                                  <Input
+                                    id="image-upload"
+                                    type="file"
+                                    className="sr-only"
+                                    accept="image/png, image/jpeg, image/gif"
+                                    onChange={handleFileChange}
+                                    disabled={isUploading}
                                   />
-                                ) : null}
-                                <div className={`absolute inset-0 flex items-center justify-center gap-2 transition-opacity ${displayUrl ? 'bg-black/40 opacity-0 group-hover:opacity-100' : 'bg-transparent'} ${isUploading === index ? 'opacity-0' : ''}`}>
-                                  <label htmlFor={`image-upload-${index}`} className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 px-3 cursor-pointer bg-secondary text-secondary-foreground hover:bg-secondary/80">
-                                    <UploadCloud className="mr-2 h-4 w-4" />
-                                    {displayUrl ? 'Change' : 'Upload'}
-                                    <Input
-                                      id={`image-upload-${index}`}
-                                      type="file"
-                                      className="sr-only"
-                                      accept="image/png, image/jpeg, image/gif"
-                                      onChange={handleFileChange}
-                                      disabled={isUploading !== null}
-                                      {...fieldProps}
-                                    />
-                                  </label>
-                                  {imageFields.length > 1 && displayUrl ? (
-                                    <Button
-                                      type="button"
-                                      variant="destructive"
-                                      size="icon"
-                                      className="h-9 w-9"
-                                      onClick={() => handleRemoveImage(index)}
-                                      disabled={isUploading !== null}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                      <span className="sr-only">Remove image</span>
-                                    </Button>
-                                  ) : null}
-                                </div>
+                                </label>
                               </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        );
-                      }}
+                            </div>
+                          </FormControl>
+                           <FormMessage />
+                      </FormItem>
+                      )}
                     />
-                  ))}
-                   <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => appendImage({ url: '' })}
-                      className="aspect-video h-full flex-col gap-2"
-                      disabled={isUploading !== null}
-                      >
-                      <PlusCircle className="h-6 w-6" />
-                      <span>Add Image</span>
-                  </Button>
                 </div>
               </div>
 
               <Separator />
 
-              <Button type="submit" disabled={isSubmitting || isUploading !== null}>
-                {(isSubmitting || isUploading !== null) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={isSubmitting || isUploading}>
+                {(isSubmitting || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save Changes
               </Button>
             </form>
@@ -474,5 +437,3 @@ export default function EditEventPage() {
     </div>
   );
 }
-
-    
