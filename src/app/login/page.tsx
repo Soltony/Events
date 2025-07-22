@@ -44,7 +44,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
       <div className="mx-auto flex w-full max-w-sm flex-col items-center text-center">
-        <div className="mb-8">
+        <div className="mb-4">
           <Image
             src="/images/logo.png"
             alt="NibTera Tickets Logo"
