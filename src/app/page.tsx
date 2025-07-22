@@ -101,7 +101,7 @@ export default function PublicHomePage() {
         </div>
       </div>
       
-      <div className="text-center mt-4">
+      <div className="text-center">
         <h1 className="text-3xl font-bold tracking-tight">Upcoming Events</h1>
       </div>
       
