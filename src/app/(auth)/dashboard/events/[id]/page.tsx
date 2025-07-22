@@ -86,6 +86,34 @@ const addPromoCodeSchema = z.object({
 
 type AddPromoCodeFormValues = z.infer<typeof addPromoCodeSchema>;
 
+// Helper to convert array of objects to CSV
+function convertToCSV(data: any[], headers: { key: string, label: string }[]): string {
+    const headerRow = headers.map(h => h.label).join(',');
+    const bodyRows = data.map(row => {
+        return headers.map(header => {
+            let value = row[header.key];
+            
+            if (header.key.includes('.')) {
+                const keys = header.key.split('.');
+                let nestedValue: any = row;
+                for (const k of keys) {
+                    if (nestedValue && typeof nestedValue === 'object') {
+                        nestedValue = nestedValue[k];
+                    } else {
+                        nestedValue = undefined;
+                        break;
+                    }
+                }
+                value = nestedValue;
+            }
+
+            const stringValue = String(value ?? '').replace(/"/g, '""');
+            return `"${stringValue}"`;
+        }).join(',');
+    });
+    return [headerRow, ...bodyRows].join('\n');
+}
+
 
 export default function EventDetailPage() {
   const router = useRouter();
@@ -95,6 +123,7 @@ export default function EventDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isAddTicketTypeOpen, setIsAddTicketTypeOpen] = useState(false);
   const [isAddPromoCodeOpen, setIsAddPromoCodeOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 
   const fetchEvent = async () => {
@@ -174,6 +203,45 @@ export default function EventDetailPage() {
         title: 'Error',
         description: 'Failed to create promo code. Please try again.',
       });
+    }
+  }
+
+  const handleExport = () => {
+    if (!event) return;
+    setIsExporting(true);
+
+    try {
+      const headers = [
+        { key: 'name', label: 'Name' },
+        { key: 'email', label: 'Email' },
+        { key: 'ticketType.name', label: 'Ticket Type' },
+        { key: 'checkedIn', label: 'Checked In' },
+        { key: 'createdAt', label: 'Purchase Date' },
+      ];
+      
+      const dataToExport = event.attendees.map(a => ({
+          ...a,
+          createdAt: format(new Date(a.createdAt), 'yyyy-MM-dd HH:mm'),
+      }))
+
+      const csvContent = convertToCSV(dataToExport, headers);
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `${event.name.replace(/\s+/g, '_')}_attendee_report.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({ title: 'Export Successful', description: 'Your attendee report has been downloaded.' });
+
+    } catch(error) {
+        console.error('Failed to export report', error);
+        toast({ variant: 'destructive', title: 'Export Failed', description: 'Could not generate the report.' });
+    } finally {
+        setTimeout(() => setIsExporting(false), 1000);
     }
   }
 
@@ -260,8 +328,8 @@ export default function EventDetailPage() {
               <span className="flex items-center gap-1"><MapPin className="h-4 w-4" /> {event.location}</span>
             </div>
         </div>
-        <Button>
-          <FileDown className="mr-2 h-4 w-4" />
+        <Button onClick={handleExport} disabled={isExporting}>
+          {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
           Export Report
         </Button>
       </div>
@@ -537,5 +605,3 @@ export default function EventDetailPage() {
     </div>
   );
 }
-
-    
