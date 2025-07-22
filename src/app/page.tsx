@@ -64,7 +64,7 @@ export default function PublicHomePage() {
   }, [events, searchQuery, selectedCategory]);
 
   return (
-    <div className="flex flex-1 flex-col gap-4 md:gap-8 p-4 lg:p-6">
+    <div className="flex flex-1 flex-col p-4 lg:p-6">
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex-shrink-0">
           <Image src="/images/logo.png" alt="NibTera Tickets Logo" width={200} height={50} data-ai-hint="logo nibtera" />
@@ -101,7 +101,7 @@ export default function PublicHomePage() {
         </div>
       </div>
       
-      <div className="text-center">
+      <div className="text-center py-8">
         <h1 className="text-3xl font-bold tracking-tight">Upcoming Events</h1>
       </div>
       
