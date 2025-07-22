@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Ticket, PlusCircle, LineChart, Settings } from 'lucide-react';
+import { Home, Ticket, PlusCircle, LineChart, Settings, QrCode } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function MainNav() {
@@ -21,6 +21,17 @@ export function MainNav() {
       >
         <Home className="h-4 w-4" />
         Dashboard
+      </Link>
+      
+      <Link
+        href="/dashboard/scan"
+        className={cn(
+          'flex items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground transition-all hover:text-sidebar-accent-foreground hover:bg-sidebar-accent',
+          pathname === '/dashboard/scan' && 'bg-sidebar-accent text-sidebar-accent-foreground'
+        )}
+      >
+        <QrCode className="h-4 w-4" />
+        Scan QR
       </Link>
 
       <Link

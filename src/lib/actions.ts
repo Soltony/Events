@@ -66,7 +66,7 @@ export async function addEvent(data: any) {
     
     // Set default image if one isn't provided
     if (!eventData.image) {
-        eventData.image = '/images/logo.png';
+        eventData.image = 'https://placehold.co/600x400.png';
     }
     
     const newEvent = await prisma.event.create({
@@ -417,4 +417,36 @@ export async function validatePromoCode(eventId: number, code: string): Promise<
         }
     });
     return serialize(promoCode);
+}
+
+export async function checkInAttendee(attendeeId: number) {
+    'use server';
+    try {
+        const attendee = await prisma.attendee.findUnique({
+            where: { id: attendeeId },
+            include: { event: true, ticketType: true }
+        });
+
+        if (!attendee) {
+            return { error: 'Invalid Ticket: This ticket does not exist.' };
+        }
+
+        if (attendee.checkedIn) {
+            return { error: 'Already Checked In: This ticket has already been used.' };
+        }
+
+        const updatedAttendee = await prisma.attendee.update({
+            where: { id: attendeeId },
+            data: { checkedIn: true },
+            include: { event: true, ticketType: true }
+        });
+        
+        revalidatePath(`/dashboard/events/${attendee.eventId}`);
+
+        return { data: serialize(updatedAttendee) };
+
+    } catch (error) {
+        console.error("Check-in error:", error);
+        return { error: 'An unexpected error occurred during check-in.' };
+    }
 }
