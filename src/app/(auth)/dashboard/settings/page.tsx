@@ -72,6 +72,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getUsersAndRoles, addUser, createRole, updateRole, deleteRole, updateUserRole } from '@/lib/actions';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { PasswordInput } from '@/components/ui/password-input';
 
 interface UserWithRole extends User {
     role: Role;
@@ -286,10 +287,10 @@ export default function SettingsPage() {
                                 )}/>
                             </div>
                              <FormField control={addUserForm.control} name="phoneNumber" render={({ field }) => (
-                                <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="+1234567890" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="0912345678" {...field} /></FormControl><FormMessage /></FormItem>
                              )}/>
                             <FormField control={addUserForm.control} name="password" render={({ field }) => (
-                                <FormItem><FormLabel>Password</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Password</FormLabel><FormControl><PasswordInput placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
                              <FormField control={addUserForm.control} name="roleId" render={({ field }) => (
                                 <FormItem><FormLabel>Role</FormLabel>
