@@ -132,7 +132,7 @@ export default function PublicHomePage() {
                 <CardFooter className="p-3 pt-0">
                     <Button asChild className="w-full" size="sm">
                        <Link href={`/events/${event.id}`}>
-                         View Details & Buy Tickets <ArrowUpRight className="ml-auto h-4 w-4" />
+                         Buy Tickets <ArrowUpRight className="ml-auto h-4 w-4" />
                        </Link>
                     </Button>
                 </CardFooter>
