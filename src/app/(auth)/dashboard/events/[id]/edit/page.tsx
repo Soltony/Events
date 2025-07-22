@@ -36,7 +36,6 @@ import type { Event } from '@prisma/client';
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
-  location: z.string().min(1, { message: 'Please enter a location.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   date: z.object({
     from: z.date({
@@ -77,7 +76,6 @@ export default function EditEventPage() {
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
       name: '',
-      location: '',
       description: '',
       category: '',
       otherCategory: '',
@@ -104,7 +102,6 @@ export default function EditEventPage() {
           
           form.reset({
             name: event.name,
-            location: event.location,
             description: event.description,
             category: isOtherCategory ? 'Other' : event.category,
             otherCategory: isOtherCategory ? event.category : '',
@@ -240,22 +237,6 @@ export default function EditEventPage() {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="location"
-                render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Location</FormLabel>
-                        <FormControl>
-                            <Input placeholder="e.g., Millennium Hall" {...field} />
-                        </FormControl>
-                         <FormDescription>
-                          Enter the venue or address for your event.
-                        </FormDescription>
-                        <FormMessage />
-                    </FormItem>
-                )}
-               />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
@@ -469,3 +450,5 @@ export default function EditEventPage() {
     </div>
   );
 }
+
+    

@@ -77,7 +77,7 @@ export default function ManageEventsPage() {
                 <CardContent className="p-6 flex-1 space-y-2">
                   <Badge variant="outline">{event.category}</Badge>
                   <CardTitle>{event.name}</CardTitle>
-                  <CardDescription>{formatEventDate(event.startDate, event.endDate)} - {event.location}</CardDescription>
+                  <CardDescription>{formatEventDate(event.startDate, event.endDate)}</CardDescription>
                 </CardContent>
                 <CardFooter className="p-6 pt-0 grid grid-cols-2 gap-2">
                   <Button asChild className="w-full" variant="outline">
@@ -107,3 +107,5 @@ export default function ManageEventsPage() {
     </div>
   );
 }
+
+    

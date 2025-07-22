@@ -59,7 +59,7 @@ export async function getEventDetails(id: number) {
 }
 
 export async function addEvent(data: any) {
-    const { tickets, images, date, ...eventData } = data;
+    const { tickets, images, date, location, ...eventData } = data;
 
     // Determine the final category and remove the temporary 'otherCategory' field
     const finalCategory = eventData.category === 'Other' ? eventData.otherCategory : eventData.category;
@@ -67,6 +67,7 @@ export async function addEvent(data: any) {
     const newEvent = await prisma.event.create({
         data: {
             ...eventData,
+            location: location || '',
             category: finalCategory,
             startDate: date.from,
             endDate: date.to,
@@ -91,12 +92,13 @@ export async function addEvent(data: any) {
 }
 
 export async function updateEvent(id: number, data: any) {
-    const { images, date, ...eventData } = data;
+    const { images, date, location, ...eventData } = data;
 
     const updatedEvent = await prisma.event.update({
         where: { id },
         data: {
             ...eventData,
+            location: location || '',
             startDate: date.from,
             endDate: date.to,
             image: images?.[0]?.url || null,
@@ -402,3 +404,5 @@ export async function getTicketsByIds(ids: number[]) {
 
     return serialize(tickets);
 }
+
+    

@@ -255,7 +255,7 @@ export default function EventDetailPage() {
         </Button>
         <div className="flex-1">
             <h1 className="text-3xl font-bold tracking-tight">{event.name}</h1>
-            <p className="text-muted-foreground">{eventDate} at {event.location}</p>
+            <p className="text-muted-foreground">{eventDate}</p>
         </div>
         <Button>
           <FileDown className="mr-2 h-4 w-4" />
@@ -534,3 +534,5 @@ export default function EventDetailPage() {
     </div>
   );
 }
+
+    

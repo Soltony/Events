@@ -29,7 +29,6 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 export default function PublicEventDetailPage() {
   const params = useParams<{ id: string }>();
   const eventId = params ? parseInt(params.id, 10) : NaN;
-  const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [loadingTicketId, setLoadingTicketId] = useState<number | null>(null);
   const [event, setEvent] = useState<EventWithTickets | null>(null);
@@ -123,10 +122,6 @@ export default function PublicEventDetailPage() {
                         <Calendar className="h-5 w-5" />
                         <span>{formatEventDate(event.startDate, event.endDate)}</span>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <MapPin className="h-5 w-5" />
-                        <span>{event.location}</span>
-                    </div>
                 </div>
             </div>
 
@@ -174,3 +169,5 @@ export default function PublicEventDetailPage() {
     </div>
   );
 }
+
+    

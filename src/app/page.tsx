@@ -129,7 +129,7 @@ export default function PublicHomePage() {
                 <CardContent className="p-3 flex-1 space-y-1">
                   <Badge variant="outline" className="text-xs">{event.category}</Badge>
                   <CardTitle className="text-base leading-tight">{event.name}</CardTitle>
-                  <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)} - {event.location}</CardDescription>
+                  <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
                 </CardContent>
                 <CardFooter className="p-3 pt-0">
                     <Button asChild className="w-full" size="sm">
@@ -153,3 +153,5 @@ export default function PublicHomePage() {
     </div>
   );
 }
+
+    
