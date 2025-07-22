@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { FileDown } from 'lucide-react';
+import { FileDown, Loader2 } from 'lucide-react';
 import { getReportsData } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
@@ -48,9 +48,45 @@ interface ReportsData {
     promoCodes: PromoCodeReport[];
 }
 
+// Helper to convert array of objects to CSV
+function convertToCSV(data: any[], headers: { key: string, label: string }[]): string {
+    const headerRow = headers.map(h => h.label).join(',');
+    const bodyRows = data.map(row => {
+        return headers.map(header => {
+            let value = row[header.key];
+            
+            // Format date objects
+            if (header.key === 'date' && value instanceof Date) {
+                value = format(value, 'yyyy-MM-dd');
+            }
+
+            // Handle nested objects (like event.name)
+            if (header.key.includes('.')) {
+                const keys = header.key.split('.');
+                let nestedValue = row;
+                for (const k of keys) {
+                    if (nestedValue && typeof nestedValue === 'object') {
+                        nestedValue = nestedValue[k];
+                    } else {
+                        nestedValue = undefined;
+                        break;
+                    }
+                }
+                value = nestedValue;
+            }
+
+            // Escape commas and quotes
+            const stringValue = String(value ?? '').replace(/"/g, '""');
+            return `"${stringValue}"`;
+        }).join(',');
+    });
+    return [headerRow, ...bodyRows].join('\n');
+}
+
 export default function ReportsPage() {
     const [data, setData] = useState<ReportsData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [downloading, setDownloading] = useState<string | null>(null);
 
     useEffect(() => {
         async function fetchData() {
@@ -66,6 +102,67 @@ export default function ReportsPage() {
         }
         fetchData();
     }, []);
+
+    const handleDownload = (reportType: 'product' | 'daily' | 'promo') => {
+        if (!data) return;
+        setDownloading(reportType);
+        
+        let csvContent = '';
+        let filename = '';
+        let headers: { key: string, label: string }[] = [];
+
+        try {
+            if (reportType === 'product' && data.productSales) {
+                filename = 'product_sales_report.csv';
+                headers = [
+                    { key: 'name', label: 'Product' },
+                    { key: 'event.name', label: 'Event' },
+                    { key: 'sold', label: 'Quantity Sold' },
+                    { key: 'price', label: 'Price (ETB)' },
+                    { key: 'revenue', label: 'Revenue (ETB)' },
+                ];
+                const productData = data.productSales.map(p => ({ ...p, revenue: p.sold * Number(p.price) }));
+                csvContent = convertToCSV(productData, headers);
+            } else if (reportType === 'daily' && data.dailySales) {
+                filename = 'daily_sales_report.csv';
+                 headers = [
+                    { key: 'date', label: 'Date' },
+                    { key: 'eventName', label: 'Event' },
+                    { key: 'ticketsSold', label: 'Tickets Sold' },
+                    { key: 'revenue', label: 'Net Revenue (ETB)' },
+                ];
+                csvContent = convertToCSV(data.dailySales, headers);
+            } else if (reportType === 'promo' && data.promoCodes) {
+                filename = 'promo_codes_report.csv';
+                headers = [
+                    { key: 'code', label: 'Code' },
+                    { key: 'event.name', label: 'Event' },
+                    { key: 'uses', label: 'Times Used' },
+                    { key: 'maxUses', label: 'Usage Limit' },
+                    { key: 'totalDiscount', label: 'Total Discount (ETB)' },
+                ];
+                csvContent = convertToCSV(data.promoCodes, headers);
+            }
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        } catch (error) {
+            console.error("Failed to download report:", error);
+        } finally {
+            // Add a small delay to allow download to initiate
+            setTimeout(() => setDownloading(null), 500);
+        }
+    };
+
 
     if (loading || !data) {
         return (
@@ -110,8 +207,8 @@ export default function ReportsPage() {
               <CardTitle>Product Sales</CardTitle>
               <CardDescription>Product sales, revenue, and other metrics.</CardDescription>
             </div>
-            <Button variant="outline">
-                <FileDown className="mr-2 h-4 w-4" />
+            <Button variant="outline" onClick={() => handleDownload('product')} disabled={downloading === 'product'}>
+                {downloading === 'product' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
                 Download Report
             </Button>
           </CardHeader>
@@ -152,8 +249,8 @@ export default function ReportsPage() {
               <CardTitle>Daily Sales Report</CardTitle>
               <CardDescription>A summary of sales for each event date.</CardDescription>
             </div>
-             <Button variant="outline">
-                <FileDown className="mr-2 h-4 w-4" />
+             <Button variant="outline" onClick={() => handleDownload('daily')} disabled={downloading === 'daily'}>
+                {downloading === 'daily' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
                 Download Report
             </Button>
           </CardHeader>
@@ -194,8 +291,8 @@ export default function ReportsPage() {
               <CardTitle>Promo Codes Report</CardTitle>
               <CardDescription>Promo code usage and discount breakdown.</CardDescription>
             </div>
-             <Button variant="outline">
-                <FileDown className="mr-2 h-4 w-4" />
+             <Button variant="outline" onClick={() => handleDownload('promo')} disabled={downloading === 'promo'}>
+                {downloading === 'promo' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
                 Download Report
             </Button>
           </CardHeader>
