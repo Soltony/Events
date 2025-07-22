@@ -84,7 +84,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
+    <div className="flex min-h-screen flex-col items-center bg-background px-4 py-12">
       <div className="mx-auto flex w-full max-w-sm flex-col items-center">
         <div className="mb-4">
           <Image
