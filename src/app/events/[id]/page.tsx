@@ -118,9 +118,13 @@ export default function PublicEventDetailPage() {
                 <Badge variant="outline" className="mb-2 w-min whitespace-nowrap">{event.category}</Badge>
                 <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{event.name}</h1>
                 <div className="text-lg text-muted-foreground space-y-2 pt-4">
-                        <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3">
                         <Calendar className="h-5 w-5" />
                         <span>{formatEventDate(event.startDate, event.endDate)}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <MapPin className="h-5 w-5" />
+                        <span>{event.location}</span>
                     </div>
                 </div>
             </div>

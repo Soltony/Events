@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -7,7 +6,7 @@ import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowUpRight, Search, Ticket } from 'lucide-react';
+import { ArrowUpRight, Search, Ticket, MapPin } from 'lucide-react';
 import { getPublicEvents } from '@/lib/actions';
 import { format } from 'date-fns';
 import type { Event, TicketType } from '@prisma/client';
@@ -130,6 +129,10 @@ export default function PublicHomePage() {
                   <Badge variant="outline" className="text-xs">{event.category}</Badge>
                   <CardTitle className="text-base leading-tight">{event.name}</CardTitle>
                   <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
+                  <CardDescription className="text-xs flex items-center gap-1 pt-1">
+                    <MapPin className="h-3 w-3" />
+                    {event.location}
+                  </CardDescription>
                 </CardContent>
                 <CardFooter className="p-3 pt-0">
                     <Button asChild className="w-full" size="sm">

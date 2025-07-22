@@ -31,10 +31,12 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { addEvent } from '@/lib/actions';
 import { Separator } from '@/components/ui/separator';
+import LocationInput from '@/components/location-input';
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
+  location: z.string().min(3, { message: 'Location is required.' }),
   date: z.object({
     from: z.date({
       required_error: 'A start date for the event is required.',
@@ -76,6 +78,7 @@ export default function CreateEventPage() {
     defaultValues: {
       name: '',
       description: '',
+      location: '',
       category: '',
       otherCategory: '',
       images: [{ url: '' }],
@@ -267,6 +270,26 @@ export default function CreateEventPage() {
                     </Popover>
                     <FormDescription>
                       The start and end date for your event.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+               <FormField
+                control={form.control}
+                name="location"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Location</FormLabel>
+                    <FormControl>
+                      <LocationInput
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Start typing to search for a location in Ethiopia.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
