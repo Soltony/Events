@@ -64,6 +64,11 @@ export async function addEvent(data: any) {
     // Determine the final category and remove the temporary 'otherCategory' field
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
     
+    // Set default image if one isn't provided
+    if (!eventData.image) {
+        eventData.image = '/images/logo.png';
+    }
+    
     const newEvent = await prisma.event.create({
         data: {
             ...eventData,
@@ -93,11 +98,14 @@ export async function updateEvent(id: number, data: any) {
 
     // Determine the final category
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
-
+    
     const updatedEvent = await prisma.event.update({
         where: { id },
         data: {
-            ...eventData,
+            name: eventData.name,
+            description: eventData.description,
+            location: eventData.location,
+            image: eventData.image,
             category: finalCategory,
             startDate: date.from,
             endDate: date.to,
