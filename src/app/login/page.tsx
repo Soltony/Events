@@ -49,7 +49,7 @@ export default function LoginPage() {
       <div className="mx-auto flex w-full max-w-sm flex-col items-center text-center">
         <div className="mb-4">
           <Image
-            src="/images/logo.png"
+            src="/image/nibtickets.jpg"
             alt="NibTera Tickets Logo"
             width={240}
             height={80}
