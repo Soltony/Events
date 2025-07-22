@@ -52,7 +52,6 @@ export default function DashboardPage() {
                     <Skeleton className="h-8 w-48 mb-2" />
                     <Skeleton className="h-5 w-64" />
                 </div>
-                <Skeleton className="h-10 w-36" />
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-5 w-24" /><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><Skeleton className="h-7 w-20" /><Skeleton className="h-4 w-32 mt-1" /></CardContent></Card>
@@ -75,13 +74,6 @@ export default function DashboardPage() {
           <p className="text-muted-foreground">
             An overview of all your events.
           </p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button asChild>
-            <Link href="/dashboard/events/new">
-              <PlusCircle className="mr-2 h-4 w-4" /> Create Event
-            </Link>
-          </Button>
         </div>
       </div>
       
