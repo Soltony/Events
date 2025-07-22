@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -63,7 +62,7 @@ function convertToCSV(data: any[], headers: { key: string, label: string }[]): s
             // Handle nested objects (like event.name)
             if (header.key.includes('.')) {
                 const keys = header.key.split('.');
-                let nestedValue = row;
+                let nestedValue: any = row;
                 for (const k of keys) {
                     if (nestedValue && typeof nestedValue === 'object') {
                         nestedValue = nestedValue[k];
