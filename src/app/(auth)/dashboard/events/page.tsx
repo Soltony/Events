@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, ArrowUpRight, Pencil } from "lucide-react";
+import { PlusCircle, ArrowUpRight, Pencil, MapPin } from "lucide-react";
 import Link from 'next/link';
 import Image from 'next/image';
 import { getEvents } from '@/lib/actions';
@@ -78,6 +78,10 @@ export default function ManageEventsPage() {
                   <Badge variant="outline">{event.category}</Badge>
                   <CardTitle>{event.name}</CardTitle>
                   <CardDescription>{formatEventDate(event.startDate, event.endDate)}</CardDescription>
+                  <CardDescription className="flex items-center gap-1.5 pt-1">
+                      <MapPin className="h-4 w-4" />
+                      {event.location}
+                  </CardDescription>
                 </CardContent>
                 <CardFooter className="p-6 pt-0 grid grid-cols-2 gap-2">
                   <Button asChild className="w-full" variant="outline">

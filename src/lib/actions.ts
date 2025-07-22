@@ -70,7 +70,7 @@ export async function addEvent(data: any) {
             category: finalCategory,
             startDate: date.from,
             endDate: date.to,
-            image: images?.[0]?.url || null, // Save only the first image URL
+            image: images.map((img: {url: string}) => img.url).join(','),
             otherCategory: undefined,
         },
     });
@@ -99,7 +99,7 @@ export async function updateEvent(id: number, data: any) {
             ...eventData,
             startDate: date.from,
             endDate: date.to,
-            image: images?.[0]?.url || null,
+            image: images.map((img: {url: string}) => img.url).join(','),
             date: undefined,
         }
     });
@@ -310,7 +310,7 @@ export async function deleteRole(id: string) {
 }
 
 // Ticket/Attendee Actions
-export async function purchaseTicket(ticketTypeId: number, eventId: number) {
+export async function purchaseTicket(eventId: number, ticketTypeId: number) {
   'use server';
   
   try {

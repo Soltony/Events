@@ -33,10 +33,12 @@ import { updateEvent, getEventById } from '@/lib/actions';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Event } from '@prisma/client';
+import LocationInput from '@/components/location-input';
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
+  location: z.string().min(3, { message: 'Location is required.' }),
   date: z.object({
     from: z.date({
       required_error: 'A start date for the event is required.',
@@ -77,6 +79,7 @@ export default function EditEventPage() {
     defaultValues: {
       name: '',
       description: '',
+      location: '',
       category: '',
       otherCategory: '',
       images: [],
@@ -103,6 +106,7 @@ export default function EditEventPage() {
           form.reset({
             name: event.name,
             description: event.description,
+            location: event.location,
             category: isOtherCategory ? 'Other' : event.category,
             otherCategory: isOtherCategory ? event.category : '',
             date: {
@@ -321,6 +325,26 @@ export default function EditEventPage() {
                         />
                       </PopoverContent>
                     </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="location"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Location</FormLabel>
+                    <FormControl>
+                      <LocationInput
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Start typing to search for a location in Ethiopia.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
