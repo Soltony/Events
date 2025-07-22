@@ -156,7 +156,7 @@ export default function SettingsPage() {
         defaultValues: {
           firstName: "",
           lastName: "",
-          phoneNumber: "",
+          phoneNumber: "0912345678",
           password: "",
         },
     });
@@ -420,7 +420,7 @@ export default function SettingsPage() {
                                                   <CardTitle className="text-base">{category.label}</CardTitle>
                                               </CardHeader>
                                               <CardContent className="p-4 pt-0">
-                                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2">
+                                                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                                                       {permissionActions.map((action) => {
                                                           const permissionId = `${category.id}:${action}`;
                                                           return (
@@ -485,3 +485,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
