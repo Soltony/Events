@@ -49,10 +49,6 @@ const permissionCategories = {
     Settings: ['View', 'Update', 'Create', 'Delete'],
 };
 
-const allPermissions = Object.entries(permissionCategories).flatMap(([category, actions]) => 
-    actions.map(action => ({ id: `${category}:${action}`, label: `${action}`}))
-);
-
 
 export default function CreateRolePage() {
   const router = useRouter();
@@ -88,6 +84,20 @@ export default function CreateRolePage() {
         setIsSubmitting(false);
     }
   }
+
+  const handleFullAccessChange = (category: string, actions: string[], checked: boolean | 'indeterminate') => {
+      const currentPermissions = form.getValues('permissions');
+      const categoryPermissions = actions.map(action => `${category}:${action}`);
+      
+      let newPermissions;
+      if (checked) {
+          newPermissions = [...new Set([...currentPermissions, ...categoryPermissions])];
+      } else {
+          newPermissions = currentPermissions.filter(p => !categoryPermissions.includes(p));
+      }
+      form.setValue('permissions', newPermissions, { shouldValidate: true });
+  };
+
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
@@ -140,14 +150,31 @@ export default function CreateRolePage() {
                 <FormField
                   control={form.control}
                   name="permissions"
-                  render={() => (
+                  render={({ field }) => (
                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-                        {Object.entries(permissionCategories).map(([category, actions]) => (
+                        {Object.entries(permissionCategories).map(([category, actions]) => {
+                           const categoryPermissions = actions.map(action => `${category}:${action}`);
+                           const selectedCategoryPermissions = field.value.filter(p => categoryPermissions.includes(p));
+                           const hasAll = selectedCategoryPermissions.length === categoryPermissions.length;
+                           const hasSome = selectedCategoryPermissions.length > 0 && !hasAll;
+
+                           return (
                             <Card key={category}>
                                 <CardHeader>
                                     <CardTitle className="text-lg">{category}</CardTitle>
                                 </CardHeader>
-                                <CardContent className="grid grid-cols-2 gap-4">
+                                <CardContent className="space-y-4">
+                                     <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                        <FormControl>
+                                            <Checkbox
+                                                checked={hasAll}
+                                                onCheckedChange={(checked) => handleFullAccessChange(category, actions, checked)}
+                                            />
+                                        </FormControl>
+                                        <FormLabel className="font-semibold">Full Access</FormLabel>
+                                    </FormItem>
+                                    <Separator />
+                                    <div className="grid grid-cols-2 gap-4">
                                     {actions.map((action) => {
                                         const permissionId = `${category}:${action}`;
                                         return (
@@ -155,15 +182,16 @@ export default function CreateRolePage() {
                                                 key={permissionId}
                                                 control={form.control}
                                                 name="permissions"
-                                                render={({ field }) => (
+                                                render={({ field: singleField }) => (
                                                     <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                                                         <FormControl>
                                                             <Checkbox
-                                                                checked={field.value?.includes(permissionId)}
+                                                                checked={singleField.value?.includes(permissionId)}
                                                                 onCheckedChange={(checked) => {
-                                                                    return checked
-                                                                    ? field.onChange([...field.value, permissionId])
-                                                                    : field.onChange(field.value?.filter((value) => value !== permissionId))
+                                                                    const updated = checked
+                                                                    ? [...singleField.value, permissionId]
+                                                                    : singleField.value?.filter((value) => value !== permissionId);
+                                                                    singleField.onChange(updated);
                                                                 }}
                                                             />
                                                         </FormControl>
@@ -173,9 +201,11 @@ export default function CreateRolePage() {
                                             />
                                         );
                                     })}
+                                    </div>
                                 </CardContent>
                             </Card>
-                        ))}
+                           )
+                        })}
                     </div>
                   )}
                 />
@@ -200,4 +230,3 @@ export default function CreateRolePage() {
     </div>
   );
 }
-
