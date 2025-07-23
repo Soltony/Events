@@ -33,7 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { PlusCircle, DollarSign, FileDown, Ticket as TicketIcon, ArrowLeft, Loader2, MapPin } from 'lucide-react';
+import { PlusCircle, DollarSign, FileDown, Ticket as TicketIcon, ArrowLeft, Loader2, MapPin, Info } from 'lucide-react';
 import { getEventDetails, addTicketType, addPromoCode } from '@/lib/actions';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
@@ -323,9 +323,10 @@ export default function EventDetailPage() {
         </Button>
         <div className="flex-1">
             <h1 className="text-3xl font-bold tracking-tight">{event.name}</h1>
-            <div className="text-muted-foreground flex items-center gap-4">
+            <div className="text-muted-foreground flex items-center gap-4 flex-wrap">
               <span>{eventDate}</span>
               <span className="flex items-center gap-1"><MapPin className="h-4 w-4" /> {event.location}</span>
+              {event.hint && <span className="flex items-center gap-1"><Info className="h-4 w-4" /> {event.hint}</span>}
             </div>
         </div>
         <Button onClick={handleExport} disabled={isExporting}>
@@ -605,3 +606,5 @@ export default function EventDetailPage() {
     </div>
   );
 }
+
+    

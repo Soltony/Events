@@ -37,6 +37,7 @@ const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   location: z.string().min(3, { message: 'Location is required.' }),
+  hint: z.string().optional(),
   date: z.object({
     from: z.date({
       required_error: 'A start date for the event is required.',
@@ -78,6 +79,7 @@ export default function CreateEventPage() {
       name: '',
       description: '',
       location: '',
+      hint: '',
       category: '',
       otherCategory: '',
       image: '',
@@ -311,6 +313,27 @@ export default function CreateEventPage() {
                   </FormItem>
                 )}
               />
+
+               <FormField
+                control={form.control}
+                name="hint"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Specific Location Description</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="e.g., Millennium Hall, 2nd Floor, Room 201. Near the main entrance."
+                        className="resize-none"
+                        {...field}
+                      />
+                    </FormControl>
+                     <FormDescription>
+                      Optional: Provide more detailed location info like landmarks, building names, or floor numbers.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
               <Separator />
 
@@ -459,3 +482,5 @@ export default function CreateEventPage() {
     </div>
   );
 }
+
+    

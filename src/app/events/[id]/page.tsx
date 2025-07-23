@@ -5,7 +5,7 @@ import { getEventById, validatePromoCode } from '@/lib/actions';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart } from 'lucide-react';
+import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info } from 'lucide-react';
 import { notFound, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import type { Event, TicketType, PromoCode } from '@prisma/client';
@@ -185,6 +185,12 @@ export default function PublicEventDetailPage() {
                         <MapPin className="h-5 w-5" />
                         <span>{event.location}</span>
                     </div>
+                    {event.hint && (
+                      <div className="flex items-start gap-3 text-base">
+                          <Info className="h-5 w-5 mt-1 flex-shrink-0" />
+                          <p className="text-muted-foreground">{event.hint}</p>
+                      </div>
+                    )}
                 </div>
             </div>
 
@@ -282,3 +288,5 @@ export default function PublicEventDetailPage() {
     </div>
   );
 }
+
+    
