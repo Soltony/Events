@@ -281,6 +281,13 @@ export async function getRoles() {
     return serialize(roles);
 }
 
+export async function getRoleById(id: string) {
+    const role = await prisma.role.findUnique({
+        where: { id },
+    });
+    return serialize(role);
+}
+
 export async function createRole(data: { name: string; description: string; permissions: string[] }) {
     const { name, description, permissions } = data;
     const role = await prisma.role.create({
@@ -301,6 +308,7 @@ export async function updateRole(id: string, data: Partial<Role>) {
         data: data,
     });
     revalidatePath('/dashboard/settings/roles');
+    revalidatePath(`/dashboard/settings/roles/${id}/edit`);
     return serialize(role);
 }
 
