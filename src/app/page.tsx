@@ -64,8 +64,8 @@ export default function PublicHomePage() {
   }, [events, searchQuery, selectedCategory]);
 
   return (
-    <div className="flex flex-1 flex-col p-4 lg:p-6">
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+    <div className="flex flex-1 flex-col">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 lg:p-6">
         <div className="flex-shrink-0">
           <Image src="/image/nibtickets.jpg"alt="NibTera Tickets Logo" width={200} height={50} data-ai-hint="logo nibtera" />
         </div>
@@ -101,11 +101,11 @@ export default function PublicHomePage() {
         </div>
       </div>
       
-      <div className="text-center py-4">
+      <div className="text-center py-4 px-4 lg:px-6">
         <h1 className="text-3xl font-bold tracking-tight">Upcoming Events</h1>
       </div>
       
-       <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+       <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 p-4 lg:p-6">
         {loading ? (
              [...Array(10)].map((_, i) => (
                 <Card key={i}>
