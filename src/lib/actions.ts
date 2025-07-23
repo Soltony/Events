@@ -276,6 +276,11 @@ export async function updateUserRole(userId: string, roleId: string) {
     return serialize(user);
 }
 
+export async function getRoles() {
+    const roles = await prisma.role.findMany();
+    return serialize(roles);
+}
+
 export async function createRole(data: { name: string; description: string; permissions: string[] }) {
     const { name, description, permissions } = data;
     const role = await prisma.role.create({
@@ -285,7 +290,7 @@ export async function createRole(data: { name: string; description: string; perm
             permissions: permissions.join(','),
         },
     });
-    revalidatePath('/dashboard/settings');
+    revalidatePath('/dashboard/settings/roles');
     revalidatePath('/dashboard/settings/roles/new');
     return serialize(role);
 }
@@ -293,9 +298,9 @@ export async function createRole(data: { name: string; description: string; perm
 export async function updateRole(id: string, data: Partial<Role>) {
     const role = await prisma.role.update({
         where: { id },
-        data: data as any,
+        data: data,
     });
-    revalidatePath('/dashboard/settings');
+    revalidatePath('/dashboard/settings/roles');
     return serialize(role);
 }
 
@@ -307,6 +312,7 @@ export async function deleteRole(id: string) {
     }
     const role = await prisma.role.delete({ where: { id } });
     revalidatePath('/dashboard/settings');
+    revalidatePath('/dashboard/settings/roles');
     return serialize(role);
 }
 

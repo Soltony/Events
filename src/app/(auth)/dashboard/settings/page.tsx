@@ -157,7 +157,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                     <Button asChild variant="outline">
-                        <Link href="/dashboard/settings/roles/new">
+                        <Link href="/dashboard/settings/roles">
                             <Users className="mr-2 h-4 w-4" />
                             Manage Roles
                         </Link>
