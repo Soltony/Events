@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 export function MainNav() {
   const pathname = usePathname();
   const isManagingEvents = (pathname === '/dashboard/events' || pathname.startsWith('/dashboard/events/')) && pathname !== '/dashboard/events/new';
+  const isSettings = pathname.startsWith('/dashboard/settings');
 
   return (
     <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
@@ -70,7 +71,7 @@ export function MainNav() {
         href="/dashboard/settings"
         className={cn(
           'flex items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground transition-all hover:text-sidebar-accent-foreground hover:bg-sidebar-accent',
-          pathname === '/dashboard/settings' && 'bg-sidebar-accent text-sidebar-accent-foreground'
+          isSettings && 'bg-sidebar-accent text-sidebar-accent-foreground'
         )}
       >
         <Settings className="h-4 w-4" />

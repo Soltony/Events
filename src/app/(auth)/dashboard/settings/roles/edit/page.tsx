@@ -4,8 +4,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { useRouter, useParams } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import type { Role } from '@prisma/client';
 
@@ -46,10 +46,10 @@ const permissionCategories = {
     Settings: ['View', 'Update', 'Create', 'Delete'],
 };
 
-export default function EditRolePage() {
+function EditRoleFormComponent() {
   const router = useRouter();
-  const params = useParams<{ id: string }>();
-  const roleId = params.id;
+  const searchParams = useSearchParams();
+  const roleId = searchParams.get('id');
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -95,6 +95,7 @@ export default function EditRolePage() {
   }, [roleId, router, toast, form]);
 
   async function onSubmit(data: RoleFormValues) {
+    if (!roleId) return;
     setIsSubmitting(true);
     try {
         await updateRole(roleId, { ...data, permissions: data.permissions.join(',') });
@@ -103,7 +104,6 @@ export default function EditRolePage() {
             description: `Successfully updated the "${data.name}" role.`,
         });
         router.push('/dashboard/settings/roles');
-        router.refresh();
     } catch (error) {
         console.error("Failed to update role:", error);
         toast({
@@ -156,7 +156,7 @@ export default function EditRolePage() {
         </div>
     );
   }
-
+  
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
        <div className="flex items-center gap-4">
@@ -290,4 +290,13 @@ export default function EditRolePage() {
       </Card>
     </div>
   );
+}
+
+
+export default function EditRolePage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <EditRoleFormComponent />
+        </Suspense>
+    )
 }

@@ -78,7 +78,7 @@ export default function ManageRolesPage() {
           <span className="sr-only">Back</span>
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold tracking-tight">Manage Roles</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Role Management</h1>
           <p className="text-muted-foreground">
             Define user roles and their permissions within the application.
           </p>
@@ -127,7 +127,7 @@ export default function ManageRolesPage() {
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                         <Button variant="ghost" size="icon" asChild>
-                            <Link href={`/dashboard/settings/roles/${role.id}/edit`}>
+                            <Link href={`/dashboard/settings/roles/edit?id=${role.id}`}>
                                 <Pencil className="h-4 w-4" />
                                 <span className="sr-only">Edit</span>
                             </Link>
