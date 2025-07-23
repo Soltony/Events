@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowRight, User, Phone, Lock } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import api from '@/lib/api';
 
@@ -52,7 +52,6 @@ export default function RegisterPage() {
   async function onSubmit(data: RegisterFormValues) {
     setIsLoading(true);
     try {
-      // Use camelCase for the request payload to match API expectation
       const requestData = {
           firstName: data.firstName,
           lastName: data.lastName,
@@ -84,77 +83,75 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center bg-background px-4 py-12">
-      <div className="mx-auto flex w-full max-w-sm flex-col items-center">
-        <div>
-          <Image
-            src="/image/nibtickets.jpg"
-            alt="NibTera Tickets Logo"
-            width={240}
-            height={80}
-            className="object-contain"
-            priority
-          />
-        </div>
-        <Card className="w-full">
-          <CardHeader className="text-left">
-            <CardTitle className="text-2xl">Create an Organizer Account</CardTitle>
-            <CardDescription>
-              Fill in the details below to get started.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField control={form.control} name="firstName" render={({ field }) => (
-                      <FormItem className="text-left">
-                        <FormLabel>First Name</FormLabel>
-                        <FormControl><Input placeholder="John" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField control={form.control} name="lastName" render={({ field }) => (
-                      <FormItem className="text-left">
-                        <FormLabel>Last Name</FormLabel>
-                        <FormControl><Input placeholder="Doe" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <FormField control={form.control} name="phoneNumber" render={({ field }) => (
-                    <FormItem className="text-left">
-                      <FormLabel>Phone Number</FormLabel>
-                      <FormControl><Input placeholder="+1234567890" {...field} /></FormControl>
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-4">
+      <Card className="w-full max-w-md shadow-2xl">
+        <CardHeader className="items-center text-center pt-8 pb-4">
+            <Image
+                src="/image/nibtickets.jpg"
+                alt="NibTera Tickets Logo"
+                width={200}
+                height={60}
+                className="object-contain"
+                data-ai-hint="logo nibtera"
+                priority
+            />
+             <h2 className="text-xl font-semibold text-[#8B5E34] pt-2">
+                Create an Account
+            </h2>
+        </CardHeader>
+        <CardContent className="px-8 pb-8">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="firstName" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><User className="h-4 w-4" />First Name</FormLabel>
+                      <FormControl><Input placeholder="John" {...field} className="bg-transparent text-base" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <FormField control={form.control} name="password" render={({ field }) => (
-                    <FormItem className="text-left">
-                      <FormLabel>Password</FormLabel>
-                      <FormControl><PasswordInput placeholder="••••••••" {...field} /></FormControl>
+                <FormField control={form.control} name="lastName" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><User className="h-4 w-4" />Last Name</FormLabel>
+                      <FormControl><Input placeholder="Doe" {...field} className="bg-transparent text-base" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create Account
-                </Button>
-              </form>
-            </Form>
-            <div className="mt-4 text-center text-sm">
-              Already have an account?{" "}
-              <Link href="/login" className="underline">
-                Log in
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              </div>
+              <FormField control={form.control} name="phoneNumber" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><Phone className="h-4 w-4" />Phone Number</FormLabel>
+                    <FormControl><Input placeholder="e.g., 0912345678" {...field} className="bg-transparent text-base" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField control={form.control} name="password" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><Lock className="h-4 w-4" />Password</FormLabel>
+                    <FormControl><PasswordInput placeholder="••••••••" {...field} className="bg-transparent text-base" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="w-full h-12 text-base font-bold" disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <>
+                    <ArrowRight className="mr-2 h-5 w-5" />
+                    Register
+                </>}
+              </Button>
+            </form>
+          </Form>
+          <div className="mt-4 text-center text-sm">
+            Already have an account?{" "}
+            <Link href="/login" className="font-semibold text-primary hover:underline">
+              Sign In
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

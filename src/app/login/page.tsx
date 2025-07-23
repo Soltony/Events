@@ -7,7 +7,7 @@ import * as z from 'zod';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowRight, Phone, Lock } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,72 +42,80 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
-       <Button asChild variant="outline" className="absolute top-4 left-4">
-            <Link href="/"><ArrowLeft className="mr-2 h-4 w-4" />Back to Home</Link>
-        </Button>
-      <div className="mx-auto flex w-full max-w-sm flex-col items-center text-center">
-        <div className="mb-4">
-          <Image
-            src="/image/nibtickets.jpg"
-            alt="NibTera Tickets Logo"
-            width={240}
-            height={80}
-            className="object-contain"
-            priority
-          />
-        </div>
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-2xl">Organizer Login</CardTitle>
-            <CardDescription>
-              Enter your phone number and password below to access your dashboard.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleLogin)} className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="phoneNumber"
-                  render={({ field }) => (
-                    <FormItem className="text-left">
-                      <FormLabel>Phone Number</FormLabel>
-                      <FormControl>
-                        <Input placeholder="0912345678" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem className="text-left">
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <PasswordInput {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button type="submit" className="w-full" disabled={isLoading || isSubmitting}>
-                  {(isLoading || isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Login
-                </Button>
-              </form>
-            </Form>
-            <div className="mt-4 text-center text-sm">
-              Don't have an account?{" "}
-              <Link href="/register" className="underline">
-                Register
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-4">
+      <Card className="w-full max-w-md shadow-2xl">
+        <CardHeader className="items-center text-center pt-8 pb-4">
+            <Image
+                src="/image/nibtickets.jpg"
+                alt="NibTera Tickets Logo"
+                width={200}
+                height={60}
+                className="object-contain"
+                data-ai-hint="logo nibtera" 
+                priority
+            />
+             <h2 className="text-xl font-semibold text-[#8B5E34] pt-2">
+                Building Management Solution
+            </h2>
+        </CardHeader>
+        <CardContent className="px-8 pb-8">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleLogin)} className="space-y-6">
+              <FormField
+                control={form.control}
+                name="phoneNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                        <Phone className="h-4 w-4" />
+                        Phone Number
+                    </FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="e.g., 0912345678" 
+                        {...field} 
+                        className="bg-transparent text-base"
+                        />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex justify-between items-center">
+                        <FormLabel className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                            <Lock className="h-4 w-4" />
+                            Password
+                        </FormLabel>
+                        <Link href="#" className="text-xs text-primary hover:underline">
+                            Forgot Password?
+                        </Link>
+                    </div>
+                    <FormControl>
+                      <PasswordInput {...field} className="bg-transparent text-base" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="w-full h-12 text-base font-bold" disabled={isLoading || isSubmitting}>
+                {(isLoading || isSubmitting) ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                    <>
+                        <ArrowRight className="mr-2 h-5 w-5" />
+                        Sign In
+                    </>
+                )}
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

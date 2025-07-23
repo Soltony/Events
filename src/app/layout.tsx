@@ -32,6 +32,7 @@ export default function RootLayout({
       <body className="font-body antialiased" suppressHydrationWarning={true}>
         <AuthProvider>
           <div className="flex flex-col min-h-screen relative">
+              <header className="h-2.5 bg-[#2C3E50]"></header>
               <main className="flex-1 bg-background">
                 {children}
               </main>
