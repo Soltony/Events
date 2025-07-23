@@ -15,6 +15,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AuthStatus } from "@/components/auth-status";
+import EventDetailModal from "@/components/event-detail-modal";
+
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
@@ -32,6 +34,8 @@ export default function PublicHomePage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedEvent, setSelectedEvent] = useState<EventWithTickets | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -47,6 +51,16 @@ export default function PublicHomePage() {
     }
     fetchData();
   }, []);
+
+  const handleEventClick = (event: EventWithTickets) => {
+    setSelectedEvent(event);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedEvent(null);
+  };
 
   const categories = useMemo(() => {
     const allCategories = new Set(events.map(event => event.category));
@@ -65,7 +79,7 @@ export default function PublicHomePage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 lg:p-6">
+       <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 lg:p-6">
         <div className="flex-shrink-0">
           <Image src="/image/nibtickets.jpg"alt="NibTera Tickets Logo" width={200} height={50} data-ai-hint="logo nibtera" />
         </div>
@@ -120,9 +134,9 @@ export default function PublicHomePage() {
             return (
               <Card key={event.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
                 <CardHeader className="p-0">
-                  <Link href={`/events/${event.id}`}>
-                    <Image src={imageUrl} alt={event.name} width={600} height={338} className="rounded-t-lg object-cover aspect-video" data-ai-hint={event.hint ?? 'event'} />
-                  </Link>
+                  <button onClick={() => handleEventClick(event)} className="w-full text-left">
+                    <Image src={imageUrl.split(',')[0]} alt={event.name} width={600} height={338} className="rounded-t-lg object-cover aspect-video" data-ai-hint={event.hint ?? 'event'} />
+                  </button>
                 </CardHeader>
                 <CardContent className="p-3 flex-1 space-y-1">
                   <Badge variant="outline" className="text-xs">{event.category}</Badge>
@@ -148,6 +162,14 @@ export default function PublicHomePage() {
             </Card>
         )}
       </div>
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+        />
+      )}
     </div>
   );
 }
+
