@@ -47,22 +47,18 @@ export default function LoginPage() {
             <Link href="/"><ArrowLeft className="mr-2 h-4 w-4" />Back to Home</Link>
         </Button>
       <div className="mx-auto flex w-full max-w-sm flex-col items-center text-center">
-        <div className="mb-4">
-          <Image
-            src="/images/logo.png"
-            alt="NibTera Tickets Logo"
-            width={240}
-            height={80}
-            className="object-contain"
-            priority
-          />
-        </div>
         <Card className="w-full">
           <CardHeader>
-            <CardTitle className="text-2xl">Organizer Login</CardTitle>
-            <CardDescription>
-              Enter your phone number and password below to access your dashboard.
-            </CardDescription>
+             <div className="mx-auto mb-4">
+              <Image
+                src="/images/logo.png"
+                alt="NibTera Tickets Logo"
+                width={240}
+                height={80}
+                className="object-contain"
+                priority
+              />
+            </div>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -74,7 +70,7 @@ export default function LoginPage() {
                     <FormItem className="text-left">
                       <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="+1234567890" {...field} />
+                        <Input placeholder="0912345678" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
