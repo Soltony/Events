@@ -74,7 +74,7 @@ export default function LoginPage() {
                     <FormItem className="text-left">
                       <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="+1234567890" {...field} />
+                        <Input placeholder="0912345678" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
