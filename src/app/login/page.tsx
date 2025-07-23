@@ -55,7 +55,7 @@ export default function LoginPage() {
                 priority
             />
              <h2 className="text-xl font-semibold text-[#8B5E34] pt-2">
-                Building Management Solution
+                Login
             </h2>
         </CardHeader>
         <CardContent className="px-8 pb-8">
@@ -74,7 +74,7 @@ export default function LoginPage() {
                       <Input 
                         placeholder="e.g., 0912345678" 
                         {...field} 
-                        className="bg-transparent text-base"
+                        className="bg-transparent text-base border-0 border-b rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1"
                         />
                     </FormControl>
                     <FormMessage />
@@ -96,7 +96,7 @@ export default function LoginPage() {
                         </Link>
                     </div>
                     <FormControl>
-                      <PasswordInput {...field} className="bg-transparent text-base" />
+                      <PasswordInput {...field} className="bg-transparent text-base border-0 border-b rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
