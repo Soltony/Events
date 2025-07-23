@@ -47,11 +47,12 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { PlusCircle, Loader2 } from 'lucide-react';
+import { PlusCircle, Loader2, Users } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast"
 import { Skeleton } from '@/components/ui/skeleton';
 import { getUsersAndRoles, addUser, updateUserRole } from '@/lib/actions';
 import { PasswordInput } from '@/components/ui/password-input';
+import Link from 'next/link';
 
 interface UserWithRole extends User {
     role: Role;
@@ -60,7 +61,7 @@ interface UserWithRole extends User {
 const addUserFormSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required." }),
   lastName: z.string().min(1, { message: "Last name is required." }),
-  phoneNumber: z.string().min(1, { message: "Phone number is required." }),
+  phoneNumber: z.string().min(10, { message: "Phone number must be at least 10 digits." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
   roleId: z.string({ required_error: "Please select a role." }),
 });
@@ -154,52 +155,60 @@ export default function SettingsPage() {
                     <CardTitle>User Management</CardTitle>
                     <CardDescription>Assign roles to users in the system.</CardDescription>
                 </div>
-                <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
-                  <DialogTrigger asChild>
-                    <Button><PlusCircle className="mr-2 h-4 w-4" /> Add User</Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Add New User</DialogTitle>
-                      <DialogDescription>
-                          Invite a new member to your team by filling out the details below.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <Form {...addUserForm}>
-                      <form onSubmit={addUserForm.handleSubmit(onAddUserSubmit)} className="space-y-4">
-                         <div className="grid grid-cols-2 gap-4">
-                            <FormField control={addUserForm.control} name="firstName" render={({ field }) => (
-                                <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="John" {...field} /></FormControl><FormMessage /></FormItem>
+                <div className="flex items-center gap-2">
+                    <Button asChild variant="outline">
+                        <Link href="/dashboard/settings/roles/new">
+                            <Users className="mr-2 h-4 w-4" />
+                            Manage Roles
+                        </Link>
+                    </Button>
+                    <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
+                      <DialogTrigger asChild>
+                        <Button><PlusCircle className="mr-2 h-4 w-4" /> Add User</Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Add New User</DialogTitle>
+                          <DialogDescription>
+                              Invite a new member to your team by filling out the details below.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <Form {...addUserForm}>
+                          <form onSubmit={addUserForm.handleSubmit(onAddUserSubmit)} className="space-y-4">
+                             <div className="grid grid-cols-2 gap-4">
+                                <FormField control={addUserForm.control} name="firstName" render={({ field }) => (
+                                    <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="John" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                 <FormField control={addUserForm.control} name="lastName" render={({ field }) => (
+                                    <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Doe" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                            </div>
+                             <FormField control={addUserForm.control} name="phoneNumber" render={({ field }) => (
+                                <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="0912345678" {...field} /></FormControl><FormMessage /></FormItem>
+                             )}/>
+                            <FormField control={addUserForm.control} name="password" render={({ field }) => (
+                                <FormItem><FormLabel>Password</FormLabel><FormControl><PasswordInput placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
-                             <FormField control={addUserForm.control} name="lastName" render={({ field }) => (
-                                <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Doe" {...field} /></FormControl><FormMessage /></FormItem>
-                            )}/>
-                        </div>
-                         <FormField control={addUserForm.control} name="phoneNumber" render={({ field }) => (
-                            <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="0912345678" {...field} /></FormControl><FormMessage /></FormItem>
-                         )}/>
-                        <FormField control={addUserForm.control} name="password" render={({ field }) => (
-                            <FormItem><FormLabel>Password</FormLabel><FormControl><PasswordInput placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>
-                        )}/>
-                         <FormField control={addUserForm.control} name="roleId" render={({ field }) => (
-                            <FormItem><FormLabel>Role</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
-                                    <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                         )}/>
-                        <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setIsAddUserOpen(false)}>Cancel</Button>
-                            <Button type="submit" disabled={addUserForm.formState.isSubmitting}>
-                                {addUserForm.formState.isSubmitting && <Loader2 className="animate-spin mr-2" />} Add User
-                            </Button>
-                        </DialogFooter>
-                      </form>
-                    </Form>
-                  </DialogContent>
-                </Dialog>
+                             <FormField control={addUserForm.control} name="roleId" render={({ field }) => (
+                                <FormItem><FormLabel>Role</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
+                                        <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                             )}/>
+                            <DialogFooter>
+                                <Button type="button" variant="outline" onClick={() => setIsAddUserOpen(false)}>Cancel</Button>
+                                <Button type="submit" disabled={addUserForm.formState.isSubmitting}>
+                                    {addUserForm.formState.isSubmitting && <Loader2 className="animate-spin mr-2" />} Add User
+                                </Button>
+                            </DialogFooter>
+                          </form>
+                        </Form>
+                      </DialogContent>
+                    </Dialog>
+                </div>
             </CardHeader>
             <CardContent>
                 <Table>

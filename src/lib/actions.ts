@@ -276,9 +276,17 @@ export async function updateUserRole(userId: string, roleId: string) {
     return serialize(user);
 }
 
-export async function createRole(data: Omit<Role, 'id'>) {
-    const role = await prisma.role.create({ data: data as any });
+export async function createRole(data: { name: string; description: string; permissions: string[] }) {
+    const { name, description, permissions } = data;
+    const role = await prisma.role.create({
+        data: {
+            name,
+            description,
+            permissions: permissions.join(','),
+        },
+    });
     revalidatePath('/dashboard/settings');
+    revalidatePath('/dashboard/settings/roles/new');
     return serialize(role);
 }
 
