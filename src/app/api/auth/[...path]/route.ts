@@ -1,5 +1,5 @@
 
-import {NextRequest, NextResponse} from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 
 const AUTH_API_BASE_URL = process.env.AUTH_API_BASE_URL;
@@ -17,7 +17,7 @@ async function proxyRequest(req: NextRequest, context: { params: { path: string[
   const apiPath = params.path.join('/');
   const { search } = new URL(req.url);
   const targetUrl = `${AUTH_API_BASE_URL}/api/Auth/${apiPath}${search}`;
-  
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -41,9 +41,9 @@ async function proxyRequest(req: NextRequest, context: { params: { path: string[
         url: targetUrl,
         data: body,
         headers: headers,
-        validateStatus: () => true,
+        validateStatus: () => true, // Let us handle all status codes
     });
-    
+
     return new NextResponse(JSON.stringify(response.data), {
       status: response.status,
       headers: { 'Content-Type': 'application/json' },
@@ -60,4 +60,18 @@ async function proxyRequest(req: NextRequest, context: { params: { path: string[
   }
 }
 
-export { proxyRequest as GET, proxyRequest as POST, proxyRequest as PUT, proxyRequest as DELETE };
+export async function GET(req: NextRequest, context: { params: { path: string[] } }) {
+  return await proxyRequest(req, context);
+}
+
+export async function POST(req: NextRequest, context: { params: { path: string[] } }) {
+  return await proxyRequest(req, context);
+}
+
+export async function PUT(req: NextRequest, context: { params: { path: string[] } }) {
+  return await proxyRequest(req, context);
+}
+
+export async function DELETE(req: NextRequest, context: { params: { path: string[] } }) {
+  return await proxyRequest(req, context);
+}
