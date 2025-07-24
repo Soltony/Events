@@ -6,7 +6,7 @@ import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee } from '@prisma/client';
 import axios from 'axios';
 import { redirect } from 'next/navigation';
-import { cookies, headers } from 'next/headers';
+import { cookies } from 'next/headers';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -492,21 +492,24 @@ export async function changePassword(data: ChangePasswordData): Promise<{ succes
   if (!authApiUrl) {
     throw new Error("Authentication service URL is not configured.");
   }
-
+  
   try {
-    const response = await axios.post(`${authApiUrl}/api/Auth/change-password`, {
+    const requestData = {
       phoneNumber: data.phoneNumber,
       oldPassword: data.oldPassword,
       newPassword: data.newPassword,
-    }, {
+    };
+    
+    const requestConfig = {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${data.accessToken}`,
       }
-    });
+    };
+    
+    const response = await axios.post(`${authApiUrl}/api/Auth/change-password`, requestData, requestConfig);
 
     if (response.data && response.data.isSuccess) {
-      // After successful password change, update the flag in the DB
       await prisma.user.update({
         where: { phoneNumber: data.phoneNumber },
         data: { passwordChangeRequired: false }
@@ -676,5 +679,3 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
-
-    
