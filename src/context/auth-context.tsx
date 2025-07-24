@@ -140,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await api.post('/api/auth/login', requestData);
 
       if (response.data && response.data.isSuccess) {
-        const { accessToken, refreshToken, AccessToken, RefreshToken, passwordChangeRequired: apiPasswordChangeRequired } = response.data;
+        const { accessToken, refreshToken, AccessToken, RefreshToken } = response.data;
         const resolvedAccessToken = accessToken || AccessToken;
         const resolvedRefreshToken = refreshToken || RefreshToken;
 
@@ -148,14 +148,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const newTokens = { accessToken: resolvedAccessToken, refreshToken: resolvedRefreshToken };
           setTokens(newTokens);
           setAuthToken(resolvedAccessToken);
+          localStorage.setItem('authTokens', JSON.stringify(newTokens));
           
+          // Force a fresh fetch of user data from DB to get correct role/permissions
           const userData = await getUserByPhoneNumber(data.phoneNumber);
           if (!userData) {
             throw new Error('Failed to retrieve user data after login.');
           }
           setUser(userData);
-          
-          localStorage.setItem('authTokens', JSON.stringify(newTokens));
           localStorage.setItem('authUser', JSON.stringify(userData));
 
           const needsPasswordChange = userData.passwordChangeRequired;
