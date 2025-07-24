@@ -31,7 +31,7 @@ export default function LoginPage() {
     resolver: zodResolver(loginFormSchema),
     defaultValues: {
       phoneNumber: '0912345678',
-      password: 'password123',
+      password: 'Admin@123',
     },
   });
 

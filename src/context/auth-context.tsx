@@ -158,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           localStorage.setItem('authTokens', JSON.stringify(newTokens));
           localStorage.setItem('authUser', JSON.stringify(userData));
 
-          const isDefaultPassword = data.password === 'password123';
+          const isDefaultPassword = data.password === 'Admin@123';
           setPasswordChangeRequired(isDefaultPassword);
           localStorage.setItem('passwordChangeRequired', String(isDefaultPassword));
           
