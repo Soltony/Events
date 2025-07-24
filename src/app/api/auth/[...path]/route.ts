@@ -36,7 +36,7 @@ async function proxyRequest(req: NextRequest, context: { params: { path: string[
             }
         } catch (e) {
             // It's fine if the body is empty or not valid JSON
-            console.error("Could not parse request body:", e);
+            console.warn("Could not parse request body:", e);
         }
     }
 
