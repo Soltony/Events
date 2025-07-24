@@ -5,8 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter, useParams } from 'next/navigation';
-import { format } from 'date-fns';
-import { CalendarIcon, UploadCloud, Loader2, ArrowLeft } from 'lucide-react';
+import { UploadCloud, Loader2, ArrowLeft } from 'lucide-react';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -22,29 +21,25 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { updateEvent, getEventById } from '@/lib/actions';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import LocationInput from '@/components/location-input';
+import { DateTimePicker } from '@/components/datetime-picker';
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   location: z.string().min(3, { message: 'Location is required.' }),
   hint: z.string().optional(),
-  date: z.object({
-    from: z.date({
-      required_error: 'A start date for the event is required.',
-    }),
-    to: z.date().optional(),
+  startDate: z.date({
+    required_error: 'A start date and time for the event is required.',
   }),
+  endDate: z.date().optional(),
   category: z.string({ required_error: 'Please select a category.' }),
   otherCategory: z.string().optional(),
   image: z.string().optional(),
@@ -108,10 +103,8 @@ export default function EditEventPage() {
             hint: event.hint || '',
             category: isOtherCategory ? 'Other' : event.category,
             otherCategory: isOtherCategory ? event.category : '',
-            date: {
-              from: new Date(event.startDate),
-              to: event.endDate ? new Date(event.endDate) : undefined,
-            },
+            startDate: new Date(event.startDate),
+            endDate: event.endDate ? new Date(event.endDate) : undefined,
             image: event.image || '',
           });
           if (event.image) {
@@ -300,55 +293,39 @@ export default function EditEventPage() {
                   />
                 )}
               </div>
-              <FormField
-                control={form.control}
-                name="date"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Event Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={'outline'}
-                            className={cn(
-                              'w-full md:w-[300px] justify-start text-left font-normal',
-                              !field.value?.from && 'text-muted-foreground'
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {field.value?.from ? (
-                              field.value.to ? (
-                                <>
-                                  {format(field.value.from, 'LLL dd, y')} -{' '}
-                                  {format(field.value.to, 'LLL dd, y')}
-                                </>
-                              ) : (
-                                format(field.value.from, 'LLL dd, y')
-                              )
-                            ) : (
-                              <span>Pick a date range</span>
-                            )}
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="range"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date < new Date(new Date().setHours(0, 0, 0, 0))
-                          }
-                          initialFocus
-                          numberOfMonths={2}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="startDate"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Start Date & Time</FormLabel>
+                        <DateTimePicker
+                          date={field.value}
+                          setDate={field.onChange}
                         />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="endDate"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>End Date & Time</FormLabel>
+                         <DateTimePicker
+                          date={field.value}
+                          setDate={field.onChange}
+                        />
+                         <FormDescription>
+                           Optional: For multi-day events.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+              </div>
 
               <FormField
                 control={form.control}
@@ -461,5 +438,3 @@ export default function EditEventPage() {
     </div>
   );
 }
-
-    

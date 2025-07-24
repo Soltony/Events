@@ -311,8 +311,8 @@ export default function EventDetailPage() {
   const selloutPercentage = totalCapacity > 0 ? (totalSold / totalCapacity) * 100 : 0;
   
   const eventDate = event.endDate 
-    ? `${format(new Date(event.startDate), 'LLL dd, y')} - ${format(new Date(event.endDate), 'LLL dd, y')}`
-    : format(new Date(event.startDate), 'LLL dd, y');
+    ? `${format(new Date(event.startDate), 'LLL dd, y, hh:mm a')} - ${format(new Date(event.endDate), 'LLL dd, y, hh:mm a')}`
+    : format(new Date(event.startDate), 'LLL dd, y, hh:mm a');
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
@@ -606,5 +606,3 @@ export default function EventDetailPage() {
     </div>
   );
 }
-
-    

@@ -76,7 +76,7 @@ export async function getEventDetails(id: number) {
 }
 
 export async function addEvent(data: any) {
-    const { tickets, date, otherCategory, ...eventData } = data;
+    const { tickets, startDate, endDate, otherCategory, ...eventData } = data;
 
     // Determine the final category and remove the temporary 'otherCategory' field
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
@@ -90,8 +90,8 @@ export async function addEvent(data: any) {
         data: {
             ...eventData,
             category: finalCategory,
-            startDate: date.from,
-            endDate: date.to,
+            startDate: startDate,
+            endDate: endDate,
         },
     });
 
@@ -111,7 +111,7 @@ export async function addEvent(data: any) {
 }
 
 export async function updateEvent(id: number, data: any) {
-    const { date, otherCategory, ...eventData } = data;
+    const { startDate, endDate, otherCategory, ...eventData } = data;
 
     // Determine the final category
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
@@ -124,8 +124,8 @@ export async function updateEvent(id: number, data: any) {
         data: {
             ...eventDataForUpdate,
             category: finalCategory,
-            startDate: date.from,
-            endDate: date.to,
+            startDate: startDate,
+            endDate: endDate,
         }
     });
 

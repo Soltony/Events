@@ -23,10 +23,15 @@ interface EventWithTickets extends Event {
 }
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
+    const startDateFormat = 'LLL dd, y, hh:mm a';
+    
     if (endDate) {
-      return `${format(new Date(startDate), 'LLL dd, y')} - ${format(new Date(endDate), 'LLL dd, y')}`;
+      const endDateFormat = format(new Date(endDate), 'LLL dd, y') === format(new Date(startDate), 'LLL dd, y') 
+        ? 'hh:mm a'
+        : startDateFormat;
+      return `${format(new Date(startDate), startDateFormat)} - ${format(new Date(endDate), endDateFormat)}`;
     }
-    return format(new Date(startDate), 'LLL dd, y');
+    return format(new Date(startDate), startDateFormat);
 }
 
 export default function PublicHomePage() {
