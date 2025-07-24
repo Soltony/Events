@@ -334,7 +334,7 @@ export async function updateRole(id: string, data: Partial<Role>) {
         data: data,
     });
     revalidatePath('/dashboard/settings/roles');
-    revalidatePath(`/dashboard/settings/roles/${id}/edit`);
+    revalidatePath(`/dashboard/settings/roles/edit?id=${id}`);
     return serialize(role);
 }
 
@@ -348,6 +348,39 @@ export async function deleteRole(id: string) {
     revalidatePath('/dashboard/settings');
     revalidatePath('/dashboard/settings/roles');
     return serialize(role);
+}
+
+export async function resetPassword(phoneNumber: string, newPassword: string): Promise<void> {
+  const authApiUrl = process.env.AUTH_API_BASE_URL;
+  if (!authApiUrl) {
+    throw new Error('Authentication service URL is not configured.');
+  }
+
+  // First, verify the user exists in our local DB
+  const user = await prisma.user.findUnique({
+    where: { phoneNumber },
+  });
+
+  if (!user) {
+    throw new Error('No account found with this phone number.');
+  }
+
+  try {
+    const response = await axios.post(`${authApiUrl}/api/Auth/forgot-password`, {
+      phoneNumber,
+      newPassword,
+    });
+    
+    if (!response.data || !response.data.isSuccess) {
+      throw new Error(response.data.errors?.join(', ') || 'Failed to reset password.');
+    }
+  } catch (error: any) {
+    console.error('Error resetting password:', error);
+    if (error.response?.data?.errors) {
+      throw new Error(error.response.data.errors.join(', '));
+    }
+    throw new Error(error.message || 'Failed to communicate with authentication service.');
+  }
 }
 
 // Ticket/Attendee Actions
