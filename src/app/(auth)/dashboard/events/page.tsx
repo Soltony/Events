@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, ArrowUpRight, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { PlusCircle, ArrowUpRight, MoreHorizontal, Pencil, Trash2, MapPin } from "lucide-react";
 import Link from 'next/link';
 import Image from 'next/image';
 import { getEvents, deleteEvent } from '@/lib/actions';
@@ -30,22 +30,6 @@ import { Badge } from '@/components/ui/badge';
 import type { Event } from '@prisma/client';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
@@ -223,5 +207,3 @@ export default function ManageEventsPage() {
     </div>
   );
 }
-
-    
