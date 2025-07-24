@@ -23,8 +23,25 @@ export async function getEvents() {
 }
 
 export async function getPublicEvents(): Promise<(Event & { ticketTypes: TicketType[] })[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const events = await prisma.event.findMany({
-        where: { startDate: { gte: new Date() } },
+        where: {
+            OR: [
+                {
+                    endDate: {
+                        gte: today,
+                    },
+                },
+                {
+                    endDate: null,
+                    startDate: {
+                        gte: today,
+                    },
+                },
+            ],
+        },
         include: { ticketTypes: true },
         orderBy: { startDate: 'asc' },
     });
@@ -268,6 +285,7 @@ export async function addUser(data: any) {
                 firstName,
                 lastName,
                 phoneNumber,
+                email,
                 roleId,
             }
         });
