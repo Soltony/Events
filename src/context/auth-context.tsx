@@ -59,16 +59,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
     }
     
+    // We push to login before the async call to ensure immediate UI feedback
     router.push('/login');
 
     if (currentTokens) {
         try {
-            const requestData = {
+            // This call invalidates tokens on the server.
+            // It might fail if tokens are already expired, which is fine.
+            await api.post('/api/auth/logout', {
                 token: currentTokens.accessToken,
                 refreshToken: currentTokens.refreshToken,
-            };
-            await api.post('/api/auth/logout', requestData);
+            });
         } catch(error) {
+            // Silently fail. The client session is cleared regardless.
+            // This is important for scenarios like post-password-change,
+            // where the token is already invalid.
             console.error("Server logout failed, but client is logged out.", error);
         }
     }
@@ -93,13 +98,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
         console.error("Failed to parse auth data from localStorage", error);
-        localStorage.removeItem('authTokens');
-        localStorage.removeItem('authUser');
-        localStorage.removeItem('passwordChangeRequired');
+        logout({ reason: 'Your session was corrupted. Please log in again.'});
     } finally {
         setIsLoading(false);
     }
-  }, []);
+  }, [logout]);
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
