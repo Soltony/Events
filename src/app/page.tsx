@@ -130,7 +130,7 @@ export default function PublicHomePage() {
             ))
         ) : filteredEvents.length > 0 ? (
           filteredEvents.map((event) => {
-            const firstImage = event.image ? event.image.split(',')[0].trim() : 'https://placehold.co/600x400.png';
+            const firstImage = event.image?.split(',')[0].trim() || 'https://placehold.co/600x400.png';
             return (
               <Card key={event.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
                 <CardHeader className="p-0">
