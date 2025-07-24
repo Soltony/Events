@@ -12,9 +12,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { PasswordInput } from '@/components/ui/password-input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
-import { changePassword } from '@/lib/actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useRouter } from 'next/navigation';
+import api from '@/lib/api';
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, { message: 'Current password is required.' }),
@@ -31,7 +30,6 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const { user, tokens, passwordChangeRequired, logout } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const router = useRouter();
 
   const form = useForm<ChangePasswordFormValues>({
     resolver: zodResolver(changePasswordSchema),
@@ -50,21 +48,20 @@ export default function ProfilePage() {
 
     setIsSubmitting(true);
     try {
-        const result = await changePassword({
+        const result = await api.post('/api/auth/change-password', {
             phoneNumber: user.phoneNumber,
-            accessToken: tokens.accessToken,
             oldPassword: data.currentPassword,
             newPassword: data.newPassword,
         });
 
-        if (result.success) {
+        if (result.data.isSuccess) {
             toast({
                 title: 'Success!',
                 description: 'Your password has been changed successfully. Please log in again.',
             });
             await logout();
         } else {
-             throw new Error(result.message || 'Failed to change password.');
+             throw new Error(result.data.errors?.join(', ') || 'Failed to change password.');
         }
 
     } catch (error: any) {
@@ -72,7 +69,7 @@ export default function ProfilePage() {
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: error.message || 'An unknown error occurred.',
+            description: error.response?.data?.errors?.join(', ') || error.message || 'An unknown error occurred.',
         });
     } finally {
         setIsSubmitting(false);
@@ -162,5 +159,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    

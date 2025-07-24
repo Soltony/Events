@@ -6,7 +6,6 @@ import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee } from '@prisma/client';
 import axios from 'axios';
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -479,54 +478,6 @@ export async function resetPassword(phoneNumber: string, newPassword: string): P
     throw new Error(error.message || 'Failed to communicate with authentication service.');
   }
 }
-
-interface ChangePasswordData {
-  phoneNumber: string;
-  accessToken: string;
-  oldPassword: string;
-  newPassword: string;
-}
-
-export async function changePassword(data: ChangePasswordData): Promise<{ success: boolean; message: string }> {
-  const authApiUrl = process.env.AUTH_API_BASE_URL;
-  if (!authApiUrl) {
-    throw new Error("Authentication service URL is not configured.");
-  }
-  
-  try {
-    const requestData = {
-      phoneNumber: data.phoneNumber,
-      oldPassword: data.oldPassword,
-      newPassword: data.newPassword,
-    };
-    
-    const requestConfig = {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${data.accessToken}`,
-      }
-    };
-    
-    const response = await axios.post(`${authApiUrl}/api/Auth/change-password`, requestData, requestConfig);
-
-    if (response.data && response.data.isSuccess) {
-      await prisma.user.update({
-        where: { phoneNumber: data.phoneNumber },
-        data: { passwordChangeRequired: false }
-      });
-      revalidatePath('/dashboard/profile');
-      
-      return { success: true, message: 'Password changed successfully.' };
-    } else {
-      throw new Error(response.data.errors?.join(', ') || 'Failed to change password.');
-    }
-  } catch (error: any) {
-    console.error("Error changing password:", error);
-    const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'An unknown error occurred.';
-    throw new Error(errorMessage);
-  }
-}
-
 
 // Ticket/Attendee Actions
 interface PurchaseRequest {
