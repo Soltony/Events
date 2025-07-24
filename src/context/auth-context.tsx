@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import api, { setAuthToken } from '@/lib/api';
@@ -19,10 +19,12 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (data: any) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: (options?: { reason?: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const SESSION_TIMEOUT_DURATION = 15 * 60 * 1000; // 15 minutes
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
@@ -30,6 +32,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
+  
+  const logout = useCallback(async (options?: { reason?: string }) => {
+    const { reason } = options || {};
+    const currentTokens = JSON.parse(localStorage.getItem('authTokens') || 'null');
+
+    setUser(null);
+    setTokens(null);
+    setAuthToken(null);
+    localStorage.removeItem('authTokens');
+    localStorage.removeItem('authUser');
+    
+    if (reason) {
+        toast({
+            title: 'Session Expired',
+            description: reason,
+        });
+    }
+    
+    router.push('/');
+
+    if (currentTokens) {
+        try {
+            const requestData = {
+                token: currentTokens.accessToken,
+                refreshToken: currentTokens.refreshToken,
+            };
+            await api.post('/api/auth/logout', requestData);
+        } catch(error) {
+            console.error("Server logout failed, but client is logged out.", error);
+        }
+    }
+  }, [router, toast]);
+
 
   useEffect(() => {
     try {
@@ -51,6 +86,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    const resetTimeout = () => {
+      clearTimeout(timeoutId);
+      if (localStorage.getItem('authTokens')) {
+          timeoutId = setTimeout(() => {
+            logout({ reason: 'You have been logged out due to inactivity.' });
+          }, SESSION_TIMEOUT_DURATION);
+      }
+    };
+
+    const events = ['mousemove', 'keydown', 'click', 'scroll'];
+
+    const handleActivity = () => {
+        resetTimeout();
+    };
+
+    if (tokens) {
+      events.forEach(event => window.addEventListener(event, handleActivity));
+      resetTimeout();
+    }
+
+    return () => {
+      clearTimeout(timeoutId);
+      events.forEach(event => window.removeEventListener(event, handleActivity));
+    };
+  }, [tokens, logout]);
 
   const login = async (data: any) => {
     try {
@@ -102,29 +166,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const logout = async () => {
-    const currentTokens = tokens;
-    
-    setUser(null);
-    setTokens(null);
-    setAuthToken(null);
-    localStorage.removeItem('authTokens');
-    localStorage.removeItem('authUser');
-    router.push('/');
-
-    if (currentTokens) {
-        try {
-            const requestData = {
-                token: currentTokens.accessToken,
-                refreshToken: currentTokens.refreshToken,
-            };
-            await api.post('/api/auth/logout', requestData);
-        } catch(error) {
-            console.error("Server logout failed, but client is logged out.", error);
-        }
-    }
-  };
-
   const isAuthenticated = !isLoading && !!tokens && !!user;
 
   return (
