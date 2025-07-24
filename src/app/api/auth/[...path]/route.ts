@@ -2,9 +2,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 
-const AUTH_API_BASE_URL = process.env.AUTH_API_BASE_URL;
+const AUTH_API_BASE_URL = process.env.AUTH_API_BASE_URL || 'http://localhost:5160';
 
-async function handler(req: NextRequest, context: { params: { path: string[] } }) {
+async function proxyRequest(req: NextRequest, context: { params: { path: string[] } }) {
   if (!AUTH_API_BASE_URL) {
     console.error('AUTH_API_BASE_URL is not set.');
     return new NextResponse(
@@ -27,13 +27,13 @@ async function handler(req: NextRequest, context: { params: { path: string[] } }
   }
 
   try {
-    let body;
+    let body: any = null;
     // Check if the request method can have a body
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       try {
-        // req.json() will throw an error if body is empty, so we handle it
         body = await req.json();
       } catch (e) {
+        // Body might be empty, which is fine.
         body = null;
       }
     }
@@ -62,4 +62,18 @@ async function handler(req: NextRequest, context: { params: { path: string[] } }
   }
 }
 
-export { handler as GET, handler as POST, handler as PUT, handler as DELETE };
+export async function GET(req: NextRequest, context: { params: { path: string[] } }) {
+  return proxyRequest(req, context);
+}
+
+export async function POST(req: NextRequest, context: { params: { path: string[] } }) {
+  return proxyRequest(req, context);
+}
+
+export async function PUT(req: NextRequest, context: { params: { path: string[] } }) {
+  return proxyRequest(req, context);
+}
+
+export async function DELETE(req: NextRequest, context: { params: { path: string[] } }) {
+  return proxyRequest(req, context);
+}
