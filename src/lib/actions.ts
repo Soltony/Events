@@ -486,8 +486,9 @@ export async function changePassword(data: {oldPassword: string; newPassword: st
     throw new Error("Authentication service URL is not configured.");
   }
   
-  const tokenCookie = cookies().get('authTokens');
-  const userCookie = cookies().get('authUser');
+  const cookieStore = cookies();
+  const tokenCookie = cookieStore.get('authTokens');
+  const userCookie = cookieStore.get('authUser');
 
   if (!tokenCookie || !userCookie) {
     throw new Error("Authentication token or user information is missing.");
@@ -515,11 +516,13 @@ export async function changePassword(data: {oldPassword: string; newPassword: st
         where: { id: user.id },
         data: { passwordChangeRequired: false }
       });
-      revalidatePath('/dashboard/profile');
-
-      // Update the passwordChangeRequired cookie
+      
+      const updatedUser = await getUserByPhoneNumber(user.phoneNumber);
+      cookies().set('authUser', JSON.stringify(updatedUser));
       cookies().set('passwordChangeRequired', 'false');
 
+      revalidatePath('/dashboard/profile');
+      
       return { success: true, message: 'Password changed successfully.' };
     } else {
       throw new Error(response.data.errors?.join(', ') || 'Failed to change password.');
