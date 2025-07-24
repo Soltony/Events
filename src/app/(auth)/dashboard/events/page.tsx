@@ -4,14 +4,31 @@
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, ArrowUpRight, Pencil, MapPin } from "lucide-react";
+import { PlusCircle, ArrowUpRight, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import Link from 'next/link';
 import Image from 'next/image';
-import { getEvents } from '@/lib/actions';
+import { getEvents, deleteEvent } from '@/lib/actions';
 import { Badge } from '@/components/ui/badge';
 import type { Event } from '@prisma/client';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from '@/hooks/use-toast';
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
     const startDateFormat = 'LLL dd, y, hh:mm a';
@@ -28,21 +45,55 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 export default function ManageEventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const { toast } = useToast();
+
+  const fetchEvents = async () => {
+    try {
+        setLoading(true);
+        const fetchedEvents = await getEvents();
+        setEvents(fetchedEvents);
+    } catch (error) {
+        console.error("Failed to fetch events:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to load events.' });
+    } finally {
+        setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchData() {
-        try {
-            setLoading(true);
-            const fetchedEvents = await getEvents();
-            setEvents(fetchedEvents);
-        } catch (error) {
-            console.error("Failed to fetch events:", error);
-        } finally {
-            setLoading(false);
-        }
-    }
-    fetchData();
+    fetchEvents();
   }, []);
+  
+  const handleOpenDeleteDialog = (event: Event) => {
+    setEventToDelete(event);
+    setIsAlertOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!eventToDelete) return;
+
+    try {
+        await deleteEvent(eventToDelete.id);
+        toast({
+            title: 'Event Deleted',
+            description: `"${eventToDelete.name}" has been successfully deleted.`,
+        });
+        fetchEvents(); // Re-fetch events to update the list
+    } catch (error) {
+        console.error("Failed to delete event:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to delete the event.',
+        });
+    } finally {
+        setIsAlertOpen(false);
+        setEventToDelete(null);
+    }
+  };
+
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
@@ -88,13 +139,32 @@ export default function ManageEventsPage() {
                       {event.location}
                   </CardDescription>
                 </CardContent>
-                <CardFooter className="p-6 pt-0 grid grid-cols-2 gap-2">
-                  <Button asChild className="w-full" variant="outline">
-                      <Link href={`/dashboard/events/${event.id}/edit`}><Pencil className="mr-2 h-4 w-4" />Edit</Link>
-                  </Button>
-                  <Button asChild className="w-full">
-                    <Link href={`/dashboard/events/${event.id}`}>Manage <ArrowUpRight className="ml-auto h-4 w-4" /></Link>
-                  </Button>
+                <CardFooter className="p-6 pt-0 flex justify-end">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Event Actions</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                             <DropdownMenuItem asChild>
+                                <Link href={`/dashboard/events/${event.id}`}>
+                                    <ArrowUpRight className="mr-2 h-4 w-4" /> Manage
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                                <Link href={`/dashboard/events/${event.id}/edit`}>
+                                    <Pencil className="mr-2 h-4 w-4" /> Edit
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                                className="text-destructive focus:text-destructive" 
+                                onSelect={() => handleOpenDeleteDialog(event)}>
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </CardFooter>
               </Card>
             )
@@ -113,6 +183,25 @@ export default function ManageEventsPage() {
             </Card>
         )}
       </div>
+
+       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the event
+              <strong className="mx-1">"{eventToDelete?.name}"</strong>
+              and all of its associated data, including tickets and attendees.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+              Delete Event
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

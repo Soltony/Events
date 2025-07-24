@@ -138,6 +138,18 @@ export async function updateEvent(id: number, data: any) {
     return serialize(updatedEvent);
 }
 
+export async function deleteEvent(id: number) {
+  await prisma.$transaction([
+    prisma.attendee.deleteMany({ where: { eventId: id } }),
+    prisma.promoCode.deleteMany({ where: { eventId: id } }),
+    prisma.ticketType.deleteMany({ where: { eventId: id } }),
+    prisma.event.delete({ where: { id } }),
+  ]);
+  
+  revalidatePath('/dashboard/events');
+  revalidatePath('/');
+}
+
 
 export async function addTicketType(eventId: number, data: Omit<TicketType, 'id' | 'eventId' | 'createdAt' | 'updatedAt' | 'sold'>) {
     const newTicketType = await prisma.ticketType.create({
