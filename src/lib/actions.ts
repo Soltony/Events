@@ -507,16 +507,11 @@ export async function changePassword(data: ChangePasswordData): Promise<{ succes
 
     if (response.data && response.data.isSuccess) {
       // After successful password change, update the flag in the DB
-      const user = await prisma.user.findUnique({ where: { phoneNumber: data.phoneNumber } });
-      if (user) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { passwordChangeRequired: false }
-        });
-        
-        // No need to set cookies here as user will be logged out
-        revalidatePath('/dashboard/profile');
-      }
+      await prisma.user.update({
+        where: { phoneNumber: data.phoneNumber },
+        data: { passwordChangeRequired: false }
+      });
+      revalidatePath('/dashboard/profile');
       
       return { success: true, message: 'Password changed successfully.' };
     } else {
@@ -681,3 +676,5 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
+    
