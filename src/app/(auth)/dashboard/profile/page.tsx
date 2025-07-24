@@ -52,6 +52,10 @@ export default function ProfilePage() {
             phoneNumber: user.phoneNumber,
             currentPassword: data.currentPassword,
             newPassword: data.newPassword,
+        }, {
+            headers: {
+                Authorization: `Bearer ${tokens.accessToken}`
+            }
         });
 
         if (result.data.isSuccess) {
