@@ -26,7 +26,6 @@ interface AuthContextType {
   hasPermission: (permission: string) => boolean;
   login: (data: any) => Promise<void>;
   logout: (options?: { reason?: string }) => Promise<void>;
-  clearPasswordChangeRequired: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
     }
     
-    router.push('/');
+    router.push('/login');
 
     if (currentTokens) {
         try {
@@ -132,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [tokens, logout]);
 
   const login = async (data: any) => {
+    setIsLoading(true);
     try {
       const requestData = {
         phoneNumber: data.phoneNumber,
@@ -140,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await api.post('/api/auth/login', requestData);
 
       if (response.data && response.data.isSuccess) {
-        const { accessToken, refreshToken, AccessToken, RefreshToken } = response.data;
+        const { accessToken, refreshToken, AccessToken, RefreshToken, passwordChangeRequired: apiPasswordChangeRequired } = response.data;
         const resolvedAccessToken = accessToken || AccessToken;
         const resolvedRefreshToken = refreshToken || RefreshToken;
 
@@ -158,16 +158,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           localStorage.setItem('authTokens', JSON.stringify(newTokens));
           localStorage.setItem('authUser', JSON.stringify(userData));
 
-          const isDefaultPassword = data.password === 'Admin@123';
-          setPasswordChangeRequired(isDefaultPassword);
-          localStorage.setItem('passwordChangeRequired', String(isDefaultPassword));
+          const needsPasswordChange = userData.passwordChangeRequired;
+          setPasswordChangeRequired(needsPasswordChange);
+          localStorage.setItem('passwordChangeRequired', String(needsPasswordChange));
           
           toast({
             title: 'Login Successful',
             description: 'Redirecting...',
           });
           
-          if (isDefaultPassword) {
+          if (needsPasswordChange) {
             router.push('/dashboard/profile');
           } else {
             // Role-based redirection
@@ -198,18 +198,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: errorMessage,
       });
       console.error('Login error:', error);
+    } finally {
+        setIsLoading(false);
     }
   };
   
-  const clearPasswordChangeRequired = () => {
-    setPasswordChangeRequired(false);
-    localStorage.removeItem('passwordChangeRequired');
-  }
-
   const hasPermission = (permission: string) => {
     if (!user || !user.role?.permissions) {
       return false;
     }
+    // Admin has all permissions
+    if (user.role.name === 'Admin') return true;
+    
     const userPermissions = user.role.permissions.split(',');
     return userPermissions.includes(permission);
   };
@@ -217,7 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = !isLoading && !!tokens && !!user;
 
   return (
-    <AuthContext.Provider value={{ tokens, user, isAuthenticated, isLoading, passwordChangeRequired, hasPermission, login, logout, clearPasswordChangeRequired }}>
+    <AuthContext.Provider value={{ tokens, user, isAuthenticated, isLoading, passwordChangeRequired, hasPermission, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

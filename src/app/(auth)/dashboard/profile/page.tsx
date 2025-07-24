@@ -12,8 +12,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { PasswordInput } from '@/components/ui/password-input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
-import api from '@/lib/api';
+import { changePassword } from '@/lib/actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useRouter } from 'next/navigation';
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, { message: 'Current password is required.' }),
@@ -28,8 +29,9 @@ type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
 
 export default function ProfilePage() {
   const { toast } = useToast();
-  const { user, passwordChangeRequired, clearPasswordChangeRequired, tokens } = useAuth();
+  const { user, passwordChangeRequired, logout } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
 
   const form = useForm<ChangePasswordFormValues>({
     resolver: zodResolver(changePasswordSchema),
@@ -48,34 +50,28 @@ export default function ProfilePage() {
 
     setIsSubmitting(true);
     try {
-        const response = await api.post('/api/auth/change-password', {
-            phoneNumber: user.phoneNumber,
+        const result = await changePassword({
             oldPassword: data.currentPassword,
             newPassword: data.newPassword,
-        }, {
-          headers: {
-            Authorization: `Bearer ${tokens?.accessToken}`
-          }
         });
 
-        if (response.data.isSuccess) {
+        if (result.success) {
             toast({
                 title: 'Success!',
-                description: 'Your password has been changed successfully.',
+                description: 'Your password has been changed successfully. Please log in again.',
             });
-            clearPasswordChangeRequired();
-            form.reset();
+            // Force re-login to ensure new session state
+            await logout();
         } else {
-             throw new Error(response.data.errors?.join(', ') || 'Failed to change password.');
+             throw new Error(result.message || 'Failed to change password.');
         }
 
     } catch (error: any) {
         console.error("Failed to change password:", error);
-        const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'An unknown error occurred.';
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: errorMessage,
+            description: error.message || 'An unknown error occurred.',
         });
     } finally {
         setIsSubmitting(false);
