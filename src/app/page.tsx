@@ -84,7 +84,7 @@ export default function PublicHomePage() {
 
   return (
     <div className="flex flex-1 flex-col">
-       <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 lg:p-6">
+       <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-4 lg:px-6 py-4">
         <div className="flex-shrink-0">
           <Image src="/image/nibtickets.jpg"alt="NibTera Tickets Logo" width={200} height={50} data-ai-hint="logo nibtera" />
         </div>
