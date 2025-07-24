@@ -54,7 +54,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (data: any) => {
     try {
-      // Use camelCase for the request payload
       const requestData = {
         phoneNumber: data.phoneNumber,
         password: data.password,
@@ -63,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (response.data && response.data.isSuccess) {
         // The response might use PascalCase, so handle both possibilities
-        const { accessToken, refreshToken, AccessToken, RefreshToken } = response.data;
+        const { accessToken, refreshToken, AccessToken, RefreshToken } = response.data.result;
         const resolvedAccessToken = accessToken || AccessToken;
         const resolvedRefreshToken = refreshToken || RefreshToken;
 
@@ -116,8 +115,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (currentTokens) {
         try {
             const requestData = {
-                AccessToken: currentTokens.accessToken,
-                RefreshToken: currentTokens.refreshToken,
+                token: currentTokens.accessToken,
+                refreshToken: currentTokens.refreshToken,
             };
             await api.post('/api/auth/logout', requestData);
         } catch(error) {

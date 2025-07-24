@@ -241,11 +241,28 @@ export async function getUserByPhoneNumber(phoneNumber: string): Promise<User | 
 }
 
 export async function addUser(data: any) {
-    const { firstName, lastName, phoneNumber, roleId } = data;
+    const { firstName, lastName, phoneNumber, email, password, roleId } = data;
 
-    // This function will now only create the user in the local database.
-    // The password is not stored as there is no local authentication mechanism.
+    const authApiUrl = process.env.AUTH_API_BASE_URL;
+    if (!authApiUrl) {
+        throw new Error("Authentication service URL is not configured.");
+    }
+    
     try {
+        // 1. Register user with the external authentication service
+        const registrationResponse = await axios.post(`${authApiUrl}/api/Auth/register`, {
+            firstName,
+            lastName,
+            phoneNumber,
+            email,
+            password
+        });
+
+        if (!registrationResponse.data || !registrationResponse.data.isSuccess) {
+            throw new Error(registrationResponse.data.errors?.join(', ') || 'Failed to register user with auth service.');
+        }
+
+        // 2. Create the user in the local database
         const user = await prisma.user.create({
             data: {
                 firstName,
@@ -255,17 +272,26 @@ export async function addUser(data: any) {
             }
         });
     
-        revalidatePath('/dashboard/settings');
+        revalidatePath('/dashboard/settings/users');
         return serialize(user);
+
     } catch (error: any) {
         console.error("Error creating user:", error);
-        // Check for specific Prisma error for duplicate phone number
+        
+        // Handle axios specific error format
+        if (error.response?.data?.errors) {
+            throw new Error(error.response.data.errors.join(', '));
+        }
+        
+        // Handle Prisma specific error for duplicate phone number
         if (error.code === 'P2002' && error.meta?.target?.includes('phoneNumber')) {
              throw new Error('A user with this phone number already exists.');
         }
-        throw new Error('Failed to create user.');
+        
+        throw new Error(error.message || 'Failed to create user.');
     }
 }
+
 
 export async function updateUserRole(userId: string, roleId: string) {
     const user = await prisma.user.update({

@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
-import { Loader2, ArrowRight, User, Phone, Lock } from 'lucide-react';
+import { Loader2, ArrowRight, User, Phone, Lock, Mail } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -29,6 +29,7 @@ const registerFormSchema = z.object({
   firstName: z.string().min(1, { message: 'First name is required.' }),
   lastName: z.string().min(1, { message: 'Last name is required.' }),
   phoneNumber: z.string().min(1, { message: 'Phone number is required.' }),
+  email: z.string().email({ message: 'Invalid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
 });
 
@@ -45,6 +46,7 @@ export default function RegisterPage() {
       firstName: '',
       lastName: '',
       phoneNumber: '',
+      email: '',
       password: '',
     },
   });
@@ -52,13 +54,7 @@ export default function RegisterPage() {
   async function onSubmit(data: RegisterFormValues) {
     setIsLoading(true);
     try {
-      const requestData = {
-          firstName: data.firstName,
-          lastName: data.lastName,
-          phoneNumber: data.phoneNumber,
-          password: data.password,
-      };
-      const response = await api.post(`/api/auth/register`, requestData);
+      const response = await api.post(`/api/auth/register`, data);
 
       if (response.data.isSuccess) {
         toast({
@@ -106,7 +102,7 @@ export default function RegisterPage() {
                 <FormField control={form.control} name="firstName" render={({ field }) => (
                     <FormItem>
                       <FormLabel className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><User className="h-4 w-4" />First Name</FormLabel>
-                      <FormControl><Input placeholder="John" {...field} className="bg-transparent text-base" /></FormControl>
+                      <FormControl><Input placeholder="John" {...field} className="bg-transparent text-base border-0 border-b rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -114,7 +110,7 @@ export default function RegisterPage() {
                 <FormField control={form.control} name="lastName" render={({ field }) => (
                     <FormItem>
                       <FormLabel className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><User className="h-4 w-4" />Last Name</FormLabel>
-                      <FormControl><Input placeholder="Doe" {...field} className="bg-transparent text-base" /></FormControl>
+                      <FormControl><Input placeholder="Doe" {...field} className="bg-transparent text-base border-0 border-b rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -123,7 +119,15 @@ export default function RegisterPage() {
               <FormField control={form.control} name="phoneNumber" render={({ field }) => (
                   <FormItem>
                     <FormLabel className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><Phone className="h-4 w-4" />Phone Number</FormLabel>
-                    <FormControl><Input placeholder="e.g., 0912345678" {...field} className="bg-transparent text-base" /></FormControl>
+                    <FormControl><Input placeholder="e.g., 0912345678" {...field} className="bg-transparent text-base border-0 border-b rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField control={form.control} name="email" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><Mail className="h-4 w-4" />Email</FormLabel>
+                    <FormControl><Input placeholder="e.g., a@a.com" {...field} className="bg-transparent text-base border-0 border-b rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -131,7 +135,7 @@ export default function RegisterPage() {
               <FormField control={form.control} name="password" render={({ field }) => (
                   <FormItem>
                     <FormLabel className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><Lock className="h-4 w-4" />Password</FormLabel>
-                    <FormControl><PasswordInput placeholder="••••••••" {...field} className="bg-transparent text-base" /></FormControl>
+                    <FormControl><PasswordInput placeholder="••••••••" {...field} className="bg-transparent text-base border-0 border-b rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 px-1" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

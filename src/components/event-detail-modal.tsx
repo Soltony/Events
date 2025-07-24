@@ -11,7 +11,7 @@ import type { Event, TicketType } from '@prisma/client';
 import { format } from 'date-fns';
 import { ScrollArea } from './ui/scroll-area';
 import { useTransition, useState } from 'react';
-import { purchaseTicket } from '@/lib/actions';
+import { purchaseTickets } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 
 interface EventWithTickets extends Event {
@@ -38,13 +38,16 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
 
   if (!event) return null;
   
-  const handlePurchase = (ticketTypeId: number) => {
-    setLoadingTicketId(ticketTypeId);
+  const handlePurchase = (ticketType: TicketType) => {
+    setLoadingTicketId(ticketType.id);
     startTransition(async () => {
-      // This will now correctly redirect on success.
-      // If purchaseTicket throws a real error, startTransition will catch it.
-      // The NEXT_REDIRECT error will not be caught here by the user, it will be handled by Next.js.
-      await purchaseTicket(event.id, ticketTypeId);
+      // The purchaseTickets function expects an array of tickets.
+      // We are buying one type of ticket here, with quantity 1.
+      await purchaseTickets({
+        eventId: event.id,
+        tickets: [{ id: ticketType.id, quantity: 1 }]
+      });
+      // The redirect is handled inside the server action, so no need for toast here on success.
     });
   };
 
@@ -118,7 +121,7 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
                                                     <p className="text-xs text-muted-foreground">{ticket.total - ticket.sold > 0 ? `${ticket.total - ticket.sold} remaining` : 'Sold Out'}</p>
                                                 </div>
                                                 <Button 
-                                                    onClick={() => handlePurchase(ticket.id)}
+                                                    onClick={() => handlePurchase(ticket)}
                                                     disabled={isLoading || ticket.total - ticket.sold <= 0}
                                                     className="w-full sm:w-auto shrink-0 bg-accent hover:bg-accent/90 text-accent-foreground"
                                                     size="sm"
