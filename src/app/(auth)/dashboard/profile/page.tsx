@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { Loader2, KeyRound } from 'lucide-react';
+import { Loader2, KeyRound, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -13,6 +13,7 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import api from '@/lib/api';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, { message: 'Current password is required.' }),
@@ -27,7 +28,7 @@ type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
 
 export default function ProfilePage() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, passwordChangeRequired, clearPasswordChangeRequired } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<ChangePasswordFormValues>({
@@ -58,6 +59,7 @@ export default function ProfilePage() {
                 title: 'Success!',
                 description: 'Your password has been changed successfully.',
             });
+            clearPasswordChangeRequired();
             form.reset();
         } else {
              throw new Error(response.data.errors?.join(', ') || 'Failed to change password.');
@@ -81,6 +83,16 @@ export default function ProfilePage() {
         <h1 className="text-3xl font-bold tracking-tight">My Profile</h1>
         <p className="text-muted-foreground">Manage your account settings.</p>
       </div>
+      
+      {passwordChangeRequired && (
+        <Alert variant="destructive" className="border-yellow-500/50 text-yellow-500 dark:border-yellow-500 [&>svg]:text-yellow-500">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Action Required</AlertTitle>
+            <AlertDescription>
+                For your security, you must change your password before you can access the rest of the application.
+            </AlertDescription>
+        </Alert>
+      )}
 
       <Card className="max-w-2xl">
         <CardHeader>

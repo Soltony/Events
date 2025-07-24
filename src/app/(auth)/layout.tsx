@@ -30,8 +30,8 @@ export default function AuthLayout({
             <Sidebar>
                 <SidebarContent>
                     <div className="flex flex-col h-full">
-                        <SidebarHeader className="p-4 border-b border-sidebar-border">
-                             <div className="flex items-center justify-between">
+                        <SidebarHeader className="p-4 h-16 flex items-center border-b border-sidebar-border">
+                             <div className="flex items-center justify-between w-full">
                                 <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
                                      <Image
                                     src="/image/nibtickets.jpg"
@@ -47,7 +47,7 @@ export default function AuthLayout({
                                 </div>
                              </div>
                         </SidebarHeader>
-                        <div className="flex-1 overflow-auto py-2">
+                        <div className="flex-1 py-2">
                             <MainNav />
                         </div>
                     </div>

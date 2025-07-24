@@ -2,20 +2,26 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/auth-context';
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
+  const pathname = usePathname();
+  const { isAuthenticated, isLoading, passwordChangeRequired } = useAuth();
 
   useEffect(() => {
     // If loading is finished and user is not authenticated, redirect to login.
     if (!isLoading && !isAuthenticated) {
       router.replace('/login');
     }
-  }, [router, isAuthenticated, isLoading]);
+    
+    // If password change is required, redirect to profile page, unless already there.
+    if (!isLoading && isAuthenticated && passwordChangeRequired && pathname !== '/dashboard/profile') {
+        router.replace('/dashboard/profile');
+    }
+  }, [router, isAuthenticated, isLoading, passwordChangeRequired, pathname]);
 
   // While loading auth state or if not authenticated (and about to be redirected),
   // show a loading skeleton to prevent flashing the protected content.

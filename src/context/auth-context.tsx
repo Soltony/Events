@@ -18,8 +18,10 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  passwordChangeRequired: boolean;
   login: (data: any) => Promise<void>;
   logout: (options?: { reason?: string }) => Promise<void>;
+  clearPasswordChangeRequired: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [passwordChangeRequired, setPasswordChangeRequired] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   
@@ -39,9 +42,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUser(null);
     setTokens(null);
+    setPasswordChangeRequired(false);
     setAuthToken(null);
     localStorage.removeItem('authTokens');
     localStorage.removeItem('authUser');
+    localStorage.removeItem('passwordChangeRequired');
     
     if (reason) {
         toast({
@@ -70,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const storedTokens = localStorage.getItem('authTokens');
       const storedUser = localStorage.getItem('authUser');
+      const storedPasswordStatus = localStorage.getItem('passwordChangeRequired');
 
       if (storedTokens && storedUser) {
         const parsedTokens = JSON.parse(storedTokens);
@@ -77,11 +83,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTokens(parsedTokens);
         setUser(parsedUser);
         setAuthToken(parsedTokens.accessToken);
+        if (storedPasswordStatus === 'true') {
+            setPasswordChangeRequired(true);
+        }
       }
     } catch (error) {
         console.error("Failed to parse auth data from localStorage", error);
         localStorage.removeItem('authTokens');
         localStorage.removeItem('authUser');
+        localStorage.removeItem('passwordChangeRequired');
     } finally {
         setIsLoading(false);
     }
@@ -125,7 +135,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await api.post('/api/auth/login', requestData);
 
       if (response.data && response.data.isSuccess) {
-        // The response might use PascalCase, so handle both possibilities
         const { accessToken, refreshToken, AccessToken, RefreshToken } = response.data;
         const resolvedAccessToken = accessToken || AccessToken;
         const resolvedRefreshToken = refreshToken || RefreshToken;
@@ -140,13 +149,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           localStorage.setItem('authTokens', JSON.stringify(newTokens));
           localStorage.setItem('authUser', JSON.stringify(userData));
+
+          // Simulate password change requirement check
+          const isDefaultPassword = data.password === 'password123';
+          setPasswordChangeRequired(isDefaultPassword);
+          localStorage.setItem('passwordChangeRequired', String(isDefaultPassword));
           
           toast({
             title: 'Login Successful',
             description: 'Redirecting to your dashboard...',
           });
           
-          router.push('/dashboard');
+          if (isDefaultPassword) {
+            router.push('/dashboard/profile');
+          } else {
+            router.push('/dashboard');
+          }
           router.refresh();
         } else {
           throw new Error('Login failed: Authentication tokens were not provided in the response.');
@@ -166,10 +184,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
   
+  const clearPasswordChangeRequired = () => {
+    setPasswordChangeRequired(false);
+    localStorage.removeItem('passwordChangeRequired');
+  }
+
   const isAuthenticated = !isLoading && !!tokens && !!user;
 
   return (
-    <AuthContext.Provider value={{ tokens, user, isAuthenticated, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ tokens, user, isAuthenticated, isLoading, passwordChangeRequired, login, logout, clearPasswordChangeRequired }}>
       {children}
     </AuthContext.Provider>
   );
