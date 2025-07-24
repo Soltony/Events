@@ -86,7 +86,7 @@ async function main() {
       endDate: addDays(today, 32),
       location: 'Metropolis Convention Center',
       category: 'Technology',
-      image: 'https://placehold.co/600x400.png',
+      image: '/image/nibtickets.jpg',
       hint: 'technology conference',
       ticketTypes: {
         create: [
@@ -113,7 +113,7 @@ async function main() {
       endDate: addDays(today, 61),
       location: 'Sunshine Valley Park',
       category: 'Music',
-      image: 'https://placehold.co/600x400.png',
+      image: '/image/nibtickets.jpg',
       hint: 'music festival',
       ticketTypes: {
         create: [
@@ -134,7 +134,7 @@ async function main() {
       startDate: addDays(today, 15),
       location: 'The Downtown Gallery',
       category: 'Art',
-      image: 'https://placehold.co/600x400.png',
+      image: '/image/nibtickets.jpg',
       hint: 'art gallery',
       ticketTypes: {
         create: [

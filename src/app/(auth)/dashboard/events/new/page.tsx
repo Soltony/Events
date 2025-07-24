@@ -59,7 +59,7 @@ const eventFormSchema = z.object({
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
 
-const DEFAULT_IMAGE_PLACEHOLDER = 'https://placehold.co/600x400.png';
+const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 
 export default function CreateEventPage() {
   const router = useRouter();

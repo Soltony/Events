@@ -137,7 +137,7 @@ export default function PublicHomePage() {
             ))
         ) : filteredEvents.length > 0 ? (
           filteredEvents.map((event) => {
-            const firstImage = event.image || 'https://placehold.co/600x400.png';
+            const firstImage = event.image || '/image/nibtickets.jpg';
             return (
               <Card key={event.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
                 <CardHeader className="p-0">

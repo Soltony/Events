@@ -73,7 +73,7 @@ export default function ManageEventsPage() {
             ))
         ) : events.length > 0 ? (
           events.map((event) => {
-            const imageUrl = event.image || 'https://placehold.co/600x400.png';
+            const imageUrl = event.image || '/image/nibtickets.jpg';
             return (
               <Card key={event.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
                 <CardHeader className="p-0">

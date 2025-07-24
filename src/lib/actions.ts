@@ -83,7 +83,7 @@ export async function addEvent(data: any) {
     
     // Set default image if one isn't provided
     if (!eventData.image) {
-        eventData.image = 'https://placehold.co/600x400.png';
+        eventData.image = '/image/nibtickets.jpg';
     }
     
     const newEvent = await prisma.event.create({
@@ -258,7 +258,7 @@ export async function getUserByPhoneNumber(phoneNumber: string): Promise<User | 
 }
 
 export async function addUser(data: any) {
-    const { firstName, lastName, phoneNumber, email, password, roleId } = data;
+    const { firstName, lastName, phoneNumber, password, roleId } = data;
 
     const authApiUrl = process.env.AUTH_API_BASE_URL;
     if (!authApiUrl) {
@@ -271,7 +271,6 @@ export async function addUser(data: any) {
             firstName,
             lastName,
             phoneNumber,
-            email,
             password
         });
 

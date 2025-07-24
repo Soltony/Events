@@ -168,7 +168,7 @@ export default function PublicEventDetailPage() {
     )
   }
   
-  const firstImage = event.image?.split(',')[0].trim() || 'https://placehold.co/1200x600.png';
+  const firstImage = event.image?.split(',')[0].trim() || '/image/nibtickets.jpg';
 
   return (
     <div className="container mx-auto p-4 md:p-8 max-w-4xl">
