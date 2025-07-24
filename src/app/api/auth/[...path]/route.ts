@@ -20,7 +20,7 @@ async function proxyHandler(req: NextRequest, { params }: { params: { path: stri
   try {
     let body;
     const contentType = req.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
+    if (req.method !== 'GET' && contentType && contentType.includes('application/json')) {
       try {
         body = await req.json();
       } catch (e) {
