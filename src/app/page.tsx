@@ -130,12 +130,12 @@ export default function PublicHomePage() {
             ))
         ) : filteredEvents.length > 0 ? (
           filteredEvents.map((event) => {
-            const imageUrl = event.image || 'https://placehold.co/600x400.png';
+            const firstImage = event.image ? event.image.split(',')[0].trim() : 'https://placehold.co/600x400.png';
             return (
               <Card key={event.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
                 <CardHeader className="p-0">
                   <button onClick={() => handleEventClick(event)} className="w-full text-left">
-                    <Image src={imageUrl.split(',')[0]} alt={event.name} width={600} height={338} className="rounded-t-lg object-cover aspect-video" data-ai-hint={event.hint ?? 'event'} />
+                    <Image src={firstImage} alt={event.name} width={600} height={338} className="rounded-t-lg object-cover aspect-video" data-ai-hint={event.hint ?? 'event'} />
                   </button>
                 </CardHeader>
                 <CardContent className="p-3 flex-1 space-y-1">
@@ -172,4 +172,3 @@ export default function PublicHomePage() {
     </div>
   );
 }
-
