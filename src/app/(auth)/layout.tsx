@@ -31,7 +31,7 @@ export default function AuthLayout({
                 <SidebarContent>
                     <div className="flex flex-col h-full">
                         <SidebarHeader className="p-4 border-b border-sidebar-border">
-                             <div className="flex items-center gap-2">
+                             <div className="flex items-center justify-between">
                                 <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
                                      <Image
                                     src="/image/nibtickets.jpg"
@@ -41,12 +41,8 @@ export default function AuthLayout({
                                     className="object-contain rounded-md"
                                     data-ai-hint="logo nibtera"
                                     />
-                                     <div className="flex flex-col">
-                                        <span className="text-sm font-bold text-sidebar-foreground">NibTera</span>
-                                        <span className="text-xs text-sidebar-foreground/80">Ticketing Solution</span>
-                                    </div>
                                 </Link>
-                                <div className="ml-auto md:hidden">
+                                <div className="md:hidden">
                                      <SidebarTrigger />
                                 </div>
                              </div>
