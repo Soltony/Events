@@ -7,7 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Menu, PanelLeft } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import AuthGuard from '@/components/auth-guard';
 import {
   SidebarProvider,
@@ -27,7 +27,7 @@ export default function AuthLayout({
     <AuthGuard>
       <SidebarProvider>
         <div className="flex min-h-screen w-full flex-col">
-          <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-30">
+          <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-sidebar text-sidebar-primary-foreground px-4 md:px-6 z-30">
             <div className="flex items-center gap-4">
                <div className="md:hidden">
                 <Sheet>
@@ -76,7 +76,7 @@ export default function AuthLayout({
             </div>
           </header>
           <div className="flex flex-1">
-            <Sidebar className="border-r bg-muted/40">
+            <Sidebar>
               <SidebarContent>
                  <div className="flex flex-col h-full">
                   <SidebarHeader className="flex items-center justify-between p-2">
