@@ -4,7 +4,7 @@ import axios from 'axios';
 
 const AUTH_API_BASE_URL = process.env.AUTH_API_BASE_URL;
 
-async function proxyRequest(req: NextRequest, context: { params: { path: string[] } }) {
+async function handler(req: NextRequest, context: { params: { path: string[] } }) {
   if (!AUTH_API_BASE_URL) {
     console.error('AUTH_API_BASE_URL is not set.');
     return new NextResponse(
@@ -60,18 +60,7 @@ async function proxyRequest(req: NextRequest, context: { params: { path: string[
   }
 }
 
-export async function GET(req: NextRequest, context: { params: { path: string[] } }) {
-  return proxyRequest(req, context);
-}
-
-export async function POST(req: NextRequest, context: { params: { path: string[] } }) {
-  return proxyRequest(req, context);
-}
-
-export async function PUT(req: NextRequest, context: { params: { path: string[] } }) {
-  return proxyRequest(req, context);
-}
-
-export async function DELETE(req: NextRequest, context: { params: { path: string[] } }) {
-  return proxyRequest(req, context);
-}
+export const GET = handler;
+export const POST = handler;
+export const PUT = handler;
+export const DELETE = handler;
