@@ -28,7 +28,7 @@ type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
 
 export default function ProfilePage() {
   const { toast } = useToast();
-  const { user, passwordChangeRequired, clearPasswordChangeRequired } = useAuth();
+  const { user, passwordChangeRequired, clearPasswordChangeRequired, tokens } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<ChangePasswordFormValues>({
@@ -52,6 +52,10 @@ export default function ProfilePage() {
             phoneNumber: user.phoneNumber,
             oldPassword: data.currentPassword,
             newPassword: data.newPassword,
+        }, {
+          headers: {
+            Authorization: `Bearer ${tokens?.accessToken}`
+          }
         });
 
         if (response.data.isSuccess) {
@@ -67,10 +71,11 @@ export default function ProfilePage() {
 
     } catch (error: any) {
         console.error("Failed to change password:", error);
+        const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'An unknown error occurred.';
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: error.message || 'An unknown error occurred.',
+            description: errorMessage,
         });
     } finally {
         setIsSubmitting(false);
