@@ -401,6 +401,32 @@ export async function resetPassword(phoneNumber: string, newPassword: string): P
   }
 }
 
+export async function changePassword(data: any): Promise<{ success: boolean; message: string }> {
+  const authApiUrl = process.env.AUTH_API_BASE_URL;
+  if (!authApiUrl) {
+    throw new Error("Authentication service URL is not configured.");
+  }
+  try {
+    const response = await axios.post(`${authApiUrl}/api/Auth/change-password`, data, {
+      headers: {
+        // This assumes the auth token is already set in the axios instance by the client
+        'Content-Type': 'application/json',
+      }
+    });
+
+    if (response.data && response.data.isSuccess) {
+      return { success: true, message: 'Password changed successfully.' };
+    } else {
+      throw new Error(response.data.errors?.join(', ') || 'Failed to change password.');
+    }
+  } catch (error: any) {
+    console.error("Error changing password:", error);
+    const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'An unknown error occurred.';
+    throw new Error(errorMessage);
+  }
+}
+
+
 // Ticket/Attendee Actions
 interface PurchaseRequest {
   eventId: number;

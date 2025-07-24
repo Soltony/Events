@@ -27,14 +27,20 @@ async function proxyHandler(req: NextRequest, { params }: { params: { path: stri
         body = null;
       }
     }
+    
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+    };
+    const authorization = req.headers.get('authorization');
+    if (authorization) {
+        headers['Authorization'] = authorization;
+    }
 
     const response = await axios({
       method: req.method,
       url: targetUrl,
       data: body,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: headers,
       validateStatus: () => true, 
     });
 
