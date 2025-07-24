@@ -353,7 +353,7 @@ export async function deleteRole(id: string) {
 // Ticket/Attendee Actions
 interface PurchaseRequest {
   eventId: number;
-  tickets: { id: number; quantity: number }[];
+  tickets: { id: number; quantity: number, name: string; price: number }[];
   promoCode?: string;
 }
 

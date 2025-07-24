@@ -45,7 +45,7 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
       // We are buying one type of ticket here, with quantity 1.
       await purchaseTickets({
         eventId: event.id,
-        tickets: [{ id: ticketType.id, quantity: 1 }]
+        tickets: [{ id: ticketType.id, quantity: 1, name: ticketType.name, price: Number(ticketType.price) }]
       });
       // The redirect is handled inside the server action, so no need for toast here on success.
     });
