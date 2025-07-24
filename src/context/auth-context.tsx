@@ -147,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (resolvedAccessToken) {
           const newTokens = { accessToken: resolvedAccessToken, refreshToken: resolvedRefreshToken };
           setTokens(newTokens);
-          setAuthToken(resolvedAccessToken);
+          setAuthToken(resolvedAccessToken); // <<< CRITICAL FIX HERE
           localStorage.setItem('authTokens', JSON.stringify(newTokens));
           
           // Force a fresh fetch of user data from DB to get correct role/permissions
