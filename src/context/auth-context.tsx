@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (response.data && response.data.isSuccess) {
         // The response might use PascalCase, so handle both possibilities
-        const { accessToken, refreshToken, AccessToken, RefreshToken } = response.data.result;
+        const { accessToken, refreshToken, AccessToken, RefreshToken } = response.data;
         const resolvedAccessToken = accessToken || AccessToken;
         const resolvedRefreshToken = refreshToken || RefreshToken;
 
