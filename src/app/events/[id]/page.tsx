@@ -15,7 +15,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
@@ -164,33 +163,14 @@ export default function PublicEventDetailPage() {
     )
   }
   
-  const images = (typeof event.image === 'string' && event.image) 
-    ? event.image.split(',').filter(img => img) 
-    : [];
-  
-  const displayImages = images.length > 0 ? images : ['https://placehold.co/1200x600.png'];
-
+  const firstImage = event.image?.split(',')[0].trim() || 'https://placehold.co/1200x600.png';
 
   return (
     <div className="container mx-auto p-4 md:p-8 max-w-4xl">
       <div className="bg-card shadow-xl rounded-lg overflow-hidden">
-        <Carousel className="w-full">
-          <CarouselContent>
-            {displayImages.map((img, index) => (
-              <CarouselItem key={index}>
-                <div className="relative w-full aspect-video">
-                  <Image src={img} alt={`${event.name} image ${index + 1}`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} />
-                </div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          {displayImages.length > 1 && (
-            <>
-              <CarouselPrevious className="absolute left-4 hidden sm:flex" />
-              <CarouselNext className="absolute right-4 hidden sm:flex" />
-            </>
-          )}
-        </Carousel>
+        <div className="relative w-full aspect-video">
+          <Image src={firstImage} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} />
+        </div>
 
         <div className="p-6 md:p-8 space-y-8">
             <div>

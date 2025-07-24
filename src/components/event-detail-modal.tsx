@@ -3,7 +3,6 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import Image from 'next/image';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, MapPin, Ticket, Loader2, X } from 'lucide-react';
@@ -51,34 +50,16 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
     });
   };
 
-  const images = (typeof event.image === 'string' && event.image) 
-    ? event.image.split(',').filter(img => img) 
-    : [];
-  
-  const displayImages = images.length > 0 ? images : ['https://placehold.co/1200x600.png'];
+  const firstImage = event.image?.split(',')[0].trim() || 'https://placehold.co/800x600.png';
 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl p-0 grid grid-cols-1 md:grid-cols-2 gap-0">
          <div className="relative order-1 md:order-2">
-            <Carousel className="w-full h-full">
-                <CarouselContent className="h-full">
-                {displayImages.map((img, index) => (
-                    <CarouselItem key={index} className="h-full">
-                        <div className="relative w-full h-64 md:h-full">
-                            <Image src={img} alt={`${event.name} image ${index + 1}`} fill className="object-cover rounded-t-lg md:rounded-r-lg md:rounded-t-none" data-ai-hint={event.hint ?? 'event'} />
-                        </div>
-                    </CarouselItem>
-                ))}
-                </CarouselContent>
-                    {displayImages.length > 1 && (
-                    <>
-                        <CarouselPrevious className="absolute left-4 hidden sm:flex" />
-                        <CarouselNext className="absolute right-4 hidden sm:flex" />
-                    </>
-                )}
-            </Carousel>
+            <div className="relative w-full h-64 md:h-full">
+                <Image src={firstImage} alt={`${event.name} image`} fill className="object-cover rounded-t-lg md:rounded-r-lg md:rounded-t-none" data-ai-hint={event.hint ?? 'event'} />
+            </div>
              <DialogClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground md:hidden">
                 <X className="h-4 w-4" />
                 <span className="sr-only">Close</span>
