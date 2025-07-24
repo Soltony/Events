@@ -16,7 +16,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import api from '@/lib/api';
 
 const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, { message: 'Current password is required.' }),
+  oldPassword: z.string().min(1, { message: 'Current password is required.' }),
   newPassword: z.string().min(6, { message: 'New password must be at least 6 characters.' }),
   confirmPassword: z.string(),
 }).refine(data => data.newPassword === data.confirmPassword, {
@@ -34,7 +34,7 @@ export default function ProfilePage() {
   const form = useForm<ChangePasswordFormValues>({
     resolver: zodResolver(changePasswordSchema),
     defaultValues: {
-      currentPassword: '',
+      oldPassword: '',
       newPassword: '',
       confirmPassword: '',
     },
@@ -50,7 +50,7 @@ export default function ProfilePage() {
     try {
         const result = await api.post('/api/auth/change-password', {
             phoneNumber: user.phoneNumber,
-            oldPassword: data.currentPassword,
+            oldPassword: data.oldPassword,
             newPassword: data.newPassword,
         });
 
@@ -105,7 +105,7 @@ export default function ProfilePage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
-                name="currentPassword"
+                name="oldPassword"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Current Password</FormLabel>
