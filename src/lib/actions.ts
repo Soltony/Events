@@ -480,48 +480,43 @@ export async function resetPassword(phoneNumber: string, newPassword: string): P
   }
 }
 
-export async function changePassword(data: {oldPassword: string; newPassword: string }): Promise<{ success: boolean; message: string }> {
+interface ChangePasswordData {
+  phoneNumber: string;
+  accessToken: string;
+  oldPassword: string;
+  newPassword: string;
+}
+
+export async function changePassword(data: ChangePasswordData): Promise<{ success: boolean; message: string }> {
   const authApiUrl = process.env.AUTH_API_BASE_URL;
   if (!authApiUrl) {
     throw new Error("Authentication service URL is not configured.");
   }
-  
-  const cookieStore = cookies();
-  const tokenCookie = cookieStore.get('authTokens');
-  const userCookie = cookieStore.get('authUser');
-
-  if (!tokenCookie || !userCookie) {
-    throw new Error("Authentication token or user information is missing.");
-  }
-  
-  const tokens = JSON.parse(tokenCookie.value);
-  const token = tokens.accessToken;
-  const user = JSON.parse(userCookie.value);
 
   try {
     const response = await axios.post(`${authApiUrl}/api/Auth/change-password`, {
-      phoneNumber: user.phoneNumber,
+      phoneNumber: data.phoneNumber,
       oldPassword: data.oldPassword,
       newPassword: data.newPassword,
     }, {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${data.accessToken}`,
       }
     });
 
     if (response.data && response.data.isSuccess) {
       // After successful password change, update the flag in the DB
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { passwordChangeRequired: false }
-      });
-      
-      const updatedUser = await getUserByPhoneNumber(user.phoneNumber);
-      cookies().set('authUser', JSON.stringify(updatedUser));
-      cookies().set('passwordChangeRequired', 'false');
-
-      revalidatePath('/dashboard/profile');
+      const user = await prisma.user.findUnique({ where: { phoneNumber: data.phoneNumber } });
+      if (user) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { passwordChangeRequired: false }
+        });
+        
+        // No need to set cookies here as user will be logged out
+        revalidatePath('/dashboard/profile');
+      }
       
       return { success: true, message: 'Password changed successfully.' };
     } else {

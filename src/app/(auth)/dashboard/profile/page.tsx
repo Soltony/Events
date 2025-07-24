@@ -29,7 +29,7 @@ type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
 
 export default function ProfilePage() {
   const { toast } = useToast();
-  const { user, passwordChangeRequired, logout } = useAuth();
+  const { user, tokens, passwordChangeRequired, logout } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
 
@@ -43,14 +43,16 @@ export default function ProfilePage() {
   });
 
   async function onSubmit(data: ChangePasswordFormValues) {
-    if (!user?.phoneNumber) {
-        toast({ variant: 'destructive', title: 'Error', description: 'User not found.' });
+    if (!user?.phoneNumber || !tokens?.accessToken) {
+        toast({ variant: 'destructive', title: 'Error', description: 'User session is invalid. Please log in again.' });
         return;
     }
 
     setIsSubmitting(true);
     try {
         const result = await changePassword({
+            phoneNumber: user.phoneNumber,
+            accessToken: tokens.accessToken,
             oldPassword: data.currentPassword,
             newPassword: data.newPassword,
         });
@@ -60,7 +62,6 @@ export default function ProfilePage() {
                 title: 'Success!',
                 description: 'Your password has been changed successfully. Please log in again.',
             });
-            // Force re-login to ensure new session state
             await logout();
         } else {
              throw new Error(result.message || 'Failed to change password.');
