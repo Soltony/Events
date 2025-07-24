@@ -7,7 +7,7 @@ import * as z from 'zod';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
-import { Loader2, ArrowRight, Phone, Lock } from 'lucide-react';
+import { Loader2, ArrowRight, Phone, Lock, ArrowLeft } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,6 +43,12 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-4">
+       <Button asChild variant="ghost" className="absolute top-4 left-4">
+        <Link href="/">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Homepage
+        </Link>
+      </Button>
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="items-center text-center pt-8 pb-4">
             <Image
