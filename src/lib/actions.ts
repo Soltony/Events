@@ -138,6 +138,20 @@ export async function updateEvent(id: number, data: any) {
     return serialize(updatedEvent);
 }
 
+export async function deleteEvent(id: number) {
+  await prisma.$transaction(async (tx) => {
+    // Delete related records first
+    await tx.attendee.deleteMany({ where: { eventId: id } });
+    await tx.promoCode.deleteMany({ where: { eventId: id } });
+    await tx.ticketType.deleteMany({ where: { eventId: id } });
+    // Finally, delete the event
+    await tx.event.delete({ where: { id } });
+  });
+
+  revalidatePath('/dashboard/events');
+  revalidatePath('/');
+}
+
 
 export async function addTicketType(eventId: number, data: Omit<TicketType, 'id' | 'eventId' | 'createdAt' | 'updatedAt' | 'sold'>) {
     const newTicketType = await prisma.ticketType.create({
@@ -630,3 +644,5 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
+    
