@@ -30,9 +30,13 @@ async function proxyRequest(req: NextRequest, context: { params: { path: string[
     // req.json() throws if the body is empty, so we need to handle that case
     if (req.method !== 'GET' && req.method !== 'HEAD') {
         try {
-            body = await req.json();
+            const textBody = await req.text();
+            if (textBody) {
+              body = JSON.parse(textBody);
+            }
         } catch (e) {
-            // It's fine if the body is empty
+            // It's fine if the body is empty or not valid JSON
+            console.error("Could not parse request body:", e);
         }
     }
 
