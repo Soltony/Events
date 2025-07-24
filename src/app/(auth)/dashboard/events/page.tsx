@@ -118,8 +118,11 @@ export default function ManageEventsPage() {
             [...Array(4)].map((_, i) => (
                 <Card key={i}>
                     <CardHeader className="p-0"><Skeleton className="w-full aspect-[3/2] rounded-t-lg" /></CardHeader>
-                    <CardContent className="p-6 space-y-2"><Skeleton className="h-5 w-20" /><Skeleton className="h-7 w-3/4" /><Skeleton className="h-5 w-1/2" /></CardContent>
-                    <CardFooter className="p-6 pt-0"><Skeleton className="h-10 w-full" /></CardFooter>
+                    <CardContent className="p-4 space-y-2">
+                      <Skeleton className="h-5 w-20" />
+                      <Skeleton className="h-7 w-3/4" />
+                      <Skeleton className="h-5 w-1/2" />
+                    </CardContent>
                 </Card>
             ))
         ) : events.length > 0 ? (
@@ -130,30 +133,18 @@ export default function ManageEventsPage() {
                 <CardHeader className="p-0">
                   <Image src={imageUrl} alt={event.name} width={600} height={400} className="rounded-t-lg object-cover aspect-[3/2]" data-ai-hint={event.hint ?? 'event'} />
                 </CardHeader>
-                <CardContent className="p-6 flex-1 space-y-2">
-                  <Badge variant="outline">{event.category}</Badge>
-                  <CardTitle>{event.name}</CardTitle>
-                  <CardDescription>{formatEventDate(event.startDate, event.endDate)}</CardDescription>
-                  <CardDescription className="flex items-center gap-1.5 pt-1">
-                      <MapPin className="h-4 w-4" />
-                      {event.location}
-                  </CardDescription>
-                </CardContent>
-                <CardFooter className="p-6 pt-0 flex justify-end">
+                <CardContent className="p-4 flex-1 space-y-2">
+                  <div className="flex items-start justify-between gap-4">
+                    <CardTitle className="text-lg leading-tight">{event.name}</CardTitle>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0">
                                 <MoreHorizontal className="h-4 w-4" />
                                 <span className="sr-only">Event Actions</span>
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                              <DropdownMenuItem asChild>
-                                <Link href={`/dashboard/events/${event.id}`}>
-                                    <ArrowUpRight className="mr-2 h-4 w-4" /> Manage
-                                </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
                                 <Link href={`/dashboard/events/${event.id}/edit`}>
                                     <Pencil className="mr-2 h-4 w-4" /> Edit
                                 </Link>
@@ -163,9 +154,23 @@ export default function ManageEventsPage() {
                                 onSelect={() => handleOpenDeleteDialog(event)}>
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
                             </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                                <Link href={`/dashboard/events/${event.id}`}>
+                                    <ArrowUpRight className="mr-2 h-4 w-4" /> Manage
+                                </Link>
+                            </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
-                </CardFooter>
+                  </div>
+                  <div className="space-y-1">
+                    <Badge variant="outline" className="text-xs">{event.category}</Badge>
+                    <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
+                    <CardDescription className="flex items-center gap-1.5 pt-1 text-xs">
+                        <MapPin className="h-3 w-3" />
+                        {event.location}
+                    </CardDescription>
+                  </div>
+                </CardContent>
               </Card>
             )
           })
