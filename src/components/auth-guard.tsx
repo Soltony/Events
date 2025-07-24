@@ -6,26 +6,63 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/auth-context';
 
+const pagePermissions: Record<string, string> = {
+    '/dashboard': 'Dashboard:View',
+    '/dashboard/scan': 'Scan QR:View',
+    '/dashboard/events': 'Manage and Create Events:View',
+    '/dashboard/events/new': 'Manage and Create Events:Create',
+    '/dashboard/reports': 'Reports:View',
+    '/dashboard/settings': 'Settings:View',
+};
+
+function hasAccess(pathname: string, hasPermission: (p: string) => boolean): boolean {
+    if (pathname.startsWith('/dashboard/events/') && pathname.includes('/edit')) {
+        return hasPermission('Manage and Create Events:Update');
+    }
+    if (pathname.startsWith('/dashboard/events/')) {
+        return hasPermission('Manage and Create Events:View');
+    }
+    const requiredPermission = Object.keys(pagePermissions).find(key => pathname.startsWith(key));
+    if (requiredPermission) {
+        return hasPermission(pagePermissions[requiredPermission]);
+    }
+    // Allow access to pages not in the list, like the profile page
+    return true;
+}
+
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, isLoading, passwordChangeRequired } = useAuth();
+  const { user, isAuthenticated, isLoading, passwordChangeRequired, hasPermission } = useAuth();
 
   useEffect(() => {
-    // If loading is finished and user is not authenticated, redirect to login.
-    if (!isLoading && !isAuthenticated) {
+    if (isLoading) return;
+
+    if (!isAuthenticated) {
       router.replace('/login');
+      return;
     }
     
-    // If password change is required, redirect to profile page, unless already there.
-    if (!isLoading && isAuthenticated && passwordChangeRequired && pathname !== '/dashboard/profile') {
+    if (passwordChangeRequired && pathname !== '/dashboard/profile') {
         router.replace('/dashboard/profile');
+        return;
     }
-  }, [router, isAuthenticated, isLoading, passwordChangeRequired, pathname]);
 
-  // While loading auth state or if not authenticated (and about to be redirected),
-  // show a loading skeleton to prevent flashing the protected content.
-  if (isLoading || !isAuthenticated) {
+    if (!passwordChangeRequired && !hasAccess(pathname, hasPermission)) {
+        // If user does not have permission, redirect to their default page
+        switch(user?.role?.name) {
+            case 'Merchant':
+                router.replace('/dashboard/scan');
+                break;
+            default:
+                router.replace('/dashboard');
+                break;
+        }
+    }
+
+  }, [router, isAuthenticated, isLoading, passwordChangeRequired, pathname, hasPermission, user]);
+
+  if (isLoading || !isAuthenticated || (isAuthenticated && !hasAccess(pathname, hasPermission) && !passwordChangeRequired)) {
     return (
         <div className="p-4 lg:p-6">
             <div className="space-y-4">
@@ -41,6 +78,5 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // If authenticated, render the children.
   return <>{children}</>;
 }

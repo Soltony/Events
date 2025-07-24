@@ -260,9 +260,10 @@ export async function getUserById(userId: string) {
 }
 
 
-export async function getUserByPhoneNumber(phoneNumber: string): Promise<User | null> {
+export async function getUserByPhoneNumber(phoneNumber: string): Promise<(User & { role: Role }) | null> {
     const user = await prisma.user.findUnique({
         where: { phoneNumber },
+        include: { role: true },
     });
     return serialize(user);
 }

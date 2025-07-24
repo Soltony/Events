@@ -6,19 +6,24 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import api, { setAuthToken } from '@/lib/api';
 import { getUserByPhoneNumber } from '@/lib/actions';
-import type { User } from '@prisma/client';
+import type { User, Role } from '@prisma/client';
 
 interface AuthTokens {
   accessToken: string;
   refreshToken: string;
 }
 
+interface UserWithRole extends User {
+  role: Role;
+}
+
 interface AuthContextType {
   tokens: AuthTokens | null;
-  user: User | null;
+  user: UserWithRole | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   passwordChangeRequired: boolean;
+  hasPermission: (permission: string) => boolean;
   login: (data: any) => Promise<void>;
   logout: (options?: { reason?: string }) => Promise<void>;
   clearPasswordChangeRequired: () => void;
@@ -30,7 +35,7 @@ const SESSION_TIMEOUT_DURATION = 15 * 60 * 1000; // 15 minutes
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserWithRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [passwordChangeRequired, setPasswordChangeRequired] = useState(false);
   const router = useRouter();
@@ -145,25 +150,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAuthToken(resolvedAccessToken);
           
           const userData = await getUserByPhoneNumber(data.phoneNumber);
+          if (!userData) {
+            throw new Error('Failed to retrieve user data after login.');
+          }
           setUser(userData);
           
           localStorage.setItem('authTokens', JSON.stringify(newTokens));
           localStorage.setItem('authUser', JSON.stringify(userData));
 
-          // Simulate password change requirement check
           const isDefaultPassword = data.password === 'password123';
           setPasswordChangeRequired(isDefaultPassword);
           localStorage.setItem('passwordChangeRequired', String(isDefaultPassword));
           
           toast({
             title: 'Login Successful',
-            description: 'Redirecting to your dashboard...',
+            description: 'Redirecting...',
           });
           
           if (isDefaultPassword) {
             router.push('/dashboard/profile');
           } else {
-            router.push('/dashboard');
+            // Role-based redirection
+            switch(userData.role?.name) {
+                case 'Merchant':
+                    router.push('/dashboard/scan');
+                    break;
+                case 'Admin':
+                case 'Organizer':
+                default:
+                    router.push('/dashboard');
+                    break;
+            }
           }
           router.refresh();
         } else {
@@ -189,10 +206,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('passwordChangeRequired');
   }
 
+  const hasPermission = (permission: string) => {
+    if (!user || !user.role?.permissions) {
+      return false;
+    }
+    const userPermissions = user.role.permissions.split(',');
+    return userPermissions.includes(permission);
+  };
+
   const isAuthenticated = !isLoading && !!tokens && !!user;
 
   return (
-    <AuthContext.Provider value={{ tokens, user, isAuthenticated, isLoading, passwordChangeRequired, login, logout, clearPasswordChangeRequired }}>
+    <AuthContext.Provider value={{ tokens, user, isAuthenticated, isLoading, passwordChangeRequired, hasPermission, login, logout, clearPasswordChangeRequired }}>
       {children}
     </AuthContext.Provider>
   );
