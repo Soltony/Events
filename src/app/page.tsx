@@ -115,7 +115,7 @@ export default function PublicHomePage() {
         </div>
       </div>
       
-      <div className="text-center py-4 px-4 lg:px-6">
+      <div className="text-center px-4 lg:px-6">
         <h1 className="text-3xl font-bold tracking-tight">Upcoming Events</h1>
       </div>
       
@@ -130,7 +130,7 @@ export default function PublicHomePage() {
             ))
         ) : filteredEvents.length > 0 ? (
           filteredEvents.map((event) => {
-            const firstImage = event.image?.split(',')[0].trim() || 'https://placehold.co/600x400.png';
+            const firstImage = event.image || 'https://placehold.co/600x400.png';
             return (
               <Card key={event.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
                 <CardHeader className="p-0">
