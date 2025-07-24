@@ -48,7 +48,7 @@ export default function ProfilePage() {
 
     setIsSubmitting(true);
     try {
-        const result = await api.post('/api/auth/change-password', {
+        await api.post('/api/auth/change-password', {
             phoneNumber: user.phoneNumber,
             currentPassword: data.currentPassword,
             newPassword: data.newPassword,
@@ -58,24 +58,21 @@ export default function ProfilePage() {
             }
         });
 
-        if (result.data.isSuccess) {
-            toast({
-                title: 'Success!',
-                description: 'Your password has been changed successfully. Please log in again.',
-            });
-            // Don't await logout, as it's expected to fail server-side after a password change.
-            // We just need the client-side cleanup it provides.
-            logout();
-        } else {
-             throw new Error(result.data.errors?.join(', ') || 'Failed to change password.');
-        }
+        toast({
+            title: 'Success!',
+            description: 'Your password has been changed successfully. Please log in again.',
+        });
+        
+        // Don't await logout, as it's expected to fail server-side after a password change.
+        // We just need the client-side cleanup it provides.
+        logout();
 
     } catch (error: any) {
         console.error("Failed to change password:", error);
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: error.response?.data?.errors?.join(', ') || error.message || 'An unknown error occurred.',
+            description: error.response?.data?.errors?.join(', ') || error.message || 'Failed to change password.',
         });
     } finally {
         setIsSubmitting(false);
