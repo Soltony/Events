@@ -36,9 +36,9 @@ export default function AuthLayout({
                                      <Image
                                     src="/image/nibtickets.jpg"
                                     alt="Nibkera Tickets Logo"
-                                    width={40}
+                                    width={150}
                                     height={40}
-                                    className="object-contain rounded-md"
+                                    className="object-contain"
                                     data-ai-hint="logo nibtera"
                                     />
                                 </Link>
