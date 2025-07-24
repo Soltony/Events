@@ -33,8 +33,8 @@ export function UserNav() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-          <Avatar className="h-9 w-9">
+        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+          <Avatar className="h-10 w-10">
             <AvatarImage src="https://placehold.co/40x40.png" alt="@user" data-ai-hint="profile person" />
             <AvatarFallback>{getInitials()}</AvatarFallback>
           </Avatar>
