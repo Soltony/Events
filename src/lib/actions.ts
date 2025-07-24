@@ -139,15 +139,13 @@ export async function updateEvent(id: number, data: any) {
 }
 
 export async function deleteEvent(id: number) {
-  await prisma.$transaction(async (tx) => {
-    // Delete related records first
-    await tx.attendee.deleteMany({ where: { eventId: id } });
-    await tx.promoCode.deleteMany({ where: { eventId: id } });
-    await tx.ticketType.deleteMany({ where: { eventId: id } });
-    // Finally, delete the event
-    await tx.event.delete({ where: { id } });
-  });
-
+  await prisma.$transaction([
+    prisma.attendee.deleteMany({ where: { eventId: id } }),
+    prisma.promoCode.deleteMany({ where: { eventId: id } }),
+    prisma.ticketType.deleteMany({ where: { eventId: id } }),
+    prisma.event.delete({ where: { id } }),
+  ]);
+  
   revalidatePath('/dashboard/events');
   revalidatePath('/');
 }

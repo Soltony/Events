@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, ArrowUpRight, Pencil, MapPin, MoreHorizontal, Trash2, Loader2 } from "lucide-react";
+import { PlusCircle, ArrowUpRight, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import Link from 'next/link';
 import Image from 'next/image';
 import { getEvents, deleteEvent } from '@/lib/actions';
@@ -30,6 +30,22 @@ import { Badge } from '@/components/ui/badge';
 import type { Event } from '@prisma/client';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
@@ -47,18 +63,18 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 export default function ManageEventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const { toast } = useToast();
 
   const fetchEvents = async () => {
     try {
-        !loading && setLoading(true);
+        setLoading(true);
         const fetchedEvents = await getEvents();
         setEvents(fetchedEvents);
     } catch (error) {
         console.error("Failed to fetch events:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to load events.' });
     } finally {
         setLoading(false);
     }
@@ -67,33 +83,32 @@ export default function ManageEventsPage() {
   useEffect(() => {
     fetchEvents();
   }, []);
-
-  const handleDeleteClick = (event: Event) => {
-    setSelectedEvent(event);
+  
+  const handleOpenDeleteDialog = (event: Event) => {
+    setEventToDelete(event);
     setIsAlertOpen(true);
   };
 
-  const handleConfirmDelete = async () => {
-    if (!selectedEvent) return;
+  const handleDelete = async () => {
+    if (!eventToDelete) return;
 
-    setIsDeleting(true);
     try {
-      await deleteEvent(selectedEvent.id);
-      toast({
-        title: "Event Deleted",
-        description: `"${selectedEvent.name}" has been successfully deleted.`,
-      });
-      await fetchEvents(); // Refresh events list
+        await deleteEvent(eventToDelete.id);
+        toast({
+            title: 'Event Deleted',
+            description: `"${eventToDelete.name}" has been successfully deleted.`,
+        });
+        fetchEvents(); // Re-fetch events to update the list
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to delete the event. Please try again.",
-      });
+        console.error("Failed to delete event:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to delete the event.',
+        });
     } finally {
-      setIsDeleting(false);
-      setIsAlertOpen(false);
-      setSelectedEvent(null);
+        setIsAlertOpen(false);
+        setEventToDelete(null);
     }
   };
 
@@ -144,26 +159,29 @@ export default function ManageEventsPage() {
                 </CardContent>
                 <CardFooter className="p-6 pt-0 flex justify-end">
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem asChild>
-                           <Link href={`/dashboard/events/${event.id}`}>Manage <ArrowUpRight className="ml-auto h-4 w-4" /></Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                           <Link href={`/dashboard/events/${event.id}/edit`}>Edit <Pencil className="ml-auto h-4 w-4" /></Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleDeleteClick(event)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                          Delete <Trash2 className="ml-auto h-4 w-4" />
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Event Actions</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                             <DropdownMenuItem asChild>
+                                <Link href={`/dashboard/events/${event.id}`}>
+                                    <ArrowUpRight className="mr-2 h-4 w-4" /> Manage
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                                <Link href={`/dashboard/events/${event.id}/edit`}>
+                                    <Pencil className="mr-2 h-4 w-4" /> Edit
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                                className="text-destructive focus:text-destructive" 
+                                onSelect={() => handleOpenDeleteDialog(event)}>
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
                     </DropdownMenu>
                 </CardFooter>
               </Card>
@@ -183,19 +201,21 @@ export default function ManageEventsPage() {
             </Card>
         )}
       </div>
-      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+
+       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the event "{selectedEvent?.name}" and all of its associated data, including tickets and attendees.
+              This action cannot be undone. This will permanently delete the event
+              <strong className="mx-1">"{eventToDelete?.name}"</strong>
+              and all of its associated data, including tickets and attendees.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
-              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Delete
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+              Delete Event
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

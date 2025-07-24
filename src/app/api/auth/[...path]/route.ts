@@ -13,8 +13,7 @@ async function proxyRequest(req: NextRequest, context: { params: { path: string[
     );
   }
 
-  const { params } = context;
-  const apiPath = params.path.join('/');
+  const apiPath = context.params.path.join('/');
   const { search } = new URL(req.url);
   const targetUrl = `${AUTH_API_BASE_URL}/api/Auth/${apiPath}${search}`;
 
@@ -27,15 +26,14 @@ async function proxyRequest(req: NextRequest, context: { params: { path: string[
   }
 
   try {
-    let body: any = null;
-    // Check if the request method can have a body
+    let body = null;
+    // req.json() throws if the body is empty, so we need to handle that case
     if (req.method !== 'GET' && req.method !== 'HEAD') {
-      try {
-        body = await req.json();
-      } catch (e) {
-        // Body might be empty, which is fine.
-        body = null;
-      }
+        try {
+            body = await req.json();
+        } catch (e) {
+            // It's fine if the body is empty
+        }
     }
 
     const response = await axios({

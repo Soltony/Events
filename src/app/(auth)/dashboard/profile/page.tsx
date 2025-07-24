@@ -59,7 +59,9 @@ export default function ProfilePage() {
                 title: 'Success!',
                 description: 'Your password has been changed successfully. Please log in again.',
             });
-            await logout();
+            // Don't await logout, as it's expected to fail server-side after a password change.
+            // We just need the client-side cleanup it provides.
+            logout();
         } else {
              throw new Error(result.data.errors?.join(', ') || 'Failed to change password.');
         }
