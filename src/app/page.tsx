@@ -84,7 +84,7 @@ export default function PublicHomePage() {
           <Image src="/image/nibtickets.jpg"alt="NibTera Tickets Logo" width={200} height={50} data-ai-hint="logo nibtera" />
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
-          <div className="relative flex-1 md:flex-initial md:w-64">
+          <div className="relative flex-1 md:flex-initial w-full sm:w-auto md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input 
               placeholder="Search events..."
@@ -93,22 +93,24 @@ export default function PublicHomePage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Filter by category" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map(category => (
-                <SelectItem key={category} value={category}>{category}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-           <Button asChild variant="outline" className="w-full sm:w-auto">
-              <Link href="/tickets">
-                  <Ticket className="mr-2 h-4 w-4" />
-                  My Tickets
-              </Link>
-          </Button>
+          <div className="flex gap-4 w-full sm:w-auto">
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Filter by category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map(category => (
+                  <SelectItem key={category} value={category}>{category}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button asChild variant="outline" className="w-full">
+                <Link href="/tickets">
+                    <Ticket className="mr-2 h-4 w-4" />
+                    My Tickets
+                </Link>
+            </Button>
+          </div>
           <div className="w-full sm:w-auto">
              <AuthStatus />
           </div>
