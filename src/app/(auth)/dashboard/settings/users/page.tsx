@@ -27,11 +27,22 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useRouter } from 'next/navigation';
-import { UserPlus, ArrowLeft } from 'lucide-react';
+import { UserPlus, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast"
 import { Skeleton } from '@/components/ui/skeleton';
-import { getUsersAndRoles, updateUserRole } from '@/lib/actions';
+import { getUsersAndRoles, updateUserRole, deleteUser } from '@/lib/actions';
 import Link from 'next/link';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface UserWithRole extends User {
     role: Role;
@@ -76,6 +87,21 @@ export default function UserManagementPage() {
         }
     };
 
+    const handleDeleteUser = async (user: UserWithRole) => {
+        if (user.role.name === 'Admin') {
+            toast({ variant: 'destructive', title: 'Action Denied', description: 'Admin users cannot be deleted.' });
+            return;
+        }
+
+        try {
+            await deleteUser(user.id, user.phoneNumber);
+            toast({ title: 'User Deleted', description: `${user.firstName} ${user.lastName} has been removed.`});
+            fetchData(); // Refresh the list
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to delete user.' });
+        }
+    };
+
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
       <div className="flex items-center gap-4">
@@ -116,6 +142,7 @@ export default function UserManagementPage() {
                             <TableHead>Name</TableHead>
                             <TableHead>Phone Number</TableHead>
                             <TableHead className="w-[180px]">Role</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -124,11 +151,47 @@ export default function UserManagementPage() {
                                 <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
                                 <TableCell>{user.phoneNumber}</TableCell>
                                 <TableCell>
-                                    <Select value={user.roleId} onValueChange={(newRoleId) => handleRoleChange(user.id, newRoleId)}>
+                                    <Select 
+                                        value={user.roleId} 
+                                        onValueChange={(newRoleId) => handleRoleChange(user.id, newRoleId)}
+                                        disabled={user.role.name === 'Admin'}
+                                    >
                                         <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
                                         <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
                                     </Select>
                                 </TableCell>
+                                 <TableCell className="text-right">
+                                    <div className="flex justify-end gap-2">
+                                        <Button variant="ghost" size="icon" asChild>
+                                            <Link href={`/dashboard/settings/users/${user.id}/edit`}>
+                                                <Pencil className="h-4 w-4" />
+                                                <span className="sr-only">Edit</span>
+                                            </Link>
+                                        </Button>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" disabled={user.role.name === 'Admin'}>
+                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                                <span className="sr-only">Delete</span>
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                           <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This action cannot be undone. This will permanently delete the user <strong>{user.firstName} {user.lastName}</strong> and all associated data.
+                                                </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDeleteUser(user)} className="bg-destructive hover:bg-destructive/90">
+                                                    Delete
+                                                </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </div>
+                                  </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

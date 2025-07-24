@@ -244,11 +244,21 @@ export async function getReportsData() {
 // Settings Actions
 export async function getUsersAndRoles() {
     const users = await prisma.user.findMany({
-        include: { role: true }
+        include: { role: true },
+        orderBy: { createdAt: 'desc'}
     });
     const roles = await prisma.role.findMany();
     return serialize({ users, roles });
 }
+
+export async function getUserById(userId: string) {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { role: true },
+    });
+    return serialize(user);
+}
+
 
 export async function getUserByPhoneNumber(phoneNumber: string): Promise<User | null> {
     const user = await prisma.user.findUnique({
@@ -308,6 +318,22 @@ export async function addUser(data: any) {
     }
 }
 
+export async function updateUser(userId: string, data: Partial<User>) {
+    const { firstName, lastName, roleId } = data;
+    const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: {
+            firstName,
+            lastName,
+            roleId,
+        },
+    });
+
+    revalidatePath('/dashboard/settings/users');
+    revalidatePath(`/dashboard/settings/users/${userId}/edit`);
+    return serialize(updatedUser);
+}
+
 
 export async function updateUserRole(userId: string, roleId: string) {
     const user = await prisma.user.update({
@@ -317,6 +343,36 @@ export async function updateUserRole(userId: string, roleId: string) {
     revalidatePath('/dashboard/settings');
     return serialize(user);
 }
+
+export async function deleteUser(userId: string, phoneNumber: string) {
+    const authApiUrl = process.env.AUTH_API_BASE_URL;
+    if (!authApiUrl) {
+        throw new Error("Authentication service URL is not configured.");
+    }
+
+    try {
+        // First, delete from external auth service
+        const deleteResponse = await axios.delete(`${authApiUrl}/api/Auth/delete/${phoneNumber}`);
+        
+        if (!deleteResponse.data || !deleteResponse.data.isSuccess) {
+             throw new Error(deleteResponse.data.errors?.join(', ') || 'Failed to delete user from auth service.');
+        }
+        
+        // Then, delete from local database
+        await prisma.user.delete({
+            where: { id: userId },
+        });
+
+        revalidatePath('/dashboard/settings/users');
+    } catch (error: any) {
+        console.error('Error deleting user:', error);
+        if (error.response?.data?.errors) {
+            throw new Error(error.response.data.errors.join(', '));
+        }
+        throw new Error(error.message || 'Failed to delete user.');
+    }
+}
+
 
 export async function getRoles() {
     const roles = await prisma.role.findMany();
