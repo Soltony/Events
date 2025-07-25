@@ -303,14 +303,11 @@ export async function addUser(data: any) {
         }
         
         // Attempt to find userId from multiple possible locations in the response
-        let newUserId;
-        if (registrationResponse.data?.data?.userId) {
-            newUserId = registrationResponse.data.data.userId;
-        } else if (registrationResponse.data?.userId) {
-            newUserId = registrationResponse.data.userId;
-        } else if (Array.isArray(registrationResponse.data?.data) && registrationResponse.data.data[0]?.userId) {
-            newUserId = registrationResponse.data.data[0].userId;
-        }
+        const responseData = registrationResponse.data;
+        let newUserId = responseData?.userId || 
+                        responseData?.data?.userId || 
+                        (Array.isArray(responseData?.data) && responseData.data[0]?.userId);
+
 
         if (!newUserId) {
             console.error("Auth service response did not contain a user ID. Full response:", JSON.stringify(registrationResponse.data, null, 2));
