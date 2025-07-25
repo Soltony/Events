@@ -6,6 +6,7 @@ import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee } from '@prisma/client';
 import axios from 'axios';
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -16,7 +17,7 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
 
 // A simple function to decode the payload of a JWT without verifying its signature.
 // This is safe to do on the server side because we trust the token we just received from our own auth service.
-function decodeJwtPayload(token: string) {
+function decodeJwtPayload(token: string): { sub: string, role: string, name: string } | null {
     try {
         const payloadBase64 = token.split('.')[1];
         if (!payloadBase64) {
@@ -30,13 +31,44 @@ function decodeJwtPayload(token: string) {
     }
 }
 
+async function getCurrentUser() {
+    const authorization = headers().get('authorization');
+    if (!authorization?.startsWith('Bearer ')) {
+        throw new Error('User is not authenticated.');
+    }
+    const token = authorization.substring(7);
+    const decodedToken = decodeJwtPayload(token);
+    
+    if (!decodedToken || !decodedToken.sub) {
+        throw new Error("Invalid authentication token.");
+    }
+    
+    const user = await prisma.user.findUnique({
+        where: { id: decodedToken.sub },
+        include: { role: true },
+    });
+
+    if (!user) {
+        throw new Error("User not found.");
+    }
+
+    return user;
+}
 
 // Event Actions
 export async function getEvents() {
-  const events = await prisma.event.findMany({
-    orderBy: { startDate: 'asc' },
-  });
-  return serialize(events);
+    const user = await getCurrentUser();
+    const whereClause: { organizerId?: string } = {};
+
+    if (user.role.name !== 'Admin') {
+        whereClause.organizerId = user.id;
+    }
+
+    const events = await prisma.event.findMany({
+        where: whereClause,
+        orderBy: { startDate: 'asc' },
+    });
+    return serialize(events);
 }
 
 export async function getPublicEvents(): Promise<(Event & { ticketTypes: TicketType[] })[]> {
@@ -77,6 +109,8 @@ export async function getEventById(id: number) {
 }
 
 export async function getEventDetails(id: number) {
+    const user = await getCurrentUser();
+    
     const event = await prisma.event.findUnique({
         where: { id },
         include: {
@@ -89,11 +123,19 @@ export async function getEventDetails(id: number) {
             promoCodes: true,
         }
     });
+
+    if (!event) return null;
+
+    if (user.role.name !== 'Admin' && event.organizerId !== user.id) {
+        throw new Error("You are not authorized to view this event's details.");
+    }
+
     return serialize(event);
 }
 
 export async function addEvent(data: any) {
     const { tickets, startDate, endDate, otherCategory, ...eventData } = data;
+    const user = await getCurrentUser();
 
     // Determine the final category and remove the temporary 'otherCategory' field
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
@@ -106,6 +148,7 @@ export async function addEvent(data: any) {
     const newEvent = await prisma.event.create({
         data: {
             ...eventData,
+            organizerId: user.id,
             category: finalCategory,
             startDate: startDate,
             endDate: endDate,
@@ -129,12 +172,20 @@ export async function addEvent(data: any) {
 
 export async function updateEvent(id: number, data: any) {
     const { startDate, endDate, otherCategory, ...eventData } = data;
+    const user = await getCurrentUser();
 
     // Determine the final category
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
 
     const eventDataForUpdate = { ...eventData };
     delete eventDataForUpdate.otherCategory;
+
+    const eventToUpdate = await prisma.event.findUnique({ where: { id }});
+    if (!eventToUpdate) throw new Error("Event not found");
+
+    if (user.role.name !== 'Admin' && eventToUpdate.organizerId !== user.id) {
+        throw new Error("You are not authorized to update this event.");
+    }
     
     const updatedEvent = await prisma.event.update({
         where: { id },
@@ -156,6 +207,14 @@ export async function updateEvent(id: number, data: any) {
 }
 
 export async function deleteEvent(id: number) {
+  const user = await getCurrentUser();
+  const eventToDelete = await prisma.event.findUnique({ where: { id }});
+  if (!eventToDelete) throw new Error("Event not found");
+
+  if (user.role.name !== 'Admin' && eventToDelete.organizerId !== user.id) {
+        throw new Error("You are not authorized to delete this event.");
+  }
+
   await prisma.$transaction([
     prisma.attendee.deleteMany({ where: { eventId: id } }),
     prisma.promoCode.deleteMany({ where: { eventId: id } }),
@@ -193,23 +252,34 @@ export async function addPromoCode(eventId: number, data: { code: string; type: 
 
 // Dashboard Actions
 export async function getDashboardData() {
-    const totalEvents = await prisma.event.count();
+    const user = await getCurrentUser();
+    const whereClause: { organizerId?: string } = {};
 
-    const ticketTypes = await prisma.ticketType.findMany();
-    const totalRevenue = ticketTypes.reduce((sum, t) => sum + (t.sold * Number(t.price)), 0);
-    const totalTicketsSold = ticketTypes.reduce((sum, t) => sum + t.sold, 0);
+    if (user.role.name !== 'Admin') {
+        whereClause.organizerId = user.id;
+    }
     
-    const salesData = await prisma.event.findMany({
+    const events = await prisma.event.findMany({
+        where: whereClause,
         include: {
             ticketTypes: {
                 select: {
-                    sold: true
+                    sold: true,
+                    price: true
                 }
             }
         }
     });
 
-    const chartData = salesData.map(event => ({
+    const totalEvents = events.length;
+    const totalRevenue = events.reduce((sum, event) => {
+        return sum + event.ticketTypes.reduce((eventSum, tt) => eventSum + (tt.sold * Number(tt.price)), 0)
+    }, 0);
+    const totalTicketsSold = events.reduce((sum, event) => {
+        return sum + event.ticketTypes.reduce((eventSum, tt) => eventSum + tt.sold, 0)
+    }, 0);
+    
+    const chartData = events.map(event => ({
         name: event.name,
         ticketsSold: event.ticketTypes.reduce((sum, t) => sum + t.sold, 0),
     })).filter(e => e.ticketsSold > 0);
@@ -225,14 +295,23 @@ export async function getDashboardData() {
 
 // Reports Actions
 export async function getReportsData() {
-    const ticketTypes = await prisma.ticketType.findMany({
-        include: { event: { select: { name: true } } },
-        orderBy: { eventId: 'asc' }
-    });
+    const user = await getCurrentUser();
+    const whereClause: { organizerId?: string } = {};
+
+    if (user.role.name !== 'Admin') {
+        whereClause.organizerId = user.id;
+    }
 
     const events = await prisma.event.findMany({
-        include: { ticketTypes: true }
+        where: whereClause,
+        include: {
+            ticketTypes: true,
+            promoCodes: true,
+        },
+        orderBy: { startDate: 'asc' }
     });
+
+    const ticketTypes = events.flatMap(e => e.ticketTypes.map(tt => ({ ...tt, event: { name: e.name } })));
     
     const dailySalesData = events.map(event => {
         const revenue = event.ticketTypes.reduce((sum, t) => sum + (t.sold * Number(t.price)), 0);
@@ -244,9 +323,7 @@ export async function getReportsData() {
         }
     });
 
-    const promoCodes = await prisma.promoCode.findMany({
-        include: { event: { select: { name: true } } }
-    });
+    const promoCodes = events.flatMap(e => e.promoCodes.map(pc => ({ ...pc, event: { name: e.name } })));
     
     const promoCodeData = promoCodes.map(code => {
         // This estimation logic is kept from mock data as there's no order history
@@ -660,3 +737,5 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
+    

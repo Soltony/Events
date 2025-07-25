@@ -1,63 +1,77 @@
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
   provider = "prisma-client-js"
 }
 
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
 model User {
-  id                      String     @id @default(uuid())
+  id                      String    @id
   firstName               String
   lastName                String
-  email                   String?    @unique
-  phoneNumber             String     @unique
-  passwordChangeRequired  Boolean    @default(false)
-  createdAt               DateTime   @default(now())
-  updatedAt               DateTime   @updatedAt
+  email                   String?   @unique
+  phoneNumber             String    @unique
   roleId                  String
-  role                    Role       @relation(fields: [roleId], references: [id])
-  attendees               Attendee[]
+  passwordChangeRequired  Boolean   @default(false)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  role      Role     @relation(fields: [roleId], references: [id])
+  events    Event[]  @relation("OrganizerEvents")
+  attendees Attendee[]
 }
 
 model Role {
-  id          String  @id @default(cuid())
-  name        String  @unique
+  id          String   @id @default(cuid())
+  name        String   @unique
   description String?
   permissions String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   users       User[]
 }
 
 model Event {
-  id          Int          @id @default(autoincrement())
-  name        String
-  description String
-  startDate   DateTime
-  endDate     DateTime?
-  location    String
-  hint        String?
-  category    String
-  image       String?
-  ticketTypes TicketType[]
-  attendees   Attendee[]
-  promoCodes  PromoCode[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id           Int          @id @default(autoincrement())
+  name         String
+  description  String
+  startDate    DateTime
+  endDate      DateTime?
+  location     String
+  category     String
+  image        String?
+  hint         String?
+  organizerId  String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  
+  organizer    User         @relation("OrganizerEvents", fields: [organizerId], references: [id])
+  ticketTypes  TicketType[]
+  attendees    Attendee[]
+  promoCodes   PromoCode[]
 }
 
 model TicketType {
   id        Int        @id @default(autoincrement())
   name      String
-  price     Decimal    @db.Decimal(10, 2)
+  price     Decimal
   total     Int
   sold      Int        @default(0)
   eventId   Int
-  event     Event      @relation(fields: [eventId], references: [id])
-  attendees Attendee[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+  
+  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  attendees Attendee[]
 }
 
 model Attendee {
@@ -66,13 +80,14 @@ model Attendee {
   email        String
   checkedIn    Boolean    @default(false)
   eventId      Int
-  event        Event      @relation(fields: [eventId], references: [id])
   ticketTypeId Int
-  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
   userId       String?
-  user         User?      @relation(fields: [userId], references: [id])
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+
+  event        Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id], onDelete: Restrict)
+  user         User?      @relation(fields: [userId], references: [id])
 }
 
 model PromoCode {
@@ -80,15 +95,20 @@ model PromoCode {
   code      String        @unique
   type      PromoCodeType
   value     Decimal
-  maxUses   Int
   uses      Int           @default(0)
+  maxUses   Int
   eventId   Int
-  event     Event         @relation(fields: [eventId], references: [id])
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
+
+  event     Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([code, eventId])
 }
 
 enum PromoCodeType {
   PERCENTAGE
   FIXED
 }
+
+    
