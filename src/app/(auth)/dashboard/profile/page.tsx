@@ -57,14 +57,16 @@ export default function ProfilePage() {
                 Authorization: `Bearer ${tokens.accessToken}`
             }
         });
+        
+        // This is the critical fix: update the state BEFORE logging out.
+        forcePasswordChangeStatus(false);
 
         toast({
             title: 'Success!',
             description: 'Your password has been changed successfully. Please log in again.',
         });
         
-        forcePasswordChangeStatus(false);
-        logout();
+        await logout();
 
     } catch (error: any) {
         console.error("Failed to change password:", error);
