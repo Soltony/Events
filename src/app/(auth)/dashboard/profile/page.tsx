@@ -58,7 +58,6 @@ export default function ProfilePage() {
             }
         });
         
-        // This is the critical fix: update the state BEFORE logging out.
         forcePasswordChangeStatus(false);
 
         toast({
