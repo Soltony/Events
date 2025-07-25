@@ -9,61 +9,72 @@ generator client {
 }
 
 model Event {
-  id          Int          @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   name        String
   description String
   startDate   DateTime
   endDate     DateTime?
   location    String
-  hint        String?
   category    String
   image       String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  hint        String?
+
   ticketTypes TicketType[]
   attendees   Attendee[]
   promoCodes  PromoCode[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model TicketType {
-  id        Int        @id @default(autoincrement())
-  name      String
-  price     Decimal    @db.Decimal(10, 2)
-  total     Int
-  sold      Int        @default(0)
-  eventId   Int
-  event     Event      @relation(fields: [eventId], references: [id])
+  id      Int    @id @default(autoincrement())
+  name    String
+  price   Decimal @db.Decimal(10, 2)
+  total   Int
+  sold    Int    @default(0)
+  eventId Int
+
+  event   Event   @relation(fields: [eventId], references: [id])
   attendees Attendee[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Attendee {
-  id           Int        @id @default(autoincrement())
-  name         String
-  email        String?
-  eventId      Int
-  event        Event      @relation(fields: [eventId], references: [id])
+  id          Int      @id @default(autoincrement())
+  name        String
+  email       String
+  eventId     Int
   ticketTypeId Int
-  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
-  userId       String
-  user         User       @relation(fields: [userId], references: [id])
-  checkedIn    Boolean    @default(false)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  userId      String?  // Made optional
+  checkedIn   Boolean  @default(false)
 
-  @@unique([eventId, email])
+  event      Event      @relation(fields: [eventId], references: [id])
+  ticketType TicketType @relation(fields: [ticketTypeId], references: [id])
+  user       User?      @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([email, eventId])
 }
 
+
 model PromoCode {
-  id      Int           @id @default(autoincrement())
-  code    String        @unique
+  id      Int      @id @default(autoincrement())
+  code    String   @unique
   type    PromoCodeType
-  value   Decimal       @db.Decimal(10, 2)
+  value   Decimal  @db.Decimal(10, 2)
   maxUses Int
-  uses    Int           @default(0)
+  uses    Int      @default(0)
   eventId Int
-  event   Event         @relation(fields: [eventId], references: [id])
+
+  event Event @relation(fields: [eventId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum PromoCodeType {
@@ -72,15 +83,17 @@ enum PromoCodeType {
 }
 
 model User {
-  id        String  @id @default(cuid())
-  firstName String
-  lastName  String
-  phoneNumber String @unique
-  email     String? @unique
-  roleId    String
-  role      Role    @relation(fields: [roleId], references: [id])
+  id                     String     @id
+  firstName              String
+  lastName               String
+  phoneNumber            String     @unique
+  email                  String?    @unique
+  passwordChangeRequired Boolean    @default(false)
+  roleId                 String
+
+  role      Role       @relation(fields: [roleId], references: [id])
   attendees Attendee[]
-  passwordChangeRequired Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -89,6 +102,10 @@ model Role {
   id          String  @id @default(cuid())
   name        String  @unique
   description String?
-  permissions String? // Comma-separated list of permissions
-  users       User[]
+  permissions String?
+
+  users User[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

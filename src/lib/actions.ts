@@ -320,7 +320,7 @@ export async function addUser(data: any) {
         
         const responseData = registrationResponse.data;
         let newUserId;
-        
+
         if (responseData.accessToken) {
             const tokenPayload = decodeJwtPayload(responseData.accessToken);
             if (tokenPayload && tokenPayload.sub) {
@@ -362,6 +362,10 @@ export async function addUser(data: any) {
         
         if (error.code === 'P2002' && error.meta?.target?.includes('phoneNumber')) {
              throw new Error('A user with this phone number already exists.');
+        }
+
+        if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
+            throw new Error('A user with this email address already exists.');
         }
         
         throw new Error(error.message || 'Failed to create user.');
@@ -492,7 +496,7 @@ export async function resetPassword(phoneNumber: string, newPassword: string): P
   }
 
   try {
-    const response = await axios.post(`${authApiUrl}/api/Auth/forgot-password`, {
+    const response = await axios.post(`${authApiUrl}/api/Auth/reset-password`, {
       phoneNumber,
       newPassword,
     });
@@ -530,8 +534,6 @@ export async function purchaseTickets(request: PurchaseRequest) {
     const newAttendees: Attendee[] = [];
     
     await prisma.$transaction(async (tx) => {
-        const adminUserId = 'b1e55c84-9055-4eb5-8bd4-a262538f7e66'; // From seed.ts
-
         for (const ticket of request.tickets) {
             const ticketType = await tx.ticketType.findUnique({ where: { id: ticket.id } });
             if (!ticketType) throw new Error(`Ticket type with id ${ticket.id} not found.`);
@@ -543,11 +545,11 @@ export async function purchaseTickets(request: PurchaseRequest) {
                 const newAttendee = await tx.attendee.create({
                     data: {
                         name: 'Public Customer', // Placeholder
-                        email: `customer+${Date.now()}@example.com`,
+                        email: `customer+${Date.now() + i}@example.com`, // Ensure unique email for batch purchases
                         eventId: request.eventId,
                         ticketTypeId: ticket.id,
-                        userId: adminUserId,
                         checkedIn: false,
+                        // userId is now optional and not provided for public purchases
                     },
                 });
                 newAttendees.push(newAttendee);
@@ -580,9 +582,8 @@ export async function purchaseTickets(request: PurchaseRequest) {
         return { error: 'The promo code you entered is invalid or expired.' };
     }
     if (!error.digest?.startsWith('NEXT_REDIRECT')) {
-      return { error: error.message };
+      throw error;
     }
-    throw error;
   }
 }
 
