@@ -65,17 +65,21 @@ async function proxyRequest(req: NextRequest, path: string[]) {
 }
 
 export async function GET(req: NextRequest, context: { params: { path: string[] } }) {
-  return proxyRequest(req, context.params.path);
+  const { path } = context.params;
+  return proxyRequest(req, path);
 }
 
 export async function POST(req: NextRequest, context: { params: { path: string[] } }) {
-  return proxyRequest(req, context.params.path);
+  const { path } = context.params;
+  return proxyRequest(req, path);
 }
 
 export async function PUT(req: NextRequest, context: { params: { path: string[] } }) {
-  return proxyRequest(req, context.params.path);
+  const { path } = context.params;
+  return proxyRequest(req, path);
 }
 
 export async function DELETE(req: NextRequest, context: { params: { path: string[] } }) {
-  return proxyRequest(req, context.params.path);
+  const { path } = context.params;
+  return proxyRequest(req, path);
 }
