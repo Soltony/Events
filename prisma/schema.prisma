@@ -1,40 +1,11 @@
 
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-generator client {
-  provider = "prisma-client-js"
-}
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id                     String    @id @default(uuid())
-  firstName              String
-  lastName               String
-  phoneNumber            String    @unique
-  email                  String?   @unique
-  passwordChangeRequired Boolean   @default(true)
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
-  roleId                 String
-  role                   Role      @relation(fields: [roleId], references: [id])
-  attendees              Attendee[]
-
-  @@index([roleId])
-}
-
-model Role {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  description String?
-  permissions String? // Comma-separated list of permissions
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  users       User[]
+generator client {
+  provider = "prisma-client-js"
 }
 
 model Event {
@@ -55,55 +26,69 @@ model Event {
 }
 
 model TicketType {
-  id        Int      @id @default(autoincrement())
+  id        Int        @id @default(autoincrement())
   name      String
-  price     Decimal  @db.Decimal(10, 2)
+  price     Decimal    @db.Decimal(10, 2)
   total     Int
-  sold      Int      @default(0)
+  sold      Int        @default(0)
   eventId   Int
-  event     Event    @relation(fields: [eventId], references: [id])
+  event     Event      @relation(fields: [eventId], references: [id])
   attendees Attendee[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([eventId])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 }
 
 model Attendee {
   id           Int        @id @default(autoincrement())
   name         String
-  email        String
-  checkedIn    Boolean    @default(false)
+  email        String?
   eventId      Int
   event        Event      @relation(fields: [eventId], references: [id])
   ticketTypeId Int
   ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
   userId       String
   user         User       @relation(fields: [userId], references: [id])
+  checkedIn    Boolean    @default(false)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  @@index([eventId])
-  @@index([ticketTypeId])
-  @@index([userId])
+  @@unique([eventId, email])
 }
 
 model PromoCode {
-  id        Int           @id @default(autoincrement())
-  code      String        @unique
-  type      PromoCodeType
-  value     Decimal       @db.Decimal(10, 2)
-  maxUses   Int
-  uses      Int           @default(0)
-  eventId   Int
-  event     Event         @relation(fields: [eventId], references: [id])
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-
-  @@index([eventId])
+  id      Int           @id @default(autoincrement())
+  code    String        @unique
+  type    PromoCodeType
+  value   Decimal       @db.Decimal(10, 2)
+  maxUses Int
+  uses    Int           @default(0)
+  eventId Int
+  event   Event         @relation(fields: [eventId], references: [id])
 }
 
 enum PromoCodeType {
   PERCENTAGE
   FIXED
+}
+
+model User {
+  id        String  @id @default(cuid())
+  firstName String
+  lastName  String
+  phoneNumber String @unique
+  email     String? @unique
+  roleId    String
+  role      Role    @relation(fields: [roleId], references: [id])
+  attendees Attendee[]
+  passwordChangeRequired Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Role {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String?
+  permissions String? // Comma-separated list of permissions
+  users       User[]
 }

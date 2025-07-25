@@ -310,7 +310,7 @@ export async function addUser(data: any) {
             firstName,
             lastName,
             phoneNumber,
-            email: email || null,
+            email: email || undefined,
             password,
         });
 
@@ -321,7 +321,6 @@ export async function addUser(data: any) {
         const responseData = registrationResponse.data;
         let newUserId;
         
-        // Strategy: Get the user ID from the 'sub' claim of the JWT accessToken.
         if (responseData.accessToken) {
             const tokenPayload = decodeJwtPayload(responseData.accessToken);
             if (tokenPayload && tokenPayload.sub) {
@@ -330,7 +329,7 @@ export async function addUser(data: any) {
         }
         
         if (!newUserId) {
-            console.error("Auth service response did not contain a user ID. Full response:", JSON.stringify(registrationResponse.data, null, 2));
+            console.error("Auth service response did not contain a user ID. Full response:", JSON.stringify(responseData, null, 2));
             throw new Error("Auth service did not return a user ID.");
         }
         
