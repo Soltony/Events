@@ -294,7 +294,7 @@ export async function addUser(data: any) {
             firstName,
             lastName,
             phoneNumber,
-            email,
+            email: email || null,
             password,
         });
 
