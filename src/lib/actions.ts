@@ -301,9 +301,12 @@ export async function addUser(data: any) {
         if (!registrationResponse.data || !registrationResponse.data.isSuccess) {
             throw new Error(registrationResponse.data.errors?.join(', ') || 'Failed to register user with auth service.');
         }
+        
+        // Attempt to find userId from multiple possible locations in the response
+        const newUserId = registrationResponse.data.data?.userId || registrationResponse.data.userId;
 
-        const newUserId = registrationResponse.data.data?.userId;
         if (!newUserId) {
+            console.error("Auth service response did not contain a user ID. Full response:", JSON.stringify(registrationResponse.data, null, 2));
             throw new Error("Auth service did not return a user ID.");
         }
 
