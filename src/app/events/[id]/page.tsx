@@ -170,7 +170,7 @@ export default function PublicEventDetailPage() {
     )
   }
   
-  const imageUrl = event.image && event.image.split(',')[0].trim() ? event.image.split(',')[0].trim() : DEFAULT_IMAGE_PLACEHOLDER;
+  const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
 
   return (
     <div className="container mx-auto p-4 md:p-8 max-w-4xl">

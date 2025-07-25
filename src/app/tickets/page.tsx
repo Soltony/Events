@@ -30,6 +30,8 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     return format(new Date(startDate), startDateFormat);
 }
 
+const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
+
 export default function MyTicketsPage() {
   const [tickets, setTickets] = useState<FullTicket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,11 +70,11 @@ export default function MyTicketsPage() {
         ) : tickets.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {tickets.map((ticket) => {
-                     const imageUrl = ticket.event.image || '/image/nibtickets.jpg';
+                     const imageUrl = ticket.event.image || DEFAULT_IMAGE_PLACEHOLDER;
                     return (
                         <Card key={ticket.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
                              <CardHeader className="p-0">
-                                <Image src={imageUrl} alt={ticket.event.name} width={600} height={338} className="rounded-t-lg object-cover aspect-video" data-ai-hint={ticket.event.hint ?? 'event'} />
+                                <Image src={imageUrl} alt={ticket.event.name} width={600} height={338} className="rounded-t-lg object-cover aspect-video" data-ai-hint={ticket.event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
                             </CardHeader>
                              <CardContent className="p-4 flex-1 space-y-1">
                                 <CardTitle className="text-xl">{ticket.event.name}</CardTitle>

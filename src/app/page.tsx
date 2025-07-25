@@ -34,6 +34,8 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     return format(new Date(startDate), startDateFormat);
 }
 
+const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
+
 export default function PublicHomePage() {
   const [events, setEvents] = useState<EventWithTickets[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,12 +139,12 @@ export default function PublicHomePage() {
             ))
         ) : filteredEvents.length > 0 ? (
           filteredEvents.map((event) => {
-            const firstImage = event.image || '/image/nibtickets.jpg';
+            const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
             return (
               <Card key={event.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
                 <CardHeader className="p-0">
                   <button onClick={() => handleEventClick(event)} className="w-full text-left">
-                    <Image src={firstImage} alt={event.name} width={600} height={338} className="rounded-t-lg object-cover aspect-video" data-ai-hint={event.hint ?? 'event'} />
+                    <Image src={imageUrl} alt={event.name} width={600} height={338} className="rounded-t-lg object-cover aspect-video" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}/>
                   </button>
                 </CardHeader>
                 <CardContent className="p-3 flex-1 space-y-1">
