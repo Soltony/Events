@@ -40,6 +40,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [passwordChangeRequired, setPasswordChangeRequired] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+
+  const forcePasswordChangeStatus = useCallback((status: boolean) => {
+      setPasswordChangeRequired(status);
+      localStorage.setItem('passwordChangeRequired', String(status));
+  }, []);
   
   const logout = useCallback(async (options?: { reason?: string }) => {
     const { reason } = options || {};
@@ -163,8 +168,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           localStorage.setItem('authUser', JSON.stringify(userData));
 
           const needsPasswordChange = userData.passwordChangeRequired;
-          setPasswordChangeRequired(needsPasswordChange);
-          localStorage.setItem('passwordChangeRequired', String(needsPasswordChange));
+          // Directly set the password change status from the fresh user data
+          forcePasswordChangeStatus(needsPasswordChange);
           
           toast({
             title: 'Login Successful',
@@ -216,11 +221,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const userPermissions = user.role.permissions.split(',');
     return userPermissions.includes(permission);
   };
-  
-  const forcePasswordChangeStatus = (status: boolean) => {
-      setPasswordChangeRequired(status);
-      localStorage.setItem('passwordChangeRequired', String(status));
-  }
 
   const isAuthenticated = !isLoading && !!tokens && !!user;
 
