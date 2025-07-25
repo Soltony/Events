@@ -305,10 +305,18 @@ export async function addUser(data: any) {
         
         const responseData = registrationResponse.data;
         // Attempt to find userId from multiple possible locations in the response
-        let newUserId = responseData?.userId || 
-                        responseData?.data?.userId || 
-                        (Array.isArray(responseData?.data) && responseData.data[0]?.userId);
-
+        let newUserId;
+        if (responseData && typeof responseData === 'object') {
+            if ('userId' in responseData) {
+                newUserId = responseData.userId;
+            } else if ('data' in responseData && responseData.data && typeof responseData.data === 'object' && 'userId' in responseData.data) {
+                newUserId = responseData.data.userId;
+            } else if ('data' in responseData && Array.isArray(responseData.data) && responseData.data.length > 0 && responseData.data[0] && typeof responseData.data[0] === 'object' && 'userId' in responseData.data[0]) {
+                newUserId = responseData.data[0].userId;
+            } else if ('user' in responseData && responseData.user && typeof responseData.user === 'object' && 'id' in responseData.user) {
+                newUserId = responseData.user.id;
+            }
+        }
 
         if (!newUserId) {
             console.error("Auth service response did not contain a user ID. Full response:", JSON.stringify(registrationResponse.data, null, 2));
