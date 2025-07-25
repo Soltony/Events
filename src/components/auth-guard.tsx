@@ -9,24 +9,24 @@ import { useAuth } from '@/context/auth-context';
 const pagePermissions: Record<string, string> = {
     '/dashboard': 'Dashboard:View',
     '/dashboard/scan': 'Scan QR:View',
-    '/dashboard/events': 'Manage and Create Events:View',
-    '/dashboard/events/new': 'Manage and Create Events:Create',
+    '/dashboard/events': 'Events:View',
+    '/dashboard/events/new': 'Events:Create',
     '/dashboard/reports': 'Reports:View',
     '/dashboard/settings': 'Settings:View',
 };
 
 function hasAccess(pathname: string, hasPermission: (p: string) => boolean): boolean {
     if (pathname.startsWith('/dashboard/events/') && pathname.includes('/edit')) {
-        return hasPermission('Manage and Create Events:Update');
+        return hasPermission('Events:Update');
     }
     if (pathname.startsWith('/dashboard/events/')) {
-        return hasPermission('Manage and Create Events:View');
+        return hasPermission('Events:View');
     }
     const requiredPermission = Object.keys(pagePermissions).find(key => pathname.startsWith(key));
     if (requiredPermission) {
         return hasPermission(pagePermissions[requiredPermission]);
     }
-    // Allow access to pages not in the list, like the profile page or settings subpages
+    // Allow access to pages not in the list, like the profile page or settings subpages which have their own logic
     return true;
 }
 

@@ -44,7 +44,7 @@ type RoleFormValues = z.infer<typeof roleFormSchema>;
 const permissionCategories = {
     Dashboard: ['View', 'Update', 'Create', 'Delete'],
     'Scan QR': ['View', 'Update', 'Create', 'Delete'],
-    'Manage and Create Events': ['View', 'Update', 'Create', 'Delete'],
+    Events: ['View', 'Update', 'Create', 'Delete'],
     Reports: ['View', 'Update', 'Create', 'Delete'],
     Settings: ['View', 'Update', 'Create', 'Delete'],
 };

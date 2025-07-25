@@ -16,7 +16,8 @@ async function main() {
         'Dashboard:View', 'Dashboard:Create', 'Dashboard:Update', 'Dashboard:Delete',
         'Events:View', 'Events:Create', 'Events:Update', 'Events:Delete',
         'Reports:View', 'Reports:Create', 'Reports:Update', 'Reports:Delete',
-        'Settings:View', 'Settings:Create', 'Settings:Update', 'Settings:Delete'
+        'Settings:View', 'Settings:Create', 'Settings:Update', 'Settings:Delete',
+        'Scan QR:View',
       ].join(',')
     },
     create: {
@@ -26,7 +27,8 @@ async function main() {
           'Dashboard:View', 'Dashboard:Create', 'Dashboard:Update', 'Dashboard:Delete',
           'Events:View', 'Events:Create', 'Events:Update', 'Events:Delete',
           'Reports:View', 'Reports:Create', 'Reports:Update', 'Reports:Delete',
-          'Settings:View', 'Settings:Create', 'Settings:Update', 'Settings:Delete'
+          'Settings:View', 'Settings:Create', 'Settings:Update', 'Settings:Delete',
+          'Scan QR:View',
         ].join(',')
     }
   });
@@ -36,18 +38,18 @@ async function main() {
     update: {
       description: 'Can manage events and view reports',
       permissions: [
-        'Dashboard:View', 
         'Events:View', 'Events:Create', 'Events:Update',
-        'Reports:View'
+        'Reports:View',
+        'Scan QR:View',
       ].join(',')
     },
     create: {
         name: 'Organizer',
         description: 'Can manage events and view reports',
         permissions: [
-          'Dashboard:View', 
           'Events:View', 'Events:Create', 'Events:Update',
-          'Reports:View'
+          'Reports:View',
+          'Scan QR:View',
         ].join(',')
     }
   });

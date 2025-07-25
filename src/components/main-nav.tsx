@@ -18,8 +18,8 @@ export function MainNav() {
   const navItems = [
     { href: "/dashboard", icon: <Home className="h-5 w-5" />, label: "Dashboard", active: pathname === '/dashboard', permission: 'Dashboard:View' },
     { href: "/dashboard/scan", icon: <QrCode className="h-5 w-5" />, label: "Scan QR", active: pathname === '/dashboard/scan', permission: 'Scan QR:View' },
-    { href: "/dashboard/events/new", icon: <PlusCircle className="h-5 w-5" />, label: "Create Event", active: pathname === '/dashboard/events/new', permission: 'Manage and Create Events:Create' },
-    { href: "/dashboard/events", icon: <Ticket className="h-5 w-5" />, label: "Manage Events", active: (pathname === '/dashboard/events' || pathname.startsWith('/dashboard/events/')) && pathname !== '/dashboard/events/new', permission: 'Manage and Create Events:View' },
+    { href: "/dashboard/events/new", icon: <PlusCircle className="h-5 w-5" />, label: "Create Event", active: pathname === '/dashboard/events/new', permission: 'Events:Create' },
+    { href: "/dashboard/events", icon: <Ticket className="h-5 w-5" />, label: "Manage Events", active: (pathname === '/dashboard/events' || pathname.startsWith('/dashboard/events/')) && pathname !== '/dashboard/events/new', permission: 'Events:View' },
     { href: "/dashboard/reports", icon: <LineChart className="h-5 w-5" />, label: "Reports", active: pathname === '/dashboard/reports', permission: 'Reports:View' },
     { href: "/dashboard/settings", icon: <Settings className="h-5 w-5" />, label: "Settings", active: pathname.startsWith('/dashboard/settings'), permission: 'Settings:View' },
   ];
