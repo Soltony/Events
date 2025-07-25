@@ -496,7 +496,7 @@ export async function resetPassword(phoneNumber: string, newPassword: string): P
   }
 
   try {
-    const response = await axios.post(`${authApiUrl}/api/Auth/reset-password`, {
+    const response = await axios.post(`${authApiUrl}/api/Auth/change-password`, {
       phoneNumber,
       newPassword,
     });
@@ -528,11 +528,10 @@ interface PurchaseRequest {
 }
 
 export async function purchaseTickets(request: PurchaseRequest) {
-  'use server';
-  
-  try {
+    'use server';
+
     const newAttendees: Attendee[] = [];
-    
+
     await prisma.$transaction(async (tx) => {
         for (const ticket of request.tickets) {
             const ticketType = await tx.ticketType.findUnique({ where: { id: ticket.id } });
@@ -540,7 +539,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
             if ((ticketType.total - ticketType.sold) < ticket.quantity) {
                 throw new Error(`Not enough tickets available for ${ticketType.name}.`);
             }
-            
+
             for (let i = 0; i < ticket.quantity; i++) {
                 const newAttendee = await tx.attendee.create({
                     data: {
@@ -553,13 +552,13 @@ export async function purchaseTickets(request: PurchaseRequest) {
                 });
                 newAttendees.push(newAttendee);
             }
-            
+
             await tx.ticketType.update({
                 where: { id: ticket.id },
                 data: { sold: { increment: ticket.quantity } },
             });
         }
-        
+
         if (request.promoCode) {
             await tx.promoCode.update({
                 where: { code: request.promoCode, eventId: request.eventId },
@@ -570,20 +569,10 @@ export async function purchaseTickets(request: PurchaseRequest) {
 
     revalidatePath(`/events/${request.eventId}`);
     revalidatePath('/');
-    
+
     if (newAttendees.length > 0) {
         redirect(`/ticket/${newAttendees[0].id}/confirmation`);
     }
-
-  } catch (error: any) {
-    console.error("Ticket purchase failed:", error);
-    if (error.code === 'P2025') {
-        return { error: 'The promo code you entered is invalid or expired.' };
-    }
-    if (!error.digest?.startsWith('NEXT_REDIRECT')) {
-      throw error;
-    }
-  }
 }
 
 
