@@ -26,7 +26,7 @@ function hasAccess(pathname: string, hasPermission: (p: string) => boolean): boo
     if (requiredPermission) {
         return hasPermission(pagePermissions[requiredPermission]);
     }
-    // Allow access to pages not in the list, like the profile page
+    // Allow access to pages not in the list, like the profile page or settings subpages
     return true;
 }
 
