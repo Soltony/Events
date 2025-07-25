@@ -289,7 +289,6 @@ export async function addUser(data: any) {
     }
     
     try {
-        // 1. Register user with the external authentication service
         const registrationResponse = await axios.post(`${authApiUrl}/api/Auth/register`, {
             firstName,
             lastName,
@@ -299,31 +298,29 @@ export async function addUser(data: any) {
         });
 
         if (!registrationResponse.data || !registrationResponse.data.isSuccess) {
-            // Forward the specific error from the auth service if available
             throw new Error(registrationResponse.data.errors?.join(', ') || 'Failed to register user with auth service.');
         }
         
         const responseData = registrationResponse.data;
-        // Attempt to find userId from multiple possible locations in the response
         let newUserId;
+
         if (responseData && typeof responseData === 'object') {
-            if ('userId' in responseData) {
+            if (responseData.userId) {
                 newUserId = responseData.userId;
-            } else if ('data' in responseData && responseData.data && typeof responseData.data === 'object' && 'userId' in responseData.data) {
+            } else if (responseData.data && responseData.data.userId) {
                 newUserId = responseData.data.userId;
-            } else if ('data' in responseData && Array.isArray(responseData.data) && responseData.data.length > 0 && responseData.data[0] && typeof responseData.data[0] === 'object' && 'userId' in responseData.data[0]) {
-                newUserId = responseData.data[0].userId;
-            } else if ('user' in responseData && responseData.user && typeof responseData.user === 'object' && 'id' in responseData.user) {
+            } else if (responseData.user && responseData.user.id) {
                 newUserId = responseData.user.id;
+            } else if (Array.isArray(responseData.data) && responseData.data.length > 0 && responseData.data[0].userId) {
+                newUserId = responseData.data[0].userId;
             }
         }
 
         if (!newUserId) {
-            console.error("Auth service response did not contain a user ID. Full response:", JSON.stringify(registrationResponse.data, null, 2));
+            console.error("Auth service response did not contain a user ID. Full response:", JSON.stringify(responseData, null, 2));
             throw new Error("Auth service did not return a user ID.");
         }
 
-        // 2. Create the user in the local database
         const user = await prisma.user.create({
             data: {
                 id: newUserId,
@@ -332,7 +329,7 @@ export async function addUser(data: any) {
                 phoneNumber,
                 roleId,
                 email,
-                passwordChangeRequired: true, // New users must change their password
+                passwordChangeRequired: true,
             }
         });
     
@@ -396,11 +393,9 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             where: { id: userId },
         });
 
-        // Delete from external auth service after local deletion
         const deleteResponse = await axios.delete(`${authApiUrl}/api/Auth/delete/${phoneNumber}`);
         
         if (!deleteResponse.data || !deleteResponse.data.isSuccess) {
-            // Log the error but don't throw, as the local user is already gone.
              console.error('Failed to delete user from auth service:', deleteResponse.data.errors?.join(', '));
         }
 
@@ -410,7 +405,7 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         if (error.response?.data?.errors) {
             throw new Error(error.response.data.errors.join(', '));
         }
-        if (error.code === 'P2025') { // Record to delete does not exist
+        if (error.code === 'P2025') { 
             throw new Error("User not found in the database.");
         }
         throw new Error(error.message || 'Failed to delete user.');
@@ -455,7 +450,6 @@ export async function updateRole(id: string, data: Partial<Role>) {
 }
 
 export async function deleteRole(id: string) {
-    // Before deleting a role, ensure no users are assigned to it.
     const usersWithRole = await prisma.user.count({ where: { roleId: id } });
     if (usersWithRole > 0) {
         throw new Error("Cannot delete role as it is currently assigned to users.");
@@ -472,7 +466,6 @@ export async function resetPassword(phoneNumber: string, newPassword: string): P
     throw new Error('Authentication service URL is not configured.');
   }
 
-  // First, verify the user exists in our local DB
   const user = await prisma.user.findUnique({
     where: { phoneNumber },
   });
@@ -491,7 +484,6 @@ export async function resetPassword(phoneNumber: string, newPassword: string): P
       throw new Error(response.data.errors?.join(', ') || 'Failed to reset password.');
     }
     
-    // After successful password reset, mark change as not required
     await prisma.user.update({
       where: { phoneNumber },
       data: { passwordChangeRequired: false }
@@ -561,14 +553,13 @@ export async function purchaseTickets(request: PurchaseRequest) {
     revalidatePath(`/events/${request.eventId}`);
     revalidatePath('/');
     
-    // Redirect to the first ticket's confirmation page.
     if (newAttendees.length > 0) {
         redirect(`/ticket/${newAttendees[0].id}/confirmation`);
     }
 
   } catch (error: any) {
     console.error("Ticket purchase failed:", error);
-    if (error.code === 'P2025') { // Promo code not found
+    if (error.code === 'P2025') {
         return { error: 'The promo code you entered is invalid or expired.' };
     }
     if (!error.digest?.startsWith('NEXT_REDIRECT')) {
