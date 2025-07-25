@@ -481,7 +481,7 @@ export async function deleteRole(id: string) {
     return serialize(role);
 }
 
-export async function resetPassword(phoneNumber: string, newPassword: string): Promise<void> {
+export async function resetPassword(phoneNumber: string, newPassword: string, currentPassword?: string): Promise<void> {
   const authApiUrl = process.env.AUTH_API_BASE_URL;
   if (!authApiUrl) {
     throw new Error('Authentication service URL is not configured.');
@@ -496,10 +496,15 @@ export async function resetPassword(phoneNumber: string, newPassword: string): P
   }
 
   try {
-    const response = await axios.post(`${authApiUrl}/api/Auth/change-password`, {
+    const payload: { phoneNumber: string, newPassword: string, currentPassword?: string } = {
       phoneNumber,
       newPassword,
-    });
+    };
+    if (currentPassword) {
+      payload.currentPassword = currentPassword;
+    }
+
+    const response = await axios.post(`${authApiUrl}/api/Auth/change-password`, payload);
     
     if (!response.data || !response.data.isSuccess) {
       throw new Error(response.data.errors?.join(', ') || 'Failed to reset password.');

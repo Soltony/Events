@@ -13,7 +13,7 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import api from '@/lib/api';
+import { resetPassword } from '@/lib/actions';
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, { message: 'Current password is required.' }),
@@ -28,7 +28,7 @@ type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
 
 export default function ProfilePage() {
   const { toast } = useToast();
-  const { user, tokens, passwordChangeRequired, logout, forcePasswordChangeStatus } = useAuth();
+  const { user, passwordChangeRequired, logout, forcePasswordChangeStatus } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<ChangePasswordFormValues>({
@@ -41,23 +41,16 @@ export default function ProfilePage() {
   });
 
   async function onSubmit(data: ChangePasswordFormValues) {
-    if (!user?.phoneNumber || !tokens?.accessToken) {
+    if (!user?.phoneNumber) {
         toast({ variant: 'destructive', title: 'Error', description: 'User session is invalid. Please log in again.' });
         return;
     }
 
     setIsSubmitting(true);
     try {
-        await api.post('/api/auth/change-password', {
-            phoneNumber: user.phoneNumber,
-            currentPassword: data.currentPassword,
-            newPassword: data.newPassword,
-        }, {
-            headers: {
-                Authorization: `Bearer ${tokens.accessToken}`
-            }
-        });
+        await resetPassword(user.phoneNumber, data.newPassword, data.currentPassword);
         
+        // This is the crucial fix: Update the client state *before* logging out.
         forcePasswordChangeStatus(false);
 
         toast({
@@ -72,7 +65,7 @@ export default function ProfilePage() {
 
     } catch (error: any) {
         console.error("Failed to change password:", error);
-        const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'Failed to change password.';
+        const errorMessage = error.message || 'Failed to change password.';
         toast({
             variant: 'destructive',
             title: 'Error',
