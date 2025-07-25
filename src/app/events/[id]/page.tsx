@@ -39,6 +39,8 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     return format(new Date(startDate), startDateFormat);
 }
 
+const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
+
 export default function PublicEventDetailPage() {
   const params = useParams<{ id: string }>();
   const eventId = params ? parseInt(params.id, 10) : NaN;
@@ -168,13 +170,13 @@ export default function PublicEventDetailPage() {
     )
   }
   
-  const firstImage = event.image?.split(',')[0].trim() || '/image/nibtickets.jpg';
+  const imageUrl = event.image && event.image.split(',')[0].trim() ? event.image.split(',')[0].trim() : DEFAULT_IMAGE_PLACEHOLDER;
 
   return (
     <div className="container mx-auto p-4 md:p-8 max-w-4xl">
       <div className="bg-card shadow-xl rounded-lg overflow-hidden">
         <div className="relative w-full aspect-video">
-          <Image src={firstImage} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} />
+          <Image src={imageUrl} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
         </div>
 
         <div className="p-6 md:p-8 space-y-8">
