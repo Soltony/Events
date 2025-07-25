@@ -14,6 +14,23 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
         : value
 ));
 
+// A simple function to decode the payload of a JWT without verifying its signature.
+// This is safe to do on the server side because we trust the token we just received from our own auth service.
+function decodeJwtPayload(token: string) {
+    try {
+        const payloadBase64 = token.split('.')[1];
+        if (!payloadBase64) {
+            throw new Error('Invalid JWT: Missing payload');
+        }
+        const decodedJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
+        return JSON.parse(decodedJson);
+    } catch (error) {
+        console.error("Failed to decode JWT:", error);
+        return null;
+    }
+}
+
+
 // Event Actions
 export async function getEvents() {
   const events = await prisma.event.findMany({
@@ -303,19 +320,15 @@ export async function addUser(data: any) {
         
         const responseData = registrationResponse.data;
         let newUserId;
-
-        if (responseData && typeof responseData === 'object') {
-            if (responseData.userId) {
-                newUserId = responseData.userId;
-            } else if (responseData.data && responseData.data.userId) {
-                newUserId = responseData.data.userId;
-            } else if (responseData.user && responseData.user.id) {
-                newUserId = responseData.user.id;
-            } else if (Array.isArray(responseData.data) && responseData.data.length > 0 && responseData.data[0].userId) {
-                newUserId = responseData.data[0].userId;
+        
+        // Strategy: Get the user ID from the 'sub' claim of the JWT accessToken.
+        if (responseData.accessToken) {
+            const tokenPayload = decodeJwtPayload(responseData.accessToken);
+            if (tokenPayload && tokenPayload.sub) {
+                newUserId = tokenPayload.sub;
             }
         }
-
+        
         if (!newUserId) {
             console.error("Auth service response did not contain a user ID. Full response:", JSON.stringify(responseData, null, 2));
             throw new Error("Auth service did not return a user ID.");
