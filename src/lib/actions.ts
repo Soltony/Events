@@ -549,7 +549,6 @@ export async function purchaseTickets(request: PurchaseRequest) {
                         eventId: request.eventId,
                         ticketTypeId: ticket.id,
                         checkedIn: false,
-                        // userId is now optional and not provided for public purchases
                     },
                 });
                 newAttendees.push(newAttendee);
