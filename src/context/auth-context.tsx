@@ -175,11 +175,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } else {
             // Role-based redirection
             switch(userData.role?.name) {
-                case 'Merchant':
-                    router.push('/dashboard/scan');
+                case 'Organizer':
+                    router.push('/dashboard/events');
                     break;
                 case 'Admin':
-                case 'Organizer':
                 default:
                     router.push('/dashboard');
                     break;
