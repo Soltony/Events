@@ -65,14 +65,18 @@ export default function ProfilePage() {
             description: 'Your password has been changed successfully. Please log in again.',
         });
         
-        await logout();
+        // Use a slight delay to ensure state update propagates before logout
+        setTimeout(() => {
+            logout();
+        }, 500);
 
     } catch (error: any) {
         console.error("Failed to change password:", error);
+        const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'Failed to change password.';
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: error.response?.data?.errors?.join(', ') || error.message || 'Failed to change password.',
+            description: errorMessage,
         });
     } finally {
         setIsSubmitting(false);
