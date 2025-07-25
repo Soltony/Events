@@ -133,11 +133,21 @@ export default function PublicEventDetailPage() {
 
   const handlePurchase = () => {
     startTransition(async () => {
-      await purchaseTickets({
-          eventId,
-          tickets: Object.values(selectedTickets),
-          promoCode: appliedPromo?.code,
-      });
+      try {
+        await purchaseTickets({
+            eventId,
+            tickets: Object.values(selectedTickets),
+            promoCode: appliedPromo?.code,
+        });
+        // The redirect will be handled by Next.js if the action is successful
+      } catch (error) {
+        console.error("Ticket purchase failed:", error);
+        toast({
+          variant: 'destructive',
+          title: 'Purchase Failed',
+          description: 'An error occurred during purchase. Please try again.',
+        });
+      }
     });
   };
   
@@ -295,3 +305,5 @@ export default function PublicEventDetailPage() {
     </div>
   );
 }
+
+    

@@ -40,13 +40,21 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
   const handlePurchase = (ticketType: TicketType) => {
     setLoadingTicketId(ticketType.id);
     startTransition(async () => {
-      // The purchaseTickets function expects an array of tickets.
-      // We are buying one type of ticket here, with quantity 1.
-      await purchaseTickets({
-        eventId: event.id,
-        tickets: [{ id: ticketType.id, quantity: 1, name: ticketType.name, price: Number(ticketType.price) }]
-      });
-      // The redirect is handled inside the server action, so no need for toast here on success.
+      try {
+        await purchaseTickets({
+          eventId: event.id,
+          tickets: [{ id: ticketType.id, quantity: 1, name: ticketType.name, price: Number(ticketType.price) }]
+        });
+        // Redirect is handled by Next.js if the action is successful
+      } catch (error) {
+        console.error("Purchase failed in modal:", error);
+        toast({
+          variant: 'destructive',
+          title: 'Purchase Failed',
+          description: 'Could not purchase ticket. Please try again.',
+        });
+        setLoadingTicketId(null);
+      }
     });
   };
 
@@ -125,3 +133,5 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
     </Dialog>
   );
 }
+
+    
