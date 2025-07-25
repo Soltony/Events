@@ -54,7 +54,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
             case 'Organizer':
                 router.replace('/dashboard/events');
                 break;
-            default:
+            default: // Admin and any other roles without a specific rule
                 router.replace('/dashboard');
                 break;
         }
@@ -62,7 +62,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   }, [router, isAuthenticated, isLoading, passwordChangeRequired, pathname, hasPermission, user]);
 
-  if (isLoading || !isAuthenticated || (isAuthenticated && !hasAccess(pathname, hasPermission) && !passwordChangeRequired)) {
+  if (isLoading || !isAuthenticated || (isAuthenticated && !passwordChangeRequired && !hasAccess(pathname, hasPermission))) {
     return (
         <div className="p-4 lg:p-6">
             <div className="space-y-4">
