@@ -299,11 +299,12 @@ export async function addUser(data: any) {
         });
 
         if (!registrationResponse.data || !registrationResponse.data.isSuccess) {
+            // Forward the specific error from the auth service if available
             throw new Error(registrationResponse.data.errors?.join(', ') || 'Failed to register user with auth service.');
         }
         
-        // Attempt to find userId from multiple possible locations in the response
         const responseData = registrationResponse.data;
+        // Attempt to find userId from multiple possible locations in the response
         let newUserId = responseData?.userId || 
                         responseData?.data?.userId || 
                         (Array.isArray(responseData?.data) && responseData.data[0]?.userId);
@@ -331,7 +332,7 @@ export async function addUser(data: any) {
         return serialize(user);
 
     } catch (error: any) {
-        console.error("Error creating user:", error);
+        console.error("Error creating user:", error.message);
         
         if (error.response?.data?.errors) {
             throw new Error(error.response.data.errors.join(', '));
