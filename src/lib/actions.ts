@@ -302,7 +302,7 @@ export async function addUser(data: any) {
             throw new Error(registrationResponse.data.errors?.join(', ') || 'Failed to register user with auth service.');
         }
 
-        const newUserId = registrationResponse.data.userId;
+        const newUserId = registrationResponse.data.data?.userId;
         if (!newUserId) {
             throw new Error("Auth service did not return a user ID.");
         }
