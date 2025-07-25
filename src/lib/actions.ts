@@ -530,58 +530,48 @@ interface PurchaseRequest {
 export async function purchaseTickets(request: PurchaseRequest) {
     'use server';
 
-    try {
-        const newAttendees = await prisma.$transaction(async (tx) => {
-            const createdAttendees: Attendee[] = [];
-            for (const ticket of request.tickets) {
-                const ticketType = await tx.ticketType.findUnique({ where: { id: ticket.id } });
-                if (!ticketType) throw new Error(`Ticket type with id ${ticket.id} not found.`);
-                if ((ticketType.total - ticketType.sold) < ticket.quantity) {
-                    throw new Error(`Not enough tickets available for ${ticketType.name}.`);
-                }
-
-                for (let i = 0; i < ticket.quantity; i++) {
-                    const newAttendee = await tx.attendee.create({
-                        data: {
-                            name: 'Public Customer', // Placeholder
-                            email: `customer+${Date.now() + i}@example.com`,
-                            eventId: request.eventId,
-                            ticketTypeId: ticket.id,
-                            checkedIn: false,
-                        },
-                    });
-                    createdAttendees.push(newAttendee);
-                }
-
-                await tx.ticketType.update({
-                    where: { id: ticket.id },
-                    data: { sold: { increment: ticket.quantity } },
-                });
+    const newAttendees = await prisma.$transaction(async (tx) => {
+        const createdAttendees: Attendee[] = [];
+        for (const ticket of request.tickets) {
+            const ticketType = await tx.ticketType.findUnique({ where: { id: ticket.id } });
+            if (!ticketType) throw new Error(`Ticket type with id ${ticket.id} not found.`);
+            if ((ticketType.total - ticketType.sold) < ticket.quantity) {
+                throw new Error(`Not enough tickets available for ${ticketType.name}.`);
             }
 
-            if (request.promoCode) {
-                await tx.promoCode.update({
-                    where: { code: request.promoCode, eventId: request.eventId },
-                    data: { uses: { increment: 1 } },
+            for (let i = 0; i < ticket.quantity; i++) {
+                const newAttendee = await tx.attendee.create({
+                    data: {
+                        name: 'Public Customer', // Placeholder
+                        email: `customer+${Date.now() + i}@example.com`,
+                        eventId: request.eventId,
+                        ticketTypeId: ticket.id,
+                        checkedIn: false,
+                    },
                 });
+                createdAttendees.push(newAttendee);
             }
-            return createdAttendees;
-        });
 
-        revalidatePath(`/events/${request.eventId}`);
-        revalidatePath('/');
+            await tx.ticketType.update({
+                where: { id: ticket.id },
+                data: { sold: { increment: ticket.quantity } },
+            });
+        }
 
-        if (newAttendees.length > 0) {
-            redirect(`/ticket/${newAttendees[0].id}/confirmation`);
+        if (request.promoCode) {
+            await tx.promoCode.update({
+                where: { code: request.promoCode, eventId: request.eventId },
+                data: { uses: { increment: 1 } },
+            });
         }
-    } catch (error) {
-        if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) {
-            throw error;
-        }
-        console.error("Ticket purchase failed:", error);
-        // Optionally, you can re-throw a more user-friendly error
-        // Or handle it in a way that the frontend can display a message
-        throw new Error("Ticket purchase failed. Please try again.");
+        return createdAttendees;
+    });
+
+    revalidatePath(`/events/${request.eventId}`);
+    revalidatePath('/');
+
+    if (newAttendees.length > 0) {
+        redirect(`/ticket/${newAttendees[0].id}/confirmation`);
     }
 }
 
@@ -665,6 +655,3 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
-
-
-    

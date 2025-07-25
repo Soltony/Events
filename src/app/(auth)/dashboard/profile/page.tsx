@@ -28,7 +28,7 @@ type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
 
 export default function ProfilePage() {
   const { toast } = useToast();
-  const { user, tokens, passwordChangeRequired, logout } = useAuth();
+  const { user, tokens, passwordChangeRequired, logout, forcePasswordChangeStatus } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<ChangePasswordFormValues>({
@@ -63,8 +63,7 @@ export default function ProfilePage() {
             description: 'Your password has been changed successfully. Please log in again.',
         });
         
-        // Don't await logout, as it's expected to fail server-side after a password change.
-        // We just need the client-side cleanup it provides.
+        forcePasswordChangeStatus(false);
         logout();
 
     } catch (error: any) {

@@ -26,6 +26,7 @@ interface AuthContextType {
   hasPermission: (permission: string) => boolean;
   login: (data: any) => Promise<void>;
   logout: (options?: { reason?: string }) => Promise<void>;
+  forcePasswordChangeStatus: (status: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -215,11 +216,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const userPermissions = user.role.permissions.split(',');
     return userPermissions.includes(permission);
   };
+  
+  const forcePasswordChangeStatus = (status: boolean) => {
+      setPasswordChangeRequired(status);
+      localStorage.setItem('passwordChangeRequired', String(status));
+  }
 
   const isAuthenticated = !isLoading && !!tokens && !!user;
 
   return (
-    <AuthContext.Provider value={{ tokens, user, isAuthenticated, isLoading, passwordChangeRequired, hasPermission, login, logout }}>
+    <AuthContext.Provider value={{ tokens, user, isAuthenticated, isLoading, passwordChangeRequired, hasPermission, login, logout, forcePasswordChangeStatus }}>
       {children}
     </AuthContext.Provider>
   );
