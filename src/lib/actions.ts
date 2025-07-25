@@ -330,20 +330,25 @@ export async function addUser(data: any) {
         }
         
         if (!newUserId) {
-            console.error("Auth service response did not contain a user ID. Full response:", JSON.stringify(responseData, null, 2));
+            console.error("Auth service response did not contain a user ID. Full response:", JSON.stringify(registrationResponse.data, null, 2));
             throw new Error("Auth service did not return a user ID.");
+        }
+        
+        const createData: any = {
+            id: newUserId,
+            firstName,
+            lastName,
+            phoneNumber,
+            roleId,
+            passwordChangeRequired: true,
+        };
+
+        if (email) {
+            createData.email = email;
         }
 
         const user = await prisma.user.create({
-            data: {
-                id: newUserId,
-                firstName,
-                lastName,
-                phoneNumber,
-                roleId,
-                email,
-                passwordChangeRequired: true,
-            }
+            data: createData,
         });
     
         revalidatePath('/dashboard/settings/users');
