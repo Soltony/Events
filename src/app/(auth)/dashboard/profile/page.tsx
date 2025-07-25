@@ -48,7 +48,7 @@ export default function ProfilePage() {
 
     setIsSubmitting(true);
     try {
-        await api.post('/api/auth/change-password', {
+        await api.post('/api/auth/reset-password', {
             phoneNumber: user.phoneNumber,
             currentPassword: data.currentPassword,
             newPassword: data.newPassword,
