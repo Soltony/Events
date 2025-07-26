@@ -50,6 +50,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { reason } = options || {};
     const currentTokens = JSON.parse(localStorage.getItem('authTokens') || 'null');
 
+    // Attempt to log out on the server first, while we still have the token.
+    if (currentTokens) {
+        try {
+            await api.post('/api/auth/logout', {
+                token: currentTokens.accessToken,
+                refreshToken: currentTokens.refreshToken,
+            });
+        } catch(error: any) {
+            // Silently fail. The client session will be cleared regardless.
+            // This is important for scenarios like post-password-change,
+            // where the token might be invalid.
+            if (error.response?.status !== 401) {
+              console.error("Server logout failed, but client is being logged out.", error);
+            }
+        }
+    }
+
+    // Clear client-side state and storage
     setUser(null);
     setTokens(null);
     setPasswordChangeRequired(false);
@@ -65,24 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
     }
     
-    // We push to login before the async call to ensure immediate UI feedback
+    // We push to login after clearing state
     router.push('/login');
 
-    if (currentTokens) {
-        try {
-            // This call invalidates tokens on the server.
-            // It might fail if tokens are already expired, which is fine.
-            await api.post('/api/auth/logout', {
-                token: currentTokens.accessToken,
-                refreshToken: currentTokens.refreshToken,
-            });
-        } catch(error) {
-            // Silently fail. The client session is cleared regardless.
-            // This is important for scenarios like post-password-change,
-            // where the token is already invalid.
-            console.error("Server logout failed, but client is logged out.", error);
-        }
-    }
   }, [router, toast]);
 
 
