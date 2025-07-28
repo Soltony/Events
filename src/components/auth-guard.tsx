@@ -46,9 +46,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     if (!hasAccess(pathname, hasPermission)) {
         // If user does not have permission, redirect to their default page
         switch(user?.role?.name) {
-            case 'Organizer':
-                router.replace('/dashboard/events');
-                break;
             default: // Admin and any other roles without a specific rule
                 router.replace('/dashboard');
                 break;

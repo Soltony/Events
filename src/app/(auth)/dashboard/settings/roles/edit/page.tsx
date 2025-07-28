@@ -180,7 +180,7 @@ function EditRoleFormComponent() {
                   <FormItem>
                     <FormLabel>Role Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Event Manager" {...field} disabled={role?.name === 'Admin' || role?.name === 'Organizer'} />
+                      <Input placeholder="e.g., Event Manager" {...field} disabled={role?.name === 'Admin'} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

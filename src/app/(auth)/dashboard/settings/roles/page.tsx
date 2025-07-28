@@ -134,7 +134,7 @@ export default function ManageRolesPage() {
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" disabled={role.name === 'Admin' || role.name === 'Organizer'}>
+                            <Button variant="ghost" size="icon" disabled={role.name === 'Admin'}>
                                 <Trash2 className="h-4 w-4 text-destructive" />
                                 <span className="sr-only">Delete</span>
                             </Button>

@@ -155,9 +155,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           // Role-based redirection
           switch(userData.role?.name) {
-              case 'Organizer':
-                  router.push('/dashboard/events');
-                  break;
               case 'Admin':
               default:
                   router.push('/dashboard');
@@ -211,5 +208,3 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
-
-    

@@ -32,29 +32,8 @@ async function main() {
         ].join(',')
     }
   });
-
-  const organizerRole = await prisma.role.upsert({
-    where: { name: 'Organizer' },
-    update: {
-      description: 'Can manage events and view reports',
-      permissions: [
-        'Events:View', 'Events:Create', 'Events:Update',
-        'Reports:View',
-        'Scan QR:View',
-      ].join(',')
-    },
-    create: {
-        name: 'Organizer',
-        description: 'Can manage events and view reports',
-        permissions: [
-          'Events:View', 'Events:Create', 'Events:Update',
-          'Reports:View',
-          'Scan QR:View',
-        ].join(',')
-    }
-  });
   
-  console.log(`Created roles: ${adminRole.name}, ${organizerRole.name}`);
+  console.log(`Created roles: ${adminRole.name}`);
 
   // Create Users
   const adminUser = await prisma.user.upsert({
