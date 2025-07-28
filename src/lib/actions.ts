@@ -6,6 +6,7 @@ import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
+import axios from 'axios';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -548,30 +549,24 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error('Access token is missing from auth cookie.');
         }
 
-        try {
-            const deleteResponse = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ phoneNumbers: [phoneNumber] })
-            });
+        const deleteResponse = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ phoneNumbers: [phoneNumber] })
+        });
 
 
-            if (!deleteResponse.ok) {
-                 if (deleteResponse.status === 404) {
-                    console.warn(`User ${phoneNumber} not found in auth service, but proceeding with local deletion.`);
-                } else {
-                    const errorData = await deleteResponse.json().catch(() => ({}));
-                    const errorMessage = errorData?.errors?.join(', ') || `Request failed with status ${deleteResponse.status}`;
-                    throw new Error(errorMessage);
-                }
+        if (!deleteResponse.ok) {
+             if (deleteResponse.status === 404) {
+                console.warn(`User ${phoneNumber} not found in auth service, but proceeding with local deletion.`);
+            } else {
+                const errorData = await deleteResponse.json().catch(() => ({}));
+                const errorMessage = errorData?.errors?.join(', ') || `Request failed with status ${deleteResponse.status}`;
+                throw new Error(errorMessage);
             }
-
-        } catch (error: any) {
-            console.error('Failed to delete user from authentication service:', error);
-            throw new Error('Failed to delete user from authentication service.');
         }
         
         await prisma.$transaction([
