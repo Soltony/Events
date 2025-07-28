@@ -20,7 +20,7 @@ async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
   const cookieStore = cookies();
   const tokenCookie = cookieStore.get('authTokens');
 
-  if (!tokenCookie) {
+  if (!tokenCookie?.value) {
     return null;
   }
   
@@ -531,7 +531,6 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
         }
         
-        // Step 1: Attempt to delete from the authentication service.
         const authApiUrl = process.env.AUTH_API_BASE_URL;
         if (!authApiUrl) {
             throw new Error("Authentication service URL is not configured.");
@@ -540,22 +539,23 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         const cookieStore = cookies();
         const tokenCookie = cookieStore.get('authTokens');
         if (!tokenCookie) {
-          throw new Error('Authentication token not found.');
+          throw new Error('Authentication token not found for delete operation.');
         }
         const tokenData = JSON.parse(tokenCookie.value);
         const token = tokenData.accessToken;
 
+        if (!token) {
+            throw new Error('Access token is missing from auth cookie.');
+        }
+
         try {
-            const response = await axios.post(
+            await axios.post(
                 `${authApiUrl}/api/Auth/delete-users`, 
                 { phoneNumbers: [phoneNumber] },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-            if (!response.data || !response.data.isSuccess) {
-                 throw new Error(response.data.errors?.join(', ') || `Failed to delete user from authentication service.`);
-            }
         } catch (error: any) {
-            if (error.response && error.response.status === 404) {
+             if (error.response && error.response.status === 404) {
                 console.warn(`User ${phoneNumber} not found in auth service, but proceeding with local deletion.`);
             } else {
                  const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'An unknown error occurred during auth deletion.';
@@ -563,17 +563,17 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             }
         }
         
-        // Step 2: If the auth service deletion was successful (or it was a 404), delete from the local database.
-        await prisma.user.delete({
-            where: { id: userId },
-        });
+        await prisma.$transaction([
+            prisma.attendee.deleteMany({ where: { userId } }),
+            prisma.user.delete({ where: { id: userId } }),
+        ]);
 
         revalidatePath('/dashboard/settings/users');
 
     } catch (error: any) {
         console.error('Error deleting user:', error);
         
-        if (error.code === 'P2003') { // Foreign key constraint from Prisma
+        if (error.code === 'P2003') { 
              throw new Error("Cannot delete user. They are still linked to other records in the database (e.g., as an event organizer). Please reassign or delete those records first.");
         }
         
@@ -683,18 +683,17 @@ export async function purchaseTickets(request: PurchaseRequest) {
     const currentUser = await getCurrentUser();
     let targetUser: (User & { role: Role | null }) | null = null;
     
-    if (request.purchaseFor === 'self') {
-        if (!currentUser) {
-           console.log("Guest checkout in progress.");
-        } else {
+    if (!request.purchaseFor || request.purchaseFor === 'self') {
+       if (currentUser) {
            targetUser = currentUser;
-        }
-    } else if (request.purchaseFor) {
+       }
+    } else {
         if (!currentUser) {
             throw new Error('You must be logged in to purchase tickets for others.');
         }
         targetUser = await prisma.user.findUnique({
-            where: { phoneNumber: request.purchaseFor.phoneNumber }
+            where: { phoneNumber: request.purchaseFor.phoneNumber },
+            include: { role: true },
         });
         if (!targetUser) {
             throw new Error(`User with phone number ${request.purchaseFor.phoneNumber} not found.`);
@@ -785,17 +784,17 @@ export async function getTicketsByUserId(userId: string) {
     return serialize(tickets);
 }
 
-export async function validatePromoCode(eventId: number, code: string): Promise<PromoCode | null> {
-    const promoCode = await prisma.promoCode.findFirst({
+export async function validatePromoCode(promoCode: string, eventId: number): Promise<PromoCode | null> {
+    const promo = await prisma.promoCode.findFirst({
         where: {
-            code: code,
+            code: promoCode,
             eventId: eventId,
             uses: {
                 lt: prisma.promoCode.fields.maxUses
             }
         }
     });
-    return serialize(promoCode);
+    return serialize(promo);
 }
 
 export async function checkInAttendee(attendeeId: number) {
