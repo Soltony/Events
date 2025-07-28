@@ -27,6 +27,7 @@ import { getRoleById, updateRole } from '@/lib/actions';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 const roleFormSchema = z.object({
   name: z.string().min(3, { message: 'Role name must be at least 3 characters.' }),
@@ -39,12 +40,18 @@ const roleFormSchema = z.object({
 type RoleFormValues = z.infer<typeof roleFormSchema>;
 
 const permissionCategories = {
-    Dashboard: ['View', 'Update', 'Create', 'Delete'],
-    'Scan QR': ['View', 'Update', 'Create', 'Delete'],
-    Events: ['View', 'Update', 'Create', 'Delete'],
-    Reports: ['View', 'Update', 'Create', 'Delete'],
-    Settings: ['View', 'Update', 'Create', 'Delete'],
+    'Dashboard': ['Create', 'Read', 'Update', 'Delete'],
+    'Scan QR': ['Create', 'Read', 'Update', 'Delete'],
+    'Events': ['Create', 'Read', 'Update', 'Delete'],
+    'Reports': ['Create', 'Read', 'Update', 'Delete'],
 };
+
+const settingsPermissionCategories = {
+    'User Registration': ['Create', 'Read', 'Update', 'Delete'],
+    'User Management': ['Create', 'Read', 'Update', 'Delete'],
+    'Role Management': ['Create', 'Read', 'Update', 'Delete'],
+};
+
 
 function EditRoleFormComponent() {
   const router = useRouter();
@@ -128,6 +135,61 @@ function EditRoleFormComponent() {
       }
       form.setValue('permissions', newPermissions, { shouldValidate: true });
   };
+  
+  const renderPermissionCard = (category: string, actions: string[]) => {
+      const categoryPermissions = actions.map(action => `${category}:${action}`);
+      const selectedCategoryPermissions = form.getValues('permissions').filter(p => categoryPermissions.includes(p));
+      const hasAll = selectedCategoryPermissions.length === categoryPermissions.length && actions.length > 0;
+
+      return (
+        <Card key={category}>
+            <CardHeader>
+                <CardTitle className="text-lg">{category}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                 <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                    <FormControl>
+                        <Checkbox
+                            checked={hasAll}
+                            onCheckedChange={(checked) => handleFullAccessChange(category, actions, checked)}
+                        />
+                    </FormControl>
+                    <FormLabel className="font-semibold">Full Access</FormLabel>
+                </FormItem>
+                <Separator />
+                <div className={cn("grid gap-4", actions.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+                {actions.map((action) => {
+                    const permissionId = `${category}:${action}`;
+                    return (
+                        <FormField
+                            key={permissionId}
+                            control={form.control}
+                            name="permissions"
+                            render={({ field: singleField }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                    <FormControl>
+                                        <Checkbox
+                                            checked={singleField.value?.includes(permissionId)}
+                                            onCheckedChange={(checked) => {
+                                                const updated = checked
+                                                ? [...singleField.value, permissionId]
+                                                : singleField.value?.filter((value) => value !== permissionId);
+                                                singleField.onChange(updated);
+                                            }}
+                                        />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">{action}</FormLabel>
+                                </FormItem>
+                            )}
+                        />
+                    );
+                })}
+                </div>
+            </CardContent>
+        </Card>
+       )
+  }
+
 
   if (loading) {
     return (
@@ -206,72 +268,29 @@ function EditRoleFormComponent() {
               
               <Separator />
 
-              <div>
-                <FormLabel>Permissions</FormLabel>
-                <FormDescription>Select the permissions for this role.</FormDescription>
-                <FormField
-                  control={form.control}
-                  name="permissions"
-                  render={({ field }) => (
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-                        {Object.entries(permissionCategories).map(([category, actions]) => {
-                           const categoryPermissions = actions.map(action => `${category}:${action}`);
-                           const selectedCategoryPermissions = field.value.filter(p => categoryPermissions.includes(p));
-                           const hasAll = selectedCategoryPermissions.length === categoryPermissions.length;
-
-                           return (
-                            <Card key={category}>
-                                <CardHeader>
-                                    <CardTitle className="text-lg">{category}</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                     <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                        <FormControl>
-                                            <Checkbox
-                                                checked={hasAll}
-                                                onCheckedChange={(checked) => handleFullAccessChange(category, actions, checked)}
-                                            />
-                                        </FormControl>
-                                        <FormLabel className="font-semibold">Full Access</FormLabel>
-                                    </FormItem>
-                                    <Separator />
-                                    <div className="grid grid-cols-2 gap-4">
-                                    {actions.map((action) => {
-                                        const permissionId = `${category}:${action}`;
-                                        return (
-                                            <FormField
-                                                key={permissionId}
-                                                control={form.control}
-                                                name="permissions"
-                                                render={({ field: singleField }) => (
-                                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                                        <FormControl>
-                                                            <Checkbox
-                                                                checked={singleField.value?.includes(permissionId)}
-                                                                onCheckedChange={(checked) => {
-                                                                    const updated = checked
-                                                                    ? [...singleField.value, permissionId]
-                                                                    : singleField.value?.filter((value) => value !== permissionId);
-                                                                    singleField.onChange(updated);
-                                                                }}
-                                                            />
-                                                        </FormControl>
-                                                        <FormLabel className="font-normal">{action}</FormLabel>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        );
-                                    })}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                           )
-                        })}
-                    </div>
-                  )}
-                />
-                 <FormMessage className="pt-4">{form.formState.errors.permissions?.message}</FormMessage>
+              <div className="space-y-6">
+                <div>
+                    <FormLabel>Permissions</FormLabel>
+                    <FormDescription>Select the permissions for this role.</FormDescription>
+                </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     {Object.entries(permissionCategories).map(([category, actions]) => renderPermissionCard(category, actions))}
+                 </div>
               </div>
+              
+              <Separator />
+
+              <div className="space-y-6">
+                <div>
+                    <h3 className="text-xl font-semibold">Settings</h3>
+                    <FormDescription>Permissions for system settings.</FormDescription>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Object.entries(settingsPermissionCategories).map(([category, actions]) => renderPermissionCard(category, actions))}
+                </div>
+              </div>
+
+               <FormMessage className="pt-4">{form.formState.errors.permissions?.message}</FormMessage>
 
               <Separator />
 

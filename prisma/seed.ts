@@ -13,22 +13,26 @@ async function main() {
     update: {
       description: 'Administrator with all permissions',
       permissions: [
-        'Dashboard:View', 'Dashboard:Create', 'Dashboard:Update', 'Dashboard:Delete',
-        'Events:View', 'Events:Create', 'Events:Update', 'Events:Delete',
-        'Reports:View', 'Reports:Create', 'Reports:Update', 'Reports:Delete',
-        'Settings:View', 'Settings:Create', 'Settings:Update', 'Settings:Delete',
-        'Scan QR:View',
+        'Dashboard:Create', 'Dashboard:Read', 'Dashboard:Update', 'Dashboard:Delete',
+        'Scan QR:Create', 'Scan QR:Read', 'Scan QR:Update', 'Scan QR:Delete',
+        'Events:Create', 'Events:Read', 'Events:Update', 'Events:Delete',
+        'Reports:Create', 'Reports:Read', 'Reports:Update', 'Reports:Delete',
+        'User Registration:Create', 'User Registration:Read', 'User Registration:Update', 'User Registration:Delete',
+        'User Management:Create', 'User Management:Read', 'User Management:Update', 'User Management:Delete',
+        'Role Management:Create', 'Role Management:Read', 'Role Management:Update', 'Role Management:Delete',
       ].join(',')
     },
     create: {
         name: 'Admin',
         description: 'Administrator with all permissions',
         permissions: [
-          'Dashboard:View', 'Dashboard:Create', 'Dashboard:Update', 'Dashboard:Delete',
-          'Events:View', 'Events:Create', 'Events:Update', 'Events:Delete',
-          'Reports:View', 'Reports:Create', 'Reports:Update', 'Reports:Delete',
-          'Settings:View', 'Settings:Create', 'Settings:Update', 'Settings:Delete',
-          'Scan QR:View',
+          'Dashboard:Create', 'Dashboard:Read', 'Dashboard:Update', 'Dashboard:Delete',
+          'Scan QR:Create', 'Scan QR:Read', 'Scan QR:Update', 'Scan QR:Delete',
+          'Events:Create', 'Events:Read', 'Events:Update', 'Events:Delete',
+          'Reports:Create', 'Reports:Read', 'Reports:Update', 'Reports:Delete',
+          'User Registration:Create', 'User Registration:Read', 'User Registration:Update', 'User Registration:Delete',
+          'User Management:Create', 'User Management:Read', 'User Management:Update', 'User Management:Delete',
+          'Role Management:Create', 'Role Management:Read', 'Role Management:Update', 'Role Management:Delete',
         ].join(',')
     }
   });
@@ -171,3 +175,5 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
+
+    

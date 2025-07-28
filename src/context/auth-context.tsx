@@ -25,6 +25,7 @@ interface AuthContextType {
   hasPermission: (permission: string) => boolean;
   login: (data: any) => Promise<void>;
   logout: (options?: { reason?: string }) => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -73,6 +74,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/login');
 
   }, [router, toast]);
+
+  const refreshUser = useCallback(async () => {
+    const storedUser = localStorage.getItem('authUser');
+    if (!storedUser) return;
+    
+    const parsedUser = JSON.parse(storedUser) as UserWithRole;
+
+    if (parsedUser?.phoneNumber) {
+        try {
+            const freshUserData = await getUserByPhoneNumber(parsedUser.phoneNumber);
+            if (freshUserData) {
+                setUser(freshUserData);
+                localStorage.setItem('authUser', JSON.stringify(freshUserData));
+            } else {
+                 logout({ reason: 'Your session could not be verified. Please log in again.' });
+            }
+        } catch (error) {
+            console.error("Failed to refresh user data", error);
+            logout({ reason: 'Could not verify your session. Please log in again.' });
+        }
+    }
+  }, [logout]);
 
 
   useEffect(() => {
@@ -153,12 +176,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             description: 'Redirecting...',
           });
           
-          // Role-based redirection
-          switch(userData.role?.name) {
-              case 'Admin':
-              default:
-                  router.push('/dashboard');
-                  break;
+          if (userData.passwordChangeRequired) {
+              router.push('/dashboard/profile');
+          } else {
+             // Role-based redirection
+              switch(userData.role?.name) {
+                  case 'Admin':
+                  default:
+                      router.push('/dashboard');
+                      break;
+              }
           }
           router.refresh();
         } else {
@@ -195,7 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = !isLoading && !!user;
 
   return (
-    <AuthContext.Provider value={{ tokens, user, isAuthenticated, isLoading, hasPermission, login, logout }}>
+    <AuthContext.Provider value={{ tokens, user, isAuthenticated, isLoading, hasPermission, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

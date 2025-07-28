@@ -6,7 +6,7 @@ import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import axios from 'axios';
+import api from './api';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -64,7 +64,8 @@ async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
 export async function getEvents() {
     const user = await getCurrentUser();
     if (!user) {
-        throw new Error('User is not authenticated.');
+        // Return empty array if not authenticated, AuthGuard will handle redirection
+        return [];
     }
 
     const whereClause: { organizerId?: string } = {};
@@ -276,14 +277,15 @@ export async function addPromoCode(eventId: number, data: { code: string; type: 
 export async function getDashboardData() {
     const user = await getCurrentUser();
     if (!user) {
-        throw new Error('User is not authenticated.');
+         return {
+            totalRevenue: 0,
+            totalTicketsSold: 0,
+            totalEvents: 0,
+            salesData: [],
+        };
     }
 
-    const whereClause: { organizerId?: string } = {};
-
-    if (user.role.name !== 'Admin') {
-        whereClause.organizerId = user.id;
-    }
+    const whereClause = user.role.name === 'Admin' ? {} : { organizerId: user.id };
     
     const events = await prisma.event.findMany({
         where: whereClause,
@@ -323,7 +325,11 @@ export async function getDashboardData() {
 export async function getReportsData() {
     const user = await getCurrentUser();
     if (!user) {
-        throw new Error('User is not authenticated.');
+        return {
+            productSales: [],
+            dailySales: [],
+            promoCodes: [],
+        };
     }
 
     const whereClause: { organizerId?: string } = {};
@@ -381,7 +387,7 @@ export async function getReportsData() {
 export async function getUsersAndRoles() {
     const currentUser = await getCurrentUser();
     if (!currentUser) {
-        throw new Error('User is not authenticated.');
+        return { users: [], roles: [] };
     }
 
     let usersQuery = {};
@@ -440,7 +446,11 @@ export async function addUser(data: any) {
         const responseData = await registrationResponse.json();
 
         if (!responseData || !responseData.isSuccess) {
-            throw new Error(responseData.errors?.join(', ') || 'Failed to register user with auth service.');
+            const errorMessage = responseData.errors?.join(', ') || 'Failed to register user with auth service.';
+            if (errorMessage.toLowerCase().includes("already taken")) {
+                 throw new Error(`Phone number '${phoneNumber}' is already taken.`);
+            }
+            throw new Error(errorMessage);
         }
         
         let newUserId;
@@ -468,6 +478,7 @@ export async function addUser(data: any) {
             lastName,
             phoneNumber,
             roleId,
+            passwordChangeRequired: true,
         };
 
         if (email) {
@@ -485,11 +496,11 @@ export async function addUser(data: any) {
         console.error("Error creating user:", error.message);
         
         if (error.code === 'P2002' && error.meta?.target?.includes('phoneNumber')) {
-             throw new Error('A user with this phone number already exists.');
+             throw new Error(`A user with this phone number already exists in the local database.`);
         }
 
         if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
-            throw new Error('A user with this email address already exists.');
+            throw new Error('A user with this email address already exists in the local database.');
         }
         
         throw new Error(error.message || 'Failed to create user.');
@@ -518,11 +529,16 @@ export async function updateUserRole(userId: string, roleId: string) {
         where: { id: userId },
         data: { roleId },
     });
-    revalidatePath('/dashboard/settings');
+    revalidatePath('/dashboard/settings/users');
     return serialize(user);
 }
 
 export async function deleteUser(userId: string, phoneNumber: string) {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+        throw new Error("Not authenticated");
+    }
+
     try {
         const eventCount = await prisma.event.count({
             where: { organizerId: userId },
@@ -532,24 +548,13 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
         }
         
-        const authApiUrl = process.env.AUTH_API_BASE_URL;
-        if (!authApiUrl) {
-            throw new Error("Authentication service URL is not configured.");
-        }
-
-        const cookieStore = cookies();
-        const tokenCookie = cookieStore.get('authTokens');
+        const tokenCookie = cookies().get('authTokens');
         if (!tokenCookie) {
-          throw new Error('Authentication token not found for delete operation.');
+             throw new Error('No auth token available for server action.');
         }
-        const tokenData = JSON.parse(tokenCookie.value);
-        const token = tokenData.accessToken;
+        const token = JSON.parse(tokenCookie.value).accessToken;
 
-        if (!token) {
-            throw new Error('Access token is missing from auth cookie.');
-        }
-
-        const deleteResponse = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/auth/delete-users`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -557,16 +562,11 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             },
             body: JSON.stringify({ phoneNumbers: [phoneNumber] })
         });
-
-
-        if (!deleteResponse.ok) {
-             if (deleteResponse.status === 404) {
-                console.warn(`User ${phoneNumber} not found in auth service, but proceeding with local deletion.`);
-            } else {
-                const errorData = await deleteResponse.json().catch(() => ({}));
-                const errorMessage = errorData?.errors?.join(', ') || `Request failed with status ${deleteResponse.status}`;
-                throw new Error(errorMessage);
-            }
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = errorData?.errors?.join(', ') || `Failed to delete user from authentication service. Status: ${response.status}`;
+            throw new Error(errorMessage);
         }
         
         await prisma.$transaction([
@@ -636,47 +636,14 @@ export async function deleteRole(id: string) {
     return serialize(role);
 }
 
-export async function resetPassword(phoneNumber: string, newPassword: string, currentPassword?: string): Promise<void> {
-  const authApiUrl = process.env.AUTH_API_BASE_URL;
-  if (!authApiUrl) {
-    throw new Error('Authentication service URL is not configured.');
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { phoneNumber },
-  });
-
-  if (!user) {
-    throw new Error('No account found with this phone number.');
-  }
-
-  try {
-    const payload: { phoneNumber: string, newPassword: string, currentPassword?: string } = {
-      phoneNumber,
-      newPassword,
-    };
-    if (currentPassword) {
-      payload.currentPassword = currentPassword;
-    }
-
-    const response = await fetch(`${authApiUrl}/api/Auth/change-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+export async function updatePasswordFlag(userId: string, passwordChangeRequired: boolean): Promise<void> {
+    await prisma.user.update({
+        where: { id: userId },
+        data: { passwordChangeRequired: passwordChangeRequired },
     });
-    
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.errors?.join(', ') || 'Failed to reset password.';
-        throw new Error(errorMessage);
-    }
     revalidatePath('/dashboard/profile');
-
-  } catch (error: any) {
-    console.error('Error resetting password:', error);
-    throw new Error(error.message || 'Failed to communicate with authentication service.');
-  }
 }
+
 
 // Ticket/Attendee Actions
 interface PurchaseRequest {
@@ -691,13 +658,17 @@ export async function purchaseTickets(request: PurchaseRequest) {
 
     const currentUser = await getCurrentUser();
     let targetUser: (User & { role: Role | null }) | null = null;
+    let isGuestPurchase = false;
     
     if (!request.purchaseFor || request.purchaseFor === 'self') {
        if (currentUser) {
            targetUser = currentUser;
+       } else {
+           isGuestPurchase = true;
        }
     } else {
         if (!currentUser) {
+            // This case should ideally be blocked by the UI, but as a safeguard:
             throw new Error('You must be logged in to purchase tickets for others.');
         }
         targetUser = await prisma.user.findUnique({
@@ -715,7 +686,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
         for (const ticket of request.tickets) {
             const ticketType = await tx.ticketType.findUnique({ where: { id: ticket.id } });
             if (!ticketType) throw new Error(`Ticket type with id ${ticket.id} not found.`);
-            if ((ticketType.total - ticketType.sold) < ticket.quantity) {
+            if ((ticketType.total - ticket.sold) < ticket.quantity) {
                 throw new Error(`Not enough tickets available for ${ticketType.name}.`);
             }
 
@@ -730,7 +701,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
                         email: attendeeEmail,
                         eventId: request.eventId,
                         ticketTypeId: ticket.id,
-                        userId: attendeeUserId,
+                        userId: isGuestPurchase ? null : attendeeUserId, // Store null for guests
                         checkedIn: false,
                     },
                 });
@@ -778,9 +749,23 @@ export async function getTicketDetailsForConfirmation(attendeeId: number) {
     return serialize(attendee);
 }
 
-export async function getTicketsByUserId(userId: string) {
+export async function getTicketsByUserId(userId: string | null, localTicketIds: number[] = []) {
+    const whereClauses = [];
+    if (userId) {
+        whereClauses.push({ userId: userId });
+    }
+    if (localTicketIds.length > 0) {
+        whereClauses.push({ id: { in: localTicketIds } });
+    }
+
+    if (whereClauses.length === 0) {
+        return [];
+    }
+
     const tickets = await prisma.attendee.findMany({
-        where: { userId: userId },
+        where: {
+            OR: whereClauses,
+        },
         include: {
             event: true,
             ticketType: true,

@@ -15,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { useToast } from '@/hooks/use-toast';
-import { resetPassword } from '@/lib/actions';
+import api from '@/lib/api';
 
 const phoneSchema = z.object({
   phoneNumber: z.string().min(10, { message: 'Phone number must be at least 10 digits.' }),
@@ -52,6 +52,7 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
     // In a real app, you'd call an action to verify the phone number
     // and send an OTP. For this prototype, we'll just simulate success.
+    // We can also check if the user exists via an API call here if needed.
     setPhoneNumber(data.phoneNumber);
     setTimeout(() => {
         setStep(2);
@@ -62,13 +63,17 @@ export default function ForgotPasswordPage() {
   const handlePasswordSubmit = async (data: PasswordFormValues) => {
     setIsLoading(true);
     try {
-        await resetPassword(phoneNumber, data.password);
+        await api.post('/api/auth/change-password', {
+            phoneNumber,
+            newPassword: data.password,
+        });
         setStep(3);
     } catch (error: any) {
+        const errorMessage = error.response?.data?.errors?.[0] || error.message || 'Failed to reset password.';
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: error.message || 'Failed to reset password. Please try again.',
+            description: errorMessage,
         })
     } finally {
         setIsLoading(false);
