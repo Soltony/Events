@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -497,11 +498,6 @@ export async function deleteUser(userId: string, phoneNumber: string) {
     }
 
     try {
-        const userToDelete = await prisma.user.findUnique({ where: { id: userId } });
-        if (!userToDelete) {
-             throw new Error("User not found.");
-        }
-
         await prisma.user.delete({
             where: { id: userId },
         });
@@ -509,17 +505,29 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         const deleteResponse = await axios.delete(`${authApiUrl}/api/Auth/delete/${phoneNumber}`);
         
         if (!deleteResponse.data || !deleteResponse.data.isSuccess) {
-             console.error('Failed to delete user from auth service:', deleteResponse.data.errors?.join(', '));
+            console.warn('Failed to delete user from auth service, but continuing as they are deleted locally.', deleteResponse.data?.errors);
         }
 
         revalidatePath('/dashboard/settings/users');
     } catch (error: any) {
         console.error('Error deleting user:', error);
+        
+        if (error.response?.status === 404) {
+            throw new Error("Could not find the user in the authentication service, but they have been removed from this system.");
+        }
         if (error.response?.data?.errors) {
             throw new Error(error.response.data.errors.join(', '));
         }
         if (error.code === 'P2025') { 
-            throw new Error("User not found in the database.");
+            // This means the user was already deleted from our DB, which is fine.
+            // We can proceed to ensure they are deleted from the auth service.
+            try {
+                await axios.delete(`${authApiUrl}/api/Auth/delete/${phoneNumber}`);
+                revalidatePath('/dashboard/settings/users');
+                return;
+            } catch (authError: any) {
+                 throw new Error(authError.message || "User was already deleted locally, but failed to delete from auth service.");
+            }
         }
         throw new Error(error.message || 'Failed to delete user.');
     }
@@ -747,3 +755,4 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
