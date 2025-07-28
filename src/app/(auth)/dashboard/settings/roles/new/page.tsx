@@ -7,6 +7,7 @@ import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -42,6 +43,10 @@ const roleFormSchema = z.object({
 type RoleFormValues = z.infer<typeof roleFormSchema>;
 
 const permissionCategories = {
+    'Dashboard': ['View'],
+    'Scan QR': ['View'],
+    'Events': ['View', 'Create', 'Update', 'Delete'],
+    'Reports': ['View'],
     'User Registration': ['Create', 'Read', 'Update', 'Delete'],
     'User Management': ['Create', 'Read', 'Update', 'Delete'],
     'Role Management': ['Create', 'Read', 'Update', 'Delete'],
@@ -153,26 +158,29 @@ export default function CreateRolePage() {
                         {Object.entries(permissionCategories).map(([category, actions]) => {
                            const categoryPermissions = actions.map(action => `${category}:${action}`);
                            const selectedCategoryPermissions = field.value.filter(p => categoryPermissions.includes(p));
-                           const hasAll = selectedCategoryPermissions.length === categoryPermissions.length;
-                           const hasSome = selectedCategoryPermissions.length > 0 && !hasAll;
-
+                           const hasAll = selectedCategoryPermissions.length === categoryPermissions.length && actions.length > 0;
+                           
                            return (
                             <Card key={category}>
                                 <CardHeader>
                                     <CardTitle className="text-lg">{category}</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
-                                     <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                        <FormControl>
-                                            <Checkbox
-                                                checked={hasAll}
-                                                onCheckedChange={(checked) => handleFullAccessChange(category, actions, checked)}
-                                            />
-                                        </FormControl>
-                                        <FormLabel className="font-semibold">Full Access</FormLabel>
-                                    </FormItem>
-                                    <Separator />
-                                    <div className="grid grid-cols-2 gap-4">
+                                    {actions.length > 1 && (
+                                        <>
+                                            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                                <FormControl>
+                                                    <Checkbox
+                                                        checked={hasAll}
+                                                        onCheckedChange={(checked) => handleFullAccessChange(category, actions, checked)}
+                                                    />
+                                                </FormControl>
+                                                <FormLabel className="font-semibold">Full Access</FormLabel>
+                                            </FormItem>
+                                            <Separator />
+                                        </>
+                                    )}
+                                    <div className={cn("grid gap-4", actions.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
                                     {actions.map((action) => {
                                         const permissionId = `${category}:${action}`;
                                         return (
@@ -228,3 +236,5 @@ export default function CreateRolePage() {
     </div>
   );
 }
+
+    
