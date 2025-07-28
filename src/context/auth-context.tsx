@@ -176,7 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             description: 'Redirecting...',
           });
           
-          if (userData.mustChangePassword) {
+          if (userData.passwordChangeRequired) {
               router.push('/dashboard/profile');
           } else {
              // Role-based redirection

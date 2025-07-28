@@ -56,7 +56,7 @@ export default function ProfilePage() {
             newPassword: data.newPassword,
         });
         
-        const wasFirstTime = user.mustChangePassword;
+        const wasFirstTime = user.passwordChangeRequired;
         
         // If it was a mandatory change, update the flag in our DB via server action
         if (wasFirstTime) {
@@ -100,7 +100,7 @@ export default function ProfilePage() {
         <p className="text-muted-foreground">Manage your account settings.</p>
       </div>
 
-       {user?.mustChangePassword && (
+       {user?.passwordChangeRequired && (
         <Alert variant="destructive" className="border-yellow-500/50 text-yellow-500 dark:border-yellow-500 [&>svg]:text-yellow-500">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Action Required</AlertTitle>

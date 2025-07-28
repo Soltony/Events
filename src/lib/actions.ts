@@ -446,7 +446,11 @@ export async function addUser(data: any) {
         const responseData = await registrationResponse.json();
 
         if (!responseData || !responseData.isSuccess) {
-            throw new Error(responseData.errors?.join(', ') || 'Failed to register user with auth service.');
+            const errorMessage = responseData.errors?.join(', ') || 'Failed to register user with auth service.';
+            if (errorMessage.toLowerCase().includes("already taken")) {
+                 throw new Error(`Phone number '${phoneNumber}' is already taken.`);
+            }
+            throw new Error(errorMessage);
         }
         
         let newUserId;
@@ -474,7 +478,7 @@ export async function addUser(data: any) {
             lastName,
             phoneNumber,
             roleId,
-            mustChangePassword: true,
+            passwordChangeRequired: true,
         };
 
         if (email) {
@@ -492,11 +496,11 @@ export async function addUser(data: any) {
         console.error("Error creating user:", error.message);
         
         if (error.code === 'P2002' && error.meta?.target?.includes('phoneNumber')) {
-             throw new Error('A user with this phone number already exists.');
+             throw new Error(`A user with this phone number already exists in the local database.`);
         }
 
         if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
-            throw new Error('A user with this email address already exists.');
+            throw new Error('A user with this email address already exists in the local database.');
         }
         
         throw new Error(error.message || 'Failed to create user.');
@@ -543,11 +547,6 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         if (eventCount > 0) {
             throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
         }
-
-        const authApiUrl = process.env.AUTH_API_BASE_URL;
-        if (!authApiUrl) {
-            throw new Error("Authentication service URL is not configured.");
-        }
         
         const tokenCookie = cookies().get('authTokens');
         if (!tokenCookie) {
@@ -555,7 +554,7 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         }
         const token = JSON.parse(tokenCookie.value).accessToken;
 
-        const response = await fetch(`${authApiUrl}/api/auth/delete-users`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/auth/delete-users`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -637,10 +636,10 @@ export async function deleteRole(id: string) {
     return serialize(role);
 }
 
-export async function updatePasswordFlag(userId: string, mustChange: boolean): Promise<void> {
+export async function updatePasswordFlag(userId: string, passwordChangeRequired: boolean): Promise<void> {
     await prisma.user.update({
         where: { id: userId },
-        data: { mustChangePassword: mustChange },
+        data: { passwordChangeRequired: passwordChangeRequired },
     });
     revalidatePath('/dashboard/profile');
 }
@@ -823,3 +822,4 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
