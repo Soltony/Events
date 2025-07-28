@@ -13,10 +13,12 @@ async function main() {
     update: {
       description: 'Administrator with all permissions',
       permissions: [
+        'User Registration:Create', 'User Registration:Read', 'User Registration:Update', 'User Registration:Delete',
+        'User Management:Create', 'User Management:Read', 'User Management:Update', 'User Management:Delete',
+        'Role Management:Create', 'Role Management:Read', 'Role Management:Update', 'Role Management:Delete',
         'Dashboard:View', 'Dashboard:Create', 'Dashboard:Update', 'Dashboard:Delete',
         'Events:View', 'Events:Create', 'Events:Update', 'Events:Delete',
         'Reports:View', 'Reports:Create', 'Reports:Update', 'Reports:Delete',
-        'Settings:View', 'Settings:Create', 'Settings:Update', 'Settings:Delete',
         'Scan QR:View',
       ].join(',')
     },
@@ -24,10 +26,12 @@ async function main() {
         name: 'Admin',
         description: 'Administrator with all permissions',
         permissions: [
+          'User Registration:Create', 'User Registration:Read', 'User Registration:Update', 'User Registration:Delete',
+          'User Management:Create', 'User Management:Read', 'User Management:Update', 'User Management:Delete',
+          'Role Management:Create', 'Role Management:Read', 'Role Management:Update', 'Role Management:Delete',
           'Dashboard:View', 'Dashboard:Create', 'Dashboard:Update', 'Dashboard:Delete',
           'Events:View', 'Events:Create', 'Events:Update', 'Events:Delete',
           'Reports:View', 'Reports:Create', 'Reports:Update', 'Reports:Delete',
-          'Settings:View', 'Settings:Create', 'Settings:Update', 'Settings:Delete',
           'Scan QR:View',
         ].join(',')
     }
