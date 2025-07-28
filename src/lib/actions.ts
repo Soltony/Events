@@ -4,7 +4,6 @@
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee } from '@prisma/client';
-import axios from 'axios';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 
@@ -425,19 +424,24 @@ export async function addUser(data: any) {
     }
     
     try {
-        const registrationResponse = await axios.post(`${authApiUrl}/api/Auth/register`, {
-            firstName,
-            lastName,
-            phoneNumber,
-            email: email || undefined,
-            password,
+        const registrationResponse = await fetch(`${authApiUrl}/api/Auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                firstName,
+                lastName,
+                phoneNumber,
+                email: email || undefined,
+                password,
+            }),
         });
+        
+        const responseData = await registrationResponse.json();
 
-        if (!registrationResponse.data || !registrationResponse.data.isSuccess) {
-            throw new Error(registrationResponse.data.errors?.join(', ') || 'Failed to register user with auth service.');
+        if (!responseData || !responseData.isSuccess) {
+            throw new Error(responseData.errors?.join(', ') || 'Failed to register user with auth service.');
         }
         
-        const responseData = registrationResponse.data;
         let newUserId;
 
         if (responseData.accessToken) {
@@ -478,10 +482,6 @@ export async function addUser(data: any) {
 
     } catch (error: any) {
         console.error("Error creating user:", error.message);
-        
-        if (error.response?.data?.errors) {
-            throw new Error(error.response.data.errors.join(', '));
-        }
         
         if (error.code === 'P2002' && error.meta?.target?.includes('phoneNumber')) {
              throw new Error('A user with this phone number already exists.');
@@ -549,18 +549,29 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         }
 
         try {
-            await axios.post(
-                `${authApiUrl}/api/Auth/delete-users`, 
-                { phoneNumbers: [phoneNumber] },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-        } catch (error: any) {
-             if (error.response && error.response.status === 404) {
-                console.warn(`User ${phoneNumber} not found in auth service, but proceeding with local deletion.`);
-            } else {
-                 const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'An unknown error occurred during auth deletion.';
-                 throw new Error(errorMessage);
+            const deleteResponse = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ phoneNumbers: [phoneNumber] })
+            });
+
+
+            if (!deleteResponse.ok) {
+                 if (deleteResponse.status === 404) {
+                    console.warn(`User ${phoneNumber} not found in auth service, but proceeding with local deletion.`);
+                } else {
+                    const errorData = await deleteResponse.json().catch(() => ({}));
+                    const errorMessage = errorData?.errors?.join(', ') || `Request failed with status ${deleteResponse.status}`;
+                    throw new Error(errorMessage);
+                }
             }
+
+        } catch (error: any) {
+            console.error('Failed to delete user from authentication service:', error);
+            throw new Error('Failed to delete user from authentication service.');
         }
         
         await prisma.$transaction([
@@ -653,18 +664,21 @@ export async function resetPassword(phoneNumber: string, newPassword: string, cu
       payload.currentPassword = currentPassword;
     }
 
-    const response = await axios.post(`${authApiUrl}/api/Auth/change-password`, payload);
+    const response = await fetch(`${authApiUrl}/api/Auth/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
     
-    if (!response.data || !response.data.isSuccess) {
-      throw new Error(response.data.errors?.join(', ') || 'Failed to reset password.');
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.errors?.join(', ') || 'Failed to reset password.';
+        throw new Error(errorMessage);
     }
     revalidatePath('/dashboard/profile');
 
   } catch (error: any) {
     console.error('Error resetting password:', error);
-    if (error.response?.data?.errors) {
-      throw new Error(error.response.data.errors.join(', '));
-    }
     throw new Error(error.message || 'Failed to communicate with authentication service.');
   }
 }
