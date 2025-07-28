@@ -43,13 +43,18 @@ export default function MyTicketsPage() {
       if (isAuthLoading) return;
       
       setLoading(true);
-      if (user?.id) {
-        const fetchedTickets = await getTicketsByUserId(user.id);
-        setTickets(fetchedTickets);
-      } else {
-        // Handle case for non-logged-in users (maybe show message)
-        setTickets([]);
-      }
+      
+      const localTicketIds = JSON.parse(localStorage.getItem('myTickets') || '[]') as number[];
+      
+      const fetchedTickets = await getTicketsByUserId(user?.id ?? null, localTicketIds);
+      
+      // Merge and deduplicate tickets
+      const ticketMap = new Map<number, FullTicket>();
+      fetchedTickets.forEach(ticket => {
+        ticketMap.set(ticket.id, ticket);
+      });
+      setTickets(Array.from(ticketMap.values()));
+      
       setLoading(false);
     }
     fetchMyTickets();
@@ -75,15 +80,21 @@ export default function MyTicketsPage() {
      )
   }
 
-  if (!user) {
+  // If not logged in and not loading, check if there are any local tickets
+  if (!user && !loading && tickets.length === 0) {
      return (
          <div className="flex flex-col items-center justify-center text-center py-16 border-2 border-dashed rounded-lg container mx-auto mt-8">
             <Ticket className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-2xl font-semibold tracking-tight">You need to be logged in</h3>
-            <p className="text-muted-foreground mt-2 mb-6">Please log in to view your tickets.</p>
-            <Button asChild>
-                <Link href="/login">Login</Link>
-            </Button>
+            <h3 className="text-2xl font-semibold tracking-tight">You don't have any tickets yet</h3>
+            <p className="text-muted-foreground mt-2 mb-6">Your purchased tickets will appear here.</p>
+            <div className="flex gap-4">
+                <Button asChild>
+                    <Link href="/">Explore Events</Link>
+                </Button>
+                 <Button asChild variant="outline">
+                    <Link href="/login">Organizer Login</Link>
+                </Button>
+            </div>
         </div>
      )
   }
@@ -93,7 +104,7 @@ export default function MyTicketsPage() {
         <div className="space-y-2 mb-8">
             <h1 className="text-3xl font-bold tracking-tight">My Tickets</h1>
             <p className="text-muted-foreground">
-                Here are the tickets associated with your account.
+                {user ? "Here are the tickets associated with your account and any guest purchases from this device." : "Here are the tickets you've purchased in this session."}
             </p>
         </div>
 
@@ -134,7 +145,7 @@ export default function MyTicketsPage() {
                 })}
             </div>
         ) : (
-            <div className="flex flex-col items-center justify-center text-center py-16 border-2 border-dashed rounded-lg">
+             <div className="flex flex-col items-center justify-center text-center py-16 border-2 border-dashed rounded-lg">
                 <Ticket className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-2xl font-semibold tracking-tight">You don't have any tickets yet</h3>
                 <p className="text-muted-foreground mt-2 mb-6">Your purchased tickets will appear here.</p>
