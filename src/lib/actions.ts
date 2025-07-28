@@ -7,7 +7,6 @@ import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee 
 import axios from 'axios';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import api from './api';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -538,8 +537,20 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error("Authentication service URL is not configured.");
         }
 
+        const cookieStore = cookies();
+        const tokenCookie = cookieStore.get('authTokens');
+        if (!tokenCookie) {
+          throw new Error('Authentication token not found.');
+        }
+        const tokenData = JSON.parse(tokenCookie.value);
+        const token = tokenData.accessToken;
+
         try {
-            const response = await axios.post(`${authApiUrl}/api/Auth/delete-users`, { phoneNumbers: [phoneNumber] });
+            const response = await axios.post(
+                `${authApiUrl}/api/Auth/delete-users`, 
+                { phoneNumbers: [phoneNumber] },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
             if (!response.data || !response.data.isSuccess) {
                  throw new Error(response.data.errors?.join(', ') || `Failed to delete user from authentication service.`);
             }
