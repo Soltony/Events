@@ -352,7 +352,14 @@ export async function getReportsData() {
 
 // Settings Actions
 export async function getUsersAndRoles() {
+    const currentUser = await getCurrentUser();
+    let usersQuery = {};
+    if (currentUser.role.name !== 'Admin') {
+        usersQuery = { where: { id: currentUser.id }};
+    }
+
     const users = await prisma.user.findMany({
+        ...usersQuery,
         include: { role: true },
         orderBy: { createdAt: 'desc'}
     });
