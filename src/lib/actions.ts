@@ -33,11 +33,13 @@ function decodeJwtPayload(token: string) {
 // This function can be used in any server action to get the currently logged-in user.
 // It will be implemented to securely fetch user data based on session information.
 async function getCurrentUser() {
-    const authHeader = headers().get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new Error('User is not authenticated.');
+    const cookieStore = cookies()
+    const tokenCookie = cookieStore.get('authTokens');
+    if (!tokenCookie) {
+         throw new Error('User is not authenticated.');
     }
-    const token = authHeader.split(' ')[1];
+
+    const token = JSON.parse(tokenCookie.value).accessToken;
   
     const decoded = decodeJwtPayload(token);
     if (!decoded || typeof decoded === 'string' || !decoded.sub) {
@@ -735,5 +737,3 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
-
-    
