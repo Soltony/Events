@@ -12,8 +12,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { PasswordInput } from '@/components/ui/password-input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
-import { resetPassword } from '@/lib/actions';
+import { updatePasswordFlag } from '@/lib/actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import api from '@/lib/api';
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, { message: 'Current password is required.' }),
@@ -48,11 +49,21 @@ export default function ProfilePage() {
 
     setIsSubmitting(true);
     try {
-        await resetPassword(user.phoneNumber, data.newPassword, data.currentPassword);
+        // We make the API call from the client to ensure the auth header is attached by the api instance
+        await api.post('/api/auth/change-password', {
+            phoneNumber: user.phoneNumber,
+            currentPassword: data.currentPassword,
+            newPassword: data.newPassword,
+        });
         
         const wasFirstTime = user.mustChangePassword;
+        
+        // If it was a mandatory change, update the flag in our DB via server action
+        if (wasFirstTime) {
+            await updatePasswordFlag(user.id, false);
+        }
 
-        // Manually refresh user context after password change
+        // Manually refresh user context after password change to update the UI
         await refreshUser();
 
         toast({
@@ -71,7 +82,7 @@ export default function ProfilePage() {
 
     } catch (error: any) {
         console.error("Failed to change password:", error);
-        const errorMessage = error.message || 'Failed to change password.';
+        const errorMessage = error.response?.data?.errors?.[0] || error.message || 'Failed to change password.';
         toast({
             variant: 'destructive',
             title: 'Error',

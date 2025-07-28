@@ -76,18 +76,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router, toast]);
 
   const refreshUser = useCallback(async () => {
-    if (user) {
+    const storedUser = localStorage.getItem('authUser');
+    if (!storedUser) return;
+    
+    const parsedUser = JSON.parse(storedUser) as UserWithRole;
+
+    if (parsedUser?.phoneNumber) {
         try {
-            const freshUserData = await getUserByPhoneNumber(user.phoneNumber);
-            setUser(freshUserData);
-            localStorage.setItem('authUser', JSON.stringify(freshUserData));
+            const freshUserData = await getUserByPhoneNumber(parsedUser.phoneNumber);
+            if (freshUserData) {
+                setUser(freshUserData);
+                localStorage.setItem('authUser', JSON.stringify(freshUserData));
+            } else {
+                 logout({ reason: 'Your session could not be verified. Please log in again.' });
+            }
         } catch (error) {
             console.error("Failed to refresh user data", error);
-            // Decide if we should log out the user if refresh fails
             logout({ reason: 'Could not verify your session. Please log in again.' });
         }
     }
-  }, [user, logout]);
+  }, [logout]);
 
 
   useEffect(() => {
