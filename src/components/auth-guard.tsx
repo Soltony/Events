@@ -7,21 +7,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/auth-context';
 import { toast } from '@/hooks/use-toast';
 
-const pagePermissions: Record<string, string[]> = {
-    '/dashboard': ['Dashboard:Read'],
-    '/dashboard/scan': ['Scan QR:Read'],
-    '/dashboard/events': ['Events:Read'],
-    '/dashboard/events/new': ['Events:Create'],
-    '/dashboard/events/[id]': ['Events:Read'],
-    '/dashboard/events/[id]/edit': ['Events:Update'],
-    '/dashboard/reports': ['Reports:Read'],
-    '/dashboard/settings': [['User Registration:Read', 'User Management:Read', 'Role Management:Read']],
-    '/dashboard/settings/users': ['User Management:Read'],
-    '/dashboard/settings/users/new': ['User Registration:Create'],
-    '/dashboard/settings/users/[id]/edit': ['User Management:Update'],
-    '/dashboard/settings/roles': ['Role Management:Read'],
-    '/dashboard/settings/roles/new': ['Role Management:Create'],
-    '/dashboard/settings/roles/edit': ['Role Management:Update'],
+const pagePermissions: Record<string, string | string[]> = {
+    '/dashboard': 'Dashboard:Read',
+    '/dashboard/scan': 'Scan QR:Read',
+    '/dashboard/events': 'Events:Read',
+    '/dashboard/events/new': 'Events:Create',
+    '/dashboard/events/[id]': 'Events:Read',
+    '/dashboard/events/[id]/edit': 'Events:Update',
+    '/dashboard/reports': 'Reports:Read',
+    '/dashboard/settings': ['User Registration:Read', 'User Management:Read', 'Role Management:Read'],
+    '/dashboard/settings/users': 'User Management:Read',
+    '/dashboard/settings/users/new': 'User Registration:Create',
+    '/dashboard/settings/users/[id]/edit': 'User Management:Update',
+    '/dashboard/settings/roles': 'Role Management:Read',
+    '/dashboard/settings/roles/new': 'Role Management:Create',
+    '/dashboard/settings/roles/edit': 'Role Management:Update',
 };
 
 function hasAccess(pathname: string, hasPermission: (p: string) => boolean): boolean {
@@ -33,21 +33,18 @@ function hasAccess(pathname: string, hasPermission: (p: string) => boolean): boo
     };
 
     // Exact match
-    if (pagePermissions[pathname]) {
-        return checkPermission(pagePermissions[pathname]);
-    }
-
-    // Dynamic route matching
-    const dynamicRoute = Object.keys(pagePermissions).find(key => {
-        if (!key.includes('[')) return false;
-        const regex = new RegExp(`^${key.replace(/\[.*?\]/g, '[^/]+')}$`);
-        return regex.test(pathname);
+    const requiredPermission = Object.keys(pagePermissions).find(key => {
+         if (key.includes('[')) {
+            const regex = new RegExp(`^${key.replace(/\[.*?\]/g, '[^/]+')}$`);
+            return regex.test(pathname);
+        }
+        return key === pathname;
     });
 
-    if (dynamicRoute && pagePermissions[dynamicRoute]) {
-        return checkPermission(pagePermissions[dynamicRoute]);
+    if (requiredPermission) {
+        return checkPermission(pagePermissions[requiredPermission]);
     }
-
+    
     // Allow access to pages not in the list, like the profile page
     return true;
 }
