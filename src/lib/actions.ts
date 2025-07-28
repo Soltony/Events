@@ -279,16 +279,12 @@ export async function getDashboardData() {
         // Instead of throwing an error, return a default state.
         // The AuthGuard will handle redirection if the user is truly unauthenticated.
         // This prevents crashes during the initial render before the client-side auth state is fully resolved.
-        const tokenCookie = cookies().get('authTokens');
-        if (!tokenCookie) {
-             return {
-                totalRevenue: 0,
-                totalTicketsSold: 0,
-                totalEvents: 0,
-                salesData: [],
-            };
-        }
-        throw new Error('User is not authenticated.');
+        return {
+            totalRevenue: 0,
+            totalTicketsSold: 0,
+            totalEvents: 0,
+            salesData: [],
+        };
     }
 
     const whereClause: { organizerId?: string } = {};
@@ -867,4 +863,3 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
-
