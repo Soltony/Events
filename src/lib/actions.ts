@@ -498,7 +498,6 @@ export async function deleteUser(userId: string, phoneNumber: string) {
     }
 
     try {
-        // Check if the user is an organizer of any events
         const eventCount = await prisma.event.count({
             where: { organizerId: userId },
         });
@@ -507,29 +506,28 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
         }
 
+        // Step 1: Delete from the authentication service first.
+        const deleteResponse = await axios.delete(`${authApiUrl}/api/Auth/delete/${phoneNumber}`);
+        
+        if (!deleteResponse.data || !deleteResponse.data.isSuccess) {
+            // If it fails, we stop and report the error without touching the local DB.
+            throw new Error(deleteResponse.data?.errors?.join(', ') || 'Failed to delete user from authentication service.');
+        }
+        
+        // Step 2: If the auth service deletion is successful, delete from the local database.
         await prisma.user.delete({
             where: { id: userId },
         });
 
-        const deleteResponse = await axios.delete(`${authApiUrl}/api/Auth/delete/${phoneNumber}`);
-        
-        if (!deleteResponse.data || !deleteResponse.data.isSuccess) {
-            console.warn('Failed to delete user from auth service, but continuing as they are deleted locally.', deleteResponse.data?.errors);
-        }
-
         revalidatePath('/dashboard/settings/users');
+
     } catch (error: any) {
         console.error('Error deleting user:', error);
-        
-        if (error.response?.status === 404) {
-             throw new Error("Could not find the user in the authentication service, but they have been removed from this system.");
-        }
+
         if (error.response?.data?.errors) {
             throw new Error(error.response.data.errors.join(', '));
         }
-        if (error.code === 'P2025') { 
-            throw new Error("User not found in the database.");
-        }
+        
         throw new Error(error.message || 'Failed to delete user.');
     }
 }
@@ -756,6 +754,7 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
 
 
 
