@@ -6,8 +6,6 @@ import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee } from '@prisma/client';
 import axios from 'axios';
 import { redirect } from 'next/navigation';
-import { headers } from 'next/headers';
-import api from './api';
 import { cookies } from 'next/headers';
 
 // Helper to ensure data is serializable
@@ -17,33 +15,32 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
         : value
 ));
 
-function decodeJwtPayload(token: string) {
-  try {
-    const payloadBase64 = token.split('.')[1];
-    if (!payloadBase64) return null;
-    const decodedJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
-    return JSON.parse(decodedJson);
-  } catch (error) {
-    console.error("Failed to decode JWT:", error);
-    return null;
-  }
-}
-
-
 // This function can be used in any server action to get the currently logged-in user.
-// It will be implemented to securely fetch user data based on session information.
 async function getCurrentUser() {
-    const cookieStore = cookies()
+    const cookieStore = cookies();
     const tokenCookie = cookieStore.get('authTokens');
+    
     if (!tokenCookie) {
          throw new Error('User is not authenticated.');
     }
 
-    const token = JSON.parse(tokenCookie.value).accessToken;
+    const tokenData = JSON.parse(tokenCookie.value);
+    const token = tokenData.accessToken;
   
-    const decoded = decodeJwtPayload(token);
+    if (!token) {
+      throw new Error('Access token not found in session.');
+    }
+    
+    const payloadBase64 = token.split('.')[1];
+    if (!payloadBase64) {
+      throw new Error('Invalid auth token format.');
+    }
+
+    const decodedJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
+    const decoded = JSON.parse(decodedJson);
+    
     if (!decoded || typeof decoded === 'string' || !decoded.sub) {
-      throw new Error('Invalid auth token.');
+      throw new Error('Invalid auth token payload.');
     }
   
     const userId = decoded.sub;
@@ -58,7 +55,7 @@ async function getCurrentUser() {
     }
   
     return user;
-  }
+}
 
 
 // Event Actions
@@ -405,9 +402,14 @@ export async function addUser(data: any) {
         let newUserId;
 
         if (responseData.accessToken) {
-            const tokenPayload = decodeJwtPayload(responseData.accessToken);
-            if (tokenPayload && tokenPayload.sub) {
-                newUserId = tokenPayload.sub;
+            const token = responseData.accessToken;
+            const payloadBase64 = token.split('.')[1];
+            if (payloadBase64) {
+                const decodedJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
+                const decoded = JSON.parse(decodedJson);
+                if (decoded && decoded.sub) {
+                    newUserId = decoded.sub;
+                }
             }
         }
         
