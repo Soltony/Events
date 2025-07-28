@@ -10,6 +10,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { getDashboardData } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/context/auth-context';
 
 interface DashboardData {
   totalRevenue: number;
@@ -21,9 +22,13 @@ interface DashboardData {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { isLoading: isAuthLoading } = useAuth();
 
   useEffect(() => {
     async function fetchData() {
+      // Don't fetch data until the auth state is confirmed to prevent race conditions
+      if (isAuthLoading) return;
+
       try {
         setLoading(true);
         const dashboardData = await getDashboardData();
@@ -35,7 +40,7 @@ export default function DashboardPage() {
       }
     }
     fetchData();
-  }, []);
+  }, [isAuthLoading]);
 
   const chartConfig = {
     ticketsSold: {
@@ -53,7 +58,7 @@ export default function DashboardPage() {
     </div>
   )
 
-  if (loading || !data) {
+  if (loading || isAuthLoading || !data) {
     return (
         <div className="flex flex-1 flex-col gap-4 md:gap-8">
             <PageTitle />
@@ -133,3 +138,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
