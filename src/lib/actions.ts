@@ -64,7 +64,9 @@ async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
 export async function getEvents() {
     const user = await getCurrentUser();
     if (!user) {
-        throw new Error('User is not authenticated.');
+        // Instead of throwing an error, return a default state.
+        // The AuthGuard will handle redirection if the user is truly unauthenticated.
+        return [];
     }
 
     const whereClause: { organizerId?: string } = {};
