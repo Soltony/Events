@@ -25,6 +25,7 @@ interface AuthContextType {
   hasPermission: (permission: string) => boolean;
   login: (data: any) => Promise<void>;
   logout: (options?: { reason?: string }) => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -73,6 +74,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/login');
 
   }, [router, toast]);
+
+  const refreshUser = useCallback(async () => {
+    if (user) {
+        try {
+            const freshUserData = await getUserByPhoneNumber(user.phoneNumber);
+            setUser(freshUserData);
+            localStorage.setItem('authUser', JSON.stringify(freshUserData));
+        } catch (error) {
+            console.error("Failed to refresh user data", error);
+            // Decide if we should log out the user if refresh fails
+            logout({ reason: 'Could not verify your session. Please log in again.' });
+        }
+    }
+  }, [user, logout]);
 
 
   useEffect(() => {
@@ -153,12 +168,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             description: 'Redirecting...',
           });
           
-          // Role-based redirection
-          switch(userData.role?.name) {
-              case 'Admin':
-              default:
-                  router.push('/dashboard');
-                  break;
+          if (userData.mustChangePassword) {
+              router.push('/dashboard/profile');
+          } else {
+             // Role-based redirection
+              switch(userData.role?.name) {
+                  case 'Admin':
+                  default:
+                      router.push('/dashboard');
+                      break;
+              }
           }
           router.refresh();
         } else {
@@ -195,7 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = !isLoading && !!user;
 
   return (
-    <AuthContext.Provider value={{ tokens, user, isAuthenticated, isLoading, hasPermission, login, logout }}>
+    <AuthContext.Provider value={{ tokens, user, isAuthenticated, isLoading, hasPermission, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

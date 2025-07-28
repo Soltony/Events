@@ -6,7 +6,6 @@ import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import axios from 'axios';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -64,6 +63,7 @@ async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
 export async function getEvents() {
     const user = await getCurrentUser();
     if (!user) {
+        // Return empty array if not authenticated, AuthGuard will handle redirection
         return [];
     }
 
@@ -276,7 +276,7 @@ export async function addPromoCode(eventId: number, data: { code: string; type: 
 export async function getDashboardData() {
     const user = await getCurrentUser();
     if (!user) {
-        return {
+         return {
             totalRevenue: 0,
             totalTicketsSold: 0,
             totalEvents: 0,
@@ -473,6 +473,7 @@ export async function addUser(data: any) {
             lastName,
             phoneNumber,
             roleId,
+            mustChangePassword: true,
         };
 
         if (email) {
@@ -523,11 +524,16 @@ export async function updateUserRole(userId: string, roleId: string) {
         where: { id: userId },
         data: { roleId },
     });
-    revalidatePath('/dashboard/settings');
+    revalidatePath('/dashboard/settings/users');
     return serialize(user);
 }
 
 export async function deleteUser(userId: string, phoneNumber: string) {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+        throw new Error("Not authenticated");
+    }
+
     try {
         const eventCount = await prisma.event.count({
             where: { organizerId: userId },
@@ -536,42 +542,32 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         if (eventCount > 0) {
             throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
         }
-        
-        const cookieStore = cookies();
-        const tokenCookie = cookieStore.get('authTokens');
-        if (!tokenCookie) {
-          throw new Error('Authentication token not found for delete operation.');
-        }
-        const tokenData = JSON.parse(tokenCookie.value);
-        const token = tokenData.accessToken;
-
-        if (!token) {
-            throw new Error('Access token is missing from auth cookie.');
-        }
 
         const authApiUrl = process.env.AUTH_API_BASE_URL;
         if (!authApiUrl) {
             throw new Error("Authentication service URL is not configured.");
         }
+        
+        // This is a server-to-server call, so it needs its own auth.
+        // For this prototype, we assume an admin token is available. In a real app, this might use a service account.
+        const token = cookies().get('authTokens')?.value;
+        if (!token) {
+             throw new Error('No auth token available for server action.');
+        }
 
-        const deleteResponse = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
+        const response = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${JSON.parse(token).accessToken}`
             },
             body: JSON.stringify({ phoneNumbers: [phoneNumber] })
         });
-
-
-        if (!deleteResponse.ok) {
-             if (deleteResponse.status === 404) {
-                console.warn(`User ${phoneNumber} not found in auth service, but proceeding with local deletion.`);
-            } else {
-                const errorData = await deleteResponse.json().catch(() => ({}));
-                const errorMessage = errorData?.errors?.join(', ') || `Request failed with status ${deleteResponse.status}`;
-                throw new Error(errorMessage);
-            }
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = errorData?.errors?.join(', ') || `Failed to delete user from authentication service. Status: ${response.status}`;
+            throw new Error(errorMessage);
         }
         
         await prisma.$transaction([
@@ -675,7 +671,17 @@ export async function resetPassword(phoneNumber: string, newPassword: string, cu
         const errorMessage = errorData.errors?.join(', ') || 'Failed to reset password.';
         throw new Error(errorMessage);
     }
+
+    // If password was changed successfully, update the flag
+    if (user.mustChangePassword) {
+        await prisma.user.update({
+            where: { phoneNumber },
+            data: { mustChangePassword: false },
+        });
+    }
+
     revalidatePath('/dashboard/profile');
+    revalidatePath(`/dashboard`); // To update the user object in the layout
 
   } catch (error: any) {
     console.error('Error resetting password:', error);
@@ -860,8 +866,3 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
-
-
-    
-
-    

@@ -43,6 +43,12 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Force password change if required
+    if (user?.mustChangePassword && pathname !== '/dashboard/profile') {
+        router.replace('/dashboard/profile');
+        return;
+    }
+    
     if (!hasAccess(pathname, hasPermission)) {
         // If user does not have permission, redirect to their default page
         switch(user?.role?.name) {
@@ -56,6 +62,23 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (isLoading || !isAuthenticated || (isAuthenticated && !hasAccess(pathname, hasPermission))) {
     return (
+        <div className="p-4 lg:p-6">
+            <div className="space-y-4">
+                <Skeleton className="h-12 w-full" />
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-24 w-full" />
+                </div>
+                <Skeleton className="h-64 w-full" />
+            </div>
+        </div>
+    )
+  }
+
+  // Render children only if user is authenticated and password does not need changing (unless on profile page)
+  if (user?.mustChangePassword && pathname !== '/dashboard/profile') {
+     return (
         <div className="p-4 lg:p-6">
             <div className="space-y-4">
                 <Skeleton className="h-12 w-full" />
