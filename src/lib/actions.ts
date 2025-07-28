@@ -17,45 +17,45 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
 ));
 
 // This function can be used in any server action to get the currently logged-in user.
-async function getCurrentUser() {
-    const cookieStore = cookies();
-    const tokenCookie = cookieStore.get('authTokens');
-    
-    if (!tokenCookie) {
-         throw new Error('User is not authenticated.');
-    }
+async function getCurrentUser(): Promise<User & { role: Role }> {
+  const cookieStore = cookies();
+  const tokenCookie = cookieStore.get('authTokens');
 
-    const tokenData = JSON.parse(tokenCookie.value);
-    const token = tokenData.accessToken;
-  
-    if (!token) {
-      throw new Error('Access token not found in session.');
-    }
-    
-    const payloadBase64 = token.split('.')[1];
-    if (!payloadBase64) {
-      throw new Error('Invalid auth token format.');
-    }
+  if (!tokenCookie) {
+    throw new Error('User is not authenticated.');
+  }
 
-    const decodedJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
-    const decoded = JSON.parse(decodedJson);
-    
-    if (!decoded || typeof decoded === 'string' || !decoded.sub) {
-      throw new Error('Invalid auth token payload.');
-    }
-  
-    const userId = decoded.sub;
-  
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { role: true },
-    });
-  
-    if (!user) {
-      throw new Error('User not found.');
-    }
-  
-    return user;
+  const tokenData = JSON.parse(tokenCookie.value);
+  const token = tokenData.accessToken;
+
+  if (!token) {
+    throw new Error('Access token not found in session.');
+  }
+
+  const payloadBase64 = token.split('.')[1];
+  if (!payloadBase64) {
+    throw new Error('Invalid auth token format.');
+  }
+
+  const decodedJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
+  const decoded = JSON.parse(decodedJson);
+
+  if (!decoded || typeof decoded === 'string' || !decoded.sub) {
+    throw new Error('Invalid auth token payload.');
+  }
+
+  const userId = decoded.sub;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { role: true },
+  });
+
+  if (!user) {
+    throw new Error('User not found.');
+  }
+
+  return user;
 }
 
 
@@ -507,7 +507,7 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         }
 
         // Step 1: Delete from the authentication service first.
-        const deleteResponse = await axios.delete(`${authApiUrl}/api/Auth/delete/${phoneNumber}`);
+        const deleteResponse = await axios.delete(`${authApiUrl}/api/Auth/delete-user/${phoneNumber}`);
         
         if (!deleteResponse.data || !deleteResponse.data.isSuccess) {
             // If it fails, we stop and report the error without touching the local DB.
@@ -524,8 +524,15 @@ export async function deleteUser(userId: string, phoneNumber: string) {
     } catch (error: any) {
         console.error('Error deleting user:', error);
 
-        if (error.response?.data?.errors) {
-            throw new Error(error.response.data.errors.join(', '));
+        if (error.response) {
+            if (error.response.status === 404) {
+                 throw new Error("User not found in the authentication service. The user may have already been deleted externally.");
+            }
+             throw new Error(`Auth service error: ${error.response.status} ${error.response.statusText}. ${error.response.data?.errors?.join(', ') || ''}`);
+        }
+        
+        if (error.code === 'P2003') { // Foreign key constraint
+             throw new Error("Cannot delete user. They are still linked to other records in the database (e.g., as an event organizer). Please reassign or delete those records first.");
         }
         
         throw new Error(error.message || 'Failed to delete user.');
@@ -754,6 +761,7 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
 
 
 
