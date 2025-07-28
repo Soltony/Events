@@ -5,13 +5,27 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MapPin, Ticket, Loader2, X } from 'lucide-react';
+import { Calendar, MapPin, Ticket, Loader2, X, User, Users, Phone } from 'lucide-react';
 import type { Event, TicketType } from '@prisma/client';
 import { format } from 'date-fns';
 import { ScrollArea } from './ui/scroll-area';
 import { useTransition, useState } from 'react';
 import { purchaseTickets } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/auth-context';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Input } from './ui/input';
+import { Label } from './ui/label';
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
@@ -33,19 +47,40 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 export default function EventDetailModal({ event, isOpen, onClose }: EventDetailModalProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  const { user, isAuthenticated } = useAuth();
   const [loadingTicketId, setLoadingTicketId] = useState<number | null>(null);
+  const [buyForOther, setBuyForOther] = useState<{ ticket: TicketType; isOpen: boolean }>({ ticket: null!, isOpen: false });
+  const [otherPhoneNumber, setOtherPhoneNumber] = useState('');
+
 
   if (!event) return null;
   
-  const handlePurchase = (ticketType: TicketType) => {
+  const handlePurchase = (ticketType: TicketType, forSelf = true) => {
     setLoadingTicketId(ticketType.id);
     startTransition(() => {
         purchaseTickets({
           eventId: event.id,
-          tickets: [{ id: ticketType.id, quantity: 1, name: ticketType.name, price: Number(ticketType.price) }]
+          tickets: [{ id: ticketType.id, quantity: 1, name: ticketType.name, price: Number(ticketType.price) }],
+          purchaseFor: forSelf ? 'self' : { phoneNumber: otherPhoneNumber },
         });
+        if (buyForOther.isOpen) {
+            setBuyForOther({ ticket: null!, isOpen: false });
+            setOtherPhoneNumber('');
+        }
     });
   };
+
+  const handleBuyForOther = (ticketType: TicketType) => {
+     if (!isAuthenticated) {
+          toast({
+                variant: 'destructive',
+                title: 'Login Required',
+                description: 'You must be logged in to buy tickets for others.',
+            });
+        return;
+    }
+    setBuyForOther({ ticket: ticketType, isOpen: true });
+  }
 
   const firstImage = event.image?.split(',')[0].trim() || 'https://placehold.co/800x600.png';
 
@@ -91,22 +126,35 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
                                 {event.ticketTypes.length > 0 ? (
                                     event.ticketTypes.map(ticket => {
                                         const isLoading = isPending && loadingTicketId === ticket.id;
+                                        const isSoldOut = ticket.total - ticket.sold <= 0;
                                         return (
                                             <div key={ticket.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 rounded-lg border bg-secondary/50">
                                                 <div className="mb-2 sm:mb-0">
                                                     <h4 className="font-semibold text-base">{ticket.name}</h4>
                                                     <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-base">ETB {Number(ticket.price).toFixed(2)}</p>
-                                                    <p className="text-xs text-muted-foreground">{ticket.total - ticket.sold > 0 ? `${ticket.total - ticket.sold} remaining` : 'Sold Out'}</p>
+                                                    <p className="text-xs text-muted-foreground">{!isSoldOut ? `${ticket.total - ticket.sold} remaining` : 'Sold Out'}</p>
                                                 </div>
-                                                <Button 
-                                                    onClick={() => handlePurchase(ticket)}
-                                                    disabled={isLoading || ticket.total - ticket.sold <= 0}
-                                                    className="w-full sm:w-auto shrink-0 bg-accent hover:bg-accent/90 text-accent-foreground"
-                                                    size="sm"
-                                                >
-                                                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Ticket className="mr-2 h-4 w-4" />}
-                                                    {ticket.total - ticket.sold > 0 ? 'Buy' : 'Sold Out'}
-                                                </Button>
+                                                <div className="flex gap-2 w-full sm:w-auto">
+                                                    <Button 
+                                                        onClick={() => handlePurchase(ticket)}
+                                                        disabled={isLoading || isSoldOut}
+                                                        className="w-full sm:w-auto shrink-0 bg-accent hover:bg-accent/90 text-accent-foreground"
+                                                        size="sm"
+                                                    >
+                                                        {isLoading && loadingTicketId === ticket.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <User className="mr-2 h-4 w-4" />}
+                                                        For Self
+                                                    </Button>
+                                                     <Button 
+                                                        onClick={() => handleBuyForOther(ticket)}
+                                                        disabled={isLoading || isSoldOut}
+                                                        className="w-full sm:w-auto shrink-0"
+                                                        size="sm"
+                                                        variant="outline"
+                                                    >
+                                                        <Users className="mr-2 h-4 w-4" />
+                                                        For Other
+                                                    </Button>
+                                                </div>
                                             </div>
                                         )
                                     })
@@ -119,10 +167,41 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
             </div>
         </div>
       </DialogContent>
+        {buyForOther.isOpen && buyForOther.ticket && (
+            <AlertDialog open={buyForOther.isOpen} onOpenChange={(open) => !open && setBuyForOther({ticket: null!, isOpen: false})}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Buy Ticket for Another User</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Enter the phone number of the person you are buying the <span className="font-bold">"{buyForOther.ticket.name}"</span> ticket for. The ticket will be added to their account.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="grid gap-2">
+                        <Label htmlFor="phone-number">Phone Number</Label>
+                        <div className="relative">
+                             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                id="phone-number" 
+                                placeholder="0912345678" 
+                                value={otherPhoneNumber} 
+                                onChange={(e) => setOtherPhoneNumber(e.target.value)}
+                                className="pl-10"
+                            />
+                        </div>
+                    </div>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                        onClick={() => handlePurchase(buyForOther.ticket, false)}
+                        disabled={isPending || otherPhoneNumber.length < 10}
+                    >
+                         {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Ticket className="mr-2 h-4 w-4" />}
+                        Confirm Purchase
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        )}
     </Dialog>
   );
 }
-
-    
-
-    

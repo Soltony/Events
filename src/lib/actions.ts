@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -17,51 +16,57 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
 ));
 
 // This function can be used in any server action to get the currently logged-in user.
-async function getCurrentUser(): Promise<User & { role: Role }> {
+async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
   const cookieStore = cookies();
   const tokenCookie = cookieStore.get('authTokens');
 
   if (!tokenCookie) {
-    throw new Error('User is not authenticated.');
+    return null;
   }
+  
+  try {
+    const tokenData = JSON.parse(tokenCookie.value);
+    const token = tokenData.accessToken;
 
-  const tokenData = JSON.parse(tokenCookie.value);
-  const token = tokenData.accessToken;
+    if (!token) {
+        return null;
+    }
 
-  if (!token) {
-    throw new Error('Access token not found in session.');
+    const payloadBase64 = token.split('.')[1];
+    if (!payloadBase64) {
+        return null;
+    }
+
+    const decodedJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
+    const decoded = JSON.parse(decodedJson);
+
+    if (!decoded || typeof decoded === 'string' || !decoded.sub) {
+        return null;
+    }
+
+    const userId = decoded.sub;
+
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { role: true },
+    });
+    
+    return user;
+
+  } catch(e) {
+      console.error("Error decoding token or finding user", e);
+      return null;
   }
-
-  const payloadBase64 = token.split('.')[1];
-  if (!payloadBase64) {
-    throw new Error('Invalid auth token format.');
-  }
-
-  const decodedJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
-  const decoded = JSON.parse(decodedJson);
-
-  if (!decoded || typeof decoded === 'string' || !decoded.sub) {
-    throw new Error('Invalid auth token payload.');
-  }
-
-  const userId = decoded.sub;
-
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { role: true },
-  });
-
-  if (!user) {
-    throw new Error('User not found.');
-  }
-
-  return user;
 }
 
 
 // Event Actions
 export async function getEvents() {
     const user = await getCurrentUser();
+    if (!user) {
+        throw new Error('User is not authenticated.');
+    }
+
     const whereClause: { organizerId?: string } = {};
 
     if (user.role.name !== 'Admin') {
@@ -114,6 +119,9 @@ export async function getEventById(id: number) {
 
 export async function getEventDetails(id: number) {
     const user = await getCurrentUser();
+    if (!user) {
+        throw new Error('User is not authenticated.');
+    }
     
     const event = await prisma.event.findUnique({
         where: { id },
@@ -140,6 +148,9 @@ export async function getEventDetails(id: number) {
 export async function addEvent(data: any) {
     const { tickets, startDate, endDate, otherCategory, ...eventData } = data;
     const user = await getCurrentUser();
+    if (!user) {
+        throw new Error('User is not authenticated.');
+    }
 
     // Determine the final category and remove the temporary 'otherCategory' field
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
@@ -177,6 +188,9 @@ export async function addEvent(data: any) {
 export async function updateEvent(id: number, data: any) {
     const { startDate, endDate, otherCategory, ...eventData } = data;
     const user = await getCurrentUser();
+    if (!user) {
+        throw new Error('User is not authenticated.');
+    }
 
     // Determine the final category
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
@@ -212,6 +226,10 @@ export async function updateEvent(id: number, data: any) {
 
 export async function deleteEvent(id: number) {
   const user = await getCurrentUser();
+  if (!user) {
+    throw new Error('User is not authenticated.');
+  }
+
   const eventToDelete = await prisma.event.findUnique({ where: { id }});
   if (!eventToDelete) throw new Error("Event not found");
 
@@ -257,6 +275,10 @@ export async function addPromoCode(eventId: number, data: { code: string; type: 
 // Dashboard Actions
 export async function getDashboardData() {
     const user = await getCurrentUser();
+    if (!user) {
+        throw new Error('User is not authenticated.');
+    }
+
     const whereClause: { organizerId?: string } = {};
 
     if (user.role.name !== 'Admin') {
@@ -300,6 +322,10 @@ export async function getDashboardData() {
 // Reports Actions
 export async function getReportsData() {
     const user = await getCurrentUser();
+    if (!user) {
+        throw new Error('User is not authenticated.');
+    }
+
     const whereClause: { organizerId?: string } = {};
 
     if (user.role.name !== 'Admin') {
@@ -354,6 +380,10 @@ export async function getReportsData() {
 // Settings Actions
 export async function getUsersAndRoles() {
     const currentUser = await getCurrentUser();
+    if (!currentUser) {
+        throw new Error('User is not authenticated.');
+    }
+
     let usersQuery = {};
     if (currentUser.role.name !== 'Admin') {
         usersQuery = { where: { id: currentUser.id }};
@@ -505,16 +535,21 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         if (eventCount > 0) {
             throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
         }
-
-        // Step 1: Delete from the authentication service first.
-        const deleteResponse = await axios.delete(`${authApiUrl}/api/Auth/delete-user/${phoneNumber}`);
         
-        if (!deleteResponse.data || !deleteResponse.data.isSuccess) {
-            // If it fails, we stop and report the error without touching the local DB.
-            throw new Error(deleteResponse.data?.errors?.join(', ') || 'Failed to delete user from authentication service.');
+        // Step 1: Delete from the authentication service first.
+        const deleteResponse = await axios.delete(`${authApiUrl}/api/Auth/user/${phoneNumber}`);
+        
+        if (deleteResponse.status >= 400) {
+             if (deleteResponse.status === 404) {
+                 // If user not found in auth service, maybe they were already deleted. Proceed to delete from local DB.
+                 console.warn(`User ${phoneNumber} not found in auth service. Proceeding with local deletion.`);
+            } else {
+                // For other errors, stop and report the error without touching the local DB.
+                throw new Error(deleteResponse.data?.errors?.join(', ') || `Failed to delete user from authentication service. Status: ${deleteResponse.status}`);
+            }
         }
         
-        // Step 2: If the auth service deletion is successful, delete from the local database.
+        // Step 2: If the auth service deletion is successful (or 404), delete from the local database.
         await prisma.user.delete({
             where: { id: userId },
         });
@@ -523,7 +558,7 @@ export async function deleteUser(userId: string, phoneNumber: string) {
 
     } catch (error: any) {
         console.error('Error deleting user:', error);
-
+        
         if (error.response) {
             if (error.response.status === 404) {
                  throw new Error("User not found in the authentication service. The user may have already been deleted externally.");
@@ -631,10 +666,34 @@ interface PurchaseRequest {
   eventId: number;
   tickets: { id: number; quantity: number, name: string; price: number }[];
   promoCode?: string;
+  purchaseFor: 'self' | { phoneNumber: string };
 }
 
 export async function purchaseTickets(request: PurchaseRequest) {
     'use server';
+
+    const currentUser = await getCurrentUser();
+    let targetUser: User | null = null;
+    
+    if (request.purchaseFor === 'self') {
+        if (!currentUser) {
+           // Guest checkout logic
+           console.log("Guest checkout");
+        } else {
+           targetUser = currentUser;
+        }
+    } else {
+        if (!currentUser) {
+            throw new Error('You must be logged in to purchase tickets for others.');
+        }
+        targetUser = await prisma.user.findUnique({
+            where: { phoneNumber: request.purchaseFor.phoneNumber }
+        });
+        if (!targetUser) {
+            throw new Error(`User with phone number ${request.purchaseFor.phoneNumber} not found.`);
+        }
+    }
+
 
     const newAttendees = await prisma.$transaction(async (tx) => {
         const createdAttendees: Attendee[] = [];
@@ -646,12 +705,17 @@ export async function purchaseTickets(request: PurchaseRequest) {
             }
 
             for (let i = 0; i < ticket.quantity; i++) {
+                const attendeeName = targetUser ? `${targetUser.firstName} ${targetUser.lastName}` : 'Guest Customer';
+                const attendeeEmail = targetUser?.email;
+                const attendeeUserId = targetUser?.id;
+
                 const newAttendee = await tx.attendee.create({
                     data: {
-                        name: 'Public Customer', // Placeholder
-                        email: `customer+${Date.now() + i}@example.com`,
+                        name: attendeeName,
+                        email: attendeeEmail,
                         eventId: request.eventId,
                         ticketTypeId: ticket.id,
+                        userId: attendeeUserId,
                         checkedIn: false,
                     },
                 });
@@ -675,6 +739,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
 
     revalidatePath(`/events/${request.eventId}`);
     revalidatePath('/');
+    revalidatePath('/tickets');
 
     if (newAttendees.length > 0) {
         redirect(`/ticket/${newAttendees[0].id}/confirmation`);
@@ -698,13 +763,9 @@ export async function getTicketDetailsForConfirmation(attendeeId: number) {
     return serialize(attendee);
 }
 
-export async function getTicketsByIds(ids: number[]) {
+export async function getTicketsByUserId(userId: string) {
     const tickets = await prisma.attendee.findMany({
-        where: {
-            id: {
-                in: ids,
-            },
-        },
+        where: { userId: userId },
         include: {
             event: true,
             ticketType: true,
@@ -761,8 +822,3 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
-
-
-
-
-

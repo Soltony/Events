@@ -7,11 +7,12 @@ import Image from 'next/image';
 import { format } from 'date-fns';
 import type { Attendee, Event, TicketType } from '@prisma/client';
 
-import { getTicketsByIds } from '@/lib/actions';
+import { getTicketsByUserId } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowUpRight, Ticket } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
 
 interface FullTicket extends Attendee {
   event: Event;
@@ -35,25 +36,64 @@ const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 export default function MyTicketsPage() {
   const [tickets, setTickets] = useState<FullTicket[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user, isLoading: isAuthLoading } = useAuth();
 
   useEffect(() => {
     async function fetchMyTickets() {
-      const storedTicketIds = JSON.parse(localStorage.getItem('myTickets') || '[]');
-      if (storedTicketIds.length > 0) {
-        const fetchedTickets = await getTicketsByIds(storedTicketIds);
+      if (isAuthLoading) return;
+      
+      setLoading(true);
+      if (user?.id) {
+        const fetchedTickets = await getTicketsByUserId(user.id);
         setTickets(fetchedTickets);
+      } else {
+        // Handle case for non-logged-in users (maybe show message)
+        setTickets([]);
       }
       setLoading(false);
     }
     fetchMyTickets();
-  }, []);
+  }, [user, isAuthLoading]);
+
+  if (isAuthLoading) {
+     return (
+        <div className="container mx-auto py-8">
+            <div className="space-y-2 mb-8">
+                <Skeleton className="h-9 w-48" />
+                <Skeleton className="h-5 w-96" />
+            </div>
+             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {[...Array(3)].map((_, i) => (
+                    <Card key={i}>
+                        <CardHeader className="p-0"><Skeleton className="w-full aspect-video rounded-t-lg" /></CardHeader>
+                        <CardContent className="p-4 space-y-2"><Skeleton className="h-5 w-3/4" /><Skeleton className="h-4 w-1/2" /></CardContent>
+                        <CardFooter className="p-4 pt-0"><Skeleton className="h-10 w-full" /></CardFooter>
+                    </Card>
+                ))}
+            </div>
+        </div>
+     )
+  }
+
+  if (!user) {
+     return (
+         <div className="flex flex-col items-center justify-center text-center py-16 border-2 border-dashed rounded-lg container mx-auto mt-8">
+            <Ticket className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-2xl font-semibold tracking-tight">You need to be logged in</h3>
+            <p className="text-muted-foreground mt-2 mb-6">Please log in to view your tickets.</p>
+            <Button asChild>
+                <Link href="/login">Login</Link>
+            </Button>
+        </div>
+     )
+  }
 
   return (
     <div className="container mx-auto py-8">
         <div className="space-y-2 mb-8">
             <h1 className="text-3xl font-bold tracking-tight">My Tickets</h1>
             <p className="text-muted-foreground">
-                Here are the tickets you've recently purchased in this browser.
+                Here are the tickets associated with your account.
             </p>
         </div>
 

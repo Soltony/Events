@@ -1,11 +1,41 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
+model User {
+  id          String    @id @default(cuid())
+  firstName   String
+  lastName    String
+  phoneNumber String    @unique
+  email       String?   @unique
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  roleId      String
+  role        Role      @relation(fields: [roleId], references: [id])
+  events      Event[]
+  attendees   Attendee[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  permissions String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+
+  @@map("roles")
 }
 
 model Event {
@@ -20,81 +50,63 @@ model Event {
   image       String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  organizerId String
+  organizer   User         @relation(fields: [organizerId], references: [id])
   ticketTypes TicketType[]
   attendees   Attendee[]
   promoCodes  PromoCode[]
-  organizer   User         @relation(fields: [organizerId], references: [id])
-  organizerId String
+
+  @@map("events")
 }
 
 model TicketType {
   id        Int        @id @default(autoincrement())
   name      String
-  price     Decimal
+  price     Decimal    @db.Decimal(10, 2)
   total     Int
   sold      Int        @default(0)
-  event     Event      @relation(fields: [eventId], references: [id])
-  eventId   Int
-  attendees Attendee[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+  eventId   Int
+  event     Event      @relation(fields: [eventId], references: [id])
+  attendees Attendee[]
+
+  @@map("ticket_types")
 }
 
 model Attendee {
   id           Int        @id @default(autoincrement())
   name         String
-  email        String
+  email        String?
   checkedIn    Boolean    @default(false)
-  event        Event      @relation(fields: [eventId], references: [id])
-  eventId      Int
-  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
-  ticketTypeId Int
-  user         User?      @relation(fields: [userId], references: [id])
-  userId       String?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+  eventId      Int
+  event        Event      @relation(fields: [eventId], references: [id])
+  ticketTypeId Int
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
+  userId       String?
+  user         User?      @relation(fields: [userId], references: [id])
 
-  @@unique([eventId, email, ticketTypeId])
+  @@map("attendees")
 }
 
 model PromoCode {
-  id        Int         @id @default(autoincrement())
-  code      String      @unique
+  id        Int           @id @default(autoincrement())
+  code      String        @unique
   type      PromoCodeType
-  value     Decimal
+  value     Decimal       @db.Decimal(10, 2)
   maxUses   Int
-  uses      Int         @default(0)
-  event     Event       @relation(fields: [eventId], references: [id])
+  uses      Int           @default(0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
   eventId   Int
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  event     Event         @relation(fields: [eventId], references: [id])
+
+  @@map("promo_codes")
 }
 
 enum PromoCodeType {
   PERCENTAGE
   FIXED
-}
-
-model User {
-  id          String     @id @default(uuid())
-  firstName   String
-  lastName    String
-  phoneNumber String     @unique
-  email       String?    @unique
-  role        Role       @relation(fields: [roleId], references: [id])
-  roleId      String
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  events      Event[]
-  attendees   Attendee[]
-}
-
-model Role {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  description String?
-  permissions String?
-  users       User[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 }
