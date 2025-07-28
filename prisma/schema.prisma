@@ -11,31 +11,28 @@ datasource db {
 }
 
 model User {
-  id          String    @id @default(cuid())
-  firstName   String
-  lastName    String
-  phoneNumber String    @unique
-  email       String?   @unique
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  roleId      String
-  role        Role      @relation(fields: [roleId], references: [id])
-  events      Event[]
-  attendees   Attendee[]
-
-  @@map("users")
+  id                      String     @id @default(uuid())
+  firstName               String
+  lastName                String
+  phoneNumber             String     @unique
+  email                   String?    @unique
+  passwordChangeRequired  Boolean    @default(false)
+  role                    Role       @relation(fields: [roleId], references: [id])
+  roleId                  String
+  events                  Event[]    @relation("OrganizerEvents")
+  attendees               Attendee[]
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
 }
 
 model Role {
-  id          String   @id @default(cuid())
+  id          String   @id @default(uuid())
   name        String   @unique
   description String?
   permissions String?
+  users       User[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  users       User[]
-
-  @@map("roles")
 }
 
 model Event {
@@ -48,15 +45,13 @@ model Event {
   hint        String?
   category    String
   image       String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  organizer   User         @relation("OrganizerEvents", fields: [organizerId], references: [id])
   organizerId String
-  organizer   User         @relation(fields: [organizerId], references: [id])
   ticketTypes TicketType[]
   attendees   Attendee[]
   promoCodes  PromoCode[]
-
-  @@map("events")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
 
 model TicketType {
@@ -65,30 +60,31 @@ model TicketType {
   price     Decimal    @db.Decimal(10, 2)
   total     Int
   sold      Int        @default(0)
+  event     Event      @relation(fields: [eventId], references: [id])
+  eventId   Int
+  attendees Attendee[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
-  eventId   Int
-  event     Event      @relation(fields: [eventId], references: [id])
-  attendees Attendee[]
-
-  @@map("ticket_types")
 }
 
 model Attendee {
   id           Int        @id @default(autoincrement())
   name         String
   email        String?
+  user         User?      @relation(fields: [userId], references: [id])
+  userId       String?
+  event        Event      @relation(fields: [eventId], references: [id])
+  eventId      Int
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
+  ticketTypeId Int
   checkedIn    Boolean    @default(false)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
-  eventId      Int
-  event        Event      @relation(fields: [eventId], references: [id])
-  ticketTypeId Int
-  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
-  userId       String?
-  user         User?      @relation(fields: [userId], references: [id])
+}
 
-  @@map("attendees")
+enum PromoCodeType {
+  PERCENTAGE
+  FIXED
 }
 
 model PromoCode {
@@ -98,15 +94,8 @@ model PromoCode {
   value     Decimal       @db.Decimal(10, 2)
   maxUses   Int
   uses      Int           @default(0)
+  event     Event         @relation(fields: [eventId], references: [id])
+  eventId   Int
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
-  eventId   Int
-  event     Event         @relation(fields: [eventId], references: [id])
-
-  @@map("promo_codes")
-}
-
-enum PromoCodeType {
-  PERCENTAGE
-  FIXED
 }
