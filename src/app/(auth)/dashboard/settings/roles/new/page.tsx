@@ -42,11 +42,9 @@ const roleFormSchema = z.object({
 type RoleFormValues = z.infer<typeof roleFormSchema>;
 
 const permissionCategories = {
-    Dashboard: ['View', 'Update', 'Create', 'Delete'],
-    'Scan QR': ['View', 'Update', 'Create', 'Delete'],
-    Events: ['View', 'Update', 'Create', 'Delete'],
-    Reports: ['View', 'Update', 'Create', 'Delete'],
-    Settings: ['View', 'Update', 'Create', 'Delete'],
+    'User Registration': ['Create', 'Read', 'Update', 'Delete'],
+    'User Management': ['Create', 'Read', 'Update', 'Delete'],
+    'Role Management': ['Create', 'Read', 'Update', 'Delete'],
 };
 
 
@@ -72,7 +70,7 @@ export default function CreateRolePage() {
             title: 'Role Created!',
             description: `Successfully created the "${data.name}" role.`,
         });
-        router.push('/dashboard/settings');
+        router.push('/dashboard/settings/roles');
     } catch (error) {
         console.error("Failed to create role:", error);
         toast({

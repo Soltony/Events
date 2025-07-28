@@ -5,8 +5,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Settings, UserPlus, Users, ShieldCheck } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
 
 export default function SettingsPage() {
+  const { hasPermission } = useAuth();
+  
   const managementCards = [
     {
       title: 'User Registration',
@@ -15,7 +18,8 @@ export default function SettingsPage() {
       buttonText: 'Go to User Registration',
       href: '/dashboard/settings/users/new',
       color: '#FBBF24',
-      textColor: '#422006'
+      textColor: '#422006',
+      permission: 'User Registration:Read'
     },
     {
       title: 'User Management',
@@ -24,7 +28,8 @@ export default function SettingsPage() {
       buttonText: 'Go to User Management',
       href: '/dashboard/settings/users',
       color: '#FBBF24',
-      textColor: '#422006'
+      textColor: '#422006',
+      permission: 'User Management:Read'
     },
     {
       title: 'Role Management',
@@ -33,9 +38,12 @@ export default function SettingsPage() {
       buttonText: 'Go to Role Management',
       href: '/dashboard/settings/roles',
       color: '#FBBF24',
-      textColor: '#422006'
+      textColor: '#422006',
+      permission: 'Role Management:Read'
     }
   ];
+
+  const visibleCards = managementCards.filter(card => hasPermission(card.permission));
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
@@ -50,7 +58,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {managementCards.map((card) => (
+        {visibleCards.map((card) => (
           <Card key={card.title} className="flex flex-col">
             <CardHeader>
               <CardTitle>{card.title}</CardTitle>
