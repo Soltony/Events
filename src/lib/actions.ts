@@ -534,16 +534,14 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         
         // Step 1: Attempt to delete from the authentication service.
         try {
-            // Using the client-side `api` instance which has the base URL set up
-            const response = await api.delete(`/api/auth/delete-user/${phoneNumber}`);
+            const response = await api.post(`/api/auth/delete-users`, { phoneNumbers: [phoneNumber] });
             if (!response.data || !response.data.isSuccess) {
                  throw new Error(response.data.errors?.join(', ') || `Failed to delete user from authentication service.`);
             }
         } catch (error: any) {
             if (error.response && error.response.status === 404) {
-                console.warn(`User ${phoneNumber} not found in auth service. Proceeding with local deletion only.`);
+                console.warn(`User ${phoneNumber} not found in auth service, but proceeding with local deletion.`);
             } else {
-                // For any other error from the auth service, re-throw it to stop the process.
                  const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'An unknown error occurred during auth deletion.';
                  throw new Error(errorMessage);
             }
@@ -660,23 +658,22 @@ interface PurchaseRequest {
   eventId: number;
   tickets: { id: number; quantity: number, name: string; price: number }[];
   promoCode?: string;
-  purchaseFor: 'self' | { phoneNumber: string };
+  purchaseFor?: 'self' | { phoneNumber: string };
 }
 
 export async function purchaseTickets(request: PurchaseRequest) {
     'use server';
 
     const currentUser = await getCurrentUser();
-    let targetUser: User | null = null;
+    let targetUser: (User & { role: Role | null }) | null = null;
     
     if (request.purchaseFor === 'self') {
         if (!currentUser) {
-           // Guest checkout logic
-           console.log("Guest checkout");
+           console.log("Guest checkout in progress.");
         } else {
            targetUser = currentUser;
         }
-    } else {
+    } else if (request.purchaseFor) {
         if (!currentUser) {
             throw new Error('You must be logged in to purchase tickets for others.');
         }

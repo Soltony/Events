@@ -13,36 +13,6 @@ async function proxyRequest(req: NextRequest, path: string[]) {
     );
   }
 
-  // A special case for user deletion to match the expected API endpoint
-  if (path.length === 2 && path[0] === 'delete-user') {
-      const phoneNumber = path[1];
-      const targetUrl = `${AUTH_API_BASE_URL}/api/Auth/user/${phoneNumber}`;
-
-      try {
-          const response = await axios({
-              method: 'DELETE',
-              url: targetUrl,
-              validateStatus: () => true,
-          });
-
-          return new NextResponse(JSON.stringify(response.data), {
-            status: response.status,
-            headers: { 'Content-Type': 'application/json' },
-          });
-
-      } catch(error: any) {
-          console.error(`API Proxy Error for DELETE ${targetUrl}:`, error.message);
-          const status = error.response?.status || 502; // Bad Gateway
-          const errorMessage = error.response?.data?.errors?.join(', ') || 'Proxy request failed.';
-          
-          return new NextResponse(
-            JSON.stringify({ isSuccess: false, errors: [errorMessage] }),
-            { status, headers: { 'Content-Type': 'application/json' } }
-          );
-      }
-  }
-
-
   const apiPath = path.join('/');
   const { search } = new URL(req.url);
   const targetUrl = `${AUTH_API_BASE_URL}/api/Auth/${apiPath}${search}`;
