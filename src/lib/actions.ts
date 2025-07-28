@@ -536,20 +536,20 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
         }
         
-        // Step 1: Delete from the authentication service first.
-        const deleteResponse = await axios.delete(`${authApiUrl}/api/Auth/user/${phoneNumber}`);
-        
-        if (deleteResponse.status >= 400) {
-             if (deleteResponse.status === 404) {
-                 // If user not found in auth service, maybe they were already deleted. Proceed to delete from local DB.
-                 console.warn(`User ${phoneNumber} not found in auth service. Proceeding with local deletion.`);
+        // Step 1: Attempt to delete from the authentication service.
+        try {
+            await axios.delete(`${authApiUrl}/api/auth/delete-user/${phoneNumber}`);
+        } catch (error: any) {
+            if (error.response && error.response.status === 404) {
+                // If user not found in auth service, it's okay. Log it and proceed.
+                console.warn(`User ${phoneNumber} not found in auth service. Proceeding with local deletion only.`);
             } else {
-                // For other errors, stop and report the error without touching the local DB.
-                throw new Error(deleteResponse.data?.errors?.join(', ') || `Failed to delete user from authentication service. Status: ${deleteResponse.status}`);
+                // For any other error from the auth service, re-throw it to stop the process.
+                throw new Error(error.response?.data?.errors?.join(', ') || `Failed to delete user from authentication service. Status: ${error.response?.status}`);
             }
         }
         
-        // Step 2: If the auth service deletion is successful (or 404), delete from the local database.
+        // Step 2: If the auth service deletion was successful (or it was a 404), delete from the local database.
         await prisma.user.delete({
             where: { id: userId },
         });
@@ -559,20 +559,14 @@ export async function deleteUser(userId: string, phoneNumber: string) {
     } catch (error: any) {
         console.error('Error deleting user:', error);
         
-        if (error.response) {
-            if (error.response.status === 404) {
-                 throw new Error("User not found in the authentication service. The user may have already been deleted externally.");
-            }
-             throw new Error(`Auth service error: ${error.response.status} ${error.response.statusText}. ${error.response.data?.errors?.join(', ') || ''}`);
-        }
-        
-        if (error.code === 'P2003') { // Foreign key constraint
+        if (error.code === 'P2003') { // Foreign key constraint from Prisma
              throw new Error("Cannot delete user. They are still linked to other records in the database (e.g., as an event organizer). Please reassign or delete those records first.");
         }
         
         throw new Error(error.message || 'Failed to delete user.');
     }
 }
+
 
 
 export async function getRoles() {
@@ -822,3 +816,6 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
+
+    
