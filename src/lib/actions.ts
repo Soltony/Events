@@ -278,9 +278,6 @@ export async function addPromoCode(eventId: number, data: { code: string; type: 
 export async function getDashboardData() {
     const user = await getCurrentUser();
     if (!user) {
-        // Instead of throwing an error, return a default state.
-        // The AuthGuard will handle redirection if the user is truly unauthenticated.
-        // This prevents crashes during the initial render before the client-side auth state is fully resolved.
         return {
             totalRevenue: 0,
             totalTicketsSold: 0,
@@ -333,7 +330,11 @@ export async function getDashboardData() {
 export async function getReportsData() {
     const user = await getCurrentUser();
     if (!user) {
-        throw new Error('User is not authenticated.');
+        return {
+            productSales: [],
+            dailySales: [],
+            promoCodes: [],
+        };
     }
 
     const whereClause: { organizerId?: string } = {};
