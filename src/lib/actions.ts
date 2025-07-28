@@ -284,11 +284,7 @@ export async function getDashboardData() {
         };
     }
 
-    const whereClause: { organizerId?: string } = {};
-
-    if (user.role.name !== 'Admin') {
-        whereClause.organizerId = user.id;
-    }
+    const whereClause = user.role.name === 'Admin' ? {} : { organizerId: user.id };
     
     const events = await prisma.event.findMany({
         where: whereClause,
@@ -865,5 +861,7 @@ export async function checkInAttendee(attendeeId: number) {
     }
 }
 
+
+    
 
     
