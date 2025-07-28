@@ -384,6 +384,7 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
     return serialize(user);
 }
 
+
 export async function addUser(data: any) {
     const { firstName, lastName, phoneNumber, email, password, roleId } = data;
 
@@ -746,3 +747,5 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
+    
