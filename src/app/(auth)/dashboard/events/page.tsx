@@ -64,7 +64,7 @@ export default function ManageEventsPage() {
 
   useEffect(() => {
     fetchEvents();
-  }, [toast]);
+  }, []);
   
   const handleOpenDeleteDialog = (event: Event) => {
     setEventToDelete(event);
