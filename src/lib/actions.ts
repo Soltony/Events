@@ -691,13 +691,17 @@ export async function purchaseTickets(request: PurchaseRequest) {
 
     const currentUser = await getCurrentUser();
     let targetUser: (User & { role: Role | null }) | null = null;
+    let isGuestPurchase = false;
     
     if (!request.purchaseFor || request.purchaseFor === 'self') {
        if (currentUser) {
            targetUser = currentUser;
+       } else {
+           isGuestPurchase = true;
        }
     } else {
         if (!currentUser) {
+            // This case should ideally be blocked by the UI, but as a safeguard:
             throw new Error('You must be logged in to purchase tickets for others.');
         }
         targetUser = await prisma.user.findUnique({
@@ -730,7 +734,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
                         email: attendeeEmail,
                         eventId: request.eventId,
                         ticketTypeId: ticket.id,
-                        userId: attendeeUserId,
+                        userId: isGuestPurchase ? null : attendeeUserId, // Store null for guests
                         checkedIn: false,
                     },
                 });
@@ -778,9 +782,23 @@ export async function getTicketDetailsForConfirmation(attendeeId: number) {
     return serialize(attendee);
 }
 
-export async function getTicketsByUserId(userId: string) {
+export async function getTicketsByUserId(userId: string | null, localTicketIds: number[] = []) {
+    const whereClauses = [];
+    if (userId) {
+        whereClauses.push({ userId: userId });
+    }
+    if (localTicketIds.length > 0) {
+        whereClauses.push({ id: { in: localTicketIds } });
+    }
+
+    if (whereClauses.length === 0) {
+        return [];
+    }
+
     const tickets = await prisma.attendee.findMany({
-        where: { userId: userId },
+        where: {
+            OR: whereClauses,
+        },
         include: {
             event: true,
             ticketType: true,

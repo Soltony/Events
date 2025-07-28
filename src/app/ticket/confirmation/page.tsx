@@ -59,8 +59,8 @@ export default function TicketConfirmationPage() {
                 
                 setTicket(ticketDetails);
 
-                // Save ticket to local storage for "My Tickets" page
-                const myTickets = JSON.parse(localStorage.getItem('myTickets') || '[]');
+                // Save ticket to local storage for "My Tickets" page, especially for guest users
+                const myTickets = JSON.parse(localStorage.getItem('myTickets') || '[]') as number[];
                 if (!myTickets.includes(ticketDetails.id)) {
                     myTickets.push(ticketDetails.id);
                     localStorage.setItem('myTickets', JSON.stringify(myTickets));
@@ -173,6 +173,12 @@ export default function TicketConfirmationPage() {
                                 <div>
                                     <span className="font-semibold text-foreground">{formatEventDate(ticket.event.startDate, ticket.event.endDate)}</span>
                                     <p>Date of Purchase: {format(new Date(ticket.createdAt), 'LLL dd, y')}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-3 col-span-full">
+                                <MapPin className="h-5 w-5 mt-1 text-primary" />
+                                <div>
+                                    <span className="font-semibold text-foreground">{ticket.event.location}</span>
                                 </div>
                             </div>
                         </div>
