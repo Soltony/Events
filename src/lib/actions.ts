@@ -7,6 +7,7 @@ import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee 
 import axios from 'axios';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
+import api from './api';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -522,11 +523,6 @@ export async function updateUserRole(userId: string, roleId: string) {
 }
 
 export async function deleteUser(userId: string, phoneNumber: string) {
-    const authApiUrl = process.env.AUTH_API_BASE_URL;
-    if (!authApiUrl) {
-        throw new Error("Authentication service URL is not configured.");
-    }
-
     try {
         const eventCount = await prisma.event.count({
             where: { organizerId: userId },
@@ -538,14 +534,18 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         
         // Step 1: Attempt to delete from the authentication service.
         try {
-            await axios.delete(`${authApiUrl}/api/auth/delete-user/${phoneNumber}`);
+            // Using the client-side `api` instance which has the base URL set up
+            const response = await api.delete(`/api/auth/delete-user/${phoneNumber}`);
+            if (!response.data || !response.data.isSuccess) {
+                 throw new Error(response.data.errors?.join(', ') || `Failed to delete user from authentication service.`);
+            }
         } catch (error: any) {
             if (error.response && error.response.status === 404) {
-                // If user not found in auth service, it's okay. Log it and proceed.
                 console.warn(`User ${phoneNumber} not found in auth service. Proceeding with local deletion only.`);
             } else {
                 // For any other error from the auth service, re-throw it to stop the process.
-                throw new Error(error.response?.data?.errors?.join(', ') || `Failed to delete user from authentication service. Status: ${error.response?.status}`);
+                 const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'An unknown error occurred during auth deletion.';
+                 throw new Error(errorMessage);
             }
         }
         
@@ -816,6 +816,3 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
-
-
-    
