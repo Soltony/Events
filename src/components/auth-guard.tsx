@@ -5,15 +5,16 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/auth-context';
+import { toast } from '@/hooks/use-toast';
 
 const pagePermissions: Record<string, string[]> = {
-    '/dashboard': ['Dashboard:View'],
-    '/dashboard/scan': ['Scan QR:View'],
-    '/dashboard/events': ['Events:View'],
+    '/dashboard': ['Dashboard:Read'],
+    '/dashboard/scan': ['Scan QR:Read'],
+    '/dashboard/events': ['Events:Read'],
     '/dashboard/events/new': ['Events:Create'],
-    '/dashboard/events/[id]': ['Events:View'],
+    '/dashboard/events/[id]': ['Events:Read'],
     '/dashboard/events/[id]/edit': ['Events:Update'],
-    '/dashboard/reports': ['Reports:View'],
+    '/dashboard/reports': ['Reports:Read'],
     '/dashboard/settings': [['User Registration:Read', 'User Management:Read', 'Role Management:Read']],
     '/dashboard/settings/users': ['User Management:Read'],
     '/dashboard/settings/users/new': ['User Registration:Create'],
