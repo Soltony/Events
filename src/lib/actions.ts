@@ -390,7 +390,7 @@ export async function getReportsData() {
 export async function getUsersAndRoles() {
     const currentUser = await getCurrentUser();
     if (!currentUser) {
-        throw new Error('User is not authenticated.');
+        return { users: [], roles: [] };
     }
 
     let usersQuery = {};
