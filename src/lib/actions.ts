@@ -498,6 +498,15 @@ export async function deleteUser(userId: string, phoneNumber: string) {
     }
 
     try {
+        // Check if the user is an organizer of any events
+        const eventCount = await prisma.event.count({
+            where: { organizerId: userId },
+        });
+
+        if (eventCount > 0) {
+            throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
+        }
+
         await prisma.user.delete({
             where: { id: userId },
         });
@@ -513,21 +522,13 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         console.error('Error deleting user:', error);
         
         if (error.response?.status === 404) {
-            throw new Error("Could not find the user in the authentication service, but they have been removed from this system.");
+             throw new Error("Could not find the user in the authentication service, but they have been removed from this system.");
         }
         if (error.response?.data?.errors) {
             throw new Error(error.response.data.errors.join(', '));
         }
         if (error.code === 'P2025') { 
-            // This means the user was already deleted from our DB, which is fine.
-            // We can proceed to ensure they are deleted from the auth service.
-            try {
-                await axios.delete(`${authApiUrl}/api/Auth/delete/${phoneNumber}`);
-                revalidatePath('/dashboard/settings/users');
-                return;
-            } catch (authError: any) {
-                 throw new Error(authError.message || "User was already deleted locally, but failed to delete from auth service.");
-            }
+            throw new Error("User not found in the database.");
         }
         throw new Error(error.message || 'Failed to delete user.');
     }
@@ -755,4 +756,6 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
+
 
