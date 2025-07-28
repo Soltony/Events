@@ -276,6 +276,18 @@ export async function addPromoCode(eventId: number, data: { code: string; type: 
 export async function getDashboardData() {
     const user = await getCurrentUser();
     if (!user) {
+        // Instead of throwing an error, return a default state.
+        // The AuthGuard will handle redirection if the user is truly unauthenticated.
+        // This prevents crashes during the initial render before the client-side auth state is fully resolved.
+        const tokenCookie = cookies().get('authTokens');
+        if (!tokenCookie) {
+             return {
+                totalRevenue: 0,
+                totalTicketsSold: 0,
+                totalEvents: 0,
+                salesData: [],
+            };
+        }
         throw new Error('User is not authenticated.');
     }
 
@@ -532,11 +544,6 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
         }
         
-        const authApiUrl = process.env.AUTH_API_BASE_URL;
-        if (!authApiUrl) {
-            throw new Error("Authentication service URL is not configured.");
-        }
-
         const cookieStore = cookies();
         const tokenCookie = cookieStore.get('authTokens');
         if (!tokenCookie) {
@@ -547,6 +554,11 @@ export async function deleteUser(userId: string, phoneNumber: string) {
 
         if (!token) {
             throw new Error('Access token is missing from auth cookie.');
+        }
+
+        const authApiUrl = process.env.AUTH_API_BASE_URL;
+        if (!authApiUrl) {
+            throw new Error("Authentication service URL is not configured.");
         }
 
         const deleteResponse = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
@@ -719,7 +731,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
         for (const ticket of request.tickets) {
             const ticketType = await tx.ticketType.findUnique({ where: { id: ticket.id } });
             if (!ticketType) throw new Error(`Ticket type with id ${ticket.id} not found.`);
-            if ((ticketType.total - ticketType.sold) < ticket.quantity) {
+            if ((ticketType.total - ticket.sold) < ticket.quantity) {
                 throw new Error(`Not enough tickets available for ${ticketType.name}.`);
             }
 
@@ -855,3 +867,4 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
