@@ -43,10 +43,10 @@ const roleFormSchema = z.object({
 type RoleFormValues = z.infer<typeof roleFormSchema>;
 
 const permissionCategories = {
-    'Dashboard': ['View'],
-    'Scan QR': ['View'],
-    'Events': ['View', 'Create', 'Update', 'Delete'],
-    'Reports': ['View'],
+    'Dashboard': ['Create', 'Read', 'Update', 'Delete'],
+    'Scan QR': ['Create', 'Read', 'Update', 'Delete'],
+    'Events': ['Create', 'Read', 'Update', 'Delete'],
+    'Reports': ['Create', 'Read', 'Update', 'Delete'],
     'User Registration': ['Create', 'Read', 'Update', 'Delete'],
     'User Management': ['Create', 'Read', 'Update', 'Delete'],
     'Role Management': ['Create', 'Read', 'Update', 'Delete'],

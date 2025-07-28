@@ -27,6 +27,7 @@ import { getRoleById, updateRole } from '@/lib/actions';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 const roleFormSchema = z.object({
   name: z.string().min(3, { message: 'Role name must be at least 3 characters.' }),
@@ -39,10 +40,10 @@ const roleFormSchema = z.object({
 type RoleFormValues = z.infer<typeof roleFormSchema>;
 
 const permissionCategories = {
-    'Dashboard': ['View'],
-    'Scan QR': ['View'],
-    'Events': ['View', 'Create', 'Update', 'Delete'],
-    'Reports': ['View'],
+    'Dashboard': ['Create', 'Read', 'Update', 'Delete'],
+    'Scan QR': ['Create', 'Read', 'Update', 'Delete'],
+    'Events': ['Create', 'Read', 'Update', 'Delete'],
+    'Reports': ['Create', 'Read', 'Update', 'Delete'],
     'User Registration': ['Create', 'Read', 'Update', 'Delete'],
     'User Management': ['Create', 'Read', 'Update', 'Delete'],
     'Role Management': ['Create', 'Read', 'Update', 'Delete'],
