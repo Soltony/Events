@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { Loader2, KeyRound } from 'lucide-react';
+import { Loader2, KeyRound, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -13,6 +13,7 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { resetPassword } from '@/lib/actions';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, { message: 'Current password is required.' }),
@@ -27,7 +28,7 @@ type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
 
 export default function ProfilePage() {
   const { toast } = useToast();
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<ChangePasswordFormValues>({
@@ -49,15 +50,24 @@ export default function ProfilePage() {
     try {
         await resetPassword(user.phoneNumber, data.newPassword, data.currentPassword);
         
+        const wasFirstTime = user.mustChangePassword;
+
+        // Manually refresh user context after password change
+        await refreshUser();
+
         toast({
             title: 'Success!',
-            description: 'Your password has been changed successfully. Please log in again.',
+            description: 'Your password has been changed successfully.' + (wasFirstTime ? '' : ' Please log in again.'),
         });
         
-        // Use a slight delay to ensure state update propagates before logout
-        setTimeout(() => {
-            logout();
-        }, 500);
+        // Only force logout if it was not a mandatory first-time change
+        if (!wasFirstTime) {
+            setTimeout(() => {
+                logout();
+            }, 500);
+        } else {
+            form.reset(); // Clear the form on success
+        }
 
     } catch (error: any) {
         console.error("Failed to change password:", error);
@@ -78,6 +88,16 @@ export default function ProfilePage() {
         <h1 className="text-3xl font-bold tracking-tight">My Profile</h1>
         <p className="text-muted-foreground">Manage your account settings.</p>
       </div>
+
+       {user?.mustChangePassword && (
+        <Alert variant="destructive" className="border-yellow-500/50 text-yellow-500 dark:border-yellow-500 [&>svg]:text-yellow-500">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Action Required</AlertTitle>
+            <AlertDescription>
+                For your security, you must change your temporary password before you can access the dashboard.
+            </AlertDescription>
+        </Alert>
+      )}
       
       <Card className="max-w-2xl">
         <CardHeader>
