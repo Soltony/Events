@@ -533,8 +533,13 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         }
         
         // Step 1: Attempt to delete from the authentication service.
+        const authApiUrl = process.env.AUTH_API_BASE_URL;
+        if (!authApiUrl) {
+            throw new Error("Authentication service URL is not configured.");
+        }
+
         try {
-            const response = await api.post(`/api/auth/delete-users`, { phoneNumbers: [phoneNumber] });
+            const response = await axios.post(`${authApiUrl}/api/Auth/delete-users`, { phoneNumbers: [phoneNumber] });
             if (!response.data || !response.data.isSuccess) {
                  throw new Error(response.data.errors?.join(', ') || `Failed to delete user from authentication service.`);
             }
