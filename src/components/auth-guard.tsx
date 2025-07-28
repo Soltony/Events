@@ -33,7 +33,7 @@ function hasAccess(pathname: string, hasPermission: (p: string) => boolean): boo
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isAuthenticated, isLoading, passwordChangeRequired, hasPermission } = useAuth();
+  const { user, isAuthenticated, isLoading, hasPermission } = useAuth();
 
   useEffect(() => {
     if (isLoading) return;
@@ -42,13 +42,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       router.replace('/login');
       return;
     }
-    
-    if (passwordChangeRequired && pathname !== '/dashboard/profile') {
-        router.replace('/dashboard/profile');
-        return;
-    }
 
-    if (!passwordChangeRequired && !hasAccess(pathname, hasPermission)) {
+    if (!hasAccess(pathname, hasPermission)) {
         // If user does not have permission, redirect to their default page
         switch(user?.role?.name) {
             case 'Organizer':
@@ -60,9 +55,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         }
     }
 
-  }, [router, isAuthenticated, isLoading, passwordChangeRequired, pathname, hasPermission, user]);
+  }, [router, isAuthenticated, isLoading, pathname, hasPermission, user]);
 
-  if (isLoading || !isAuthenticated || (isAuthenticated && !passwordChangeRequired && !hasAccess(pathname, hasPermission))) {
+  if (isLoading || !isAuthenticated || (isAuthenticated && !hasAccess(pathname, hasPermission))) {
     return (
         <div className="p-4 lg:p-6">
             <div className="space-y-4">

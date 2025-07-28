@@ -22,11 +22,9 @@ interface AuthContextType {
   user: UserWithRole | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  passwordChangeRequired: boolean;
   hasPermission: (permission: string) => boolean;
   login: (data: any) => Promise<void>;
   logout: (options?: { reason?: string }) => Promise<void>;
-  forcePasswordChangeStatus: (status: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,15 +35,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [user, setUser] = useState<UserWithRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [passwordChangeRequired, setPasswordChangeRequired] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
-  const forcePasswordChangeStatus = useCallback((status: boolean) => {
-      setPasswordChangeRequired(status);
-      localStorage.setItem('passwordChangeRequired', String(status));
-  }, []);
-  
   const logout = useCallback(async (options?: { reason?: string }) => {
     const { reason } = options || {};
     const currentTokens = JSON.parse(localStorage.getItem('authTokens') || 'null');
@@ -70,11 +62,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Clear client-side state and storage
     setUser(null);
     setTokens(null);
-    setPasswordChangeRequired(false);
     setAuthToken(null);
     localStorage.removeItem('authTokens');
     localStorage.removeItem('authUser');
-    localStorage.removeItem('passwordChangeRequired');
     
     if (reason) {
         toast({
@@ -93,7 +83,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const storedTokens = localStorage.getItem('authTokens');
       const storedUser = localStorage.getItem('authUser');
-      const storedPasswordStatus = localStorage.getItem('passwordChangeRequired');
 
       if (storedTokens && storedUser) {
         const parsedTokens = JSON.parse(storedTokens);
@@ -101,9 +90,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTokens(parsedTokens);
         setUser(parsedUser);
         setAuthToken(parsedTokens.accessToken);
-        if (storedPasswordStatus === 'true') {
-            setPasswordChangeRequired(true);
-        }
       }
     } catch (error) {
         console.error("Failed to parse auth data from localStorage", error);
@@ -169,29 +155,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           setUser(userData);
           localStorage.setItem('authUser', JSON.stringify(userData));
-
-          const needsPasswordChange = userData.passwordChangeRequired;
-          // Directly set the password change status from the fresh user data
-          forcePasswordChangeStatus(needsPasswordChange);
           
           toast({
             title: 'Login Successful',
             description: 'Redirecting...',
           });
           
-          if (needsPasswordChange) {
-            router.push('/dashboard/profile');
-          } else {
-            // Role-based redirection
-            switch(userData.role?.name) {
-                case 'Organizer':
-                    router.push('/dashboard/events');
-                    break;
-                case 'Admin':
-                default:
-                    router.push('/dashboard');
-                    break;
-            }
+          // Role-based redirection
+          switch(userData.role?.name) {
+              case 'Organizer':
+                  router.push('/dashboard/events');
+                  break;
+              case 'Admin':
+              default:
+                  router.push('/dashboard');
+                  break;
           }
           router.refresh();
         } else {
@@ -228,7 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = !isLoading && !!tokens && !!user;
 
   return (
-    <AuthContext.Provider value={{ tokens, user, isAuthenticated, isLoading, passwordChangeRequired, hasPermission, login, logout, forcePasswordChangeStatus }}>
+    <AuthContext.Provider value={{ tokens, user, isAuthenticated, isLoading, hasPermission, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
