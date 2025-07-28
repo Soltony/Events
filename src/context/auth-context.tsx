@@ -31,6 +31,20 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const SESSION_TIMEOUT_DURATION = 15 * 60 * 1000; // 15 minutes
 
+function setCookie(name: string, value: string, days: number) {
+    let expires = "";
+    if (days) {
+        const date = new Date();
+        date.setTime(date.getTime() + (days*24*60*60*1000));
+        expires = "; expires=" + date.toUTCString();
+    }
+    document.cookie = name + "=" + (value || "")  + expires + "; path=/; SameSite=Lax; Secure";
+}
+
+function eraseCookie(name: string) {   
+    document.cookie = name+'=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [user, setUser] = useState<UserWithRole | null>(null);
@@ -40,31 +54,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async (options?: { reason?: string }) => {
     const { reason } = options || {};
-    const currentTokens = JSON.parse(localStorage.getItem('authTokens') || 'null');
-
-    // Attempt to log out on the server first, while we still have the token.
-    if (currentTokens) {
-        try {
-            await api.post('/api/auth/logout', {
-                token: currentTokens.accessToken,
-                refreshToken: currentTokens.refreshToken,
-            });
-        } catch(error: any) {
-            // Silently fail. The client session will be cleared regardless.
-            // This is important for scenarios like post-password-change,
-            // where the token might be invalid.
-            if (error.response?.status !== 401) {
-              console.error("Server logout failed, but client is being logged out.", error);
-            }
-        }
-    }
-
-    // Clear client-side state and storage
+    
+    // Clear client-side state and storage first
     setUser(null);
     setTokens(null);
     setAuthToken(null);
-    localStorage.removeItem('authTokens');
     localStorage.removeItem('authUser');
+    eraseCookie('authTokens');
     
     if (reason) {
         toast({
@@ -81,15 +77,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      const storedTokens = localStorage.getItem('authTokens');
       const storedUser = localStorage.getItem('authUser');
 
-      if (storedTokens && storedUser) {
-        const parsedTokens = JSON.parse(storedTokens);
+      if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
-        setTokens(parsedTokens);
         setUser(parsedUser);
-        setAuthToken(parsedTokens.accessToken);
       }
     } catch (error) {
         console.error("Failed to parse auth data from localStorage", error);
@@ -104,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const resetTimeout = () => {
       clearTimeout(timeoutId);
-      if (localStorage.getItem('authTokens')) {
+      if (localStorage.getItem('authUser')) { // Check for user presence instead of tokens
           timeoutId = setTimeout(() => {
             logout({ reason: 'You have been logged out due to inactivity.' });
           }, SESSION_TIMEOUT_DURATION);
@@ -117,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         resetTimeout();
     };
 
-    if (tokens) {
+    if (user) { // Trigger based on user state
       events.forEach(event => window.addEventListener(event, handleActivity));
       resetTimeout();
     }
@@ -126,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(timeoutId);
       events.forEach(event => window.removeEventListener(event, handleActivity));
     };
-  }, [tokens, logout]);
+  }, [user, logout]);
 
   const login = async (data: any) => {
     setIsLoading(true);
@@ -146,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const newTokens = { accessToken: resolvedAccessToken, refreshToken: resolvedRefreshToken };
           setTokens(newTokens);
           setAuthToken(resolvedAccessToken);
-          localStorage.setItem('authTokens', JSON.stringify(newTokens));
+          setCookie('authTokens', JSON.stringify(newTokens), 1);
           
           // Force a fresh fetch of user data from DB to get correct role/permissions
           const userData = await getUserByPhoneNumber(data.phoneNumber);
@@ -203,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return userPermissions.includes(permission);
   };
 
-  const isAuthenticated = !isLoading && !!tokens && !!user;
+  const isAuthenticated = !isLoading && !!user;
 
   return (
     <AuthContext.Provider value={{ tokens, user, isAuthenticated, isLoading, hasPermission, login, logout }}>
@@ -219,3 +211,5 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
+    
