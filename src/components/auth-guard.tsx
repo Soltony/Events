@@ -44,7 +44,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     }
 
     // Force password change if required
-    if (user?.mustChangePassword && pathname !== '/dashboard/profile') {
+    if (user?.passwordChangeRequired && pathname !== '/dashboard/profile') {
         router.replace('/dashboard/profile');
         return;
     }
@@ -77,7 +77,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   // Render children only if user is authenticated and password does not need changing (unless on profile page)
-  if (user?.mustChangePassword && pathname !== '/dashboard/profile') {
+  if (user?.passwordChangeRequired && pathname !== '/dashboard/profile') {
      return (
         <div className="p-4 lg:p-6">
             <div className="space-y-4">
