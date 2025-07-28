@@ -90,6 +90,7 @@ async function main() {
       category: 'Technology',
       image: '/image/nibtickets.jpg',
       hint: 'technology conference',
+      organizerId: adminUser.id,
       ticketTypes: {
         create: [
           { name: 'General Admission', price: 299.00, total: 1000, sold: 450 },
@@ -117,6 +118,7 @@ async function main() {
       category: 'Music',
       image: '/image/nibtickets.jpg',
       hint: 'music festival',
+      organizerId: adminUser.id,
       ticketTypes: {
         create: [
           { name: 'Weekend Pass', price: 180.00, total: 5000, sold: 2100 },
@@ -138,6 +140,7 @@ async function main() {
       category: 'Art',
       image: '/image/nibtickets.jpg',
       hint: 'art gallery',
+      organizerId: adminUser.id,
       ticketTypes: {
         create: [
           { name: 'Standard Entry', price: 25.00, total: 500, sold: 120 },
