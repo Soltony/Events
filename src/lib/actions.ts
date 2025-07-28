@@ -6,6 +6,7 @@ import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
+import api from './api';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -548,18 +549,17 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error("Authentication service URL is not configured.");
         }
         
-        // This is a server-to-server call, so it needs its own auth.
-        // For this prototype, we assume an admin token is available. In a real app, this might use a service account.
-        const token = cookies().get('authTokens')?.value;
-        if (!token) {
+        const tokenCookie = cookies().get('authTokens');
+        if (!tokenCookie) {
              throw new Error('No auth token available for server action.');
         }
+        const token = JSON.parse(tokenCookie.value).accessToken;
 
-        const response = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
+        const response = await fetch(`${authApiUrl}/api/auth/delete-users`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${JSON.parse(token).accessToken}`
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ phoneNumbers: [phoneNumber] })
         });
@@ -637,57 +637,14 @@ export async function deleteRole(id: string) {
     return serialize(role);
 }
 
-export async function resetPassword(phoneNumber: string, newPassword: string, currentPassword?: string): Promise<void> {
-  const authApiUrl = process.env.AUTH_API_BASE_URL;
-  if (!authApiUrl) {
-    throw new Error('Authentication service URL is not configured.');
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { phoneNumber },
-  });
-
-  if (!user) {
-    throw new Error('No account found with this phone number.');
-  }
-
-  try {
-    const payload: { phoneNumber: string, newPassword: string, currentPassword?: string } = {
-      phoneNumber,
-      newPassword,
-    };
-    if (currentPassword) {
-      payload.currentPassword = currentPassword;
-    }
-
-    const response = await fetch(`${authApiUrl}/api/Auth/change-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+export async function updatePasswordFlag(userId: string, mustChange: boolean): Promise<void> {
+    await prisma.user.update({
+        where: { id: userId },
+        data: { mustChangePassword: mustChange },
     });
-    
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.errors?.join(', ') || 'Failed to reset password.';
-        throw new Error(errorMessage);
-    }
-
-    // If password was changed successfully, update the flag
-    if (user.mustChangePassword) {
-        await prisma.user.update({
-            where: { phoneNumber },
-            data: { mustChangePassword: false },
-        });
-    }
-
     revalidatePath('/dashboard/profile');
-    revalidatePath(`/dashboard`); // To update the user object in the layout
-
-  } catch (error: any) {
-    console.error('Error resetting password:', error);
-    throw new Error(error.message || 'Failed to communicate with authentication service.');
-  }
 }
+
 
 // Ticket/Attendee Actions
 interface PurchaseRequest {
