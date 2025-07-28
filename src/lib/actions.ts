@@ -8,6 +8,7 @@ import axios from 'axios';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import api from './api';
+import { cookies } from 'next/headers';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -16,27 +17,46 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
         : value
 ));
 
+function decodeJwtPayload(token: string) {
+  try {
+    const payloadBase64 = token.split('.')[1];
+    if (!payloadBase64) return null;
+    const decodedJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
+    return JSON.parse(decodedJson);
+  } catch (error) {
+    console.error("Failed to decode JWT:", error);
+    return null;
+  }
+}
+
+
 // This function can be used in any server action to get the currently logged-in user.
 // It will be implemented to securely fetch user data based on session information.
-// For now, it's a placeholder. A real implementation would use session cookies or JWT decoding.
 async function getCurrentUser() {
-    // In a real app, you would get the user ID from a secure session cookie or by decoding a JWT.
-    // Since we're using a proxy for auth, we'll simulate getting the current user.
-    // Let's assume the user with ID 'b1e55c84-9055-4eb5-8bd4-a262538f7e66' (Admin) is logged in.
-    // THIS IS A MOCK AND SHOULD BE REPLACED WITH ACTUAL AUTH LOGIC.
-    const userId = 'b1e55c84-9055-4eb5-8bd4-a262538f7e66';
-    
-    const user = await prisma.user.findUnique({
-        where: { id: userId },
-        include: { role: true },
-    });
-
-    if (!user) {
-        throw new Error("User not found.");
+    const authHeader = headers().get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new Error('User is not authenticated.');
     }
-
+    const token = authHeader.split(' ')[1];
+  
+    const decoded = decodeJwtPayload(token);
+    if (!decoded || typeof decoded === 'string' || !decoded.sub) {
+      throw new Error('Invalid auth token.');
+    }
+  
+    const userId = decoded.sub;
+  
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { role: true },
+    });
+  
+    if (!user) {
+      throw new Error('User not found.');
+    }
+  
     return user;
-}
+  }
 
 
 // Event Actions
@@ -357,19 +377,6 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
     });
     return serialize(user);
 }
-
-function decodeJwtPayload(token: string) {
-  try {
-    const payloadBase64 = token.split('.')[1];
-    if (!payloadBase64) return null;
-    const decodedJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
-    return JSON.parse(decodedJson);
-  } catch (error) {
-    console.error("Failed to decode JWT:", error);
-    return null;
-  }
-}
-
 
 export async function addUser(data: any) {
     const { firstName, lastName, phoneNumber, email, password, roleId } = data;
