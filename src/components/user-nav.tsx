@@ -16,7 +16,7 @@ import {
 import { useAuth } from "@/context/auth-context";
 
 export function UserNav() {
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -62,7 +62,9 @@ export function UserNav() {
         <DropdownMenuGroup>
           <DropdownMenuItem onClick={() => router.push('/dashboard')}>Dashboard</DropdownMenuItem>
           <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>Profile</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>Settings</DropdownMenuItem>
+          {hasPermission('Settings:View') && (
+            <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>Settings</DropdownMenuItem>
+          )}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>
