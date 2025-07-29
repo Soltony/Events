@@ -447,9 +447,7 @@ export async function addUser(data: any) {
 
         if (!responseData || !responseData.isSuccess) {
             const errorMessage = responseData.errors?.join(', ') || 'Failed to register user with auth service.';
-            if (errorMessage.toLowerCase().includes("already taken")) {
-                 throw new Error(`Phone number '${phoneNumber}' is already taken.`);
-            }
+            // Pass the specific error message from the auth service forward
             throw new Error(errorMessage);
         }
         
@@ -524,7 +522,7 @@ export async function updateUser(userId: string, data: Partial<User>) {
 }
 
 
-export async function updateUserRole(userId: string, roleId: string) {
+export async function updateUserRole(userId: string, newRoleId: string) {
     const user = await prisma.user.update({
         where: { id: userId },
         data: { roleId },
