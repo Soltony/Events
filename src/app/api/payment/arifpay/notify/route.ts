@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
 
                 // 3. Update the promo code usage if applicable
                 if (order.promoCode) {
-                    const promo = await tx.promoCode.findUnique({ where: { code: order.promoCode } });
+                    const promo = await tx.promoCode.findUnique({ where: { code: order.promoCode, eventId: order.eventId } });
                     if (promo) {
                         await tx.promoCode.update({
                             where: { id: promo.id },
