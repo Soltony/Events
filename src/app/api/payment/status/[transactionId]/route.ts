@@ -6,9 +6,9 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { transactionId: string } }
 ) {
+  const { transactionId } = params;
+  
   try {
-    const { transactionId } = params;
-
     if (!transactionId) {
       return NextResponse.json({ error: 'Transaction ID is required.' }, { status: 400 });
     }
@@ -31,7 +31,7 @@ export async function GET(
     return NextResponse.json({ status: order.status });
 
   } catch (error) {
-    console.error("Failed to get payment status:", error);
+    console.error(`Failed to get payment status for ${transactionId}:`, error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
