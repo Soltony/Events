@@ -1,11 +1,11 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 export async function GET(
   req: NextRequest,
-  contextPromise: Promise<{ params: { transactionId: string } }>
+  { params }: { params: { transactionId: string } }
 ) {
-  const { params } = await contextPromise;
   const transactionId = params.transactionId;
 
   try {
