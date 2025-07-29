@@ -49,6 +49,13 @@ interface UserWithRole extends User {
     role: Role;
 }
 
+const roleHierarchy: Record<string, number> = {
+    'Admin': 3,
+    'Sub-admin': 2,
+    'Organizer': 1,
+};
+
+
 export default function UserManagementPage() {
     const { toast } = useToast();
     const router = useRouter();
@@ -57,7 +64,17 @@ export default function UserManagementPage() {
     const [roles, setRoles] = useState<Role[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const currentUserRoleRank = currentUser?.role?.name ? (roleHierarchy[currentUser.role.name] || 0) : 0;
     const isAdmin = currentUser?.role?.name === 'Admin';
+
+    const canManageUser = (targetUser: UserWithRole): boolean => {
+        if (!currentUser?.role?.name) return false;
+        if (targetUser.role.name === 'Admin') return false; // Nobody can manage Admin
+
+        const targetUserRoleRank = roleHierarchy[targetUser.role.name] || 0;
+        return currentUserRoleRank > targetUserRoleRank;
+    }
+
 
     const fetchData = async () => {
         try {
@@ -92,8 +109,8 @@ export default function UserManagementPage() {
     };
 
     const handleDeleteUser = async (user: UserWithRole) => {
-        if (user.role.name === 'Admin') {
-            toast({ variant: 'destructive', title: 'Action Denied', description: 'Admin users cannot be deleted.' });
+        if (!canManageUser(user)) {
+            toast({ variant: 'destructive', title: 'Action Denied', description: 'You do not have permission to delete this user.' });
             return;
         }
 
@@ -150,54 +167,59 @@ export default function UserManagementPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {users.map((user) => (
-                            <TableRow key={user.id}>
-                                <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
-                                <TableCell>{user.phoneNumber}</TableCell>
-                                <TableCell>
-                                    <Select 
-                                        value={user.roleId} 
-                                        onValueChange={(newRoleId) => handleRoleChange(user.id, newRoleId)}
-                                        disabled={user.role.name === 'Admin' || !isAdmin}
-                                    >
-                                        <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-                                        <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
-                                    </Select>
-                                </TableCell>
-                                 <TableCell className="text-right">
-                                    <div className="flex justify-end gap-2">
-                                        <Button variant="ghost" size="icon" asChild disabled={!isAdmin}>
-                                            <Link href={`/dashboard/settings/users/${user.id}/edit`}>
-                                                <Pencil className="h-4 w-4" />
-                                                <span className="sr-only">Edit</span>
-                                            </Link>
-                                        </Button>
-                                        <AlertDialog>
-                                          <AlertDialogTrigger asChild>
-                                            <Button variant="ghost" size="icon" disabled={user.role.name === 'Admin' || !isAdmin}>
-                                                <Trash2 className="h-4 w-4 text-destructive" />
-                                                <span className="sr-only">Delete</span>
+                        {users.map((user) => {
+                            const isManageable = canManageUser(user);
+                            return (
+                                <TableRow key={user.id}>
+                                    <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
+                                    <TableCell>{user.phoneNumber}</TableCell>
+                                    <TableCell>
+                                        <Select 
+                                            value={user.roleId} 
+                                            onValueChange={(newRoleId) => handleRoleChange(user.id, newRoleId)}
+                                            disabled={!isManageable}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder={user.role?.name || "Select role"} />
+                                            </SelectTrigger>
+                                            <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
+                                        </Select>
+                                    </TableCell>
+                                     <TableCell className="text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <Button variant="ghost" size="icon" asChild disabled={!isManageable}>
+                                                <Link href={`/dashboard/settings/users/${user.id}/edit`}>
+                                                    <Pencil className="h-4 w-4" />
+                                                    <span className="sr-only">Edit</span>
+                                                </Link>
                                             </Button>
-                                          </AlertDialogTrigger>
-                                           <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    This action cannot be undone. This will permanently delete the user <strong>{user.firstName} {user.lastName}</strong> and all associated data.
-                                                </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => handleDeleteUser(user)} className="bg-destructive hover:bg-destructive/90">
-                                                    Delete
-                                                </AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    </div>
-                                  </TableCell>
-                            </TableRow>
-                        ))}
+                                            <AlertDialog>
+                                              <AlertDialogTrigger asChild>
+                                                <Button variant="ghost" size="icon" disabled={!isManageable}>
+                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                    <span className="sr-only">Delete</span>
+                                                </Button>
+                                              </AlertDialogTrigger>
+                                               <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This action cannot be undone. This will permanently delete the user <strong>{user.firstName} {user.lastName}</strong> and all associated data.
+                                                    </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeleteUser(user)} className="bg-destructive hover:bg-destructive/90">
+                                                        Delete
+                                                    </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
+                                      </TableCell>
+                                </TableRow>
+                            );
+                        })}
                     </TableBody>
                 </Table>
             </CardContent>
