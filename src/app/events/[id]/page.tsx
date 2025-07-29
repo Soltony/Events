@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { getEventById, validatePromoCode } from '@/lib/actions';
