@@ -19,14 +19,14 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
 
 // This function can be used in any server action to get the currently logged-in user.
 async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
-  const cookieStore = cookies();
-  const tokenCookie = cookieStore.get('authTokens');
-
-  if (!tokenCookie?.value) {
-    return null;
-  }
-  
   try {
+    const cookieStore = cookies();
+    const tokenCookie = cookieStore.get('authTokens');
+
+    if (!tokenCookie?.value) {
+      return null;
+    }
+    
     const tokenData = JSON.parse(tokenCookie.value);
     const token = tokenData.accessToken;
 
@@ -660,20 +660,21 @@ interface PurchaseRequest {
 
 export async function purchaseTickets(request: PurchaseRequest) {
     'use server';
-
-    const currentUser = await getCurrentUser();
+    
     let targetUser: (User & { role: Role | null }) | null = null;
     let isGuestPurchase = false;
-    
+
+    // Determine the target user for the purchase
     if (!request.purchaseFor || request.purchaseFor === 'self') {
-       if (currentUser) {
-           targetUser = currentUser;
-       } else {
-           isGuestPurchase = true;
-       }
+        const currentUser = await getCurrentUser();
+        if (currentUser) {
+            targetUser = currentUser;
+        } else {
+            isGuestPurchase = true;
+        }
     } else {
+        const currentUser = await getCurrentUser(); // Needed for permission check
         if (!currentUser) {
-            // This case should ideally be blocked by the UI, but as a safeguard:
             throw new Error('You must be logged in to purchase tickets for others.');
         }
         targetUser = await prisma.user.findUnique({
@@ -685,8 +686,6 @@ export async function purchaseTickets(request: PurchaseRequest) {
         }
     }
 
-    // This implementation now redirects to ArifPay instead of creating attendees directly.
-    // We only handle one ticket type at a time for simplicity with this new flow.
     const ticket = request.tickets[0];
     if (!ticket) {
         throw new Error("No tickets in purchase request.");
@@ -697,7 +696,6 @@ export async function purchaseTickets(request: PurchaseRequest) {
         throw new Error(`Not enough tickets available for ${ticketType.name}.`);
     }
 
-    // Data for creating the attendee record after successful payment
     const attendeeData = {
         name: isGuestPurchase ? 'Guest User' : `${targetUser?.firstName} ${targetUser?.lastName}`,
         email: isGuestPurchase ? undefined : targetUser?.email,
@@ -710,7 +708,6 @@ export async function purchaseTickets(request: PurchaseRequest) {
             throw new Error("APP_URL environment variable is not set.");
         }
         
-        // We call our own API route to handle the communication with ArifPay
         const response = await fetch(`${appUrl}/api/payment/arifpay/initiate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -734,7 +731,6 @@ export async function purchaseTickets(request: PurchaseRequest) {
         }
     } catch (error: any) {
         console.error("Failed to initiate ArifPay payment:", error);
-        // We could redirect to an error page or show a toast, but for now we'll throw
         throw new Error(error.message);
     }
 }
