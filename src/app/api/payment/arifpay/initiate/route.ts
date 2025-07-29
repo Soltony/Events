@@ -17,7 +17,6 @@ export async function POST(req: NextRequest) {
              return NextResponse.json({ error: 'Event not found.' }, { status: 404 });
         }
 
-        // Prepare the request data for ArifPay
         const nonce = randomBytes(16).toString('hex');
         const expireDate = new Date();
         expireDate.setMinutes(expireDate.getMinutes() + 30); // 30-minute expiry
@@ -29,12 +28,12 @@ export async function POST(req: NextRequest) {
         }
 
 
-        const data = {
+        const arifpayData = {
             cancelUrl: `${appUrl}/events/${eventId}`,
             nonce: nonce,
             errorUrl: `${appUrl}/events/${eventId}`,
             notifyUrl: `${appUrl}/api/payment/arifpay/notify`,
-            successUrl: `${appUrl}/payment/success`, // A generic success page
+            successUrl: `${appUrl}/payment/success`,
             paymentMethods: ['TELEBIRR'],
             expireDate: expireDate.toISOString(),
             items: [{
@@ -44,7 +43,7 @@ export async function POST(req: NextRequest) {
                 description: `Ticket for ${event.name}`
             }],
             beneficiaries: [{
-                accountNumber: '01320811436100', // Static account for now
+                accountNumber: '01320811436100',
                 bank: 'AWINETAA',
                 amount: price * quantity
             }],
@@ -56,7 +55,7 @@ export async function POST(req: NextRequest) {
                 'Content-Type': 'application/json',
                 'x-arifpay-key': process.env.ARIFPAY_API_KEY!,
             },
-            body: JSON.stringify(data),
+            body: JSON.stringify(arifpayData),
         });
 
         const arifpayResult = await arifpayResponse.json();
