@@ -546,7 +546,7 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
         }
         
-        const tokenCookie = cookies().get('authTokens');
+        const tokenCookie = await cookies().get('authTokens');
         if (!tokenCookie) {
              throw new Error('No auth token available for server action.');
         }
