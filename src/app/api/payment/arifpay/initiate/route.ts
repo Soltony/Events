@@ -29,13 +29,25 @@ export async function POST(req: NextRequest) {
         
         const totalAmount = Number(price) * Number(quantity);
 
+        // Create a pending order to be confirmed by the webhook
+        const pendingOrder = await prisma.pendingOrder.create({
+            data: {
+                eventId,
+                ticketTypeId,
+                attendeeData,
+                promoCode,
+                status: 'PENDING',
+            },
+        });
 
         const arifpayData = {
             cancelUrl: `${appUrl}/events/${eventId}`,
+            phone: attendeeData.phone || '251954926213', // Use provided phone or fallback
+            email: attendeeData.email || 'telebirrTest@gmail.com', // Use provided email or fallback
             nonce: nonce,
-            errorUrl: `${appUrl}/events/${eventId}`,
+            errorUrl: `${appUrl}/events/${eventId}?error=payment_failed`,
             notifyUrl: `${appUrl}/api/payment/arifpay/notify`,
-            successUrl: `${appUrl}/payment/success`,
+            successUrl: `${appUrl}/payment/success?transaction_id=${pendingOrder.transactionId}`,
             paymentMethods: ['TELEBIRR'],
             expireDate: expireDate.toISOString(),
             items: [{
@@ -45,10 +57,11 @@ export async function POST(req: NextRequest) {
                 description: `Ticket for ${event.name}`
             }],
             beneficiaries: [{
-                accountNumber: '01320811436100',
-                bank: 'AWINETAA',
-                amount: Number(totalAmount)
+                accountNumber: '01320811436100', // Static account number
+                bank: 'AWINETAA', // Static bank name
+                amount: totalAmount,
             }],
+            lang: 'EN',
         };
 
         const arifpayResponse = await fetch('https://gateway.arifpay.net/api/checkout/session', {
@@ -67,16 +80,12 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Error communicating with payment gateway.' }, { status: 500 });
         }
 
-        // Create a pending order to be confirmed by the webhook
-        await prisma.pendingOrder.create({
+        // Update the pending order with the session ID from ArifPay
+        await prisma.pendingOrder.update({
+            where: { id: pendingOrder.id },
             data: {
                 arifpaySessionId: arifpayResult.data.sessionId,
-                eventId,
-                ticketTypeId,
-                attendeeData,
-                promoCode,
-                status: 'PENDING',
-            },
+            }
         });
 
         return NextResponse.json({ paymentUrl: arifpayResult.data.paymentUrl });
