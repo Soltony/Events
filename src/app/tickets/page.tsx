@@ -91,9 +91,6 @@ export default function MyTicketsPage() {
                 <Button asChild>
                     <Link href="/">Explore Events</Link>
                 </Button>
-                 <Button asChild variant="outline">
-                    <Link href="/login">Organizer Login</Link>
-                </Button>
             </div>
         </div>
      )
