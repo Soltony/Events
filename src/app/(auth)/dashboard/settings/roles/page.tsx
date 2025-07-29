@@ -126,7 +126,7 @@ export default function ManageRolesPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" asChild>
+                        <Button variant="ghost" size="icon" asChild disabled={role.name === 'Admin'}>
                             <Link href={`/dashboard/settings/roles/edit?id=${role.id}`}>
                                 <Pencil className="h-4 w-4" />
                                 <span className="sr-only">Edit</span>

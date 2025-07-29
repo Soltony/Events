@@ -30,6 +30,12 @@ export function UserNav() {
     return 'U';
   }
 
+  const canViewSettings = [
+    'User Registration:Read', 
+    'User Management:Read', 
+    'Role Management:Read'
+  ].some(p => hasPermission(p));
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -62,7 +68,7 @@ export function UserNav() {
         <DropdownMenuGroup>
           <DropdownMenuItem onClick={() => router.push('/dashboard')}>Dashboard</DropdownMenuItem>
           <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>Profile</DropdownMenuItem>
-          {hasPermission('Settings:View') && (
+          {canViewSettings && (
             <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>Settings</DropdownMenuItem>
           )}
         </DropdownMenuGroup>

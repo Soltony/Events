@@ -37,6 +37,7 @@ import { Loader2, ArrowLeft, Save } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast"
 import { getRoles, getUserById, updateUser } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/context/auth-context';
 
 const editUserFormSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required." }),
@@ -50,11 +51,18 @@ interface UserWithRole extends User {
     role: Role;
 }
 
+const roleHierarchy: Record<string, number> = {
+    'Admin': 3,
+    'Sub-admin': 2,
+    'Organizer': 1,
+};
+
 export default function EditUserPage() {
     const { toast } = useToast();
     const router = useRouter();
     const params = useParams<{ id: string }>();
     const userId = params.id;
+    const { user: currentUser } = useAuth();
 
     const [user, setUser] = useState<UserWithRole | null>(null);
     const [roles, setRoles] = useState<Role[]>([]);
@@ -72,7 +80,7 @@ export default function EditUserPage() {
 
     useEffect(() => {
         const fetchData = async () => {
-            if (!userId) {
+            if (!userId || !currentUser) {
                 router.push('/dashboard/settings/users');
                 return;
             }
@@ -84,8 +92,17 @@ export default function EditUserPage() {
                 ]);
 
                 if (userData) {
+                    const currentUserRoleRank = currentUser.role?.name ? (roleHierarchy[currentUser.role.name] || 0) : 0;
+                    const targetUserRoleRank = userData.role?.name ? (roleHierarchy[userData.role.name] || 0) : 0;
+
+                    if (currentUserRoleRank <= targetUserRoleRank) {
+                        toast({ variant: 'destructive', title: 'Access Denied', description: "You don't have permission to edit this user." });
+                        router.push('/dashboard/settings/users');
+                        return;
+                    }
+
                     setUser(userData);
-                    setRoles(rolesData);
+                    setRoles(rolesData.filter((role: Role) => role.name !== 'Admin'));
                     form.reset({
                         firstName: userData.firstName,
                         lastName: userData.lastName,
@@ -102,7 +119,7 @@ export default function EditUserPage() {
             }
         };
         fetchData();
-    }, [userId, router, toast, form]);
+    }, [userId, router, toast, form, currentUser]);
     
     async function onSubmit(data: EditUserFormValues) {
         if (!userId) return;

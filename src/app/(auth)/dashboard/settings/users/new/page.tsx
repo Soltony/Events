@@ -58,7 +58,7 @@ export default function UserRegistrationPage() {
         const fetchRolesData = async () => {
             try {
                 const fetchedRoles = await getRoles();
-                setRoles(fetchedRoles);
+                setRoles(fetchedRoles.filter((role: Role) => role.name !== 'Admin')); // Filter out Admin role
             } catch (error) {
                 console.error("Failed to fetch roles:", error);
                 toast({ variant: 'destructive', title: 'Error', description: 'Could not load roles.' });

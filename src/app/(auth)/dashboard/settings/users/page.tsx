@@ -43,24 +43,46 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useAuth } from '@/context/auth-context';
 
 interface UserWithRole extends User {
     role: Role;
 }
 
+const roleHierarchy: Record<string, number> = {
+    'Admin': 3,
+    'Sub-admin': 2,
+    'Organizer': 1,
+};
+
+
 export default function UserManagementPage() {
     const { toast } = useToast();
     const router = useRouter();
+    const { user: currentUser, hasPermission } = useAuth();
     const [users, setUsers] = useState<UserWithRole[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [loading, setLoading] = useState(true);
+
+    const currentUserRoleRank = currentUser?.role?.name ? (roleHierarchy[currentUser.role.name] || 0) : 0;
+    
+    const canManageUser = (targetUser: UserWithRole): boolean => {
+        if (!currentUser?.role?.name) return false;
+        if (targetUser.id === currentUser.id) return false; // Cannot manage self
+        if (targetUser.role?.name === 'Admin') return false; // Nobody can manage Admin
+
+        const targetUserRoleRank = roleHierarchy[targetUser.role.name] || 0;
+        return currentUserRoleRank > targetUserRoleRank;
+    }
+
 
     const fetchData = async () => {
         try {
             !loading && setLoading(true);
             const { users, roles } = await getUsersAndRoles();
-            setUsers(users);
-            setRoles(roles);
+            // Filter out the Admin user from the list to be displayed
+            setUsers(users.filter(user => user.role.name !== 'Admin'));
+            setRoles(roles.filter((role: Role) => role.name !== 'Admin')); // Filter out Admin role for dropdown
         } catch (error) {
             console.error("Failed to fetch settings data:", error);
             toast({ variant: 'destructive', title: 'Error', description: 'Could not load users and roles.' });
@@ -88,8 +110,8 @@ export default function UserManagementPage() {
     };
 
     const handleDeleteUser = async (user: UserWithRole) => {
-        if (user.role.name === 'Admin') {
-            toast({ variant: 'destructive', title: 'Action Denied', description: 'Admin users cannot be deleted.' });
+        if (!canManageUser(user)) {
+            toast({ variant: 'destructive', title: 'Action Denied', description: 'You do not have permission to delete this user.' });
             return;
         }
 
@@ -129,11 +151,13 @@ export default function UserManagementPage() {
                     <CardTitle>All Users</CardTitle>
                     <CardDescription>Assign roles to users in the system.</CardDescription>
                 </div>
-                <Button asChild style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
-                    <Link href="/dashboard/settings/users/new">
-                        <UserPlus className="mr-2 h-4 w-4" /> Add User
-                    </Link>
-                </Button>
+                {hasPermission('User Registration:Create') && (
+                    <Button asChild style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
+                        <Link href="/dashboard/settings/users/new">
+                            <UserPlus className="mr-2 h-4 w-4" /> Add User
+                        </Link>
+                    </Button>
+                )}
             </CardHeader>
             <CardContent>
                 <Table>
@@ -146,54 +170,66 @@ export default function UserManagementPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {users.map((user) => (
-                            <TableRow key={user.id}>
-                                <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
-                                <TableCell>{user.phoneNumber}</TableCell>
-                                <TableCell>
-                                    <Select 
-                                        value={user.roleId} 
-                                        onValueChange={(newRoleId) => handleRoleChange(user.id, newRoleId)}
-                                        disabled={user.role.name === 'Admin'}
-                                    >
-                                        <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-                                        <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
-                                    </Select>
-                                </TableCell>
-                                 <TableCell className="text-right">
-                                    <div className="flex justify-end gap-2">
-                                        <Button variant="ghost" size="icon" asChild>
-                                            <Link href={`/dashboard/settings/users/${user.id}/edit`}>
-                                                <Pencil className="h-4 w-4" />
-                                                <span className="sr-only">Edit</span>
-                                            </Link>
-                                        </Button>
-                                        <AlertDialog>
-                                          <AlertDialogTrigger asChild>
-                                            <Button variant="ghost" size="icon" disabled={user.role.name === 'Admin'}>
-                                                <Trash2 className="h-4 w-4 text-destructive" />
-                                                <span className="sr-only">Delete</span>
-                                            </Button>
-                                          </AlertDialogTrigger>
-                                           <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    This action cannot be undone. This will permanently delete the user <strong>{user.firstName} {user.lastName}</strong> and all associated data.
-                                                </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => handleDeleteUser(user)} className="bg-destructive hover:bg-destructive/90">
-                                                    Delete
-                                                </AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    </div>
-                                  </TableCell>
-                            </TableRow>
-                        ))}
+                        {users.map((user) => {
+                            const isManageable = canManageUser(user);
+                            const canUpdate = hasPermission('User Management:Update');
+                            const canDelete = hasPermission('User Management:Delete');
+
+                            return (
+                                <TableRow key={user.id}>
+                                    <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
+                                    <TableCell>{user.phoneNumber}</TableCell>
+                                    <TableCell>
+                                        <Select 
+                                            value={user.roleId ?? ''} 
+                                            onValueChange={(newRoleId) => handleRoleChange(user.id, newRoleId)}
+                                            disabled={!isManageable || !canUpdate}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder={user.role?.name || "Select role"} />
+                                            </SelectTrigger>
+                                            <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
+                                        </Select>
+                                    </TableCell>
+                                     <TableCell className="text-right">
+                                        <div className="flex justify-end gap-2">
+                                            {canUpdate && (
+                                                <Button variant="ghost" size="icon" asChild disabled={!isManageable}>
+                                                    <Link href={`/dashboard/settings/users/${user.id}/edit`}>
+                                                        <Pencil className="h-4 w-4" />
+                                                        <span className="sr-only">Edit</span>
+                                                    </Link>
+                                                </Button>
+                                            )}
+                                            {canDelete && (
+                                                <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" disabled={!isManageable}>
+                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                        <span className="sr-only">Delete</span>
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This action cannot be undone. This will permanently delete the user <strong>{user.firstName} {user.lastName}</strong> and all associated data.
+                                                        </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteUser(user)} className="bg-destructive hover:bg-destructive/90">
+                                                            Delete
+                                                        </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            )}
+                                        </div>
+                                      </TableCell>
+                                </TableRow>
+                            );
+                        })}
                     </TableBody>
                 </Table>
             </CardContent>

@@ -17,7 +17,7 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
 
 // This function can be used in any server action to get the currently logged-in user.
 async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const tokenCookie = cookieStore.get('authTokens');
 
   if (!tokenCookie?.value) {
@@ -390,16 +390,11 @@ export async function getUsersAndRoles() {
         return { users: [], roles: [] };
     }
 
-    let usersQuery = {};
-    if (currentUser.role.name !== 'Admin') {
-        usersQuery = { where: { id: currentUser.id }};
-    }
-
     const users = await prisma.user.findMany({
-        ...usersQuery,
         include: { role: true },
         orderBy: { createdAt: 'desc'}
     });
+    
     const roles = await prisma.role.findMany();
     return serialize({ users, roles });
 }
@@ -447,9 +442,7 @@ export async function addUser(data: any) {
 
         if (!responseData || !responseData.isSuccess) {
             const errorMessage = responseData.errors?.join(', ') || 'Failed to register user with auth service.';
-            if (errorMessage.toLowerCase().includes("already taken")) {
-                 throw new Error(`Phone number '${phoneNumber}' is already taken.`);
-            }
+            // Pass the specific error message from the auth service forward
             throw new Error(errorMessage);
         }
         
@@ -524,10 +517,10 @@ export async function updateUser(userId: string, data: Partial<User>) {
 }
 
 
-export async function updateUserRole(userId: string, roleId: string) {
+export async function updateUserRole(userId: string, newRoleId: string) {
     const user = await prisma.user.update({
         where: { id: userId },
-        data: { roleId },
+        data: { roleId: newRoleId },
     });
     revalidatePath('/dashboard/settings/users');
     return serialize(user);
@@ -548,7 +541,7 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
         }
         
-        const tokenCookie = cookies().get('authTokens');
+        const tokenCookie = await cookies().get('authTokens');
         if (!tokenCookie) {
              throw new Error('No auth token available for server action.');
         }
@@ -686,7 +679,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
         for (const ticket of request.tickets) {
             const ticketType = await tx.ticketType.findUnique({ where: { id: ticket.id } });
             if (!ticketType) throw new Error(`Ticket type with id ${ticket.id} not found.`);
-            if ((ticketType.total - ticket.sold) < ticket.quantity) {
+            if ((ticketType.total - ticketType.sold) < ticket.quantity) {
                 throw new Error(`Not enough tickets available for ${ticketType.name}.`);
             }
 
