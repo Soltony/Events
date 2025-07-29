@@ -525,7 +525,7 @@ export async function updateUser(userId: string, data: Partial<User>) {
 export async function updateUserRole(userId: string, newRoleId: string) {
     const user = await prisma.user.update({
         where: { id: userId },
-        data: { roleId },
+        data: { roleId: newRoleId },
     });
     revalidatePath('/dashboard/settings/users');
     return serialize(user);
