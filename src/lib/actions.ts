@@ -390,8 +390,6 @@ export async function getUsersAndRoles() {
         return { users: [], roles: [] };
     }
 
-    // All users with permission should be able to see other users.
-    // The filtering for who can be managed is handled on the client-side.
     const users = await prisma.user.findMany({
         include: { role: true },
         orderBy: { createdAt: 'desc'}
