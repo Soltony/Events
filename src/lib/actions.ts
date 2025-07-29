@@ -7,6 +7,8 @@ import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee 
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import api from './api';
+import { randomUUID } from 'crypto';
+
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -17,8 +19,8 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
 
 // This function can be used in any server action to get the currently logged-in user.
 async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
-  const cookieStore = await cookies();
-  const tokenCookie = cookieStore.get('authTokens');
+  const cookieStore = cookies();
+  const tokenCookie = await cookieStore.get('authTokens');
 
   if (!tokenCookie?.value) {
     return null;
@@ -420,6 +422,11 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
 export async function addUser(data: any) {
     const { firstName, lastName, phoneNumber, email, password, roleId } = data;
 
+    const phoneRegex = /^(09|07)\d{8}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+        throw new Error("Phone number must start with 09 or 07 followed by 8 digits.");
+    }
+    
     const authApiUrl = process.env.AUTH_API_BASE_URL;
     if (!authApiUrl) {
         throw new Error("Authentication service URL is not configured.");
@@ -496,6 +503,11 @@ export async function addUser(data: any) {
             throw new Error('A user with this email address already exists in the local database.');
         }
         
+        // Check for specific auth service error messages
+        if (error.message.includes('already taken')) {
+            throw new Error(error.message);
+        }
+
         throw new Error(error.message || 'Failed to create user.');
     }
 }
@@ -673,55 +685,52 @@ export async function purchaseTickets(request: PurchaseRequest) {
         }
     }
 
+    // This implementation now redirects to ArifPay instead of creating attendees directly.
+    // We only handle one ticket type at a time for simplicity with this new flow.
+    const ticket = request.tickets[0];
+    if (!ticket) {
+        throw new Error("No tickets in purchase request.");
+    }
+    const ticketType = await prisma.ticketType.findUnique({ where: { id: ticket.id }});
+    if (!ticketType) throw new Error("Ticket type not found.");
+    if ((ticketType.total - ticketType.sold) < ticket.quantity) {
+        throw new Error(`Not enough tickets available for ${ticketType.name}.`);
+    }
 
-    const newAttendees = await prisma.$transaction(async (tx) => {
-        const createdAttendees: Attendee[] = [];
-        for (const ticket of request.tickets) {
-            const ticketType = await tx.ticketType.findUnique({ where: { id: ticket.id } });
-            if (!ticketType) throw new Error(`Ticket type with id ${ticket.id} not found.`);
-            if ((ticketType.total - ticketType.sold) < ticket.quantity) {
-                throw new Error(`Not enough tickets available for ${ticketType.name}.`);
-            }
+    // Data for creating the attendee record after successful payment
+    const attendeeData = {
+        name: isGuestPurchase ? 'Guest User' : `${targetUser?.firstName} ${targetUser?.lastName}`,
+        email: isGuestPurchase ? null : targetUser?.email,
+        userId: isGuestPurchase ? null : targetUser?.id,
+    };
+    
+    try {
+        // We call our own API route to handle the communication with ArifPay
+        const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/payment/arifpay/initiate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                eventId: request.eventId,
+                ticketTypeId: ticket.id,
+                quantity: ticket.quantity,
+                price: Number(ticket.price),
+                name: ticket.name,
+                attendeeData: attendeeData,
+                promoCode: request.promoCode,
+            }),
+        });
 
-            for (let i = 0; i < ticket.quantity; i++) {
-                const attendeeName = targetUser ? `${targetUser.firstName} ${targetUser.lastName}` : 'Guest Customer';
-                const attendeeEmail = targetUser?.email;
-                const attendeeUserId = targetUser?.id;
+        const result = await response.json();
 
-                const newAttendee = await tx.attendee.create({
-                    data: {
-                        name: attendeeName,
-                        email: attendeeEmail,
-                        eventId: request.eventId,
-                        ticketTypeId: ticket.id,
-                        userId: isGuestPurchase ? null : attendeeUserId, // Store null for guests
-                        checkedIn: false,
-                    },
-                });
-                createdAttendees.push(newAttendee);
-            }
-
-            await tx.ticketType.update({
-                where: { id: ticket.id },
-                data: { sold: { increment: ticket.quantity } },
-            });
+        if (response.ok && result.paymentUrl) {
+            redirect(result.paymentUrl);
+        } else {
+            throw new Error(result.error || 'Failed to initiate payment session.');
         }
-
-        if (request.promoCode) {
-            await tx.promoCode.update({
-                where: { code: request.promoCode, eventId: request.eventId },
-                data: { uses: { increment: 1 } },
-            });
-        }
-        return createdAttendees;
-    });
-
-    revalidatePath(`/events/${request.eventId}`);
-    revalidatePath('/');
-    revalidatePath('/tickets');
-
-    if (newAttendees.length > 0) {
-        redirect(`/ticket/${newAttendees[0].id}/confirmation`);
+    } catch (error: any) {
+        console.error("Failed to initiate ArifPay payment:", error);
+        // We could redirect to an error page or show a toast, but for now we'll throw
+        throw new Error(error.message);
     }
 }
 
