@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
@@ -6,10 +5,10 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { transactionId: string } }
+  context: { params: { transactionId: string } }
 ) {
-  const transactionId = params.transactionId;
-  
+  const transactionId = context.params.transactionId;
+
   try {
     if (!transactionId) {
       return NextResponse.json({ error: 'Transaction ID is required.' }, { status: 400 });
