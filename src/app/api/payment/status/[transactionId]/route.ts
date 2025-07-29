@@ -7,14 +7,14 @@ export async function GET(
   { params }: { params: { transactionId: string } }
 ) {
   try {
-    const transactionId = params.transactionId;
+    const { transactionId } = params;
 
     if (!transactionId) {
       return NextResponse.json({ error: 'Transaction ID is required.' }, { status: 400 });
     }
 
     const order = await prisma.pendingOrder.findUnique({
-      where: { transactionId: transactionId },
+      where: { transactionId },
     });
 
     if (!order) {
