@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
@@ -61,7 +62,7 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
     if (!purchaseState.ticket) return;
 
     if (!attendeeName || !attendeePhone) {
-      toast({ variant: 'destructive', title: "Missing Information", description: "Please enter the attendee's name and phone number." });
+      toast({ variant: 'destructive', title: "Missing Information", description: "Please enter your name and phone number." });
       return;
     }
 
