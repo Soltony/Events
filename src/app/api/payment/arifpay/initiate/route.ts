@@ -40,14 +40,14 @@ export async function POST(req: NextRequest) {
             expireDate: expireDate.toISOString(),
             items: [{
                 name: name,
-                quantity: quantity,
+                quantity: Number(quantity),
                 price: Number(price),
                 description: `Ticket for ${event.name}`
             }],
             beneficiaries: [{
                 accountNumber: '01320811436100',
                 bank: 'AWINETAA',
-                amount: totalAmount // Ensure this is a number
+                amount: Number(totalAmount)
             }],
         };
 
