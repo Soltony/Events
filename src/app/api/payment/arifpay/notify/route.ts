@@ -8,14 +8,14 @@ export async function POST(req: NextRequest) {
         const payload = await req.json();
         console.log('ArifPay Notification Payload:', payload);
         
-        const { sessionId, transactionStatus } = payload;
+        const { sessionId, transactionStatus } = payload.data;
 
         if (!sessionId) {
             console.error("No sessionId in ArifPay notification.");
             return NextResponse.json({ error: 'Session ID is missing' }, { status: 400 });
         }
         
-        const order = await prisma.pendingOrder.findUnique({
+        const order = await prisma.pendingOrder.findFirst({
             where: { arifpaySessionId: sessionId },
         });
 
@@ -55,16 +55,22 @@ export async function POST(req: NextRequest) {
 
                 // 3. Update the promo code usage if applicable
                 if (order.promoCode) {
-                    await tx.promoCode.update({
-                        where: { code: order.promoCode },
-                        data: { uses: { increment: 1 } },
-                    });
+                    const promo = await tx.promoCode.findUnique({ where: { code: order.promoCode } });
+                    if (promo) {
+                        await tx.promoCode.update({
+                            where: { id: promo.id },
+                            data: { uses: { increment: 1 } },
+                        });
+                    }
                 }
                 
-                // 4. Mark the pending order as completed
+                // 4. Mark the pending order as completed and link to attendee
                 await tx.pendingOrder.update({
                     where: { id: order.id },
-                    data: { status: 'COMPLETED' },
+                    data: { 
+                        status: 'COMPLETED',
+                        attendeeId: createdAttendee.id
+                    },
                 });
 
                 return createdAttendee;
@@ -75,9 +81,6 @@ export async function POST(req: NextRequest) {
             revalidatePath('/');
             revalidatePath('/tickets');
 
-            // Redirect to a success page. We can't do a real redirect from a webhook,
-            // but ArifPay's successUrl handles this. The webhook is for backend state update.
-            // For now, we just confirm receipt.
             console.log(`Successfully processed payment for session ${sessionId}. Attendee ID: ${newAttendee.id}`);
         } else {
             // Handle failed or cancelled payment
