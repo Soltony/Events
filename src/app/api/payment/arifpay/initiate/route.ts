@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
             console.error("APP_URL is not set in environment variables.");
             return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
         }
+        
+        const totalAmount = Number(price) * Number(quantity);
 
 
         const arifpayData = {
@@ -39,13 +41,13 @@ export async function POST(req: NextRequest) {
             items: [{
                 name: name,
                 quantity: quantity,
-                price: price,
+                price: Number(price),
                 description: `Ticket for ${event.name}`
             }],
             beneficiaries: [{
                 accountNumber: '01320811436100',
                 bank: 'AWINETAA',
-                amount: price * quantity
+                amount: totalAmount // Ensure this is a number
             }],
         };
 
