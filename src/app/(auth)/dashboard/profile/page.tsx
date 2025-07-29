@@ -15,6 +15,7 @@ import { useAuth } from '@/context/auth-context';
 import { updatePasswordFlag } from '@/lib/actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import api from '@/lib/api';
+import { useRouter } from 'next/navigation';
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, { message: 'Current password is required.' }),
@@ -29,6 +30,7 @@ type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
 
 export default function ProfilePage() {
   const { toast } = useToast();
+  const router = useRouter();
   const { user, logout, refreshUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -77,7 +79,7 @@ export default function ProfilePage() {
                 logout();
             }, 500);
         } else {
-            form.reset(); // Clear the form on success
+            router.push('/dashboard');
         }
 
     } catch (error: any) {
