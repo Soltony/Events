@@ -2,12 +2,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { transactionId: string } }
 ) {
   const transactionId = params.transactionId;
-
+  
   try {
     if (!transactionId) {
       return NextResponse.json({ error: 'Transaction ID is required.' }, { status: 400 });
@@ -20,7 +22,7 @@ export async function GET(
     if (!order) {
       return NextResponse.json({ error: 'Order not found.' }, { status: 404 });
     }
-
+    
     if (order.status === 'COMPLETED' && order.attendeeId) {
       return NextResponse.json({
         status: 'COMPLETED',
@@ -29,6 +31,7 @@ export async function GET(
     }
 
     return NextResponse.json({ status: order.status });
+
   } catch (error) {
     console.error(`Failed to get payment status for ${transactionId}:`, error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
