@@ -14,7 +14,7 @@ export async function GET(
     }
 
     const order = await prisma.pendingOrder.findUnique({
-      where: { transactionId },
+      where: { transactionId: transactionId },
     });
 
     if (!order) {
