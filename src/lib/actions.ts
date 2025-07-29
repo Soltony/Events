@@ -17,7 +17,7 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
 
 // This function can be used in any server action to get the currently logged-in user.
 async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const tokenCookie = cookieStore.get('authTokens');
 
   if (!tokenCookie?.value) {
@@ -390,16 +390,13 @@ export async function getUsersAndRoles() {
         return { users: [], roles: [] };
     }
 
-    let usersQuery = {};
-    if (currentUser.role.name !== 'Admin') {
-        usersQuery = { where: { id: currentUser.id }};
-    }
-
+    // All users with permission should be able to see other users.
+    // The filtering for who can be managed is handled on the client-side.
     const users = await prisma.user.findMany({
-        ...usersQuery,
         include: { role: true },
         orderBy: { createdAt: 'desc'}
     });
+    
     const roles = await prisma.role.findMany();
     return serialize({ users, roles });
 }
@@ -684,7 +681,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
         for (const ticket of request.tickets) {
             const ticketType = await tx.ticketType.findUnique({ where: { id: ticket.id } });
             if (!ticketType) throw new Error(`Ticket type with id ${ticket.id} not found.`);
-            if ((ticketType.total - ticket.sold) < ticket.quantity) {
+            if ((ticketType.total - ticketType.sold) < ticket.quantity) {
                 throw new Error(`Not enough tickets available for ${ticketType.name}.`);
             }
 
