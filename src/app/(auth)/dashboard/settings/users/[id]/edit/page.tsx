@@ -85,7 +85,7 @@ export default function EditUserPage() {
 
                 if (userData) {
                     setUser(userData);
-                    setRoles(rolesData);
+                    setRoles(rolesData.filter((role: Role) => role.name !== 'Admin')); // Filter out Admin role
                     form.reset({
                         firstName: userData.firstName,
                         lastName: userData.lastName,

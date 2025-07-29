@@ -43,6 +43,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useAuth } from '@/context/auth-context';
 
 interface UserWithRole extends User {
     role: Role;
@@ -51,16 +52,19 @@ interface UserWithRole extends User {
 export default function UserManagementPage() {
     const { toast } = useToast();
     const router = useRouter();
+    const { user: currentUser } = useAuth();
     const [users, setUsers] = useState<UserWithRole[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [loading, setLoading] = useState(true);
+
+    const isAdmin = currentUser?.role?.name === 'Admin';
 
     const fetchData = async () => {
         try {
             !loading && setLoading(true);
             const { users, roles } = await getUsersAndRoles();
             setUsers(users);
-            setRoles(roles);
+            setRoles(roles.filter((role: Role) => role.name !== 'Admin')); // Filter out Admin role for dropdown
         } catch (error) {
             console.error("Failed to fetch settings data:", error);
             toast({ variant: 'destructive', title: 'Error', description: 'Could not load users and roles.' });
@@ -154,7 +158,7 @@ export default function UserManagementPage() {
                                     <Select 
                                         value={user.roleId} 
                                         onValueChange={(newRoleId) => handleRoleChange(user.id, newRoleId)}
-                                        disabled={user.role.name === 'Admin'}
+                                        disabled={user.role.name === 'Admin' || !isAdmin}
                                     >
                                         <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
                                         <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
@@ -162,7 +166,7 @@ export default function UserManagementPage() {
                                 </TableCell>
                                  <TableCell className="text-right">
                                     <div className="flex justify-end gap-2">
-                                        <Button variant="ghost" size="icon" asChild>
+                                        <Button variant="ghost" size="icon" asChild disabled={!isAdmin}>
                                             <Link href={`/dashboard/settings/users/${user.id}/edit`}>
                                                 <Pencil className="h-4 w-4" />
                                                 <span className="sr-only">Edit</span>
@@ -170,7 +174,7 @@ export default function UserManagementPage() {
                                         </Button>
                                         <AlertDialog>
                                           <AlertDialogTrigger asChild>
-                                            <Button variant="ghost" size="icon" disabled={user.role.name === 'Admin'}>
+                                            <Button variant="ghost" size="icon" disabled={user.role.name === 'Admin' || !isAdmin}>
                                                 <Trash2 className="h-4 w-4 text-destructive" />
                                                 <span className="sr-only">Delete</span>
                                             </Button>
