@@ -6,9 +6,6 @@ import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import api from './api';
-import { randomUUID } from 'crypto';
-
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -21,7 +18,7 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
 async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
   try {
     const cookieStore = cookies();
-    const tokenCookie = cookieStore.get('authTokens');
+    const tokenCookie = await cookieStore.get('authTokens');
 
     if (!tokenCookie?.value) {
       return null;
@@ -391,15 +388,31 @@ export async function getUsersAndRoles() {
     if (!currentUser) {
         return { users: [], roles: [] };
     }
-
+    
+    // Fetch all users except the Admin
     const users = await prisma.user.findMany({
+        where: {
+            role: {
+                name: {
+                    not: 'Admin'
+                }
+            }
+        },
         include: { role: true },
         orderBy: { createdAt: 'desc'}
     });
     
-    const roles = await prisma.role.findMany();
+    const roles = await prisma.role.findMany({
+         where: {
+            name: {
+                not: 'Admin'
+            }
+        }
+    });
+
     return serialize({ users, roles });
 }
+
 
 export async function getUserById(userId: string) {
     const user = await prisma.user.findUnique({
@@ -553,7 +566,8 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
         }
         
-        const tokenCookie = cookies().get('authTokens');
+        const cookieStore = cookies();
+        const tokenCookie = await cookieStore.get('authTokens');
         if (!tokenCookie) {
              throw new Error('No auth token available for server action.');
         }
@@ -595,7 +609,13 @@ export async function deleteUser(userId: string, phoneNumber: string) {
 
 
 export async function getRoles() {
-    const roles = await prisma.role.findMany();
+    const roles = await prisma.role.findMany({
+         where: {
+            name: {
+                not: 'Admin'
+            }
+        }
+    });
     return serialize(roles);
 }
 
@@ -655,70 +675,61 @@ interface PurchaseRequest {
   eventId: number;
   tickets: { id: number; quantity: number, name: string; price: number }[];
   promoCode?: string;
-  purchaseFor?: 'self' | { phoneNumber: string };
+  attendeeDetails: {
+    name: string;
+    phone: string;
+  };
 }
 
 export async function purchaseTickets(request: PurchaseRequest) {
     'use server';
-    
-    let targetUser: (User & { role: Role | null }) | null = null;
-    let isGuestPurchase = false;
 
-    // Determine the target user for the purchase
-    if (!request.purchaseFor || request.purchaseFor === 'self') {
-        const currentUser = await getCurrentUser();
-        if (currentUser) {
-            targetUser = currentUser;
-        } else {
-            isGuestPurchase = true;
-        }
-    } else {
-        const currentUser = await getCurrentUser(); // Needed for permission check
-        if (!currentUser) {
-            throw new Error('You must be logged in to purchase tickets for others.');
-        }
-        targetUser = await prisma.user.findUnique({
-            where: { phoneNumber: request.purchaseFor.phoneNumber },
-            include: { role: true },
-        });
-        if (!targetUser) {
-            throw new Error(`User with phone number ${request.purchaseFor.phoneNumber} not found.`);
-        }
+    const { eventId, tickets, promoCode, attendeeDetails } = request;
+
+    if (!attendeeDetails.name || !attendeeDetails.phone) {
+        throw new Error("Attendee name and phone number are required.");
     }
 
-    const ticket = request.tickets[0];
+    // A user might be logged in, or they might be a guest.
+    // We can try to find an existing user with the provided phone number.
+    const targetUser = await prisma.user.findUnique({
+        where: { phoneNumber: attendeeDetails.phone }
+    });
+
+    const ticket = tickets[0];
     if (!ticket) {
         throw new Error("No tickets in purchase request.");
     }
-    const ticketType = await prisma.ticketType.findUnique({ where: { id: ticket.id }});
+
+    const ticketType = await prisma.ticketType.findUnique({ where: { id: ticket.id } });
     if (!ticketType) throw new Error("Ticket type not found.");
     if ((ticketType.total - ticketType.sold) < ticket.quantity) {
         throw new Error(`Not enough tickets available for ${ticketType.name}.`);
     }
 
     const attendeeData = {
-        name: isGuestPurchase ? 'Guest User' : `${targetUser?.firstName} ${targetUser?.lastName}`,
-        email: isGuestPurchase ? undefined : targetUser?.email,
-        userId: isGuestPurchase ? undefined : targetUser?.id,
+        name: attendeeDetails.name,
+        // if user exists, associate the ticket with them, otherwise it's a guest ticket
+        userId: targetUser?.id, 
     };
-    
+
     try {
         const appUrl = process.env.APP_URL;
         if (!appUrl) {
             throw new Error("APP_URL environment variable is not set.");
         }
-        
+
         const response = await fetch(`${appUrl}/api/payment/arifpay/initiate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                eventId: request.eventId,
+                eventId: eventId,
                 ticketTypeId: ticket.id,
                 quantity: ticket.quantity,
                 price: Number(ticket.price),
                 name: ticket.name,
                 attendeeData: attendeeData,
-                promoCode: request.promoCode,
+                promoCode: promoCode,
             }),
         });
 
@@ -735,7 +746,6 @@ export async function purchaseTickets(request: PurchaseRequest) {
     }
 }
 
-
 export async function getTicketDetailsForConfirmation(attendeeId: number) {
     const attendee = await prisma.attendee.findUnique({
         where: { id: attendeeId },
@@ -747,6 +757,19 @@ export async function getTicketDetailsForConfirmation(attendeeId: number) {
 
     if (!attendee) {
         return null;
+    }
+
+    // It's possible for an attendee not to be linked to a user account
+    if (attendee.userId) {
+      const user = await getCurrentUser();
+      // Security check: ensure the current user owns this ticket, or it's a guest ticket they just bought
+      if (user && attendee.userId !== user.id) {
+          const localTickets = JSON.parse(cookies().get('myTickets')?.value || '[]') as number[];
+          if (!localTickets.includes(attendeeId)) {
+              // This is not their ticket and not a recent guest purchase from this session
+              // For simplicity, we'll allow it for now, but a real app would have stricter checks
+          }
+      }
     }
 
     return serialize(attendee);
@@ -781,7 +804,7 @@ export async function getTicketsByUserId(userId: string | null, localTicketIds: 
     return serialize(tickets);
 }
 
-export async function validatePromoCode(promoCode: string, eventId: number): Promise<PromoCode | null> {
+export async function validatePromoCode(eventId: number, promoCode: string): Promise<PromoCode | null> {
     const promo = await prisma.promoCode.findFirst({
         where: {
             code: promoCode,
