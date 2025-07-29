@@ -389,26 +389,12 @@ export async function getUsersAndRoles() {
         return { users: [], roles: [] };
     }
     
-    // Fetch all users except the Admin
     const users = await prisma.user.findMany({
-        where: {
-            role: {
-                name: {
-                    not: 'Admin'
-                }
-            }
-        },
-        include: { role: true },
-        orderBy: { createdAt: 'desc'}
+      include: { role: true },
+      orderBy: { createdAt: 'desc'}
     });
     
-    const roles = await prisma.role.findMany({
-         where: {
-            name: {
-                not: 'Admin'
-            }
-        }
-    });
+    const roles = await prisma.role.findMany();
 
     return serialize({ users, roles });
 }
@@ -690,8 +676,6 @@ export async function purchaseTickets(request: PurchaseRequest) {
         throw new Error("Attendee name and phone number are required.");
     }
 
-    // A user might be logged in, or they might be a guest.
-    // We can try to find an existing user with the provided phone number.
     const targetUser = await prisma.user.findUnique({
         where: { phoneNumber: attendeeDetails.phone }
     });
@@ -709,7 +693,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
 
     const attendeeData = {
         name: attendeeDetails.name,
-        // if user exists, associate the ticket with them, otherwise it's a guest ticket
+        email: targetUser?.email,
         userId: targetUser?.id, 
     };
 
@@ -728,7 +712,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
                 quantity: ticket.quantity,
                 price: Number(ticket.price),
                 name: ticket.name,
-                attendeeData: attendeeData,
+                attendeeData: { ...attendeeData, phone: attendeeDetails.phone },
                 promoCode: promoCode,
             }),
         });
@@ -741,6 +725,10 @@ export async function purchaseTickets(request: PurchaseRequest) {
             throw new Error(result.error || 'Failed to initiate payment session.');
         }
     } catch (error: any) {
+        // This is a special case to handle Next.js redirects
+        if (error.digest?.startsWith('NEXT_REDIRECT')) {
+            throw error;
+        }
         console.error("Failed to initiate ArifPay payment:", error);
         throw new Error(error.message);
     }
@@ -759,15 +747,13 @@ export async function getTicketDetailsForConfirmation(attendeeId: number) {
         return null;
     }
 
-    // It's possible for an attendee not to be linked to a user account
     if (attendee.userId) {
       const user = await getCurrentUser();
-      // Security check: ensure the current user owns this ticket, or it's a guest ticket they just bought
       if (user && attendee.userId !== user.id) {
-          const localTickets = JSON.parse(cookies().get('myTickets')?.value || '[]') as number[];
-          if (!localTickets.includes(attendeeId)) {
-              // This is not their ticket and not a recent guest purchase from this session
-              // For simplicity, we'll allow it for now, but a real app would have stricter checks
+          const cookieHeader = cookies().get('myTickets');
+          const localTicketIds = cookieHeader ? JSON.parse(cookieHeader.value) : [];
+          if (!localTicketIds.includes(attendeeId)) {
+             // Not their ticket and not a guest purchase from this session
           }
       }
     }
