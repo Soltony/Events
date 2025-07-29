@@ -22,7 +22,12 @@ export async function POST(req: NextRequest) {
         const expireDate = new Date();
         expireDate.setMinutes(expireDate.getMinutes() + 30); // 30-minute expiry
 
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
+        const appUrl = process.env.APP_URL;
+        if (!appUrl) {
+            console.error("APP_URL is not set in environment variables.");
+            return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
+        }
+
 
         const data = {
             cancelUrl: `${appUrl}/events/${eventId}`,

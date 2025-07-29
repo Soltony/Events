@@ -20,7 +20,7 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
 // This function can be used in any server action to get the currently logged-in user.
 async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
   const cookieStore = cookies();
-  const tokenCookie = await cookieStore.get('authTokens');
+  const tokenCookie = cookieStore.get('authTokens');
 
   if (!tokenCookie?.value) {
     return null;
@@ -553,13 +553,13 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
         }
         
-        const tokenCookie = await cookies().get('authTokens');
+        const tokenCookie = cookies().get('authTokens');
         if (!tokenCookie) {
              throw new Error('No auth token available for server action.');
         }
         const token = JSON.parse(tokenCookie.value).accessToken;
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/auth/delete-users`, {
+        const response = await fetch(`${process.env.APP_URL}/api/auth/delete-users`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -700,13 +700,18 @@ export async function purchaseTickets(request: PurchaseRequest) {
     // Data for creating the attendee record after successful payment
     const attendeeData = {
         name: isGuestPurchase ? 'Guest User' : `${targetUser?.firstName} ${targetUser?.lastName}`,
-        email: isGuestPurchase ? null : targetUser?.email,
-        userId: isGuestPurchase ? null : targetUser?.id,
+        email: isGuestPurchase ? undefined : targetUser?.email,
+        userId: isGuestPurchase ? undefined : targetUser?.id,
     };
     
     try {
+        const appUrl = process.env.APP_URL;
+        if (!appUrl) {
+            throw new Error("APP_URL environment variable is not set.");
+        }
+        
         // We call our own API route to handle the communication with ArifPay
-        const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/payment/arifpay/initiate`, {
+        const response = await fetch(`${appUrl}/api/payment/arifpay/initiate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
