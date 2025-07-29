@@ -5,9 +5,10 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   req: NextRequest,
-  context: { params: { transactionId: string } }
+  context: { params: Promise<{ transactionId: string }> }
 ) {
-  const transactionId = context.params.transactionId;
+  const params = await context.params;
+  const transactionId = params.transactionId;
 
   try {
     if (!transactionId) {
