@@ -6,17 +6,17 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { transactionId: string } }
+  context: { params: { transactionId: string } }
 ) {
-  const transactionId = params.transactionId;
-  
+  const transactionId = context.params.transactionId;
+
   try {
     if (!transactionId) {
       return NextResponse.json({ error: 'Transaction ID is required.' }, { status: 400 });
     }
 
     const order = await prisma.pendingOrder.findUnique({
-      where: { transactionId },
+      where: { transactionId: transactionId },
     });
 
     if (!order) {
