@@ -189,6 +189,7 @@ export default function UserManagementPage() {
                             const canUpdate = hasPermission('User Management:Update');
                             const canDelete = hasPermission('User Management:Delete');
                             const canEditSelf = user.id === currentUser?.id && canUpdate;
+                            const isDeletable = canDelete && isManageable;
 
                             return (
                                 <TableRow key={user.id}>
@@ -219,7 +220,7 @@ export default function UserManagementPage() {
                                             {canDelete && (
                                                 <AlertDialog>
                                                 <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" disabled={!isManageable}>
+                                                    <Button variant="ghost" size="icon" disabled={!isDeletable}>
                                                         <Trash2 className="h-4 w-4 text-destructive" />
                                                         <span className="sr-only">Delete</span>
                                                     </Button>
