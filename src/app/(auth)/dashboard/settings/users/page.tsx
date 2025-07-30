@@ -68,12 +68,21 @@ export default function UserManagementPage() {
             const { users: allUsers, roles: allRoles } = await getUsersAndRoles();
             
             const filteredUsers = allUsers.filter(user => {
+                // The current user should always see themselves.
                 if (user.id === currentUser.id) {
                     return true;
                 }
+                
+                // Hide Admins from non-Admins
                 if (currentUser.role.name !== 'Admin' && user.role.name === 'Admin') {
                     return false;
                 }
+                
+                // Hide users with the same role (peers)
+                if (user.role.name === currentUser.role.name) {
+                    return false;
+                }
+
                 return true;
             });
 
