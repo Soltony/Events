@@ -88,9 +88,17 @@ export default function UserManagementPage() {
             !loading && setLoading(true);
             const { users: allUsers, roles: allRoles } = await getUsersAndRoles();
             
-            const filteredUsers = currentUser.role.name === 'Admin'
-                ? allUsers
-                : allUsers.filter(user => user.role.name !== 'Admin');
+            const filteredUsers = allUsers.filter(user => {
+                // Hide users with the same role as the current user
+                if (user.role?.name === currentUser.role.name) {
+                    return false;
+                }
+                // If current user is not Admin, hide Admin users
+                if (currentUser.role.name !== 'Admin' && user.role.name === 'Admin') {
+                    return false;
+                }
+                return true;
+            });
 
             setUsers(filteredUsers);
             setRoles(allRoles.filter((role: Role) => role.name !== 'Admin')); 
@@ -203,7 +211,7 @@ export default function UserManagementPage() {
                                             >
                                                 <SelectTrigger>
                                                     <SelectValue placeholder={user.role?.name || "Select role"} />
-                                                </SelectTrigger>
+                                                </Trigger>
                                                 <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
                                             </Select>
                                         </TableCell>
