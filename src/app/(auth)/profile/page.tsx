@@ -70,7 +70,7 @@ export default function ProfilePage() {
 
         toast({
             title: 'Success!',
-            description: 'Your password has been changed successfully.' + (wasFirstTime ? '' : ' Please log in again.'),
+            description: 'Your password has been changed successfully.'
         });
         
         // Only force logout if it was not a mandatory first-time change
@@ -96,23 +96,8 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-4 md:gap-8">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">My Profile</h1>
-        <p className="text-muted-foreground">Manage your account settings.</p>
-      </div>
-
-       {user?.passwordChangeRequired && (
-        <Alert variant="destructive" className="border-yellow-500/50 text-yellow-500 dark:border-yellow-500 [&>svg]:text-yellow-500">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Action Required</AlertTitle>
-            <AlertDescription>
-                For your security, you must change your temporary password before you can access the dashboard.
-            </AlertDescription>
-        </Alert>
-      )}
-      
-      <Card className="max-w-2xl">
+    <div className="flex-1 flex flex-col justify-center items-center p-4">
+      <Card className="w-full max-w-2xl">
         <CardHeader>
           <CardTitle>Change Password</CardTitle>
           <CardDescription>
@@ -120,6 +105,15 @@ export default function ProfilePage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+           {user?.passwordChangeRequired && (
+            <Alert variant="destructive" className="mb-6 border-yellow-500/50 text-yellow-500 dark:border-yellow-500 [&>svg]:text-yellow-500">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Action Required</AlertTitle>
+                <AlertDescription>
+                    For your security, you must change your temporary password before you can access the dashboard.
+                </AlertDescription>
+            </Alert>
+          )}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField

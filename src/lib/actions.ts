@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -695,7 +694,7 @@ export async function updatePasswordFlag(userId: string, passwordChangeRequired:
         where: { id: userId },
         data: { passwordChangeRequired: passwordChangeRequired },
     });
-    revalidatePath('/dashboard/profile');
+    revalidatePath('/profile');
 }
 
 
@@ -877,4 +876,3 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
-
