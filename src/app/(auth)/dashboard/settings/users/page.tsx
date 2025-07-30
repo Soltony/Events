@@ -49,13 +49,6 @@ interface UserWithRole extends User {
     role: Role;
 }
 
-const roleHierarchy: Record<string, number> = {
-    'Admin': 3,
-    'Sub-admin': 2,
-    'Organizer': 1,
-};
-
-
 export default function UserManagementPage() {
     const { toast } = useToast();
     const router = useRouter();
@@ -63,20 +56,6 @@ export default function UserManagementPage() {
     const [users, setUsers] = useState<UserWithRole[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [loading, setLoading] = useState(true);
-
-    const currentUserRoleRank = currentUser?.role?.name ? (roleHierarchy[currentUser.role.name] || 0) : 0;
-    
-    const canManageUser = (targetUser: UserWithRole): boolean => {
-        if (!currentUser?.role?.name) return false;
-        
-        if (targetUser.id === currentUser.id) return false;
-        
-        if (targetUser.role?.name === 'Admin') return false; 
-
-        const targetUserRoleRank = roleHierarchy[targetUser.role.name] || 0;
-        return currentUserRoleRank > targetUserRoleRank;
-    }
-
 
     const fetchData = async () => {
         if (!currentUser) {
@@ -92,12 +71,7 @@ export default function UserManagementPage() {
                 if (user.id === currentUser.id) {
                     return true;
                 }
-                // If current user is not Admin, hide Admin users
                 if (currentUser.role.name !== 'Admin' && user.role.name === 'Admin') {
-                    return false;
-                }
-                // Do not display users with the same role as the current user (peers)
-                if (user.role?.name === currentUser.role.name && user.id !== currentUser.id) {
                     return false;
                 }
                 return true;
@@ -132,16 +106,10 @@ export default function UserManagementPage() {
     };
 
     const handleDeleteUser = async (user: UserWithRole) => {
-        const isManageable = canManageUser(user);
-        if (!hasPermission('User Management:Delete') || !isManageable) {
-            toast({ variant: 'destructive', title: 'Action Denied', description: 'You do not have permission to delete this user.' });
-            return;
-        }
-
         try {
             await deleteUser(user.id, user.phoneNumber);
             toast({ title: 'User Deleted', description: `${user.firstName} ${user.lastName} has been removed.`});
-            fetchData(); // Refresh the list
+            fetchData();
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to delete user.' });
         }
@@ -195,12 +163,16 @@ export default function UserManagementPage() {
                   </TableHeader>
                   <TableBody>
                     {users.map((user) => {
-                      const isManageable = canManageUser(user);
                       const canUpdate = hasPermission('User Management:Update');
                       const canDelete = hasPermission('User Management:Delete');
-                      const canEditSelf = user.id === currentUser?.id;
-                      const isEditable = (isManageable && canUpdate) || canEditSelf;
-                      const isDeletable = isManageable && canDelete;
+                      
+                      const isSelf = user.id === currentUser?.id;
+                      const isTargetAdmin = user.role?.name === 'Admin';
+                      
+                      const isEditable = (canUpdate && !isTargetAdmin) || isSelf;
+                      const isDeletable = canDelete && !isSelf && !isTargetAdmin;
+                      
+                      const canChangeRole = canUpdate && !isSelf && !isTargetAdmin;
 
                       return (
                         <TableRow key={user.id}>
@@ -210,7 +182,7 @@ export default function UserManagementPage() {
                             <Select
                               value={user.roleId ?? ''}
                               onValueChange={(newRoleId) => handleRoleChange(user.id, newRoleId)}
-                              disabled={!isManageable || !canUpdate || user.role.name === 'Admin'}
+                              disabled={!canChangeRole}
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder={user.role?.name || "Select role"} />
