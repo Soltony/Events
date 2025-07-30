@@ -33,8 +33,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { PlusCircle, DollarSign, FileDown, Ticket as TicketIcon, ArrowLeft, Loader2, MapPin, Info } from 'lucide-react';
-import { getEventDetails, addTicketType, addPromoCode } from '@/lib/actions';
+import { PlusCircle, DollarSign, FileDown, Ticket as TicketIcon, ArrowLeft, Loader2, MapPin, Info, Pencil, Trash2 } from 'lucide-react';
+import { getEventDetails, addTicketType, addPromoCode, updateTicketType, deleteTicketType, updatePromoCode, deletePromoCode } from '@/lib/actions';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { cn } from "@/lib/utils";
@@ -51,6 +51,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Form,
   FormControl,
@@ -123,6 +133,13 @@ export default function EventDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isAddTicketTypeOpen, setIsAddTicketTypeOpen] = useState(false);
   const [isAddPromoCodeOpen, setIsAddPromoCodeOpen] = useState(false);
+  const [isEditTicketTypeOpen, setIsEditTicketTypeOpen] = useState(false);
+  const [isEditPromoCodeOpen, setIsEditPromoCodeOpen] = useState(false);
+  const [ticketToEdit, setTicketToEdit] = useState<TicketType | null>(null);
+  const [promoToEdit, setPromoToEdit] = useState<PromoCode | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{ id: number; name: string; type: 'ticket' | 'promo' } | null>(null);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 
@@ -166,6 +183,28 @@ export default function EventDetailPage() {
     },
   });
 
+  useEffect(() => {
+    if (ticketToEdit) {
+      ticketForm.reset({
+        name: ticketToEdit.name,
+        price: Number(ticketToEdit.price),
+        total: ticketToEdit.total,
+      });
+    }
+  }, [ticketToEdit, ticketForm]);
+
+  useEffect(() => {
+    if (promoToEdit) {
+      promoCodeForm.reset({
+        code: promoToEdit.code,
+        type: promoToEdit.type,
+        value: Number(promoToEdit.value),
+        maxUses: promoToEdit.maxUses,
+      });
+    }
+  }, [promoToEdit, promoCodeForm]);
+
+
   const onAddTicketTypeSubmit = async (data: AddTicketTypeFormValues) => {
     try {
       await addTicketType(eventId, data);
@@ -173,16 +212,26 @@ export default function EventDetailPage() {
         title: 'Ticket Type Added',
         description: `Successfully added the "${data.name}" ticket type.`,
       });
-      await fetchEvent(); // Refetch event data
+      await fetchEvent();
       setIsAddTicketTypeOpen(false);
       ticketForm.reset();
     } catch (error) {
       console.error("Failed to add ticket type:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to add ticket type. Please try again.',
-      });
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to add ticket type. Please try again.' });
+    }
+  };
+
+  const onEditTicketTypeSubmit = async (data: AddTicketTypeFormValues) => {
+    if (!ticketToEdit) return;
+    try {
+      await updateTicketType(ticketToEdit.id, data);
+      toast({ title: 'Ticket Type Updated' });
+      await fetchEvent();
+      setIsEditTicketTypeOpen(false);
+      setTicketToEdit(null);
+    } catch (error) {
+      console.error("Failed to update ticket type:", error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to update ticket type.' });
     }
   };
   
@@ -193,18 +242,53 @@ export default function EventDetailPage() {
         title: 'Promo Code Created',
         description: `Successfully created the "${data.code}" promo code.`,
       });
-      await fetchEvent(); // Refetch event data
+      await fetchEvent();
       setIsAddPromoCodeOpen(false);
       promoCodeForm.reset();
     } catch (error) {
        console.error("Failed to add promo code:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to create promo code. Please try again.',
-      });
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to create promo code. Please try again.' });
     }
   }
+
+  const onEditPromoCodeSubmit = async (data: AddPromoCodeFormValues) => {
+    if (!promoToEdit) return;
+    try {
+      await updatePromoCode(promoToEdit.id, data);
+      toast({ title: 'Promo Code Updated' });
+      await fetchEvent();
+      setIsEditPromoCodeOpen(false);
+      setPromoToEdit(null);
+    } catch (error) {
+      console.error("Failed to update promo code:", error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to update promo code.' });
+    }
+  };
+
+  const handleOpenDeleteDialog = (item: { id: number; name: string; type: 'ticket' | 'promo' }) => {
+    setItemToDelete(item);
+    setIsAlertOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!itemToDelete) return;
+    try {
+      if (itemToDelete.type === 'ticket') {
+        await deleteTicketType(itemToDelete.id);
+        toast({ title: 'Ticket Type Deleted' });
+      } else if (itemToDelete.type === 'promo') {
+        await deletePromoCode(itemToDelete.id);
+        toast({ title: 'Promo Code Deleted' });
+      }
+      await fetchEvent();
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to delete item.' });
+    } finally {
+      setIsAlertOpen(false);
+      setItemToDelete(null);
+    }
+  }
+
 
   const handleExport = () => {
     if (!event) return;
@@ -315,6 +399,7 @@ export default function EventDetailPage() {
     : format(new Date(event.startDate), 'LLL dd, y, hh:mm a');
 
   return (
+    <>
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
        <div className="flex items-center gap-4">
         <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
@@ -452,9 +537,7 @@ export default function EventDetailPage() {
                       <DialogContent>
                         <DialogHeader>
                           <DialogTitle>Add New Ticket Type</DialogTitle>
-                          <DialogDescription>
-                              Fill out the details for the new ticket tier.
-                          </DialogDescription>
+                          <DialogDescription>Fill out the details for the new ticket tier.</DialogDescription>
                         </DialogHeader>
                         <Form {...ticketForm}>
                           <form onSubmit={ticketForm.handleSubmit(onAddTicketTypeSubmit)} className="space-y-4">
@@ -489,6 +572,7 @@ export default function EventDetailPage() {
                                     <TableHead>Price</TableHead>
                                     <TableHead>Sold / Total</TableHead>
                                     <TableHead>Revenue</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -498,6 +582,16 @@ export default function EventDetailPage() {
                                         <TableCell>ETB {Number(ticket.price).toFixed(2)}</TableCell>
                                         <TableCell>{ticket.sold} / {ticket.total}</TableCell>
                                         <TableCell>ETB {(ticket.sold * Number(ticket.price)).toLocaleString()}</TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <Button variant="ghost" size="icon" onClick={() => { setTicketToEdit(ticket); setIsEditTicketTypeOpen(true); }}>
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" onClick={() => handleOpenDeleteDialog({ id: ticket.id, name: ticket.name, type: 'ticket' })}>
+                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -521,9 +615,7 @@ export default function EventDetailPage() {
                         <DialogContent>
                             <DialogHeader>
                                 <DialogTitle>Create New Promo Code</DialogTitle>
-                                <DialogDescription>
-                                    Configure a new discount code for your event.
-                                </DialogDescription>
+                                <DialogDescription>Configure a new discount code for your event.</DialogDescription>
                             </DialogHeader>
                             <Form {...promoCodeForm}>
                                 <form onSubmit={promoCodeForm.handleSubmit(onAddPromoCodeSubmit)} className="space-y-4">
@@ -583,6 +675,7 @@ export default function EventDetailPage() {
                                     <TableHead>Type</TableHead>
                                     <TableHead>Value</TableHead>
                                     <TableHead>Usage</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -594,6 +687,16 @@ export default function EventDetailPage() {
                                             {code.type === 'PERCENTAGE' ? `${code.value}% off` : `ETB ${Number(code.value).toFixed(2)} off`}
                                         </TableCell>
                                         <TableCell>{code.uses} / {code.maxUses}</TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <Button variant="ghost" size="icon" onClick={() => { setPromoToEdit(code); setIsEditPromoCodeOpen(true); }}>
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" onClick={() => handleOpenDeleteDialog({ id: code.id, name: code.code, type: 'promo' })}>
+                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -604,5 +707,100 @@ export default function EventDetailPage() {
         </TabsContent>
       </Tabs>
     </div>
+    
+    {/* Edit Ticket Type Dialog */}
+    <Dialog open={isEditTicketTypeOpen} onOpenChange={setIsEditTicketTypeOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Ticket Type</DialogTitle>
+          <DialogDescription>Update the details for the "{ticketToEdit?.name}" ticket.</DialogDescription>
+        </DialogHeader>
+        <Form {...ticketForm}>
+          <form onSubmit={ticketForm.handleSubmit(onEditTicketTypeSubmit)} className="space-y-4">
+             <FormField control={ticketForm.control} name="name" render={({ field }) => (
+                <FormItem><FormLabel>Ticket Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+            )}/>
+            <div className="grid grid-cols-2 gap-4">
+               <FormField control={ticketForm.control} name="price" render={({ field }) => (
+                  <FormItem><FormLabel>Price (ETB)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+               )}/>
+               <FormField control={ticketForm.control} name="total" render={({ field }) => (
+                  <FormItem><FormLabel>Quantity</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+               )}/>
+            </div>
+            <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsEditTicketTypeOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={ticketForm.formState.isSubmitting}>
+                    {ticketForm.formState.isSubmitting && <Loader2 className="animate-spin mr-2" />} Save Changes
+                </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+
+    {/* Edit Promo Code Dialog */}
+    <Dialog open={isEditPromoCodeOpen} onOpenChange={setIsEditPromoCodeOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Edit Promo Code</DialogTitle>
+                <DialogDescription>Update the details for the "{promoToEdit?.code}" promo code.</DialogDescription>
+            </DialogHeader>
+            <Form {...promoCodeForm}>
+                <form onSubmit={promoCodeForm.handleSubmit(onEditPromoCodeSubmit)} className="space-y-4">
+                    <FormField control={promoCodeForm.control} name="code" render={({ field }) => (
+                        <FormItem><FormLabel>Code</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                    <FormField control={promoCodeForm.control} name="type" render={({ field }) => (
+                        <FormItem><FormLabel>Discount Type</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    <SelectItem value="PERCENTAGE">Percentage</SelectItem>
+                                    <SelectItem value="FIXED">Fixed Amount</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}/>
+                    <div className="grid grid-cols-2 gap-4">
+                        <FormField control={promoCodeForm.control} name="value" render={({ field }) => (
+                            <FormItem><FormLabel>Value</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <FormField control={promoCodeForm.control} name="maxUses" render={({ field }) => (
+                            <FormItem><FormLabel>Usage Limit</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setIsEditPromoCodeOpen(false)}>Cancel</Button>
+                        <Button type="submit" disabled={promoCodeForm.formState.isSubmitting}>
+                            {promoCodeForm.formState.isSubmitting && <Loader2 className="animate-spin mr-2" />} Save Changes
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+        </DialogContent>
+    </Dialog>
+
+    {/* Delete Confirmation Dialog */}
+    <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the <strong>{itemToDelete?.name}</strong> {itemToDelete?.type}.
+                 {itemToDelete?.type === 'ticket' && ' This may affect users who have already purchased this ticket type.'}
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                Delete
+            </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
+
