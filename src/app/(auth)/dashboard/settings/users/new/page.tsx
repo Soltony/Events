@@ -36,6 +36,7 @@ import { Loader2, ArrowLeft, UserPlus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast"
 import { getRoles, addUser } from '@/lib/actions';
 import { PasswordInput } from '@/components/ui/password-input';
+import { useAuth } from '@/context/auth-context';
 
 const addUserFormSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required." }),
@@ -51,21 +52,32 @@ type AddUserFormValues = z.infer<typeof addUserFormSchema>;
 export default function UserRegistrationPage() {
     const { toast } = useToast();
     const router = useRouter();
+    const { user: currentUser } = useAuth();
     const [roles, setRoles] = useState<Role[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         const fetchRolesData = async () => {
+            if (!currentUser) return;
             try {
-                const fetchedRoles = await getRoles();
-                setRoles(fetchedRoles.filter((role: Role) => role.name !== 'Admin')); // Filter out Admin role
+                let fetchedRoles = await getRoles();
+                
+                // Always filter out the Admin role
+                let filteredRoles = fetchedRoles.filter((role: Role) => role.name !== 'Admin');
+
+                // If the current user is a Sub-admin, also filter out the Sub-admin role
+                if (currentUser.role?.name === 'Sub-admin') {
+                    filteredRoles = filteredRoles.filter((role: Role) => role.name !== 'Sub-admin');
+                }
+                
+                setRoles(filteredRoles);
             } catch (error) {
                 console.error("Failed to fetch roles:", error);
                 toast({ variant: 'destructive', title: 'Error', description: 'Could not load roles.' });
             }
         };
         fetchRolesData();
-    }, [toast]);
+    }, [toast, currentUser]);
     
     const addUserForm = useForm<AddUserFormValues>({
         resolver: zodResolver(addUserFormSchema),
