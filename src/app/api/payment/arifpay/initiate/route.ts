@@ -3,6 +3,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { randomBytes } from 'crypto';
 
+function formatPhoneNumber(phone: string): string {
+    if (phone.startsWith('09') && phone.length === 10) {
+        return '251' + phone.substring(1);
+    }
+    if (phone.startsWith('07') && phone.length === 10) {
+        return '251' + phone.substring(1);
+    }
+    // Return as is if it's already in a different format (e.g., 2519...)
+    return phone;
+}
+
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
@@ -42,7 +53,7 @@ export async function POST(req: NextRequest) {
 
         const arifpayData = {
             cancelUrl: `${appUrl}/events/${eventId}`,
-            phone: attendeeData.phone || '251954926213', // Use provided phone or fallback
+            phone: formatPhoneNumber(attendeeData.phone || '251954926213'),
             email: attendeeData.email || 'telebirrTest@gmail.com', // Use provided email or fallback
             nonce: nonce,
             errorUrl: `${appUrl}/events/${eventId}?error=payment_failed`,
