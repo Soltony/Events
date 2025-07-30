@@ -69,11 +69,11 @@ export default function UserManagementPage() {
     const canManageUser = (targetUser: UserWithRole): boolean => {
         if (!currentUser?.role?.name) return false;
         
-        // Prevent users from managing themselves, except for the Admin
-        if (targetUser.id === currentUser.id && currentUser.role.name !== 'Admin') return false; 
+        // Prevent users from managing themselves, ever. Admin exception is handled on the component level.
+        if (targetUser.id === currentUser.id) return false;
         
-        // No one can manage an Admin except the Admin themselves
-        if (targetUser.role?.name === 'Admin' && currentUser.role.name !== 'Admin') return false; 
+        // No one can manage an Admin
+        if (targetUser.role?.name === 'Admin') return false; 
 
         const targetUserRoleRank = roleHierarchy[targetUser.role.name] || 0;
         return currentUserRoleRank > targetUserRoleRank;
@@ -188,6 +188,7 @@ export default function UserManagementPage() {
                             const isManageable = canManageUser(user);
                             const canUpdate = hasPermission('User Management:Update');
                             const canDelete = hasPermission('User Management:Delete');
+                            const canEditSelf = user.id === currentUser?.id && canUpdate;
 
                             return (
                                 <TableRow key={user.id}>
@@ -208,7 +209,7 @@ export default function UserManagementPage() {
                                      <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
                                             {canUpdate && (
-                                                <Button variant="ghost" size="icon" asChild disabled={!isManageable && user.id !== currentUser?.id}>
+                                                <Button variant="ghost" size="icon" asChild disabled={!isManageable && !canEditSelf}>
                                                     <Link href={`/dashboard/settings/users/${user.id}/edit`}>
                                                         <Pencil className="h-4 w-4" />
                                                         <span className="sr-only">Edit</span>

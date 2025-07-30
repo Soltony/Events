@@ -26,7 +26,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -95,8 +94,9 @@ export default function EditUserPage() {
                     const currentUserRoleRank = currentUser.role?.name ? (roleHierarchy[currentUser.role.name] || 0) : 0;
                     const targetUserRoleRank = userData.role?.name ? (roleHierarchy[userData.role.name] || 0) : 0;
 
-                    // Deny access if a user tries to edit someone with an equal or higher role, unless it's an admin editing themselves
-                    if (currentUserRoleRank <= targetUserRoleRank && currentUser.id !== userData.id) {
+                    // Deny access if a user tries to edit someone with an equal or higher role, unless it's an admin editing other admins
+                    // or a user editing their own profile
+                    if (currentUser.id !== userData.id && currentUserRoleRank <= targetUserRoleRank) {
                         toast({ variant: 'destructive', title: 'Access Denied', description: "You don't have permission to edit this user." });
                         router.push('/dashboard/settings/users');
                         return;
@@ -209,7 +209,7 @@ export default function EditUserPage() {
                             <Select 
                                 onValueChange={field.onChange} 
                                 value={field.value}
-                                disabled={user?.role?.name === 'Admin'}
+                                disabled={user?.role?.name === 'Admin' && currentUser?.id !== user?.id}
                             >
                                 <FormControl><SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
                                 <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
