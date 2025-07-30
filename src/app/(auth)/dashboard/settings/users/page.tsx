@@ -68,8 +68,12 @@ export default function UserManagementPage() {
     
     const canManageUser = (targetUser: UserWithRole): boolean => {
         if (!currentUser?.role?.name) return false;
-        if (targetUser.id === currentUser.id) return false; // Cannot manage self
-        if (targetUser.role?.name === 'Admin') return false; // Nobody can manage Admin
+        
+        // Prevent users from managing themselves, except for the Admin
+        if (targetUser.id === currentUser.id && currentUser.role.name !== 'Admin') return false; 
+        
+        // No one can manage an Admin except the Admin themselves
+        if (targetUser.role?.name === 'Admin' && currentUser.role.name !== 'Admin') return false; 
 
         const targetUserRoleRank = roleHierarchy[targetUser.role.name] || 0;
         return currentUserRoleRank > targetUserRoleRank;
@@ -77,12 +81,22 @@ export default function UserManagementPage() {
 
 
     const fetchData = async () => {
+        if (!currentUser) {
+            setLoading(false);
+            return;
+        }
+
         try {
             !loading && setLoading(true);
-            const { users, roles } = await getUsersAndRoles();
-            // Filter out the Admin user from the list to be displayed
-            setUsers(users.filter(user => user.role.name !== 'Admin'));
-            setRoles(roles.filter((role: Role) => role.name !== 'Admin')); // Filter out Admin role for dropdown
+            const { users: allUsers, roles: allRoles } = await getUsersAndRoles();
+            
+            // Filter users based on current user's role
+            const filteredUsers = currentUser.role.name === 'Admin'
+                ? allUsers
+                : allUsers.filter(user => user.role.name !== 'Admin');
+
+            setUsers(filteredUsers);
+            setRoles(allRoles.filter((role: Role) => role.name !== 'Admin')); 
         } catch (error) {
             console.error("Failed to fetch settings data:", error);
             toast({ variant: 'destructive', title: 'Error', description: 'Could not load users and roles.' });
@@ -93,7 +107,7 @@ export default function UserManagementPage() {
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [currentUser]);
 
     const handleRoleChange = async (userId: string, newRoleId: string) => {
         const oldUsers = [...users];
@@ -183,7 +197,7 @@ export default function UserManagementPage() {
                                         <Select 
                                             value={user.roleId ?? ''} 
                                             onValueChange={(newRoleId) => handleRoleChange(user.id, newRoleId)}
-                                            disabled={!isManageable || !canUpdate}
+                                            disabled={!isManageable || !canUpdate || user.role.name === 'Admin'}
                                         >
                                             <SelectTrigger>
                                                 <SelectValue placeholder={user.role?.name || "Select role"} />
@@ -194,7 +208,7 @@ export default function UserManagementPage() {
                                      <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
                                             {canUpdate && (
-                                                <Button variant="ghost" size="icon" asChild disabled={!isManageable}>
+                                                <Button variant="ghost" size="icon" asChild disabled={!isManageable && user.id !== currentUser?.id}>
                                                     <Link href={`/dashboard/settings/users/${user.id}/edit`}>
                                                         <Pencil className="h-4 w-4" />
                                                         <span className="sr-only">Edit</span>
