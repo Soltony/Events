@@ -65,9 +65,9 @@ export default function UserRegistrationPage() {
                 // Always filter out the Admin role
                 let filteredRoles = fetchedRoles.filter((role: Role) => role.name !== 'Admin');
 
-                // If the current user is a Sub-admin, also filter out the Sub-admin role
-                if (currentUser.role?.name === 'Sub-admin') {
-                    filteredRoles = filteredRoles.filter((role: Role) => role.name !== 'Sub-admin');
+                // Exclude the current user's own role from the list
+                if (currentUser.role?.name) {
+                    filteredRoles = filteredRoles.filter((role: Role) => role.name !== currentUser.role.name);
                 }
                 
                 setRoles(filteredRoles);
