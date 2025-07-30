@@ -15,7 +15,7 @@ export default function ProfileLayout({
             <header className="sticky top-0 z-10 flex h-16 items-center justify-end px-4 md:px-6 border-b">
                 <UserNav />
             </header>
-            <main className="flex flex-1">
+            <main className="flex-1 flex items-center justify-center p-4">
                 {children}
             </main>
         </div>
