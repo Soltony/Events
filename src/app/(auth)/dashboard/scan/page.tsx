@@ -21,7 +21,7 @@ interface CheckInResult extends Attendee {
 const QR_REGION_ID = "qr-code-reader";
 
 export default function ScanQrPage() {
-    const [scanner, setScanner] = useState<Html5Qrcode | null>(null);
+    const scannerRef = useRef<Html5Qrcode | null>(null);
     const [scanResult, setScanResult] = useState<CheckInResult | null>(null);
     const [scanError, setScanError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -30,12 +30,19 @@ export default function ScanQrPage() {
     const { toast } = useToast();
 
     useEffect(() => {
-        const qrScanner = new Html5Qrcode(QR_REGION_ID);
-        setScanner(qrScanner);
+        // Ensure this only runs once
+        if (!scannerRef.current) {
+            scannerRef.current = new Html5Qrcode(QR_REGION_ID);
+        }
 
+        const scanner = scannerRef.current;
+        
+        // Cleanup function
         return () => {
-            if (qrScanner && qrScanner.getState() === Html5QrcodeScannerState.SCANNING) {
-                qrScanner.stop().catch(err => console.error("Failed to stop scanner on cleanup", err));
+            if (scanner && scanner.getState() === Html5QrcodeScannerState.SCANNING) {
+                scanner.stop().catch(err => {
+                    console.error("Failed to stop scanner on cleanup", err);
+                });
             }
         };
     }, []);
@@ -68,6 +75,7 @@ export default function ScanQrPage() {
         } finally {
             setIsLoading(false);
             if (isScanning) {
+                // Clear the result/error message after a delay to allow user to see it
                 setTimeout(() => {
                     setScanResult(null);
                     setScanError(null);
@@ -77,11 +85,12 @@ export default function ScanQrPage() {
     };
     
     const handleScanError = (errorMessage: string) => {
-        // This is called frequently by the library, so we ignore most errors.
-        // console.warn(`QR scan error: ${errorMessage}`);
+        // This is called frequently by the library, so we can ignore most verbose errors
+        // to avoid flooding the console. A specific error can be handled here if needed.
     };
 
     const startScan = async () => {
+        const scanner = scannerRef.current;
         if (!scanner || isScanning) return;
         
         try {
@@ -104,13 +113,21 @@ export default function ScanQrPage() {
     };
     
     const stopScan = () => {
+        const scanner = scannerRef.current;
         if (!scanner || !isScanning) return;
+
         scanner.stop()
-            .then(() => setIsScanning(false))
-            .catch(err => console.error("Failed to stop scanner", err));
+            .then(() => {
+                setIsScanning(false);
+            })
+            .catch(err => {
+                console.error("Failed to stop scanner", err);
+                toast({ variant: 'destructive', title: 'Error', description: 'Could not stop the camera.' });
+            });
     }
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const scanner = scannerRef.current;
         const file = e.target.files?.[0];
         if (file && scanner) {
             setIsLoading(true);
