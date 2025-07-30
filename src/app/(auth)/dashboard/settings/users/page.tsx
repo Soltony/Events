@@ -41,7 +41,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from '@/context/auth-context';
 
@@ -89,6 +88,9 @@ export default function UserManagementPage() {
             const { users: allUsers, roles: allRoles } = await getUsersAndRoles();
             
             const filteredUsers = allUsers.filter(user => {
+                if (user.id === currentUser.id) {
+                    return true;
+                }
                 // If current user is not Admin, hide Admin users
                 if (currentUser.role.name !== 'Admin' && user.role.name === 'Admin') {
                     return false;
@@ -195,8 +197,10 @@ export default function UserManagementPage() {
                       const isManageable = canManageUser(user);
                       const canUpdate = hasPermission('User Management:Update');
                       const canDelete = hasPermission('User Management:Delete');
-                      const canEditSelf = user.id === currentUser?.id && canUpdate;
-                      const isDeletable = canDelete && isManageable;
+                      const canEditSelf = user.id === currentUser?.id;
+                      const isEditable = (isManageable && canUpdate) || canEditSelf;
+                      const isDeletable = isManageable && canDelete;
+
                       return (
                         <TableRow key={user.id}>
                           <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
@@ -216,7 +220,7 @@ export default function UserManagementPage() {
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
                               {canUpdate && (
-                                <Button variant="ghost" size="icon" asChild disabled={!isManageable && !canEditSelf}>
+                                <Button variant="ghost" size="icon" asChild disabled={!isEditable}>
                                   <Link href={`/dashboard/settings/users/${user.id}/edit`}>
                                     <Pencil className="h-4 w-4" />
                                     <span className="sr-only">Edit</span>
