@@ -593,19 +593,22 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         if (eventCount > 0) {
             throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
         }
-        
-        const cookieStore = cookies();
-        const tokenCookie = cookieStore.get('authTokens');
-        if (!tokenCookie) {
-             throw new Error('No auth token available for server action.');
-        }
-        const token = JSON.parse(tokenCookie.value).accessToken;
 
-        const response = await fetch(`${process.env.APP_URL}/api/auth/delete-users`, {
+        const authApiKey = process.env.AUTH_SERVICE_API_KEY;
+        if (!authApiKey) {
+            throw new Error('Auth service API key is not configured.');
+        }
+
+        const authApiUrl = process.env.AUTH_API_BASE_URL;
+        if (!authApiUrl) {
+            throw new Error('Authentication service URL is not configured.');
+        }
+
+        const response = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'X-API-Key': authApiKey 
             },
             body: JSON.stringify({ phoneNumbers: [phoneNumber] })
         });
