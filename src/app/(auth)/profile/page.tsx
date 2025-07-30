@@ -111,7 +111,7 @@ export default function ProfilePage() {
           </Alert>
         )}
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="currentPassword"
@@ -151,7 +151,7 @@ export default function ProfilePage() {
                 </FormItem>
               )}
             />
-            <div className="flex justify-end">
+            <div className="flex justify-end pt-2">
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
