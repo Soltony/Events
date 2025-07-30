@@ -69,10 +69,8 @@ export default function UserManagementPage() {
     const canManageUser = (targetUser: UserWithRole): boolean => {
         if (!currentUser?.role?.name) return false;
         
-        // Prevent users from managing themselves, ever. Admin exception is handled on the component level.
         if (targetUser.id === currentUser.id) return false;
         
-        // No one can manage an Admin
         if (targetUser.role?.name === 'Admin') return false; 
 
         const targetUserRoleRank = roleHierarchy[targetUser.role.name] || 0;
@@ -90,7 +88,6 @@ export default function UserManagementPage() {
             !loading && setLoading(true);
             const { users: allUsers, roles: allRoles } = await getUsersAndRoles();
             
-            // Filter users based on current user's role
             const filteredUsers = currentUser.role.name === 'Admin'
                 ? allUsers
                 : allUsers.filter(user => user.role.name !== 'Admin');
@@ -124,7 +121,8 @@ export default function UserManagementPage() {
     };
 
     const handleDeleteUser = async (user: UserWithRole) => {
-        if (!canManageUser(user)) {
+        const isManageable = canManageUser(user);
+        if (!hasPermission('User Management:Delete') || !isManageable) {
             toast({ variant: 'destructive', title: 'Action Denied', description: 'You do not have permission to delete this user.' });
             return;
         }
