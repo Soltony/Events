@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -259,6 +260,29 @@ export async function addTicketType(eventId: number, data: Omit<TicketType, 'id'
     return serialize(newTicketType);
 }
 
+export async function updateTicketType(ticketTypeId: number, data: Partial<Omit<TicketType, 'id' | 'eventId' | 'createdAt' | 'updatedAt' | 'sold'>>) {
+  const updatedTicketType = await prisma.ticketType.update({
+    where: { id: ticketTypeId },
+    data: data,
+  });
+  revalidatePath(`/dashboard/events/${updatedTicketType.eventId}`);
+  return serialize(updatedTicketType);
+}
+
+export async function deleteTicketType(ticketTypeId: number) {
+  const ticketType = await prisma.ticketType.findUnique({ where: { id: ticketTypeId } });
+  if (!ticketType) throw new Error('Ticket type not found');
+
+  const attendeeCount = await prisma.attendee.count({ where: { ticketTypeId: ticketTypeId } });
+  if (attendeeCount > 0) {
+    throw new Error(`Cannot delete ticket type, ${attendeeCount} tickets have already been sold.`);
+  }
+
+  await prisma.ticketType.delete({ where: { id: ticketTypeId } });
+  revalidatePath(`/dashboard/events/${ticketType.eventId}`);
+}
+
+
 export async function addPromoCode(eventId: number, data: { code: string; type: PromoCodeType; value: number; maxUses: number; }) {
     const newPromoCode = await prisma.promoCode.create({
         data: {
@@ -270,6 +294,26 @@ export async function addPromoCode(eventId: number, data: { code: string; type: 
     return serialize(newPromoCode);
 }
 
+export async function updatePromoCode(promoCodeId: number, data: Partial<PromoCode>) {
+  const updatedPromoCode = await prisma.promoCode.update({
+    where: { id: promoCodeId },
+    data: data,
+  });
+  revalidatePath(`/dashboard/events/${updatedPromoCode.eventId}`);
+  return serialize(updatedPromoCode);
+}
+
+export async function deletePromoCode(promoCodeId: number) {
+  const promoCode = await prisma.promoCode.findUnique({ where: { id: promoCodeId } });
+  if (!promoCode) throw new Error('Promo code not found');
+
+  if (promoCode.uses > 0) {
+    throw new Error('Cannot delete promo code, it has already been used.');
+  }
+
+  await prisma.promoCode.delete({ where: { id: promoCodeId } });
+  revalidatePath(`/dashboard/events/${promoCode.eventId}`);
+}
 
 // Dashboard Actions
 export async function getDashboardData() {
@@ -833,3 +877,4 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
