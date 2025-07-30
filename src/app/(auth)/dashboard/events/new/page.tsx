@@ -143,7 +143,7 @@ export default function CreateEventPage() {
 
   return (
     <div className="flex flex-1 justify-center p-4">
-      <div className="w-full max-w-4xl">
+      <div className="w-full max-w-3xl">
         <Card>
           <CardHeader>
             <CardTitle>Create New Event</CardTitle>
