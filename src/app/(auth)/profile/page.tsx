@@ -109,7 +109,7 @@ export default function ProfilePage() {
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Action Required</AlertTitle>
               <AlertDescription>
-                  For your security, you must change your temporary password before you can access the dashboard.
+                  For your security, change your temporary password before accessing the dashboard.
               </AlertDescription>
           </Alert>
         )}
