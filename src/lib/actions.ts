@@ -17,8 +17,7 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
 // This function can be used in any server action to get the currently logged-in user.
 async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
   try {
-    const cookieStore = cookies();
-    const tokenCookie = await cookieStore.get('authTokens');
+    const tokenCookie = cookies().get('authTokens');
 
     if (!tokenCookie?.value) {
       return null;
@@ -553,7 +552,7 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         }
         
         const cookieStore = cookies();
-        const tokenCookie = await cookieStore.get('authTokens');
+        const tokenCookie = cookieStore.get('authTokens');
         if (!tokenCookie) {
              throw new Error('No auth token available for server action.');
         }
