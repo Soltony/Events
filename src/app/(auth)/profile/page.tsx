@@ -99,9 +99,6 @@ export default function ProfilePage() {
     <Card className="w-full max-w-lg">
       <CardHeader>
         <CardTitle>Change Password</CardTitle>
-        <CardDescription>
-          Enter your current password and a new password to update your credentials.
-        </CardDescription>
       </CardHeader>
       <CardContent>
          {user?.passwordChangeRequired && (
