@@ -89,12 +89,12 @@ export default function UserManagementPage() {
             const { users: allUsers, roles: allRoles } = await getUsersAndRoles();
             
             const filteredUsers = allUsers.filter(user => {
-                // Hide users with the same role as the current user
-                if (user.role?.name === currentUser.role.name) {
-                    return false;
-                }
                 // If current user is not Admin, hide Admin users
                 if (currentUser.role.name !== 'Admin' && user.role.name === 'Admin') {
+                    return false;
+                }
+                // Do not display users with the same role as the current user (peers)
+                if (user.role?.name === currentUser.role.name && user.id !== currentUser.id) {
                     return false;
                 }
                 return true;
@@ -145,120 +145,118 @@ export default function UserManagementPage() {
     };
 
   return (
-     <div className="flex flex-1 justify-center p-4">
+    <div className="flex flex-1 justify-center p-4">
       <div className="w-full max-w-4xl">
         <div className="flex flex-1 flex-col gap-4 md:gap-8">
-        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4">
             <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4" />
-            <span className="sr-only">Back</span>
+              <ArrowLeft className="h-4 w-4" />
+              <span className="sr-only">Back</span>
             </Button>
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-                <p className="text-muted-foreground">
-                    View and manage existing user accounts and their roles.
-                </p>
+              <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
+              <p className="text-muted-foreground">
+                View and manage existing user accounts and their roles.
+              </p>
             </div>
-        </div>
-        
-        {loading ? (
+          </div>
+          {loading ? (
             <Card>
-                <CardHeader><Skeleton className="h-6 w-32" /></CardHeader>
-                <CardContent><Skeleton className="h-40 w-full" /></CardContent>
+              <CardHeader><Skeleton className="h-6 w-32" /></CardHeader>
+              <CardContent><Skeleton className="h-40 w-full" /></CardContent>
             </Card>
-        ) : (
+          ) : (
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <div>
-                        <CardTitle>All Users</CardTitle>
-                        <CardDescription>Assign roles to users in the system.</CardDescription>
-                    </div>
-                    {hasPermission('User Registration:Create') && (
-                        <Button asChild style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
-                            <Link href="/dashboard/settings/users/new">
-                                <UserPlus className="mr-2 h-4 w-4" /> Add User
-                            </Link>
-                        </Button>
-                    )}
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Phone Number</TableHead>
-                                <TableHead className="w-[180px]">Role</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {users.map((user) => {
-                                const isManageable = canManageUser(user);
-                                const canUpdate = hasPermission('User Management:Update');
-                                const canDelete = hasPermission('User Management:Delete');
-                                const canEditSelf = user.id === currentUser?.id && canUpdate;
-                                const isDeletable = canDelete && isManageable;
-
-                                return (
-                                    <TableRow key={user.id}>
-                                        <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
-                                        <TableCell>{user.phoneNumber}</TableCell>
-                                        <TableCell>
-                                            <Select 
-                                                value={user.roleId ?? ''} 
-                                                onValueChange={(newRoleId) => handleRoleChange(user.id, newRoleId)}
-                                                disabled={!isManageable || !canUpdate || user.role.name === 'Admin'}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder={user.role?.name || "Select role"} />
-                                                </Trigger>
-                                                <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
-                                            </Select>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-2">
-                                                {canUpdate && (
-                                                    <Button variant="ghost" size="icon" asChild disabled={!isManageable && !canEditSelf}>
-                                                        <Link href={`/dashboard/settings/users/${user.id}/edit`}>
-                                                            <Pencil className="h-4 w-4" />
-                                                            <span className="sr-only">Edit</span>
-                                                        </Link>
-                                                    </Button>
-                                                )}
-                                                {canDelete && (
-                                                    <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" disabled={!isDeletable}>
-                                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                                            <span className="sr-only">Delete</span>
-                                                        </Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                            <AlertDialogHeader>
-                                                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                This action cannot be undone. This will permanently delete the user <strong>{user.firstName} {user.lastName}</strong> and all associated data.
-                                                            </AlertDialogDescription>
-                                                            </AlertDialogHeader>
-                                                            <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDeleteUser(user)} className="bg-destructive hover:bg-destructive/90">
-                                                                Delete
-                                                            </AlertDialogAction>
-                                                            </AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
-                </CardContent>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>All Users</CardTitle>
+                  <CardDescription>Assign roles to users in the system.</CardDescription>
+                </div>
+                {hasPermission('User Registration:Create') && (
+                  <Button asChild style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
+                    <Link href="/dashboard/settings/users/new">
+                      <UserPlus className="mr-2 h-4 w-4" /> Add User
+                    </Link>
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Phone Number</TableHead>
+                      <TableHead className="w-[180px]">Role</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => {
+                      const isManageable = canManageUser(user);
+                      const canUpdate = hasPermission('User Management:Update');
+                      const canDelete = hasPermission('User Management:Delete');
+                      const canEditSelf = user.id === currentUser?.id && canUpdate;
+                      const isDeletable = canDelete && isManageable;
+                      return (
+                        <TableRow key={user.id}>
+                          <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
+                          <TableCell>{user.phoneNumber}</TableCell>
+                          <TableCell>
+                            <Select
+                              value={user.roleId ?? ''}
+                              onValueChange={(newRoleId) => handleRoleChange(user.id, newRoleId)}
+                              disabled={!isManageable || !canUpdate || user.role.name === 'Admin'}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder={user.role?.name || "Select role"} />
+                              </SelectTrigger>
+                              <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              {canUpdate && (
+                                <Button variant="ghost" size="icon" asChild disabled={!isManageable && !canEditSelf}>
+                                  <Link href={`/dashboard/settings/users/${user.id}/edit`}>
+                                    <Pencil className="h-4 w-4" />
+                                    <span className="sr-only">Edit</span>
+                                  </Link>
+                                </Button>
+                              )}
+                              {canDelete && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" disabled={!isDeletable}>
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                      <span className="sr-only">Delete</span>
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete the user <strong>{user.firstName} {user.lastName}</strong> and all associated data.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDeleteUser(user)} className="bg-destructive hover:bg-destructive/90">
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
             </Card>
-        )}
+          )}
         </div>
       </div>
     </div>
