@@ -29,19 +29,15 @@ const QrScannerComponent = dynamic(() => import('@/components/qr-scanner'), {
 
 
 export default function ScanQrPage() {
-    const [scanResult, setScanResult] = useState<CheckInResult | null>(null);
-    const [scanError, setScanError] = useState<string | null>(null);
+    const [result, setResult] = useState<{data: CheckInResult | null, error: string | null} | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
 
-    const handleScanSuccess = async (decodedText: string) => {
-        // Stop scanning immediately to prevent multiple scans
-        setIsScanning(false);
+    const processScan = async (decodedText: string) => {
         setIsLoading(true);
-        setScanResult(null);
-        setScanError(null);
+        setResult(null);
         
         try {
             // Attempt to parse, but handle non-JSON QR codes gracefully.
@@ -53,11 +49,7 @@ export default function ScanQrPage() {
                    throw new Error("Invalid QR code format.");
                 }
             } catch (e) {
-                 // If parsing fails, maybe the QR code just contains the ID.
-                 // This is a fallback and can be removed if QR format is strict.
                  if (typeof decodedText === 'string' && decodedText.length > 0) {
-                     // Basic validation if it could be an ID. This is just an example.
-                     // In a real scenario, you might just pass the raw string to the backend.
                     ticketId = parseInt(decodedText, 10);
                     if (isNaN(ticketId)) {
                         throw new Error("QR code contains invalid data.");
@@ -67,41 +59,42 @@ export default function ScanQrPage() {
                  }
             }
             
-            const result = await checkInAttendee(ticketId);
+            const checkInResult = await checkInAttendee(ticketId);
 
-            if (result.error) {
-                setScanError(result.error);
-                toast({ variant: 'destructive', title: 'Check-in Failed', description: result.error });
-            } else if(result.data) {
-                setScanResult(result.data);
-                toast({ title: 'Check-in Successful!', description: `${result.data.name} has been checked in.` });
+            if (checkInResult.error) {
+                setResult({ data: checkInResult.data, error: checkInResult.error });
+                toast({ variant: 'destructive', title: 'Check-in Failed', description: checkInResult.error });
+            } else if(checkInResult.data) {
+                setResult({ data: checkInResult.data, error: null });
+                toast({ title: 'Check-in Successful!', description: `${checkInResult.data.name} has been checked in.` });
             }
         } catch (error: any) {
             console.error("Scan processing error:", error);
             const errorMessage = error.message || "Invalid QR code. Please scan a valid NibTera ticket.";
-            setScanError(errorMessage);
+            setResult({ data: null, error: errorMessage });
             toast({ variant: 'destructive', title: 'Scan Error', description: errorMessage });
         } finally {
             setIsLoading(false);
         }
     };
     
+    const handleScanSuccess = (decodedText: string) => {
+        setIsScanning(false);
+        processScan(decodedText);
+    };
+
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            setIsLoading(true);
-            setScanResult(null);
-            setScanError(null);
             // This hidden div is a requirement for the html5-qrcode library to process files.
             const qrScanner = new Html5Qrcode('qr-code-reader-file-upload');
             try {
                 const decodedText = await qrScanner.scanFile(file, false);
-                await handleScanSuccess(decodedText);
+                await processScan(decodedText);
             } catch (err) {
-                 setScanError("Could not decode QR code from image.");
+                 setResult({ data: null, error: "Could not decode QR code from image." });
                  toast({ variant: 'destructive', title: 'Scan Error', description: "Could not decode QR code from image." });
             } finally {
-                setIsLoading(false);
                 if(fileInputRef.current) {
                     fileInputRef.current.value = '';
                 }
@@ -120,26 +113,36 @@ export default function ScanQrPage() {
             );
         }
         
-        if (scanResult) {
+        if (!result) return null;
+        
+        if (result.data && !result.error) {
             return (
                 <Alert variant="default" className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
                     <AlertTitle className="text-green-800 dark:text-green-300">Check-in Successful</AlertTitle>
                     <AlertDescription className="text-green-700 dark:text-green-400">
-                       <div className="font-semibold text-lg">{scanResult.name}</div>
-                       <p><span className="font-medium">Event:</span> {scanResult.event.name}</p>
-                       <p><span className="font-medium">Ticket:</span> {scanResult.ticketType.name}</p>
+                       <div className="font-semibold text-lg">{result.data.name}</div>
+                       <p><span className="font-medium">Event:</span> {result.data.event.name}</p>
+                       <p><span className="font-medium">Ticket:</span> {result.data.ticketType.name}</p>
                     </AlertDescription>
                 </Alert>
             );
         }
 
-        if (scanError) {
+        if (result.error) {
              return (
                  <Alert variant="destructive">
                     <XCircle className="h-4 w-4" />
                     <AlertTitle>Check-in Failed</AlertTitle>
-                    <AlertDescription>{scanError}</AlertDescription>
+                    <AlertDescription>
+                      {result.error}
+                      {result.data && (
+                         <div className="mt-2 pt-2 border-t border-destructive/20">
+                            <p className="font-semibold">{result.data.name}</p>
+                            <p><span className="font-medium">Event:</span> {result.data.event.name}</p>
+                          </div>
+                      )}
+                    </AlertDescription>
                 </Alert>
              )
         }
@@ -180,8 +183,7 @@ export default function ScanQrPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                         <Button onClick={() => {
                             setIsScanning(prev => !prev);
-                            setScanResult(null);
-                            setScanError(null);
+                            setResult(null);
                         }} variant={isScanning ? "destructive" : "default"}>
                             {isScanning ? 'Stop Scanning' : 'Start Camera'}
                         </Button>
