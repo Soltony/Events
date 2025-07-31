@@ -1,3 +1,4 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -471,18 +472,12 @@ export async function addUser(data: any) {
     if (!authApiUrl) {
       throw new Error('Auth API URL not configured.');
     }
-    
-    const authApiKey = process.env.AUTH_SERVICE_API_KEY;
-    if (!authApiKey) {
-        throw new Error('Auth service API key is not configured.');
-    }
 
     try {
         const registrationResponse = await fetch(`${authApiUrl}/api/Auth/register`, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
-                'X-API-Key': authApiKey
             },
             body: JSON.stringify({
                 firstName,
@@ -601,19 +596,16 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error('Authentication service URL is not configured.');
         }
 
-        const cookieStore = cookies();
-        const tokenCookie = cookieStore.get('authTokens');
-        if (!tokenCookie?.value) {
-            throw new Error('Authentication token not found');
+        const authApiKey = process.env.AUTH_SERVICE_API_KEY;
+        if (!authApiKey) {
+            throw new Error('Auth service API key is not configured.');
         }
-        const tokenData = JSON.parse(tokenCookie.value);
-        const token = tokenData.accessToken;
 
         const response = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'X-API-Key': authApiKey
             },
             body: JSON.stringify({ phoneNumbers: [phoneNumber] })
         });
@@ -739,7 +731,6 @@ export async function purchaseTickets(request: PurchaseRequest) {
     });
 
     let totalAmount = 0;
-    let orderDescription = '';
     const items = [];
 
     for (const ticket of tickets) {
@@ -757,8 +748,6 @@ export async function purchaseTickets(request: PurchaseRequest) {
         });
     }
     
-    orderDescription = items.map(item => `${item.quantity}x ${item.name}`).join(', ');
-
     const attendeeData = {
         name: attendeeDetails.name,
         email: targetUser?.email,
