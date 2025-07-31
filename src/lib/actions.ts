@@ -472,7 +472,13 @@ export async function addUser(data: any) {
     if (!authApiUrl) {
       throw new Error('Auth API URL not configured.');
     }
-
+    const cookieStore = cookies();
+        const tokenCookie = cookieStore.get('authTokens');
+        if (!tokenCookie?.value) {
+            throw new Error('Authentication token not found');
+        }
+        const tokenData = JSON.parse(tokenCookie.value);
+        const token = tokenData.accessToken;
     try {
         const registrationResponse = await fetch(`${authApiUrl}/api/Auth/register`, {
             method: 'POST',
@@ -596,16 +602,19 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error('Authentication service URL is not configured.');
         }
 
-        const authApiKey = process.env.AUTH_SERVICE_API_KEY;
-        if (!authApiKey) {
-            throw new Error('Auth service API key is not configured.');
+        const cookieStore = cookies();
+        const tokenCookie = cookieStore.get('authTokens');
+        if (!tokenCookie?.value) {
+            throw new Error('Authentication token not found');
         }
-
+        const tokenData = JSON.parse(tokenCookie.value);
+        const token = tokenData.accessToken;
+       
         const response = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-API-Key': authApiKey
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ phoneNumbers: [phoneNumber] })
         });
