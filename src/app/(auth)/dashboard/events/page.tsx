@@ -147,23 +147,26 @@ export default function ManageEventsPage() {
                     </CardDescription>
                   </div>
                 </CardContent>
-                 <CardFooter className="p-2 border-t flex gap-2">
-                    <Button asChild variant="ghost" size="sm" className="flex-1">
+                 <CardFooter className="p-2 border-t flex justify-end gap-2">
+                    <Button asChild variant="ghost" size="icon">
                         <Link href={`/dashboard/events/${event.id}/edit`}>
-                            <Pencil className="mr-2 h-4 w-4" /> Edit
+                            <Pencil className="h-4 w-4" />
+                            <span className="sr-only">Edit</span>
                         </Link>
                     </Button>
                     <Button 
                         variant="ghost" 
-                        size="sm" 
-                        className="flex-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        size="icon"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={() => handleOpenDeleteDialog(event)}
                     >
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete</span>
                     </Button>
-                    <Button asChild size="sm" className="flex-1">
+                    <Button asChild size="icon">
                         <Link href={`/dashboard/events/${event.id}`}>
-                            Manage <ArrowUpRight className="ml-2 h-4 w-4" />
+                            <ArrowUpRight className="h-4 w-4" />
+                             <span className="sr-only">Manage</span>
                         </Link>
                     </Button>
                 </CardFooter>
