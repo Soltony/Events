@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee } from '@prisma/client';
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
+import { ReadonlyRequestCookies, cookies } from 'next/headers';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -15,9 +15,9 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
 ));
 
 // This function can be used in any server action to get the currently logged-in user.
-async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
+async function getCurrentUser(cookieStore: ReadonlyRequestCookies): Promise<(User & { role: Role }) | null> {
   try {
-    const tokenCookie = cookies().get('authTokens');
+    const tokenCookie = cookieStore.get('authTokens');
 
     if (!tokenCookie?.value) {
       return null;
@@ -60,7 +60,7 @@ async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
 
 // Event Actions
 export async function getEvents() {
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(cookies());
     if (!user) {
         // Return empty array if not authenticated, AuthGuard will handle redirection
         return [];
@@ -117,7 +117,7 @@ export async function getEventById(id: number) {
 }
 
 export async function getEventDetails(id: number) {
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(cookies());
     if (!user) {
         throw new Error('User is not authenticated.');
     }
@@ -146,7 +146,7 @@ export async function getEventDetails(id: number) {
 
 export async function addEvent(data: any) {
     const { tickets, startDate, endDate, otherCategory, ...eventData } = data;
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(cookies());
     if (!user) {
         throw new Error('User is not authenticated.');
     }
@@ -186,7 +186,7 @@ export async function addEvent(data: any) {
 
 export async function updateEvent(id: number, data: any) {
     const { startDate, endDate, otherCategory, ...eventData } = data;
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(cookies());
     if (!user) {
         throw new Error('User is not authenticated.');
     }
@@ -224,7 +224,7 @@ export async function updateEvent(id: number, data: any) {
 }
 
 export async function deleteEvent(id: number) {
-  const user = await getCurrentUser();
+  const user = await getCurrentUser(cookies());
   if (!user) {
     throw new Error('User is not authenticated.');
   }
@@ -316,7 +316,7 @@ export async function deletePromoCode(promoCodeId: number) {
 
 // Dashboard Actions
 export async function getDashboardData() {
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(cookies());
     if (!user) {
          return {
             totalRevenue: 0,
@@ -364,7 +364,7 @@ export async function getDashboardData() {
 
 // Reports Actions
 export async function getReportsData() {
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(cookies());
     if (!user) {
         return {
             productSales: [],
@@ -426,7 +426,7 @@ export async function getReportsData() {
 
 // Settings Actions
 export async function getUsersAndRoles() {
-    const currentUser = await getCurrentUser();
+    const currentUser = await getCurrentUser(cookies());
     if (!currentUser) {
         return { users: [], roles: [] };
     }
@@ -467,12 +467,24 @@ export async function addUser(data: any) {
     if (!phoneRegex.test(phoneNumber)) {
         throw new Error("Phone number must start with 09 or 07 followed by 8 digits.");
     }
-            const token = JSON.parse(tokenCookie.value).accessToken;
+    
+    const authApiUrl = process.env.AUTH_API_BASE_URL;
+    if (!authApiUrl) {
+      throw new Error('Auth API URL not configured.');
+    }
+    
+    const authApiKey = process.env.AUTH_SERVICE_API_KEY;
+    if (!authApiKey) {
+        throw new Error('Auth service API key is not configured.');
+    }
 
     try {
         const registrationResponse = await fetch(`${authApiUrl}/api/Auth/register`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-API-Key': authApiKey
+            },
             body: JSON.stringify({
                 firstName,
                 lastName,
@@ -576,7 +588,7 @@ export async function updateUserRole(userId: string, newRoleId: string) {
 }
 
 export async function deleteUser(userId: string, phoneNumber: string) {
-    const currentUser = await getCurrentUser();
+    const currentUser = await getCurrentUser(cookies());
     if (!currentUser) {
         throw new Error("Not authenticated");
     }
@@ -590,11 +602,9 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
         }
         
-        const cookieStore = cookies();
-        const tokenCookie = cookieStore.get('authTokens');
-        if (!tokenCookie) {
-             throw new Error('No auth token available for server action.');
-
+        const authApiKey = process.env.AUTH_SERVICE_API_KEY;
+        if (!authApiKey) {
+            throw new Error('Auth service API key is not configured.');
         }
 
         const authApiUrl = process.env.AUTH_API_BASE_URL;
@@ -602,11 +612,11 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error('Authentication service URL is not configured.');
         }
 
-        const response = await fetch(`${process.env.APP_URL}/api/auth/delete-users`, {
+        const response = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'X-API-Key': authApiKey
             },
             body: JSON.stringify({ phoneNumbers: [phoneNumber] })
         });
@@ -791,7 +801,7 @@ export async function getTicketDetailsForConfirmation(attendeeId: number) {
     }
 
     if (attendee.userId) {
-      const user = await getCurrentUser();
+      const user = await getCurrentUser(cookies());
       if (user && attendee.userId !== user.id) {
           const cookieHeader = cookies().get('myTickets');
           const localTicketIds = cookieHeader ? JSON.parse(cookieHeader.value) : [];
@@ -877,3 +887,5 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
+    
