@@ -1,5 +1,3 @@
-
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -589,11 +587,6 @@ export async function updateUserRole(userId: string, newRoleId: string) {
 }
 
 export async function deleteUser(userId: string, phoneNumber: string) {
-    const currentUser = await getCurrentUser(cookies());
-    if (!currentUser) {
-        throw new Error("Not authenticated");
-    }
-
     try {
         const eventCount = await prisma.event.count({
             where: { organizerId: userId },
@@ -602,22 +595,25 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         if (eventCount > 0) {
             throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
         }
-        
-        const authApiKey = process.env.AUTH_SERVICE_API_KEY;
-        if (!authApiKey) {
-            throw new Error('Auth service API key is not configured.');
-        }
 
         const authApiUrl = process.env.AUTH_API_BASE_URL;
         if (!authApiUrl) {
             throw new Error('Authentication service URL is not configured.');
         }
 
+        const cookieStore = cookies();
+        const tokenCookie = cookieStore.get('authTokens');
+        if (!tokenCookie?.value) {
+            throw new Error('Authentication token not found');
+        }
+        const tokenData = JSON.parse(tokenCookie.value);
+        const token = tokenData.accessToken;
+
         const response = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-API-Key': authApiKey
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ phoneNumbers: [phoneNumber] })
         });
@@ -742,22 +738,31 @@ export async function purchaseTickets(request: PurchaseRequest) {
         where: { id: { in: ticketTypeIds } }
     });
 
+    let totalAmount = 0;
+    let orderDescription = '';
+    const items = [];
+
     for (const ticket of tickets) {
         const ticketType = ticketTypes.find(tt => tt.id === ticket.id);
         if (!ticketType) throw new Error(`Ticket type with id ${ticket.id} not found.`);
         if ((ticketType.total - ticketType.sold) < ticket.quantity) {
             throw new Error(`Not enough tickets available for ${ticketType.name}.`);
         }
+        totalAmount += ticket.price * ticket.quantity;
+        items.push({
+          name: ticket.name,
+          quantity: ticket.quantity,
+          price: ticket.price,
+          description: `Ticket for ${ticket.name}`
+        });
     }
     
-    const totalAmount = tickets.reduce((sum, ticket) => sum + (ticket.price * ticket.quantity), 0);
-    const orderDescription = tickets.map(t => `${t.quantity}x ${t.name}`).join(', ');
+    orderDescription = items.map(item => `${item.quantity}x ${item.name}`).join(', ');
 
     const attendeeData = {
         name: attendeeDetails.name,
         email: targetUser?.email,
         userId: targetUser?.id,
-        ticketTypeId: tickets[0].id, 
     };
 
     try {
@@ -771,10 +776,8 @@ export async function purchaseTickets(request: PurchaseRequest) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 eventId: eventId,
-                ticketTypeId: attendeeData.ticketTypeId,
-                quantity: tickets.reduce((sum, t) => sum + t.quantity, 0),
+                items: items,
                 price: totalAmount,
-                name: orderDescription,
                 attendeeData: { ...attendeeData, phone: attendeeDetails.phone },
                 promoCode: promoCode,
             }),
