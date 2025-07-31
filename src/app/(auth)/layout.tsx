@@ -38,7 +38,7 @@ export default function AuthLayout({
                   />
                 </Link>
                 <div className="md:hidden">
-                    <SidebarTrigger asChild className="text-sidebar-foreground hover:text-sidebar-foreground">
+                    <SidebarTrigger className="text-sidebar-foreground hover:text-sidebar-foreground">
                         <X className="h-6 w-6" />
                     </SidebarTrigger>
                 </div>
