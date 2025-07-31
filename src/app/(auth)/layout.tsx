@@ -36,9 +36,7 @@ export default function AuthLayout({
                     data-ai-hint="logo nibtera"
                   />
                 </Link>
-                <div className="md:hidden">
-                  <SidebarTrigger className="text-sidebar-foreground hover:text-sidebar-foreground" />
-                </div>
+                {/* The close button is now automatically handled by the SheetContent component from shadcn/ui */}
               </SidebarHeader>
               <div className="flex-1">
                 <MainNav />
