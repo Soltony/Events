@@ -123,6 +123,9 @@ export default function ManageEventsPage() {
                       <Skeleton className="h-7 w-3/4" />
                       <Skeleton className="h-5 w-1/2" />
                     </CardContent>
+                    <CardFooter className="p-4">
+                      <Skeleton className="h-9 w-full" />
+                    </CardFooter>
                 </Card>
             ))
         ) : events.length > 0 ? (
@@ -134,34 +137,7 @@ export default function ManageEventsPage() {
                   <Image src={imageUrl} alt={event.name} width={600} height={400} className="rounded-t-lg object-cover aspect-[3/2]" data-ai-hint={event.hint ?? 'event'} />
                 </CardHeader>
                 <CardContent className="p-4 flex-1 space-y-2">
-                  <div className="flex items-start justify-between gap-4">
-                    <CardTitle className="text-lg leading-tight">{event.name}</CardTitle>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Event Actions</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                             <DropdownMenuItem asChild>
-                                <Link href={`/dashboard/events/${event.id}/edit`}>
-                                    <Pencil className="mr-2 h-4 w-4" /> Edit
-                                </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                                className="text-destructive focus:text-destructive" 
-                                onSelect={() => handleOpenDeleteDialog(event)}>
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                                <Link href={`/dashboard/events/${event.id}`}>
-                                    <ArrowUpRight className="mr-2 h-4 w-4" /> Manage
-                                </Link>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                  <CardTitle className="text-lg leading-tight">{event.name}</CardTitle>
                   <div className="space-y-1">
                     <Badge variant="outline" className="text-xs">{event.category}</Badge>
                     <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
@@ -171,6 +147,26 @@ export default function ManageEventsPage() {
                     </CardDescription>
                   </div>
                 </CardContent>
+                 <CardFooter className="p-2 border-t flex gap-2">
+                    <Button asChild variant="ghost" size="sm" className="flex-1">
+                        <Link href={`/dashboard/events/${event.id}/edit`}>
+                            <Pencil className="mr-2 h-4 w-4" /> Edit
+                        </Link>
+                    </Button>
+                    <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="flex-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleOpenDeleteDialog(event)}
+                    >
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                    </Button>
+                    <Button asChild size="sm" className="flex-1">
+                        <Link href={`/dashboard/events/${event.id}`}>
+                            Manage <ArrowUpRight className="ml-2 h-4 w-4" />
+                        </Link>
+                    </Button>
+                </CardFooter>
               </Card>
             )
           })
