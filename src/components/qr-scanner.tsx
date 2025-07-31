@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Camera } from 'lucide-react';
@@ -28,29 +28,24 @@ export default function QrScannerComponent({ onScanSuccess, isScanning, onStop }
             });
         }
         const scanner = scannerRef.current;
-        let didStart = false;
-
-        if (isScanning) {
+        
+        if (isScanning && scanner.getState() === Html5QrcodeScannerState.NOT_STARTED) {
             scanner.start(
                 { facingMode: "environment" },
                 { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
                 onScanSuccess,
                 (errorMessage) => { /* ignore errors */ }
-            ).then(() => {
-                didStart = true;
-            }).catch(err => {
+            ).catch(err => {
                 console.error("Unable to start scanning", err);
                 toast({ variant: 'destructive', title: 'Camera Error', description: 'Could not access camera. Please check permissions.' });
                 onStop();
             });
-        } else {
-             if (scanner.isScanning) {
-                scanner.stop().catch(err => console.error("Failed to stop scanner", err));
-             }
+        } else if (!isScanning && scanner.isScanning) {
+            scanner.stop().catch(err => console.error("Failed to stop scanner", err));
         }
 
         return () => {
-             if (didStart && scanner && scanner.isScanning) {
+             if (scanner && scanner.isScanning) {
                 scanner.stop().catch(err => {
                     console.error("Failed to stop scanner on cleanup", err);
                 });
@@ -60,7 +55,8 @@ export default function QrScannerComponent({ onScanSuccess, isScanning, onStop }
 
 
     return (
-        <div id={QR_REGION_ID} className={cn("w-full aspect-square bg-muted rounded-lg border-dashed border-2 flex items-center justify-center transition-all overflow-hidden", isScanning ? 'p-0 border-primary' : 'p-4')}>
+        <div className="w-full aspect-square bg-muted rounded-lg border-dashed border-2 flex items-center justify-center transition-all overflow-hidden relative">
+             <div id={QR_REGION_ID} className={cn("absolute inset-0 transition-opacity", isScanning ? "opacity-100" : "opacity-0")} />
             {!isScanning && (
                 <div className="text-center text-muted-foreground">
                     <Camera className="mx-auto h-12 w-12" />
