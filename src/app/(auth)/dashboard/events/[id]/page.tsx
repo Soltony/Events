@@ -401,32 +401,38 @@ export default function EventDetailPage() {
   return (
     <>
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
-       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
-          <span className="sr-only">Back</span>
-        </Button>
-        <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">{event.name}</h1>
-            <div className="text-muted-foreground flex items-center gap-4 flex-wrap">
-              <span>{eventDate}</span>
-              <span className="flex items-center gap-1"><MapPin className="h-4 w-4" /> {event.location}</span>
-              {event.hint && <span className="flex items-center gap-1"><Info className="h-4 w-4" /> {event.hint}</span>}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-4">
+                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
+                    <ArrowLeft className="h-4 w-4" />
+                    <span className="sr-only">Back</span>
+                </Button>
+                <div className="flex-1">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{event.name}</h1>
+                    <div className="text-muted-foreground flex flex-col sm:flex-row sm:items-center sm:gap-4 flex-wrap">
+                        <span className="text-sm">{eventDate}</span>
+                        <span className="flex items-center gap-1 text-sm"><MapPin className="h-4 w-4" /> {event.location}</span>
+                        {event.hint && <span className="flex items-center gap-1 text-sm"><Info className="h-4 w-4" /> {event.hint}</span>}
+                    </div>
+                </div>
+            </div>
+            <div className="flex justify-end">
+                <Button onClick={handleExport} disabled={isExporting}>
+                    {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+                    Export Report
+                </Button>
             </div>
         </div>
-        <Button onClick={handleExport} disabled={isExporting}>
-          {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
-          Export Report
-        </Button>
-      </div>
 
       <Tabs defaultValue="dashboard">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
-          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-          <TabsTrigger value="attendees">Attendees</TabsTrigger>
-          <TabsTrigger value="tickets">Tickets</TabsTrigger>
-          <TabsTrigger value="promo">Promo Codes</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 sm:w-auto">
+                <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+                <TabsTrigger value="attendees">Attendees</TabsTrigger>
+                <TabsTrigger value="tickets">Tickets</TabsTrigger>
+                <TabsTrigger value="promo">Promo Codes</TabsTrigger>
+            </TabsList>
+        </div>
 
         <TabsContent value="dashboard" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -525,7 +531,7 @@ export default function EventDetailPage() {
 
         <TabsContent value="tickets">
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <CardTitle>Ticket Tiers</CardTitle>
                         <CardDescription>Manage ticket types and quantities for your event.</CardDescription>
@@ -603,7 +609,7 @@ export default function EventDetailPage() {
 
         <TabsContent value="promo">
             <Card>
-                 <CardHeader className="flex flex-row items-center justify-between">
+                 <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <CardTitle>Promotional Codes</CardTitle>
                         <CardDescription>Create and manage discount codes to boost sales.</CardDescription>
