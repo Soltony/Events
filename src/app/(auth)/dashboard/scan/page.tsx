@@ -12,6 +12,7 @@ import type { Attendee, Event as EventType, TicketType } from '@prisma/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import dynamic from 'next/dynamic';
 
 interface CheckInResult extends Attendee {
     event: EventType;
@@ -20,40 +21,87 @@ interface CheckInResult extends Attendee {
 
 const QR_REGION_ID = "qr-code-reader";
 
-export default function ScanQrPage() {
+function QrScannerComponent({ onScanSuccess, onScanError, onStart, onStop, isScanning }: { 
+    onScanSuccess: (text: string) => void,
+    onScanError: (error: string) => void,
+    onStart: () => void,
+    onStop: () => void,
+    isScanning: boolean
+}) {
     const scannerRef = useRef<Html5Qrcode | null>(null);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        if (!scannerRef.current) {
+            scannerRef.current = new Html5Qrcode(QR_REGION_ID, {
+                verbose: false
+            });
+        }
+        const scanner = scannerRef.current;
+
+        if (isScanning) {
+            scanner.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                onScanSuccess,
+                onScanError
+            ).catch(err => {
+                console.error("Unable to start scanning", err);
+                toast({ variant: 'destructive', title: 'Camera Error', description: 'Could not access camera. Please check permissions.' });
+                onStop();
+            });
+        } else {
+             if (scanner.isScanning) {
+                scanner.stop().catch(err => console.error("Failed to stop scanner", err));
+             }
+        }
+
+        return () => {
+             if (scanner && scanner.isScanning) {
+                scanner.stop().catch(err => {
+                    console.error("Failed to stop scanner on cleanup", err);
+                });
+            }
+        };
+    }, [isScanning, onScanSuccess, onScanError, toast, onStop]);
+
+
+    return (
+        <div id={QR_REGION_ID} className={cn("w-full aspect-square bg-muted rounded-lg border-dashed border-2 flex items-center justify-center transition-all", isScanning ? 'p-0' : 'p-4')}>
+            {!isScanning && (
+                <div className="text-center text-muted-foreground">
+                    <Camera className="mx-auto h-12 w-12" />
+                    <p className="mt-2">Camera is off</p>
+                </div>
+            )}
+        </div>
+    );
+}
+
+
+export default function ScanQrPage() {
     const [scanResult, setScanResult] = useState<CheckInResult | null>(null);
     const [scanError, setScanError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
+    const [isClient, setIsClient] = useState(false);
 
-    // The Html5Qrcode library must be initialized on the client side.
     useEffect(() => {
-        // Ensure this only runs once
-        if (!scannerRef.current) {
-            scannerRef.current = new Html5Qrcode(QR_REGION_ID);
-        }
-
-        const scanner = scannerRef.current;
-        
-        // Cleanup function
-        return () => {
-            if (scanner && scanner.getState() === Html5QrcodeScannerState.SCANNING) {
-                scanner.stop().catch(err => {
-                    console.error("Failed to stop scanner on cleanup", err);
-                });
-            }
-        };
+        setIsClient(true);
     }, []);
 
     const handleScanSuccess = async (decodedText: string) => {
+        setIsScanning(false);
         setIsLoading(true);
         setScanResult(null);
         setScanError(null);
         
         try {
+            // Added a slight delay to allow UI to update
+            await new Promise(resolve => setTimeout(resolve, 100));
+
             const data = JSON.parse(decodedText);
             if (!data.ticketId) {
                 throw new Error("Invalid QR code format.");
@@ -63,7 +111,7 @@ export default function ScanQrPage() {
 
             if (result.error) {
                 setScanError(result.error);
-                 toast({ variant: 'destructive', title: 'Check-in Failed', description: result.error });
+                toast({ variant: 'destructive', title: 'Check-in Failed', description: result.error });
             } else if(result.data) {
                 setScanResult(result.data);
                 toast({ title: 'Check-in Successful!', description: `${result.data.name} has been checked in.` });
@@ -75,72 +123,32 @@ export default function ScanQrPage() {
             toast({ variant: 'destructive', title: 'Scan Error', description: errorMessage });
         } finally {
             setIsLoading(false);
-            if (isScanning) {
-                // Clear the result/error message after a delay to allow user to see it
-                setTimeout(() => {
-                    setScanResult(null);
-                    setScanError(null);
-                }, 5000);
-            }
         }
     };
     
     const handleScanError = (errorMessage: string) => {
-        // This is called frequently by the library, so we can ignore most verbose errors
-        // to avoid flooding the console. A specific error can be handled here if needed.
+        // This is called frequently by the library, we can ignore it.
     };
 
-    const startScan = async () => {
-        const scanner = scannerRef.current;
-        if (!scanner || isScanning) return;
-        
-        try {
-            await scanner.start(
-                { facingMode: "environment" },
-                {
-                    fps: 10,
-                    qrbox: { width: 250, height: 250 },
-                },
-                handleScanSuccess,
-                handleScanError
-            );
-            setIsScanning(true);
-            setScanResult(null);
-            setScanError(null);
-        } catch (err) {
-            console.error("Unable to start scanning", err);
-            toast({ variant: 'destructive', title: 'Camera Error', description: 'Could not access camera. Please check permissions.' });
-        }
-    };
-    
-    const stopScan = () => {
-        const scanner = scannerRef.current;
-        if (!scanner || !isScanning) return;
-
-        scanner.stop()
-            .then(() => {
-                setIsScanning(false);
-            })
-            .catch(err => {
-                console.error("Failed to stop scanner", err);
-                toast({ variant: 'destructive', title: 'Error', description: 'Could not stop the camera.' });
-            });
-    }
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const scanner = scannerRef.current;
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file && scanner) {
+        if (file) {
             setIsLoading(true);
-            scanner.scanFile(file, true)
-                .then(handleScanSuccess)
-                .catch(err => {
-                    setScanError("Could not decode QR code from image.");
-                    setIsLoading(false);
-                });
+            const qrScanner = new Html5Qrcode(QR_REGION_ID, { verbose: false });
+            try {
+                const decodedText = await qrScanner.scanFile(file, false);
+                await handleScanSuccess(decodedText);
+            } catch (err) {
+                 setScanError("Could not decode QR code from image.");
+            } finally {
+                setIsLoading(false);
+                // Clear the file input for next upload
+                if(fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                }
+            }
         }
     };
-
 
     return (
         <div className="flex flex-1 flex-col gap-4 md:gap-8 max-w-2xl mx-auto">
@@ -153,22 +161,27 @@ export default function ScanQrPage() {
             
             <Card>
                 <CardContent className="p-4 sm:p-6">
-                    <div id={QR_REGION_ID} className={cn("w-full aspect-square bg-muted rounded-lg border-dashed border-2 flex items-center justify-center transition-all", isScanning ? 'p-0' : 'p-4')}>
-                        {!isScanning && (
-                            <div className="text-center text-muted-foreground">
-                                <Camera className="mx-auto h-12 w-12" />
-                                <p className="mt-2">Camera is off</p>
-                            </div>
-                        )}
-                    </div>
+                    {isClient && (
+                         <QrScannerComponent
+                            onScanSuccess={handleScanSuccess}
+                            onScanError={handleScanError}
+                            onStart={() => setIsScanning(true)}
+                            onStop={() => setIsScanning(false)}
+                            isScanning={isScanning}
+                        />
+                    )}
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                         {isScanning ? (
-                            <Button onClick={stopScan} variant="destructive">Stop Scanning</Button>
+                            <Button onClick={() => setIsScanning(false)} variant="destructive">Stop Scanning</Button>
                         ) : (
-                            <Button onClick={startScan}>Start Camera</Button>
+                            <Button onClick={() => {
+                                setIsScanning(true);
+                                setScanResult(null);
+                                setScanError(null);
+                            }}>Start Camera</Button>
                         )}
-                        <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                        <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isScanning}>
                             <Upload className="mr-2 h-4 w-4" />
                             Upload QR from Image
                         </Button>
@@ -207,3 +220,4 @@ export default function ScanQrPage() {
         </div>
     );
 }
+
