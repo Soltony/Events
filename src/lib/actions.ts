@@ -472,17 +472,20 @@ export async function addUser(data: any) {
       throw new Error('Auth API URL not configured.');
     }
     
-    const authApiKey = process.env.AUTH_SERVICE_API_KEY;
-    if (!authApiKey) {
-        throw new Error('Auth service API key is not configured.');
-    }
+     const cookieStore = cookies();
+        const tokenCookie = cookieStore.get('authTokens');
+        if (!tokenCookie?.value) {
+            throw new Error('Authentication token not found');
+        }
+        const tokenData = JSON.parse(tokenCookie.value);
+        const token = tokenData.accessToken;
 
     try {
         const registrationResponse = await fetch(`${authApiUrl}/api/Auth/register`, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
-                'X-API-Key': authApiKey
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
                 firstName,
