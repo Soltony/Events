@@ -602,10 +602,16 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
         }
         
-        const authApiKey = process.env.AUTH_SERVICE_API_KEY;
-        if (!authApiKey) {
-            throw new Error('Auth service API key is not configured.');
+        const cookieStore = cookies();
+        const tokenCookie = cookieStore.get('authTokens');
+
+        if (!tokenCookie?.value) {
+          throw new Error('Authentication token not found');
         }
+
+        const tokenData = JSON.parse(tokenCookie.value);
+        const token = tokenData.accessToken;
+
 
         const authApiUrl = process.env.AUTH_API_BASE_URL;
         if (!authApiUrl) {
@@ -616,7 +622,7 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-API-Key': authApiKey
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ phoneNumbers: [phoneNumber] })
         });
@@ -887,5 +893,3 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
-
-    
