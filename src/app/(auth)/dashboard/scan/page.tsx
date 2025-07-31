@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { CheckCircle2, XCircle, Upload, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, Upload, Loader2, CameraOff } from 'lucide-react';
 import { checkInAttendee } from '@/lib/actions';
 import type { Attendee, Event as EventType, TicketType } from '@prisma/client';
 import { useToast } from '@/hooks/use-toast';
@@ -19,7 +19,12 @@ interface CheckInResult extends Attendee {
 
 const QrScannerComponent = dynamic(() => import('@/components/qr-scanner'), { 
     ssr: false,
-    loading: () => <div className="w-full aspect-square bg-muted rounded-lg border-dashed border-2 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+    loading: () => (
+        <div className="w-full aspect-square bg-muted rounded-lg border-dashed border-2 flex flex-col items-center justify-center text-muted-foreground">
+            <Loader2 className="h-8 w-8 animate-spin mb-2" />
+            <p>Starting Camera...</p>
+        </div>
+    )
 });
 
 
@@ -30,11 +35,6 @@ export default function ScanQrPage() {
     const [isScanning, setIsScanning] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
-    const [isClient, setIsClient] = useState(false);
-
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
 
     const handleScanSuccess = async (decodedText: string) => {
         // Stop scanning immediately to prevent multiple scans
@@ -44,12 +44,30 @@ export default function ScanQrPage() {
         setScanError(null);
         
         try {
-            const data = JSON.parse(decodedText);
-            if (!data.ticketId) {
-                throw new Error("Invalid QR code format.");
+            // Attempt to parse, but handle non-JSON QR codes gracefully.
+            let ticketId;
+            try {
+                const data = JSON.parse(decodedText);
+                ticketId = data.ticketId;
+                if (!ticketId) {
+                   throw new Error("Invalid QR code format.");
+                }
+            } catch (e) {
+                 // If parsing fails, maybe the QR code just contains the ID.
+                 // This is a fallback and can be removed if QR format is strict.
+                 if (typeof decodedText === 'string' && decodedText.length > 0) {
+                     // Basic validation if it could be an ID. This is just an example.
+                     // In a real scenario, you might just pass the raw string to the backend.
+                    ticketId = parseInt(decodedText, 10);
+                    if (isNaN(ticketId)) {
+                        throw new Error("QR code contains invalid data.");
+                    }
+                 } else {
+                    throw new Error("QR code is empty or unreadable.");
+                 }
             }
-
-            const result = await checkInAttendee(data.ticketId);
+            
+            const result = await checkInAttendee(ticketId);
 
             if (result.error) {
                 setScanError(result.error);
@@ -58,9 +76,9 @@ export default function ScanQrPage() {
                 setScanResult(result.data);
                 toast({ title: 'Check-in Successful!', description: `${result.data.name} has been checked in.` });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Scan processing error:", error);
-            const errorMessage = "Invalid QR code. Please scan a valid NibTera ticket.";
+            const errorMessage = error.message || "Invalid QR code. Please scan a valid NibTera ticket.";
             setScanError(errorMessage);
             toast({ variant: 'destructive', title: 'Scan Error', description: errorMessage });
         } finally {
@@ -92,8 +110,6 @@ export default function ScanQrPage() {
     };
 
     const renderResult = () => {
-        if (!isClient) return null;
-
         if (isLoading) {
              return (
                 <Alert>
@@ -143,11 +159,22 @@ export default function ScanQrPage() {
             
             <Card>
                 <CardContent className="p-4 sm:p-6">
-                     <QrScannerComponent
-                        onScanSuccess={handleScanSuccess}
-                        isScanning={isScanning}
-                        onStop={() => setIsScanning(false)}
-                    />
+                    <div className="w-full aspect-square bg-muted rounded-lg border-dashed border-2 flex items-center justify-center overflow-hidden relative">
+                         {isScanning ? (
+                            <QrScannerComponent
+                                onScanSuccess={handleScanSuccess}
+                                onScanFailure={(error) => {
+                                    // You can optionally handle scan failures, e.g., QR not found
+                                }}
+                            />
+                         ) : (
+                            <div className="text-center text-muted-foreground">
+                                <CameraOff className="mx-auto h-12 w-12" />
+                                <p className="mt-2">Camera is off. Press "Start Camera" to begin.</p>
+                            </div>
+                         )}
+                    </div>
+                     {/* Hidden element for file-based scanning */}
                     <div id="qr-code-reader-file-upload" style={{ display: 'none' }}></div>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
@@ -159,7 +186,7 @@ export default function ScanQrPage() {
                             {isScanning ? 'Stop Scanning' : 'Start Camera'}
                         </Button>
 
-                        <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isScanning}>
+                        <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isLoading || isScanning}>
                             <Upload className="mr-2 h-4 w-4" />
                             Upload QR from Image
                         </Button>
@@ -173,4 +200,3 @@ export default function ScanQrPage() {
         </div>
     );
 }
-

@@ -1,68 +1,73 @@
 
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
+import { useEffect } from 'react';
+import { Html5Qrcode, Html5QrcodeError, Html5QrcodeResult } from 'html5-qrcode';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
-import { Camera } from 'lucide-react';
 
-const QR_REGION_ID = "qr-code-reader";
+const QR_REGION_ID = "qr-code-reader-view";
 
 interface QrScannerProps {
     onScanSuccess: (text: string) => void;
-    isScanning: boolean;
-    onStop: () => void;
+    onScanFailure: (error: string) => void;
 }
 
-export default function QrScannerComponent({ onScanSuccess, isScanning, onStop }: QrScannerProps) {
-    const scannerRef = useRef<Html5Qrcode | null>(null);
+export default function QrScannerComponent({ onScanSuccess, onScanFailure }: QrScannerProps) {
     const { toast } = useToast();
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
 
-        if (!scannerRef.current) {
-            scannerRef.current = new Html5Qrcode(QR_REGION_ID, {
-                verbose: false
-            });
-        }
-        const scanner = scannerRef.current;
-        
-        if (isScanning && scanner.getState() === Html5QrcodeScannerState.NOT_STARTED) {
-            scanner.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
-                onScanSuccess,
-                (errorMessage) => { /* ignore errors */ }
-            ).catch(err => {
-                console.error("Unable to start scanning", err);
-                toast({ variant: 'destructive', title: 'Camera Error', description: 'Could not access camera. Please check permissions.' });
-                onStop();
-            });
-        } else if (!isScanning && scanner.isScanning) {
-            scanner.stop().catch(err => console.error("Failed to stop scanner", err));
+        // Ensure the container element exists
+        const containerElement = document.getElementById(QR_REGION_ID);
+        if (!containerElement) {
+            console.error(`QR Code reader element with ID ${QR_REGION_ID} not found.`);
+            return;
         }
 
+        const html5QrCode = new Html5Qrcode(QR_REGION_ID, { verbose: false });
+
+        const qrCodeSuccessCallback = (decodedText: string, result: Html5QrcodeResult) => {
+            onScanSuccess(decodedText);
+            // After a successful scan, we should stop the scanner
+            if (html5QrCode.isScanning) {
+                html5QrCode.stop().catch(err => console.error("Failed to stop scanner after success", err));
+            }
+        };
+
+        const qrCodeErrorCallback = (errorMessage: string, error: Html5QrcodeError) => {
+            // This callback is called frequently, so we typically ignore errors here
+            // unless we want to display a "no QR code found" message.
+            // onScanFailure(errorMessage);
+        };
+        
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+            // Only show the camera feed, not the result text from the library
+            disableFlip: false
+        };
+
+        html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            qrCodeSuccessCallback,
+            qrCodeErrorCallback
+        ).catch(err => {
+            console.error("Unable to start scanning", err);
+            toast({ variant: 'destructive', title: 'Camera Error', description: err.message || 'Could not access camera. Please check permissions.' });
+        });
+        
+        // Cleanup function to stop the scanner when the component unmounts
         return () => {
-             if (scanner && scanner.isScanning) {
-                scanner.stop().catch(err => {
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().catch(err => {
                     console.error("Failed to stop scanner on cleanup", err);
                 });
             }
         };
-    }, [isScanning, onScanSuccess, toast, onStop]);
+    }, [onScanSuccess, toast]);
 
-
-    return (
-        <div className="w-full aspect-square bg-muted rounded-lg border-dashed border-2 flex items-center justify-center transition-all overflow-hidden relative">
-             <div id={QR_REGION_ID} className={cn("absolute inset-0 transition-opacity", isScanning ? "opacity-100" : "opacity-0")} />
-            {!isScanning && (
-                <div className="text-center text-muted-foreground">
-                    <Camera className="mx-auto h-12 w-12" />
-                    <p className="mt-2">Camera is off</p>
-                </div>
-            )}
-        </div>
-    );
+    return <div id={QR_REGION_ID} className="w-full h-full" />;
 }
