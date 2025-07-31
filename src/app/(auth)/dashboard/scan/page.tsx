@@ -38,6 +38,7 @@ export default function ScanQrPage() {
         setScanError(null);
         
         try {
+            // A brief delay can sometimes help UI updates register before heavy processing
             await new Promise(resolve => setTimeout(resolve, 100));
 
             const data = JSON.parse(decodedText);
