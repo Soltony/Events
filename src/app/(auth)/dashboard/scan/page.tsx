@@ -30,17 +30,20 @@ export default function ScanQrPage() {
     const [isScanning, setIsScanning] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
     const handleScanSuccess = async (decodedText: string) => {
+        // Stop scanning immediately to prevent multiple scans
         setIsScanning(false);
         setIsLoading(true);
         setScanResult(null);
         setScanError(null);
         
         try {
-            // A brief delay can sometimes help UI updates register before heavy processing
-            await new Promise(resolve => setTimeout(resolve, 100));
-
             const data = JSON.parse(decodedText);
             if (!data.ticketId) {
                 throw new Error("Invalid QR code format.");
@@ -71,14 +74,8 @@ export default function ScanQrPage() {
             setIsLoading(true);
             setScanResult(null);
             setScanError(null);
-            const qrScanner = new Html5Qrcode('qr-code-reader-file-upload', { verbose: false });
-             // A hidden div is needed for the file scanner to work
-            const hiddenDiv = document.getElementById('qr-code-reader-file-upload');
-            if (!hiddenDiv) {
-                console.error("Hidden div for file upload not found.");
-                setIsLoading(false);
-                return;
-            }
+            // This hidden div is a requirement for the html5-qrcode library to process files.
+            const qrScanner = new Html5Qrcode('qr-code-reader-file-upload');
             try {
                 const decodedText = await qrScanner.scanFile(file, false);
                 await handleScanSuccess(decodedText);
@@ -93,6 +90,47 @@ export default function ScanQrPage() {
             }
         }
     };
+
+    const renderResult = () => {
+        if (!isClient) return null;
+
+        if (isLoading) {
+             return (
+                <Alert>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <AlertTitle>Processing...</AlertTitle>
+                    <AlertDescription>Validating ticket, please wait.</AlertDescription>
+                </Alert>
+            );
+        }
+        
+        if (scanResult) {
+            return (
+                <Alert variant="default" className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <AlertTitle className="text-green-800 dark:text-green-300">Check-in Successful</AlertTitle>
+                    <AlertDescription className="text-green-700 dark:text-green-400">
+                       <div className="font-semibold text-lg">{scanResult.name}</div>
+                       <p><span className="font-medium">Event:</span> {scanResult.event.name}</p>
+                       <p><span className="font-medium">Ticket:</span> {scanResult.ticketType.name}</p>
+                    </AlertDescription>
+                </Alert>
+            );
+        }
+
+        if (scanError) {
+             return (
+                 <Alert variant="destructive">
+                    <XCircle className="h-4 w-4" />
+                    <AlertTitle>Check-in Failed</AlertTitle>
+                    <AlertDescription>{scanError}</AlertDescription>
+                </Alert>
+             )
+        }
+
+        return null;
+    }
+
 
     return (
         <div className="flex flex-1 flex-col gap-4 md:gap-8 max-w-2xl mx-auto">
@@ -113,15 +151,14 @@ export default function ScanQrPage() {
                     <div id="qr-code-reader-file-upload" style={{ display: 'none' }}></div>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                        {isScanning ? (
-                            <Button onClick={() => setIsScanning(false)} variant="destructive">Stop Scanning</Button>
-                        ) : (
-                            <Button onClick={() => {
-                                setIsScanning(true);
-                                setScanResult(null);
-                                setScanError(null);
-                            }}>Start Camera</Button>
-                        )}
+                        <Button onClick={() => {
+                            setIsScanning(prev => !prev);
+                            setScanResult(null);
+                            setScanError(null);
+                        }} variant={isScanning ? "destructive" : "default"}>
+                            {isScanning ? 'Stop Scanning' : 'Start Camera'}
+                        </Button>
+
                         <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isScanning}>
                             <Upload className="mr-2 h-4 w-4" />
                             Upload QR from Image
@@ -131,33 +168,9 @@ export default function ScanQrPage() {
                 </CardContent>
             </Card>
 
-            {isLoading && (
-                <Alert>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <AlertTitle>Processing...</AlertTitle>
-                    <AlertDescription>Validating ticket, please wait.</AlertDescription>
-                </Alert>
-            )}
-
-            {scanResult && !isLoading && (
-                <Alert variant="default" className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <AlertTitle className="text-green-800 dark:text-green-300">Check-in Successful</AlertTitle>
-                    <AlertDescription className="text-green-700 dark:text-green-400">
-                       <div className="font-semibold text-lg">{scanResult.name}</div>
-                       <p><span className="font-medium">Event:</span> {scanResult.event.name}</p>
-                       <p><span className="font-medium">Ticket:</span> {scanResult.ticketType.name}</p>
-                    </AlertDescription>
-                </Alert>
-            )}
-
-            {scanError && !isLoading && (
-                 <Alert variant="destructive">
-                    <XCircle className="h-4 w-4" />
-                    <AlertTitle>Check-in Failed</AlertTitle>
-                    <AlertDescription>{scanError}</AlertDescription>
-                </Alert>
-            )}
+            {renderResult()}
+            
         </div>
     );
 }
+
