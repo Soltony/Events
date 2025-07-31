@@ -29,6 +29,7 @@ export default function ScanQrPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
 
+    // The Html5Qrcode library must be initialized on the client side.
     useEffect(() => {
         // Ensure this only runs once
         if (!scannerRef.current) {
