@@ -37,7 +37,7 @@ export default function AuthLayout({
                   />
                 </Link>
                 <div className="md:hidden ml-auto">
-                  <SidebarTrigger />
+                  <SidebarTrigger className="text-sidebar-foreground hover:text-sidebar-foreground" />
                 </div>
               </SidebarHeader>
               <div className="flex-1">
