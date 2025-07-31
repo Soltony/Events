@@ -756,9 +756,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
     const attendeeData = {
         name: attendeeDetails.name,
         email: targetUser?.email,
-        userId: targetUser?.id, 
-        // This is a simplified representation of multiple tickets
-        // In a real scenario, you might create multiple attendees or a single attendee with multiple tickets
+        userId: targetUser?.id,
         ticketTypeId: tickets[0].id, 
     };
 
@@ -773,9 +771,9 @@ export async function purchaseTickets(request: PurchaseRequest) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 eventId: eventId,
-                ticketTypeId: attendeeData.ticketTypeId, // Still need a primary ticket type for the pending order
-                quantity: tickets.reduce((sum, t) => sum + t.quantity, 0), // Total quantity
-                price: totalAmount, // Total price
+                ticketTypeId: attendeeData.ticketTypeId,
+                quantity: tickets.reduce((sum, t) => sum + t.quantity, 0),
+                price: totalAmount,
                 name: orderDescription,
                 attendeeData: { ...attendeeData, phone: attendeeDetails.phone },
                 promoCode: promoCode,
@@ -790,7 +788,6 @@ export async function purchaseTickets(request: PurchaseRequest) {
             throw new Error(result.error || 'Failed to initiate payment session.');
         }
     } catch (error: any) {
-        // This is a special case to handle Next.js redirects
         if (error.digest?.startsWith('NEXT_REDIRECT')) {
             throw error;
         }

@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
         }
         
-        const totalAmount = Number(price) * Number(quantity);
+        const totalAmount = Number(price);
 
         // Create a pending order to be confirmed by the webhook
         const pendingOrder = await prisma.pendingOrder.create({
@@ -63,8 +63,8 @@ export async function POST(req: NextRequest) {
             expireDate: expireDate.toISOString(),
             items: [{
                 name: name,
-                quantity: Number(quantity),
-                price: Number(price),
+                quantity: 1,
+                price: totalAmount,
                 description: `Ticket for ${event.name}`
             }],
             beneficiaries: [{
