@@ -498,7 +498,7 @@ export async function addUser(data: any) {
         });
         
         const responseData = await registrationResponse.json();
-
+                                              
         if (!responseData || !responseData.isSuccess) {
             const errorMessage = responseData.errors?.join(', ') || 'Failed to register user with auth service.';
             // Pass the specific error message from the auth service forward
