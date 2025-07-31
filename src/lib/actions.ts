@@ -729,26 +729,37 @@ export async function purchaseTickets(request: PurchaseRequest) {
     if (!attendeeDetails.name || !attendeeDetails.phone) {
         throw new Error("Attendee name and phone number are required.");
     }
+     if (tickets.length === 0) {
+        throw new Error("No tickets in purchase request.");
+    }
 
     const targetUser = await prisma.user.findUnique({
         where: { phoneNumber: attendeeDetails.phone }
     });
 
-    const ticket = tickets[0];
-    if (!ticket) {
-        throw new Error("No tickets in purchase request.");
-    }
+    const ticketTypeIds = tickets.map(t => t.id);
+    const ticketTypes = await prisma.ticketType.findMany({
+        where: { id: { in: ticketTypeIds } }
+    });
 
-    const ticketType = await prisma.ticketType.findUnique({ where: { id: ticket.id } });
-    if (!ticketType) throw new Error("Ticket type not found.");
-    if ((ticketType.total - ticketType.sold) < ticket.quantity) {
-        throw new Error(`Not enough tickets available for ${ticketType.name}.`);
+    for (const ticket of tickets) {
+        const ticketType = ticketTypes.find(tt => tt.id === ticket.id);
+        if (!ticketType) throw new Error(`Ticket type with id ${ticket.id} not found.`);
+        if ((ticketType.total - ticketType.sold) < ticket.quantity) {
+            throw new Error(`Not enough tickets available for ${ticketType.name}.`);
+        }
     }
+    
+    const totalAmount = tickets.reduce((sum, ticket) => sum + (ticket.price * ticket.quantity), 0);
+    const orderDescription = tickets.map(t => `${t.quantity}x ${t.name}`).join(', ');
 
     const attendeeData = {
         name: attendeeDetails.name,
         email: targetUser?.email,
         userId: targetUser?.id, 
+        // This is a simplified representation of multiple tickets
+        // In a real scenario, you might create multiple attendees or a single attendee with multiple tickets
+        ticketTypeId: tickets[0].id, 
     };
 
     try {
@@ -762,10 +773,10 @@ export async function purchaseTickets(request: PurchaseRequest) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 eventId: eventId,
-                ticketTypeId: ticket.id,
-                quantity: ticket.quantity,
-                price: Number(ticket.price),
-                name: ticket.name,
+                ticketTypeId: attendeeData.ticketTypeId, // Still need a primary ticket type for the pending order
+                quantity: tickets.reduce((sum, t) => sum + t.quantity, 0), // Total quantity
+                price: totalAmount, // Total price
+                name: orderDescription,
                 attendeeData: { ...attendeeData, phone: attendeeDetails.phone },
                 promoCode: promoCode,
             }),

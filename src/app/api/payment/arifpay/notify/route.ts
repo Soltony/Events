@@ -1,4 +1,5 @@
 
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
@@ -8,7 +9,7 @@ export async function POST(req: NextRequest) {
         const payload = await req.json();
         console.log('ArifPay Notification Payload:', payload);
         
-        const { sessionId, transactionStatus } = payload;
+        const { sessionId, transactionStatus, items } = payload;
 
         if (!sessionId) {
             console.error("No sessionId in ArifPay notification.");
@@ -31,26 +32,52 @@ export async function POST(req: NextRequest) {
         }
 
         if (transactionStatus === 'SUCCESS') {
-            // Use a transaction to ensure atomicity
-            const newAttendee = await prisma.$transaction(async (tx) => {
-                const { name, email, userId } = order.attendeeData as { name: string, email?: string, userId?: string };
+            const { name, email, userId } = order.attendeeData as { name: string, email?: string, userId?: string };
 
-                // 1. Create the attendee record
-                const createdAttendee = await tx.attendee.create({
-                    data: {
-                        name: name,
-                        email: email,
-                        eventId: order.eventId,
-                        ticketTypeId: order.ticketTypeId,
-                        userId: userId,
-                        checkedIn: false,
-                    },
+            const createdAttendees = await prisma.$transaction(async (tx) => {
+                const attendeesToCreate = [];
+
+                for (const item of items) {
+                    const ticketType = await tx.ticketType.findFirst({
+                         where: { name: item.name, eventId: order.eventId }
+                    });
+
+                    if (!ticketType) {
+                         console.warn(`Ticket type "${item.name}" not found for event ${order.eventId}. Skipping.`);
+                         continue;
+                    }
+
+                    for (let i = 0; i < item.quantity; i++) {
+                        attendeesToCreate.push({
+                            name: name,
+                            email: email,
+                            eventId: order.eventId,
+                            ticketTypeId: ticketType.id,
+                            userId: userId,
+                            checkedIn: false,
+                        });
+                    }
+                     // 2. Update the ticket type's sold count
+                    await tx.ticketType.update({
+                        where: { id: ticketType.id },
+                        data: { sold: { increment: item.quantity } },
+                    });
+                }
+                
+                if(attendeesToCreate.length === 0) {
+                    throw new Error("No valid tickets found to create attendees.");
+                }
+
+                // 1. Create all attendee records
+                await tx.attendee.createMany({
+                    data: attendeesToCreate,
                 });
-
-                // 2. Update the ticket type's sold count
-                await tx.ticketType.update({
-                    where: { id: order.ticketTypeId },
-                    data: { sold: { increment: 1 } },
+                
+                // This is a simplification; we're just getting the last one for the pending order link.
+                // In a full implementation, you might create a parent Order record.
+                const lastCreated = await tx.attendee.findFirst({
+                    where: { eventId: order.eventId, name, email, userId },
+                    orderBy: { createdAt: 'desc' }
                 });
 
                 // 3. Update the promo code usage if applicable
@@ -64,16 +91,16 @@ export async function POST(req: NextRequest) {
                     }
                 }
                 
-                // 4. Mark the pending order as completed and link to attendee
+                // 4. Mark the pending order as completed and link to an attendee (for confirmation page)
                 await tx.pendingOrder.update({
                     where: { id: order.id },
                     data: { 
                         status: 'COMPLETED',
-                        attendeeId: createdAttendee.id
+                        attendeeId: lastCreated?.id
                     },
                 });
 
-                return createdAttendee;
+                return lastCreated;
             });
 
             // Revalidate paths to update caches
@@ -81,7 +108,7 @@ export async function POST(req: NextRequest) {
             revalidatePath('/');
             revalidatePath('/tickets');
 
-            console.log(`Successfully processed payment for session ${sessionId}. Attendee ID: ${newAttendee.id}`);
+            console.log(`Successfully processed payment for session ${sessionId}. Attendee ID for confirmation: ${createdAttendees?.id}`);
         } else {
             // Handle failed or cancelled payment
             await prisma.pendingOrder.update({
