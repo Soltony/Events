@@ -13,7 +13,7 @@ import {
   SidebarContent,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { X } from 'lucide-react';
+
 
 export default function AuthLayout({
   children,
