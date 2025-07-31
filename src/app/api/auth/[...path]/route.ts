@@ -21,16 +21,9 @@ async function proxyRequest(req: NextRequest, path: string[]) {
     'Content-Type': 'application/json',
   };
   
-  // Pass along Authorization header if it exists
   const authorization = req.headers.get('authorization');
   if (authorization) {
     headers['Authorization'] = authorization;
-  }
-  
-  // Pass along X-API-Key header if it exists
-  const apiKey = req.headers.get('x-api-key');
-  if (apiKey) {
-    headers['X-API-Key'] = apiKey;
   }
 
   try {
