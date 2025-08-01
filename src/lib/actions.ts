@@ -733,6 +733,11 @@ export async function purchaseTickets(request: PurchaseRequest) {
         throw new Error("No tickets in purchase request.");
     }
 
+    const event = await prisma.event.findUnique({where: {id: eventId}});
+    if (!event) {
+        throw new Error("Event not found.");
+    }
+
     const targetUser = await prisma.user.findUnique({
         where: { phoneNumber: attendeeDetails.phone }
     });
@@ -788,10 +793,9 @@ export async function purchaseTickets(request: PurchaseRequest) {
 
         // The name passed to ArifPay should be a single descriptor for the whole purchase
         const firstTicketName = itemsForArifpay[0]?.name || 'Event Ticket';
-        const event = await prisma.event.findUnique({where: {id: eventId}});
         const purchaseName = tickets.length > 1 
-            ? `${event?.name} - Multiple Tickets`
-            : `${event?.name} - ${firstTicketName}`;
+            ? `${event.name} - Multiple Tickets`
+            : `${event.name} - ${firstTicketName}`;
 
         const response = await fetch(`${appUrl}/api/payment/arifpay/initiate`, {
             method: 'POST',
