@@ -71,7 +71,12 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
     startTransition(() => {
         purchaseTickets({
           eventId: event.id,
-          tickets: [{ id: purchaseState.ticket!.id, quantity: 1, name: purchaseState.ticket!.name, price: Number(purchaseState.ticket!.price) }],
+          tickets: [{ 
+            id: purchaseState.ticket!.id, 
+            quantity: 1, 
+            name: purchaseState.ticket!.name, 
+            price: Number(purchaseState.ticket!.price) 
+          }],
           attendeeDetails: {
             name: attendeeName,
             phone: attendeePhone,
