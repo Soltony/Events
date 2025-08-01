@@ -743,7 +743,8 @@ export async function purchaseTickets(request: PurchaseRequest) {
     });
 
     let totalAmount = 0;
-    const items = [];
+    const itemsForArifpay = [];
+    const attendeeCreationData = [];
 
     for (const ticket of tickets) {
         const ticketType = ticketTypes.find(tt => tt.id === ticket.id);
@@ -751,19 +752,32 @@ export async function purchaseTickets(request: PurchaseRequest) {
         if ((ticketType.total - ticketType.sold) < ticket.quantity) {
             throw new Error(`Not enough tickets available for ${ticketType.name}.`);
         }
-        totalAmount += ticket.price * ticket.quantity;
-        items.push({
-          name: ticket.name,
+        totalAmount += Number(ticketType.price) * ticket.quantity;
+
+        itemsForArifpay.push({
+          name: ticketType.name,
           quantity: ticket.quantity,
-          price: ticket.price,
-          description: `Ticket for ${ticket.name}`
+          price: Number(ticketType.price),
+          description: `Ticket for ${event.name}`
         });
+
+        for(let i=0; i<ticket.quantity; i++) {
+          attendeeCreationData.push({
+            name: attendeeDetails.name,
+            email: targetUser?.email,
+            userId: targetUser?.id,
+            eventId: eventId,
+            ticketTypeId: ticketType.id,
+            checkedIn: false
+          })
+        }
     }
     
-    const attendeeData = {
+    const attendeeDataForApi = {
         name: attendeeDetails.name,
         email: targetUser?.email,
         userId: targetUser?.id,
+        phone: attendeeDetails.phone,
     };
 
     try {
@@ -772,14 +786,23 @@ export async function purchaseTickets(request: PurchaseRequest) {
             throw new Error("APP_URL environment variable is not set.");
         }
 
+        // The name passed to ArifPay should be a single descriptor for the whole purchase
+        const firstTicketName = itemsForArifpay[0]?.name || 'Event Ticket';
+        const event = await prisma.event.findUnique({where: {id: eventId}});
+        const purchaseName = tickets.length > 1 
+            ? `${event?.name} - Multiple Tickets`
+            : `${event?.name} - ${firstTicketName}`;
+
         const response = await fetch(`${appUrl}/api/payment/arifpay/initiate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 eventId: eventId,
-                items: items,
+                ticketTypeId: tickets[0].id, // Pass a representative ticketTypeId
+                quantity: tickets.reduce((sum, t) => sum + t.quantity, 0), // Pass total quantity
                 price: totalAmount,
-                attendeeData: { ...attendeeData, phone: attendeeDetails.phone },
+                name: purchaseName, 
+                attendeeData: attendeeDataForApi,
                 promoCode: promoCode,
             }),
         });
