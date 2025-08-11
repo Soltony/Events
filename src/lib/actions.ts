@@ -6,6 +6,7 @@ import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { ReadonlyRequestCookies, cookies } from 'next/headers';
+import type { DateRange } from 'react-day-picker';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -363,7 +364,7 @@ export async function getDashboardData() {
 
 
 // Reports Actions
-export async function getReportsData() {
+export async function getReportsData(dateRange?: DateRange) {
     const user = await getCurrentUser(cookies());
     if (!user) {
         return {
@@ -373,10 +374,17 @@ export async function getReportsData() {
         };
     }
 
-    const whereClause: { organizerId?: string } = {};
+    const whereClause: any = {};
 
     if (user.role.name !== 'Admin') {
         whereClause.organizerId = user.id;
+    }
+
+    if (dateRange?.from) {
+        whereClause.startDate = { ...whereClause.startDate, gte: dateRange.from };
+    }
+    if (dateRange?.to) {
+        whereClause.startDate = { ...whereClause.startDate, lte: dateRange.to };
     }
 
     const events = await prisma.event.findMany({
