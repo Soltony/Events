@@ -79,7 +79,8 @@ export default function ProfilePage() {
                 logout();
             }, 500);
         } else {
-            router.push('/dashboard');
+             // Use a full page reload to ensure the new session state is properly loaded.
+             window.location.href = '/dashboard';
         }
 
     } catch (error: any) {
