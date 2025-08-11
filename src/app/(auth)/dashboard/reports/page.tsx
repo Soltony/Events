@@ -24,6 +24,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import type { TicketType, PromoCode } from '@prisma/client';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { DateRangePicker } from '@/components/date-range-picker';
+import type { DateRange } from 'react-day-picker';
 
 interface DailySale {
     date: Date;
@@ -86,21 +88,23 @@ export default function ReportsPage() {
     const [data, setData] = useState<ReportsData | null>(null);
     const [loading, setLoading] = useState(true);
     const [downloading, setDownloading] = useState<string | null>(null);
+    const [dailySalesDateRange, setDailySalesDateRange] = useState<DateRange | undefined>();
+
+    const fetchData = async (dateRange?: DateRange) => {
+        try {
+            setLoading(true);
+            const reportsData = await getReportsData(dateRange);
+            setData(reportsData);
+        } catch (error) {
+            console.error("Failed to fetch reports data:", error);
+        } finally {
+            setLoading(false);
+        }
+    }
 
     useEffect(() => {
-        async function fetchData() {
-            try {
-                setLoading(true);
-                const reportsData = await getReportsData();
-                setData(reportsData);
-            } catch (error) {
-                console.error("Failed to fetch reports data:", error);
-            } finally {
-                setLoading(false);
-            }
-        }
-        fetchData();
-    }, []);
+        fetchData(dailySalesDateRange);
+    }, [dailySalesDateRange]);
 
     const handleDownload = (reportType: 'product' | 'daily' | 'promo') => {
         if (!data) return;
@@ -163,7 +167,7 @@ export default function ReportsPage() {
     };
 
 
-    if (loading || !data) {
+    if (loading && !data) {
         return (
             <div className="flex flex-1 flex-col gap-4 md:gap-8">
                 <div className="space-y-2">
@@ -201,6 +205,59 @@ export default function ReportsPage() {
 
       <div className="space-y-8">
         <Card>
+          <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <CardTitle>Daily Sales Report</CardTitle>
+              <CardDescription>A summary of sales for each event date.</CardDescription>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
+                <DateRangePicker date={dailySalesDateRange} setDate={setDailySalesDateRange} />
+                <Button 
+                    variant="outline" 
+                    onClick={() => handleDownload('daily')} 
+                    disabled={downloading === 'daily' || loading}
+                    className="w-full sm:w-auto"
+                >
+                    {downloading === 'daily' || loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+                    Download Report
+                </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+             <ScrollArea className="h-[300px]">
+                <Table>
+                <TableHeader>
+                    <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Event</TableHead>
+                    <TableHead className="text-right">Tickets Sold</TableHead>
+                    <TableHead className="text-right">Net Revenue</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {loading && (
+                        <TableRow><TableCell colSpan={4} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" /></TableCell></TableRow>
+                    )}
+                    {!loading && data?.dailySales.map((sale, index) => (
+                        <TableRow key={index}>
+                            <TableCell>{format(new Date(sale.date), 'LLL dd, y')}</TableCell>
+                            <TableCell className="font-medium">{sale.eventName}</TableCell>
+                            <TableCell className="text-right">{sale.ticketsSold.toLocaleString()}</TableCell>
+                            <TableCell className="text-right">ETB {sale.revenue.toLocaleString()}</TableCell>
+                        </TableRow>
+                    ))}
+                    {!loading && data?.dailySales.length === 0 && (
+                        <TableRow>
+                            <TableCell colSpan={4} className="text-center h-24">No sales data available for the selected period.</TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+                </Table>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Product Sales</CardTitle>
@@ -224,7 +281,7 @@ export default function ReportsPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {data.productSales.map((ticket) => (
+                    {data?.productSales.map((ticket) => (
                         <TableRow key={ticket.id}>
                         <TableCell className="font-medium">{ticket.name}</TableCell>
                         <TableCell className="text-muted-foreground">{ticket.event?.name || 'N/A'}</TableCell>
@@ -233,50 +290,8 @@ export default function ReportsPage() {
                         <TableCell className="text-right">ETB {(ticket.sold * Number(ticket.price)).toLocaleString()}</TableCell>
                         </TableRow>
                     ))}
-                    {data.productSales.length === 0 && (
+                    {data?.productSales.length === 0 && (
                         <TableRow><TableCell colSpan={5} className="text-center h-24">No product sales data.</TableCell></TableRow>
-                    )}
-                </TableBody>
-                </Table>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Daily Sales Report</CardTitle>
-              <CardDescription>A summary of sales for each event date.</CardDescription>
-            </div>
-             <Button variant="outline" onClick={() => handleDownload('daily')} disabled={downloading === 'daily'}>
-                {downloading === 'daily' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
-                Download Report
-            </Button>
-          </CardHeader>
-          <CardContent>
-             <ScrollArea className="h-[300px]">
-                <Table>
-                <TableHeader>
-                    <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Event</TableHead>
-                    <TableHead className="text-right">Tickets Sold</TableHead>
-                    <TableHead className="text-right">Net Revenue</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {data.dailySales.map((sale, index) => (
-                        <TableRow key={index}>
-                            <TableCell>{format(new Date(sale.date), 'LLL dd, y')}</TableCell>
-                            <TableCell className="font-medium">{sale.eventName}</TableCell>
-                            <TableCell className="text-right">{sale.ticketsSold.toLocaleString()}</TableCell>
-                            <TableCell className="text-right">ETB {sale.revenue.toLocaleString()}</TableCell>
-                        </TableRow>
-                    ))}
-                    {data.dailySales.length === 0 && (
-                        <TableRow>
-                            <TableCell colSpan={4} className="text-center h-24">No sales data available.</TableCell>
-                        </TableRow>
                     )}
                 </TableBody>
                 </Table>
@@ -307,7 +322,7 @@ export default function ReportsPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {data.promoCodes.map((code) => (
+                    {data?.promoCodes.map((code) => (
                         <TableRow key={code.id}>
                             <TableCell className="font-mono">{code.code}</TableCell>
                             <TableCell className="text-muted-foreground">{code.event?.name || 'N/A'}</TableCell>
@@ -315,7 +330,7 @@ export default function ReportsPage() {
                             <TableCell className="text-right">ETB {code.totalDiscount.toFixed(2)}</TableCell>
                         </TableRow>
                     ))}
-                    {data.promoCodes.length === 0 && (
+                    {data?.promoCodes.length === 0 && (
                         <TableRow>
                             <TableCell colSpan={4} className="text-center h-24">No promo code data available.</TableCell>
                         </TableRow>
