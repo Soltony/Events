@@ -35,35 +35,33 @@ export async function POST(req: NextRequest) {
             const { name, email, userId } = order.attendeeData as { name: string, email?: string, userId?: string };
 
             const createdAttendees = await prisma.$transaction(async (tx) => {
-                const attendeesToCreate = [];
+                
+                // The `items` from arifpay is a single object representing the total purchase.
+                // We need to look at the original order to determine what was bought.
+                const singleItem = Array.isArray(items) ? items[0] : items;
+                const quantity = singleItem?.quantity || 1;
 
-                for (const item of items) {
-                    const ticketType = await tx.ticketType.findFirst({
-                         where: { name: item.name, eventId: order.eventId }
-                    });
+                if (!order.ticketTypeId) {
+                    throw new Error("Pending order is missing ticketTypeId.");
+                }
 
-                    if (!ticketType) {
-                         console.warn(`Ticket type "${item.name}" not found for event ${order.eventId}. Skipping.`);
-                         continue;
-                    }
-
-                    for (let i = 0; i < item.quantity; i++) {
-                        attendeesToCreate.push({
-                            name: name,
-                            email: email,
-                            eventId: order.eventId,
-                            ticketTypeId: ticketType.id,
-                            userId: userId,
-                            checkedIn: false,
-                        });
-                    }
-                     // 2. Update the ticket type's sold count
-                    await tx.ticketType.update({
-                        where: { id: ticketType.id },
-                        data: { sold: { increment: item.quantity } },
-                    });
+                const ticketType = await tx.ticketType.findUnique({ where: { id: order.ticketTypeId }});
+                if (!ticketType) {
+                    throw new Error(`TicketType with ID ${order.ticketTypeId} not found.`);
                 }
                 
+                const attendeesToCreate = [];
+                for (let i = 0; i < quantity; i++) {
+                     attendeesToCreate.push({
+                        name: name,
+                        email: email,
+                        eventId: order.eventId,
+                        ticketTypeId: ticketType.id,
+                        userId: userId,
+                        checkedIn: false,
+                    });
+                }
+
                 if(attendeesToCreate.length === 0) {
                     throw new Error("No valid tickets found to create attendees.");
                 }
@@ -73,8 +71,13 @@ export async function POST(req: NextRequest) {
                     data: attendeesToCreate,
                 });
                 
+                // 2. Update the ticket type's sold count
+                await tx.ticketType.update({
+                    where: { id: ticketType.id },
+                    data: { sold: { increment: quantity } },
+                });
+
                 // This is a simplification; we're just getting the last one for the pending order link.
-                // In a full implementation, you might create a parent Order record.
                 const lastCreated = await tx.attendee.findFirst({
                     where: { eventId: order.eventId, name, email, userId },
                     orderBy: { createdAt: 'desc' }
@@ -86,7 +89,7 @@ export async function POST(req: NextRequest) {
                     if (promo) {
                         await tx.promoCode.update({
                             where: { id: promo.id },
-                            data: { uses: { increment: 1 } },
+                            data: { uses: { increment: quantity } }, // Increment by total quantity
                         });
                     }
                 }
