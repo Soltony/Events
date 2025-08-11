@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -754,7 +755,6 @@ export async function purchaseTickets(request: PurchaseRequest) {
 
     let totalAmount = 0;
     const itemsForArifpay = [];
-    const attendeeCreationData = [];
 
     for (const ticket of tickets) {
         const ticketType = ticketTypes.find(tt => tt.id === ticket.id);
@@ -770,24 +770,16 @@ export async function purchaseTickets(request: PurchaseRequest) {
           price: Number(ticketType.price),
           description: `Ticket for ${event.name}`
         });
-
-        for(let i=0; i<ticket.quantity; i++) {
-          attendeeCreationData.push({
-            name: attendeeDetails.name,
-            email: targetUser?.email,
-            userId: targetUser?.id,
-            eventId: eventId,
-            ticketTypeId: ticketType.id,
-            checkedIn: false
-          })
-        }
     }
     
+    const purchaseQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0);
+
     const attendeeDataForApi = {
         name: attendeeDetails.name,
         email: targetUser?.email,
         userId: targetUser?.id,
         phone: attendeeDetails.phone,
+        quantity: purchaseQuantity,
     };
 
     try {
@@ -808,7 +800,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
             body: JSON.stringify({
                 eventId: eventId,
                 ticketTypeId: tickets[0].id, // Pass a representative ticketTypeId
-                quantity: tickets.reduce((sum, t) => sum + t.quantity, 0), // Pass total quantity
+                quantity: purchaseQuantity,
                 price: totalAmount,
                 name: purchaseName, 
                 attendeeData: attendeeDataForApi,

@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
         const payload = await req.json();
         console.log('ArifPay Notification Payload:', payload);
         
-        const { sessionId, transactionStatus, items } = payload;
+        const { sessionId, transactionStatus } = payload;
 
         if (!sessionId) {
             console.error("No sessionId in ArifPay notification.");
@@ -32,15 +32,10 @@ export async function POST(req: NextRequest) {
         }
 
         if (transactionStatus === 'SUCCESS') {
-            const { name, email, userId } = order.attendeeData as { name: string, email?: string, userId?: string };
+            const { name, email, userId, quantity } = order.attendeeData as { name: string, email?: string, userId?: string, quantity: number };
 
             const createdAttendees = await prisma.$transaction(async (tx) => {
                 
-                // The `items` from arifpay is a single object representing the total purchase.
-                // We need to look at the original order to determine what was bought.
-                const singleItem = Array.isArray(items) ? items[0] : items;
-                const quantity = singleItem?.quantity || 1;
-
                 if (!order.ticketTypeId) {
                     throw new Error("Pending order is missing ticketTypeId.");
                 }
@@ -51,7 +46,10 @@ export async function POST(req: NextRequest) {
                 }
                 
                 const attendeesToCreate = [];
-                for (let i = 0; i < quantity; i++) {
+                // Use the quantity from the stored attendeeData
+                const purchaseQuantity = quantity || 1; 
+
+                for (let i = 0; i < purchaseQuantity; i++) {
                      attendeesToCreate.push({
                         name: name,
                         email: email,
@@ -74,7 +72,7 @@ export async function POST(req: NextRequest) {
                 // 2. Update the ticket type's sold count
                 await tx.ticketType.update({
                     where: { id: ticketType.id },
-                    data: { sold: { increment: quantity } },
+                    data: { sold: { increment: purchaseQuantity } },
                 });
 
                 // This is a simplification; we're just getting the last one for the pending order link.
@@ -89,7 +87,7 @@ export async function POST(req: NextRequest) {
                     if (promo) {
                         await tx.promoCode.update({
                             where: { id: promo.id },
-                            data: { uses: { increment: quantity } }, // Increment by total quantity
+                            data: { uses: { increment: purchaseQuantity } },
                         });
                     }
                 }
