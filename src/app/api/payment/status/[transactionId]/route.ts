@@ -8,7 +8,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { transactionId: string } }
 ) {
-  const { transactionId } = params;
+  const transactionId = params.transactionId;
 
   try {
     if (!transactionId) {
