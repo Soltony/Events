@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { getEventById, validatePromoCode } from '@/lib/actions';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info } from 'lucide-react';
+import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone } from 'lucide-react';
 import { notFound, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import type { Event, TicketType, PromoCode } from '@prisma/client';
@@ -15,6 +16,19 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Label } from '@/components/ui/label';
+
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
@@ -42,7 +56,7 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 
 export default function PublicEventDetailPage() {
-  const params = useParams<{ id: string }>();
+  const params = useParams<{ id:string }>();
   const eventId = params ? parseInt(params.id, 10) : NaN;
   const [isPending, startTransition] = useTransition();
   const [event, setEvent] = useState<EventWithTickets | null>(null);
@@ -52,6 +66,9 @@ export default function PublicEventDetailPage() {
   const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
   const [discount, setDiscount] = useState(0);
   const [isPromoLoading, setIsPromoLoading] = useState(false);
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [attendeeName, setAttendeeName] = useState('');
+  const [attendeePhone, setAttendeePhone] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -132,12 +149,22 @@ export default function PublicEventDetailPage() {
   }, [appliedPromo, subtotal]);
 
   const handlePurchase = () => {
+    if (!attendeeName || !attendeePhone) {
+      toast({ variant: 'destructive', title: "Missing Information", description: "Please enter your name and phone number." });
+      return;
+    }
+
     startTransition(() => {
         purchaseTickets({
             eventId,
             tickets: Object.values(selectedTickets),
             promoCode: appliedPromo?.code,
+            attendeeDetails: {
+              name: attendeeName,
+              phone: attendeePhone,
+            }
         });
+        setIsPurchaseModalOpen(false);
     });
   };
   
@@ -277,15 +304,49 @@ export default function PublicEventDetailPage() {
                         </div>
                     </CardContent>
                     <CardFooter>
-                         <Button 
-                            onClick={handlePurchase}
-                            disabled={isPending || totalItems === 0}
-                            className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
-                            size="lg"
-                        >
-                            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
-                            Purchase Tickets
-                        </Button>
+                         <AlertDialog open={isPurchaseModalOpen} onOpenChange={setIsPurchaseModalOpen}>
+                            <AlertDialogTrigger asChild>
+                                 <Button 
+                                    disabled={totalItems === 0}
+                                    className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+                                    size="lg"
+                                >
+                                    <ShoppingCart className="mr-2 h-4 w-4" />
+                                    Purchase Tickets
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>Attendee Information</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Please provide your name and phone number for the ticket.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <div className="space-y-4">
+                                  <div className="grid gap-2">
+                                      <Label htmlFor="name">Full Name</Label>
+                                      <div className="relative">
+                                          <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                          <Input id="name" placeholder="Enter your full name" value={attendeeName} onChange={e => setAttendeeName(e.target.value)} className="pl-10" />
+                                      </div>
+                                  </div>
+                                  <div className="grid gap-2">
+                                      <Label htmlFor="phone">Phone Number</Label>
+                                       <div className="relative">
+                                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                          <Input id="phone" placeholder="e.g., 0912345678" value={attendeePhone} onChange={e => setAttendeePhone(e.target.value)} className="pl-10" />
+                                      </div>
+                                  </div>
+                                </div>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handlePurchase} disabled={isPending}>
+                                     {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Proceed to Payment
+                                </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </CardFooter>
                 </Card>
             )}
@@ -295,7 +356,3 @@ export default function PublicEventDetailPage() {
     </div>
   );
 }
-
-    
-
-    

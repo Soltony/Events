@@ -1,12 +1,13 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee } from '@prisma/client';
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
-import api from './api';
+import { ReadonlyRequestCookies, cookies } from 'next/headers';
+import type { DateRange } from 'react-day-picker';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -16,15 +17,14 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
 ));
 
 // This function can be used in any server action to get the currently logged-in user.
-async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
-  const cookieStore = await cookies();
-  const tokenCookie = cookieStore.get('authTokens');
-
-  if (!tokenCookie?.value) {
-    return null;
-  }
-  
+async function getCurrentUser(cookieStore: ReadonlyRequestCookies): Promise<(User & { role: Role }) | null> {
   try {
+    const tokenCookie = cookieStore.get('authTokens');
+
+    if (!tokenCookie?.value) {
+      return null;
+    }
+    
     const tokenData = JSON.parse(tokenCookie.value);
     const token = tokenData.accessToken;
 
@@ -62,7 +62,7 @@ async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
 
 // Event Actions
 export async function getEvents() {
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(cookies());
     if (!user) {
         // Return empty array if not authenticated, AuthGuard will handle redirection
         return [];
@@ -119,7 +119,7 @@ export async function getEventById(id: number) {
 }
 
 export async function getEventDetails(id: number) {
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(cookies());
     if (!user) {
         throw new Error('User is not authenticated.');
     }
@@ -148,7 +148,7 @@ export async function getEventDetails(id: number) {
 
 export async function addEvent(data: any) {
     const { tickets, startDate, endDate, otherCategory, ...eventData } = data;
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(cookies());
     if (!user) {
         throw new Error('User is not authenticated.');
     }
@@ -188,7 +188,7 @@ export async function addEvent(data: any) {
 
 export async function updateEvent(id: number, data: any) {
     const { startDate, endDate, otherCategory, ...eventData } = data;
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(cookies());
     if (!user) {
         throw new Error('User is not authenticated.');
     }
@@ -226,7 +226,7 @@ export async function updateEvent(id: number, data: any) {
 }
 
 export async function deleteEvent(id: number) {
-  const user = await getCurrentUser();
+  const user = await getCurrentUser(cookies());
   if (!user) {
     throw new Error('User is not authenticated.');
   }
@@ -261,6 +261,29 @@ export async function addTicketType(eventId: number, data: Omit<TicketType, 'id'
     return serialize(newTicketType);
 }
 
+export async function updateTicketType(ticketTypeId: number, data: Partial<Omit<TicketType, 'id' | 'eventId' | 'createdAt' | 'updatedAt' | 'sold'>>) {
+  const updatedTicketType = await prisma.ticketType.update({
+    where: { id: ticketTypeId },
+    data: data,
+  });
+  revalidatePath(`/dashboard/events/${updatedTicketType.eventId}`);
+  return serialize(updatedTicketType);
+}
+
+export async function deleteTicketType(ticketTypeId: number) {
+  const ticketType = await prisma.ticketType.findUnique({ where: { id: ticketTypeId } });
+  if (!ticketType) throw new Error('Ticket type not found');
+
+  const attendeeCount = await prisma.attendee.count({ where: { ticketTypeId: ticketTypeId } });
+  if (attendeeCount > 0) {
+    throw new Error(`Cannot delete ticket type, ${attendeeCount} tickets have already been sold.`);
+  }
+
+  await prisma.ticketType.delete({ where: { id: ticketTypeId } });
+  revalidatePath(`/dashboard/events/${ticketType.eventId}`);
+}
+
+
 export async function addPromoCode(eventId: number, data: { code: string; type: PromoCodeType; value: number; maxUses: number; }) {
     const newPromoCode = await prisma.promoCode.create({
         data: {
@@ -272,10 +295,30 @@ export async function addPromoCode(eventId: number, data: { code: string; type: 
     return serialize(newPromoCode);
 }
 
+export async function updatePromoCode(promoCodeId: number, data: Partial<PromoCode>) {
+  const updatedPromoCode = await prisma.promoCode.update({
+    where: { id: promoCodeId },
+    data: data,
+  });
+  revalidatePath(`/dashboard/events/${updatedPromoCode.eventId}`);
+  return serialize(updatedPromoCode);
+}
+
+export async function deletePromoCode(promoCodeId: number) {
+  const promoCode = await prisma.promoCode.findUnique({ where: { id: promoCodeId } });
+  if (!promoCode) throw new Error('Promo code not found');
+
+  if (promoCode.uses > 0) {
+    throw new Error('Cannot delete promo code, it has already been used.');
+  }
+
+  await prisma.promoCode.delete({ where: { id: promoCodeId } });
+  revalidatePath(`/dashboard/events/${promoCode.eventId}`);
+}
 
 // Dashboard Actions
 export async function getDashboardData() {
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(cookies());
     if (!user) {
          return {
             totalRevenue: 0,
@@ -322,8 +365,8 @@ export async function getDashboardData() {
 
 
 // Reports Actions
-export async function getReportsData() {
-    const user = await getCurrentUser();
+export async function getReportsData(dateRange?: DateRange) {
+    const user = await getCurrentUser(cookies());
     if (!user) {
         return {
             productSales: [],
@@ -332,10 +375,17 @@ export async function getReportsData() {
         };
     }
 
-    const whereClause: { organizerId?: string } = {};
+    const whereClause: any = {};
 
     if (user.role.name !== 'Admin') {
         whereClause.organizerId = user.id;
+    }
+
+    if (dateRange?.from) {
+        whereClause.startDate = { ...whereClause.startDate, gte: dateRange.from };
+    }
+    if (dateRange?.to) {
+        whereClause.startDate = { ...whereClause.startDate, lte: dateRange.to };
     }
 
     const events = await prisma.event.findMany({
@@ -385,19 +435,21 @@ export async function getReportsData() {
 
 // Settings Actions
 export async function getUsersAndRoles() {
-    const currentUser = await getCurrentUser();
+    const currentUser = await getCurrentUser(cookies());
     if (!currentUser) {
         return { users: [], roles: [] };
     }
-
+    
     const users = await prisma.user.findMany({
-        include: { role: true },
-        orderBy: { createdAt: 'desc'}
+      include: { role: true },
+      orderBy: { createdAt: 'desc'}
     });
     
     const roles = await prisma.role.findMany();
+
     return serialize({ users, roles });
 }
+
 
 export async function getUserById(userId: string) {
     const user = await prisma.user.findUnique({
@@ -420,15 +472,28 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
 export async function addUser(data: any) {
     const { firstName, lastName, phoneNumber, email, password, roleId } = data;
 
-    const authApiUrl = process.env.AUTH_API_BASE_URL;
-    if (!authApiUrl) {
-        throw new Error("Authentication service URL is not configured.");
+    const phoneRegex = /^(09|07)\d{8}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+        throw new Error("Phone number must start with 09 or 07 followed by 8 digits.");
     }
     
+    const authApiUrl = process.env.AUTH_API_BASE_URL;
+    if (!authApiUrl) {
+      throw new Error('Auth API URL not configured.');
+    }
+    const cookieStore = cookies();
+        const tokenCookie = cookieStore.get('authTokens');
+        if (!tokenCookie?.value) {
+            throw new Error('Authentication token not found');
+        }
+        const tokenData = JSON.parse(tokenCookie.value);
+        const token = tokenData.accessToken;
     try {
         const registrationResponse = await fetch(`${authApiUrl}/api/Auth/register`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify({
                 firstName,
                 lastName,
@@ -439,7 +504,7 @@ export async function addUser(data: any) {
         });
         
         const responseData = await registrationResponse.json();
-
+                                              
         if (!responseData || !responseData.isSuccess) {
             const errorMessage = responseData.errors?.join(', ') || 'Failed to register user with auth service.';
             // Pass the specific error message from the auth service forward
@@ -496,6 +561,11 @@ export async function addUser(data: any) {
             throw new Error('A user with this email address already exists in the local database.');
         }
         
+        // Check for specific auth service error messages
+        if (error.message.includes('already taken')) {
+            throw new Error(error.message);
+        }
+
         throw new Error(error.message || 'Failed to create user.');
     }
 }
@@ -527,11 +597,6 @@ export async function updateUserRole(userId: string, newRoleId: string) {
 }
 
 export async function deleteUser(userId: string, phoneNumber: string) {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-        throw new Error("Not authenticated");
-    }
-
     try {
         const eventCount = await prisma.event.count({
             where: { organizerId: userId },
@@ -540,14 +605,21 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         if (eventCount > 0) {
             throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
         }
-        
-        const tokenCookie = await cookies().get('authTokens');
-        if (!tokenCookie) {
-             throw new Error('No auth token available for server action.');
-        }
-        const token = JSON.parse(tokenCookie.value).accessToken;
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/auth/delete-users`, {
+        const authApiUrl = process.env.AUTH_API_BASE_URL;
+        if (!authApiUrl) {
+            throw new Error('Authentication service URL is not configured.');
+        }
+
+        const cookieStore = cookies();
+        const tokenCookie = cookieStore.get('authTokens');
+        if (!tokenCookie?.value) {
+            throw new Error('Authentication token not found');
+        }
+        const tokenData = JSON.parse(tokenCookie.value);
+        const token = tokenData.accessToken;
+       
+        const response = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -583,7 +655,13 @@ export async function deleteUser(userId: string, phoneNumber: string) {
 
 
 export async function getRoles() {
-    const roles = await prisma.role.findMany();
+    const roles = await prisma.role.findMany({
+         where: {
+            name: {
+                not: 'Admin'
+            }
+        }
+    });
     return serialize(roles);
 }
 
@@ -634,7 +712,7 @@ export async function updatePasswordFlag(userId: string, passwordChangeRequired:
         where: { id: userId },
         data: { passwordChangeRequired: passwordChangeRequired },
     });
-    revalidatePath('/dashboard/profile');
+    revalidatePath('/profile');
 }
 
 
@@ -643,88 +721,108 @@ interface PurchaseRequest {
   eventId: number;
   tickets: { id: number; quantity: number, name: string; price: number }[];
   promoCode?: string;
-  purchaseFor?: 'self' | { phoneNumber: string };
+  attendeeDetails: {
+    name: string;
+    phone: string;
+  };
 }
 
 export async function purchaseTickets(request: PurchaseRequest) {
     'use server';
 
-    const currentUser = await getCurrentUser();
-    let targetUser: (User & { role: Role | null }) | null = null;
-    let isGuestPurchase = false;
-    
-    if (!request.purchaseFor || request.purchaseFor === 'self') {
-       if (currentUser) {
-           targetUser = currentUser;
-       } else {
-           isGuestPurchase = true;
-       }
-    } else {
-        if (!currentUser) {
-            // This case should ideally be blocked by the UI, but as a safeguard:
-            throw new Error('You must be logged in to purchase tickets for others.');
-        }
-        targetUser = await prisma.user.findUnique({
-            where: { phoneNumber: request.purchaseFor.phoneNumber },
-            include: { role: true },
-        });
-        if (!targetUser) {
-            throw new Error(`User with phone number ${request.purchaseFor.phoneNumber} not found.`);
-        }
+    const { eventId, tickets, promoCode, attendeeDetails } = request;
+
+    if (!attendeeDetails.name || !attendeeDetails.phone) {
+        throw new Error("Attendee name and phone number are required.");
+    }
+     if (tickets.length === 0) {
+        throw new Error("No tickets in purchase request.");
     }
 
+    const event = await prisma.event.findUnique({where: {id: eventId}});
+    if (!event) {
+        throw new Error("Event not found.");
+    }
 
-    const newAttendees = await prisma.$transaction(async (tx) => {
-        const createdAttendees: Attendee[] = [];
-        for (const ticket of request.tickets) {
-            const ticketType = await tx.ticketType.findUnique({ where: { id: ticket.id } });
-            if (!ticketType) throw new Error(`Ticket type with id ${ticket.id} not found.`);
-            if ((ticketType.total - ticketType.sold) < ticket.quantity) {
-                throw new Error(`Not enough tickets available for ${ticketType.name}.`);
-            }
-
-            for (let i = 0; i < ticket.quantity; i++) {
-                const attendeeName = targetUser ? `${targetUser.firstName} ${targetUser.lastName}` : 'Guest Customer';
-                const attendeeEmail = targetUser?.email;
-                const attendeeUserId = targetUser?.id;
-
-                const newAttendee = await tx.attendee.create({
-                    data: {
-                        name: attendeeName,
-                        email: attendeeEmail,
-                        eventId: request.eventId,
-                        ticketTypeId: ticket.id,
-                        userId: isGuestPurchase ? null : attendeeUserId, // Store null for guests
-                        checkedIn: false,
-                    },
-                });
-                createdAttendees.push(newAttendee);
-            }
-
-            await tx.ticketType.update({
-                where: { id: ticket.id },
-                data: { sold: { increment: ticket.quantity } },
-            });
-        }
-
-        if (request.promoCode) {
-            await tx.promoCode.update({
-                where: { code: request.promoCode, eventId: request.eventId },
-                data: { uses: { increment: 1 } },
-            });
-        }
-        return createdAttendees;
+    const targetUser = await prisma.user.findUnique({
+        where: { phoneNumber: attendeeDetails.phone }
     });
 
-    revalidatePath(`/events/${request.eventId}`);
-    revalidatePath('/');
-    revalidatePath('/tickets');
+    const ticketTypeIds = tickets.map(t => t.id);
+    const ticketTypes = await prisma.ticketType.findMany({
+        where: { id: { in: ticketTypeIds } }
+    });
 
-    if (newAttendees.length > 0) {
-        redirect(`/ticket/${newAttendees[0].id}/confirmation`);
+    let totalAmount = 0;
+    const itemsForArifpay = [];
+
+    for (const ticket of tickets) {
+        const ticketType = ticketTypes.find(tt => tt.id === ticket.id);
+        if (!ticketType) throw new Error(`Ticket type with id ${ticket.id} not found.`);
+        if ((ticketType.total - ticketType.sold) < ticket.quantity) {
+            throw new Error(`Not enough tickets available for ${ticketType.name}.`);
+        }
+        totalAmount += Number(ticketType.price) * ticket.quantity;
+
+        itemsForArifpay.push({
+          name: ticketType.name,
+          quantity: ticket.quantity,
+          price: Number(ticketType.price),
+          description: `Ticket for ${event.name}`
+        });
+    }
+    
+    const purchaseQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0);
+
+    const attendeeDataForApi = {
+        name: attendeeDetails.name,
+        email: targetUser?.email,
+        userId: targetUser?.id,
+        phone: attendeeDetails.phone,
+        quantity: purchaseQuantity,
+    };
+
+    try {
+        const appUrl = process.env.APP_URL;
+        if (!appUrl) {
+            throw new Error("APP_URL environment variable is not set.");
+        }
+
+        // The name passed to ArifPay should be a single descriptor for the whole purchase
+        const firstTicketName = itemsForArifpay[0]?.name || 'Event Ticket';
+        const purchaseName = tickets.length > 1 
+            ? `${event.name} - Multiple Tickets`
+            : `${event.name} - ${firstTicketName}`;
+
+        const response = await fetch(`${appUrl}/api/payment/arifpay/initiate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                eventId: eventId,
+                ticketTypeId: tickets[0].id, // Pass a representative ticketTypeId
+                quantity: purchaseQuantity,
+                price: totalAmount,
+                name: purchaseName, 
+                attendeeData: attendeeDataForApi,
+                promoCode: promoCode,
+            }),
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.paymentUrl) {
+            redirect(result.paymentUrl);
+        } else {
+            throw new Error(result.error || 'Failed to initiate payment session.');
+        }
+    } catch (error: any) {
+        if (error.digest?.startsWith('NEXT_REDIRECT')) {
+            throw error;
+        }
+        console.error("Failed to initiate ArifPay payment:", error);
+        throw new Error(error.message);
     }
 }
-
 
 export async function getTicketDetailsForConfirmation(attendeeId: number) {
     const attendee = await prisma.attendee.findUnique({
@@ -737,6 +835,17 @@ export async function getTicketDetailsForConfirmation(attendeeId: number) {
 
     if (!attendee) {
         return null;
+    }
+
+    if (attendee.userId) {
+      const user = await getCurrentUser(cookies());
+      if (user && attendee.userId !== user.id) {
+          const cookieHeader = cookies().get('myTickets');
+          const localTicketIds = cookieHeader ? JSON.parse(cookieHeader.value) : [];
+          if (!localTicketIds.includes(attendeeId)) {
+             // Not their ticket and not a guest purchase from this session
+          }
+      }
     }
 
     return serialize(attendee);
@@ -771,7 +880,7 @@ export async function getTicketsByUserId(userId: string | null, localTicketIds: 
     return serialize(tickets);
 }
 
-export async function validatePromoCode(promoCode: string, eventId: number): Promise<PromoCode | null> {
+export async function validatePromoCode(eventId: number, promoCode: string): Promise<PromoCode | null> {
     const promo = await prisma.promoCode.findFirst({
         where: {
             code: promoCode,

@@ -177,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
           
           if (userData.passwordChangeRequired) {
-              router.push('/dashboard/profile');
+              router.push('/profile');
           } else {
              // Role-based redirection
               switch(userData.role?.name) {

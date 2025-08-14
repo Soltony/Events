@@ -4,12 +4,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -20,7 +14,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, ArrowUpRight, MoreHorizontal, Pencil, Trash2, MapPin } from "lucide-react";
+import { PlusCircle, ArrowUpRight, Pencil, Trash2, MapPin } from "lucide-react";
 import Link from 'next/link';
 import Image from 'next/image';
 import { getEvents, deleteEvent } from '@/lib/actions';
@@ -123,6 +117,9 @@ export default function ManageEventsPage() {
                       <Skeleton className="h-7 w-3/4" />
                       <Skeleton className="h-5 w-1/2" />
                     </CardContent>
+                    <CardFooter className="p-4">
+                      <Skeleton className="h-9 w-full" />
+                    </CardFooter>
                 </Card>
             ))
         ) : events.length > 0 ? (
@@ -134,36 +131,9 @@ export default function ManageEventsPage() {
                   <Image src={imageUrl} alt={event.name} width={600} height={400} className="rounded-t-lg object-cover aspect-[3/2]" data-ai-hint={event.hint ?? 'event'} />
                 </CardHeader>
                 <CardContent className="p-4 flex-1 space-y-2">
-                  <div className="flex items-start justify-between gap-4">
-                    <CardTitle className="text-lg leading-tight">{event.name}</CardTitle>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Event Actions</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                             <DropdownMenuItem asChild>
-                                <Link href={`/dashboard/events/${event.id}/edit`}>
-                                    <Pencil className="mr-2 h-4 w-4" /> Edit
-                                </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                                className="text-destructive focus:text-destructive" 
-                                onSelect={() => handleOpenDeleteDialog(event)}>
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                                <Link href={`/dashboard/events/${event.id}`}>
-                                    <ArrowUpRight className="mr-2 h-4 w-4" /> Manage
-                                </Link>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  <div className="space-y-1">
-                    <Badge variant="outline" className="text-xs">{event.category}</Badge>
+                  <Badge variant="outline" className="text-xs">{event.category}</Badge>
+                  <CardTitle className="text-lg leading-tight">{event.name}</CardTitle>
+                  <div className="space-y-1 pt-1">
                     <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
                     <CardDescription className="flex items-center gap-1.5 pt-1 text-xs">
                         <MapPin className="h-3 w-3" />
@@ -171,6 +141,27 @@ export default function ManageEventsPage() {
                     </CardDescription>
                   </div>
                 </CardContent>
+                 <CardFooter className="p-2 border-t flex justify-end gap-1">
+                    <Button asChild variant="ghost" size="icon">
+                        <Link href={`/dashboard/events/${event.id}/edit`} aria-label="Edit Event">
+                            <Pencil className="h-4 w-4" />
+                        </Link>
+                    </Button>
+                    <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleOpenDeleteDialog(event)}
+                        aria-label="Delete Event"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                    <Button asChild size="icon" className="ml-auto">
+                        <Link href={`/dashboard/events/${event.id}`} aria-label="Manage Event">
+                            <ArrowUpRight className="h-4 w-4" />
+                        </Link>
+                    </Button>
+                </CardFooter>
               </Card>
             )
           })

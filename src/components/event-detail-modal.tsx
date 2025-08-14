@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MapPin, Ticket, Loader2, X, User, Users, Phone } from 'lucide-react';
+import { Calendar, MapPin, Ticket, Loader2, X, User, Phone } from 'lucide-react';
 import type { Event, TicketType } from '@prisma/client';
 import { format } from 'date-fns';
 import { ScrollArea } from './ui/scroll-area';
@@ -47,45 +48,52 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 export default function EventDetailModal({ event, isOpen, onClose }: EventDetailModalProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
-  const { user, isAuthenticated } = useAuth();
+  const { user } = useAuth();
   const [loadingTicketId, setLoadingTicketId] = useState<number | null>(null);
-  const [buyForOther, setBuyForOther] = useState<{ ticket: TicketType; isOpen: boolean }>({ ticket: null!, isOpen: false });
-  const [otherPhoneNumber, setOtherPhoneNumber] = useState('');
+  
+  const [purchaseState, setPurchaseState] = useState<{ ticket: TicketType | null; isOpen: boolean }>({ ticket: null, isOpen: false });
+  const [attendeeName, setAttendeeName] = useState(user ? `${user.firstName} ${user.lastName}` : '');
+  const [attendeePhone, setAttendeePhone] = useState(user ? user.phoneNumber : '');
 
 
   if (!event) return null;
   
-  const handlePurchase = (ticketType: TicketType, forSelf = true) => {
-    setLoadingTicketId(ticketType.id);
+  const handlePurchase = () => {
+    if (!purchaseState.ticket) return;
+
+    if (!attendeeName || !attendeePhone) {
+      toast({ variant: 'destructive', title: "Missing Information", description: "Please enter your name and phone number." });
+      return;
+    }
+
+    setLoadingTicketId(purchaseState.ticket.id);
+
     startTransition(() => {
         purchaseTickets({
           eventId: event.id,
-          tickets: [{ id: ticketType.id, quantity: 1, name: ticketType.name, price: Number(ticketType.price) }],
-          purchaseFor: forSelf ? 'self' : { phoneNumber: otherPhoneNumber },
+          tickets: [{ 
+            id: purchaseState.ticket!.id, 
+            quantity: 1, 
+            name: purchaseState.ticket!.name, 
+            price: Number(purchaseState.ticket!.price) 
+          }],
+          attendeeDetails: {
+            name: attendeeName,
+            phone: attendeePhone,
+          }
         });
-        if (buyForOther.isOpen) {
-            setBuyForOther({ ticket: null!, isOpen: false });
-            setOtherPhoneNumber('');
-        }
+        setPurchaseState({ ticket: null, isOpen: false });
     });
   };
 
-  const handleBuyForOther = (ticketType: TicketType) => {
-     if (!isAuthenticated) {
-          toast({
-                variant: 'destructive',
-                title: 'Login Required',
-                description: 'You must be logged in to buy tickets for others.',
-            });
-        return;
-    }
-    setBuyForOther({ ticket: ticketType, isOpen: true });
+  const openPurchaseDialog = (ticket: TicketType) => {
+    setPurchaseState({ ticket, isOpen: true });
   }
 
   const firstImage = event.image?.split(',')[0].trim() || 'https://placehold.co/800x600.png';
 
-
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl p-0 grid grid-cols-1 md:grid-cols-2 gap-0">
          <div className="relative order-1 md:order-2">
@@ -134,27 +142,15 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
                                                     <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-base">ETB {Number(ticket.price).toFixed(2)}</p>
                                                     <p className="text-xs text-muted-foreground">{!isSoldOut ? `${ticket.total - ticket.sold} remaining` : 'Sold Out'}</p>
                                                 </div>
-                                                <div className="flex gap-2 w-full sm:w-auto">
-                                                    <Button 
-                                                        onClick={() => handlePurchase(ticket)}
-                                                        disabled={isLoading || isSoldOut}
-                                                        className="w-full sm:w-auto shrink-0 bg-accent hover:bg-accent/90 text-accent-foreground"
-                                                        size="sm"
-                                                    >
-                                                        {isLoading && loadingTicketId === ticket.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <User className="mr-2 h-4 w-4" />}
-                                                        For Self
-                                                    </Button>
-                                                     <Button 
-                                                        onClick={() => handleBuyForOther(ticket)}
-                                                        disabled={isLoading || isSoldOut}
-                                                        className="w-full sm:w-auto shrink-0"
-                                                        size="sm"
-                                                        variant="outline"
-                                                    >
-                                                        <Users className="mr-2 h-4 w-4" />
-                                                        For Other
-                                                    </Button>
-                                                </div>
+                                                <Button 
+                                                    onClick={() => openPurchaseDialog(ticket)}
+                                                    disabled={isLoading || isSoldOut}
+                                                    className="w-full sm:w-auto shrink-0 bg-accent hover:bg-accent/90 text-accent-foreground"
+                                                    size="sm"
+                                                >
+                                                    {isLoading && loadingTicketId === ticket.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Ticket className="mr-2 h-4 w-4" />}
+                                                    Get Ticket
+                                                </Button>
                                             </div>
                                         )
                                     })
@@ -167,41 +163,43 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
             </div>
         </div>
       </DialogContent>
-        {buyForOther.isOpen && buyForOther.ticket && (
-            <AlertDialog open={buyForOther.isOpen} onOpenChange={(open) => !open && setBuyForOther({ticket: null!, isOpen: false})}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                    <AlertDialogTitle>Buy Ticket for Another User</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Enter the phone number of the person you are buying the <span className="font-bold">"{buyForOther.ticket.name}"</span> ticket for. The ticket will be added to their account.
-                    </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <div className="grid gap-2">
-                        <Label htmlFor="phone-number">Phone Number</Label>
-                        <div className="relative">
-                             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                id="phone-number" 
-                                placeholder="0912345678" 
-                                value={otherPhoneNumber} 
-                                onChange={(e) => setOtherPhoneNumber(e.target.value)}
-                                className="pl-10"
-                            />
-                        </div>
-                    </div>
-                    <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction 
-                        onClick={() => handlePurchase(buyForOther.ticket, false)}
-                        disabled={isPending || otherPhoneNumber.length < 10}
-                    >
-                         {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Ticket className="mr-2 h-4 w-4" />}
-                        Confirm Purchase
-                    </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        )}
     </Dialog>
+     <AlertDialog open={purchaseState.isOpen} onOpenChange={(open) => !open && setPurchaseState({ticket: null, isOpen: false})}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Attendee Information</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Please provide the name and phone number for the ticket holder.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+             <div className="space-y-4">
+                <div className="grid gap-2">
+                    <Label htmlFor="name">Full Name</Label>
+                     <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input id="name" placeholder="Enter full name" value={attendeeName} onChange={e => setAttendeeName(e.target.value)} className="pl-10" />
+                    </div>
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input id="phone" placeholder="e.g., 0912345678" value={attendeePhone} onChange={e => setAttendeePhone(e.target.value)} className="pl-10" />
+                    </div>
+                </div>
+            </div>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                    onClick={handlePurchase}
+                    disabled={isPending}
+                >
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Ticket className="mr-2 h-4 w-4" />}
+                    Proceed to Payment
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+   </>
   );
 }

@@ -49,13 +49,6 @@ interface UserWithRole extends User {
     role: Role;
 }
 
-const roleHierarchy: Record<string, number> = {
-    'Admin': 3,
-    'Sub-admin': 2,
-    'Organizer': 1,
-};
-
-
 export default function UserManagementPage() {
     const { toast } = useToast();
     const router = useRouter();
@@ -64,25 +57,37 @@ export default function UserManagementPage() {
     const [roles, setRoles] = useState<Role[]>([]);
     const [loading, setLoading] = useState(true);
 
-    const currentUserRoleRank = currentUser?.role?.name ? (roleHierarchy[currentUser.role.name] || 0) : 0;
-    
-    const canManageUser = (targetUser: UserWithRole): boolean => {
-        if (!currentUser?.role?.name) return false;
-        if (targetUser.id === currentUser.id) return false; // Cannot manage self
-        if (targetUser.role?.name === 'Admin') return false; // Nobody can manage Admin
-
-        const targetUserRoleRank = roleHierarchy[targetUser.role.name] || 0;
-        return currentUserRoleRank > targetUserRoleRank;
-    }
-
-
     const fetchData = async () => {
+        if (!currentUser) {
+            setLoading(false);
+            return;
+        }
+
         try {
             !loading && setLoading(true);
-            const { users, roles } = await getUsersAndRoles();
-            // Filter out the Admin user from the list to be displayed
-            setUsers(users.filter(user => user.role.name !== 'Admin'));
-            setRoles(roles.filter((role: Role) => role.name !== 'Admin')); // Filter out Admin role for dropdown
+            const { users: allUsers, roles: allRoles } = await getUsersAndRoles();
+            
+            const filteredUsers = allUsers.filter(user => {
+                // The current user should always see themselves.
+                if (user.id === currentUser.id) {
+                    return true;
+                }
+                
+                // Hide Admins from non-Admins
+                if (currentUser.role.name !== 'Admin' && user.role.name === 'Admin') {
+                    return false;
+                }
+                
+                // Hide users with the same role (peers)
+                if (user.role.name === currentUser.role.name) {
+                    return false;
+                }
+
+                return true;
+            });
+
+            setUsers(filteredUsers);
+            setRoles(allRoles.filter((role: Role) => role.name !== 'Admin')); 
         } catch (error) {
             console.error("Failed to fetch settings data:", error);
             toast({ variant: 'destructive', title: 'Error', description: 'Could not load users and roles.' });
@@ -93,7 +98,7 @@ export default function UserManagementPage() {
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [currentUser]);
 
     const handleRoleChange = async (userId: string, newRoleId: string) => {
         const oldUsers = [...users];
@@ -110,131 +115,136 @@ export default function UserManagementPage() {
     };
 
     const handleDeleteUser = async (user: UserWithRole) => {
-        if (!canManageUser(user)) {
-            toast({ variant: 'destructive', title: 'Action Denied', description: 'You do not have permission to delete this user.' });
-            return;
-        }
-
         try {
             await deleteUser(user.id, user.phoneNumber);
             toast({ title: 'User Deleted', description: `${user.firstName} ${user.lastName} has been removed.`});
-            fetchData(); // Refresh the list
+            fetchData();
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to delete user.' });
         }
     };
 
   return (
-    <div className="flex flex-1 flex-col gap-4 md:gap-8">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
-          <span className="sr-only">Back</span>
-        </Button>
-        <div>
-            <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-            <p className="text-muted-foreground">
+    <div className="flex flex-1 justify-center p-4">
+      <div className="w-full max-w-4xl">
+        <div className="flex flex-1 flex-col gap-4 md:gap-8">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
+              <ArrowLeft className="h-4 w-4" />
+              <span className="sr-only">Back</span>
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
+              <p className="text-muted-foreground">
                 View and manage existing user accounts and their roles.
-            </p>
-        </div>
-      </div>
-      
-      {loading ? (
-        <Card>
-            <CardHeader><Skeleton className="h-6 w-32" /></CardHeader>
-            <CardContent><Skeleton className="h-40 w-full" /></CardContent>
-        </Card>
-      ) : (
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+              </p>
+            </div>
+          </div>
+          {loading ? (
+            <Card>
+              <CardHeader><Skeleton className="h-6 w-32" /></CardHeader>
+              <CardContent><Skeleton className="h-40 w-full" /></CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                    <CardTitle>All Users</CardTitle>
-                    <CardDescription>Assign roles to users in the system.</CardDescription>
+                  <CardTitle>All Users</CardTitle>
+                  <CardDescription>Assign roles to users in the system.</CardDescription>
                 </div>
                 {hasPermission('User Registration:Create') && (
-                    <Button asChild style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
-                        <Link href="/dashboard/settings/users/new">
-                            <UserPlus className="mr-2 h-4 w-4" /> Add User
-                        </Link>
-                    </Button>
+                  <Button asChild style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
+                    <Link href="/dashboard/settings/users/new">
+                      <UserPlus className="mr-2 h-4 w-4" /> Add User
+                    </Link>
+                  </Button>
                 )}
-            </CardHeader>
-            <CardContent>
+              </CardHeader>
+              <CardContent>
                 <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Phone Number</TableHead>
-                            <TableHead className="w-[180px]">Role</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {users.map((user) => {
-                            const isManageable = canManageUser(user);
-                            const canUpdate = hasPermission('User Management:Update');
-                            const canDelete = hasPermission('User Management:Delete');
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Phone Number</TableHead>
+                      <TableHead className="w-[180px]">Role</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => {
+                      const canUpdate = hasPermission('User Management:Update');
+                      const canDelete = hasPermission('User Management:Delete');
+                      
+                      const isSelf = user.id === currentUser?.id;
+                      const isTargetAdmin = user.role?.name === 'Admin';
+                      
+                      const isEditable = (canUpdate && !isTargetAdmin) || isSelf;
+                      const isDeletable = canDelete && !isSelf && !isTargetAdmin;
+                      
+                      const canChangeRole = canUpdate && !isSelf && !isTargetAdmin;
 
-                            return (
-                                <TableRow key={user.id}>
-                                    <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
-                                    <TableCell>{user.phoneNumber}</TableCell>
-                                    <TableCell>
-                                        <Select 
-                                            value={user.roleId ?? ''} 
-                                            onValueChange={(newRoleId) => handleRoleChange(user.id, newRoleId)}
-                                            disabled={!isManageable || !canUpdate}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder={user.role?.name || "Select role"} />
-                                            </SelectTrigger>
-                                            <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
-                                        </Select>
-                                    </TableCell>
-                                     <TableCell className="text-right">
-                                        <div className="flex justify-end gap-2">
-                                            {canUpdate && (
-                                                <Button variant="ghost" size="icon" asChild disabled={!isManageable}>
-                                                    <Link href={`/dashboard/settings/users/${user.id}/edit`}>
-                                                        <Pencil className="h-4 w-4" />
-                                                        <span className="sr-only">Edit</span>
-                                                    </Link>
-                                                </Button>
-                                            )}
-                                            {canDelete && (
-                                                <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" disabled={!isManageable}>
-                                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                                        <span className="sr-only">Delete</span>
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            This action cannot be undone. This will permanently delete the user <strong>{user.firstName} {user.lastName}</strong> and all associated data.
-                                                        </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDeleteUser(user)} className="bg-destructive hover:bg-destructive/90">
-                                                            Delete
-                                                        </AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            )}
-                                        </div>
-                                      </TableCell>
-                                </TableRow>
-                            );
-                        })}
-                    </TableBody>
+                      return (
+                        <TableRow key={user.id}>
+                          <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
+                          <TableCell>{user.phoneNumber}</TableCell>
+                          <TableCell>
+                            <Select
+                              value={user.roleId ?? ''}
+                              onValueChange={(newRoleId) => handleRoleChange(user.id, newRoleId)}
+                              disabled={!canChangeRole}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder={user.role?.name || "Select role"} />
+                              </SelectTrigger>
+                              <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              {canUpdate && (
+                                <Button variant="ghost" size="icon" asChild disabled={!isEditable}>
+                                  <Link href={`/dashboard/settings/users/${user.id}/edit`}>
+                                    <Pencil className="h-4 w-4" />
+                                    <span className="sr-only">Edit</span>
+                                  </Link>
+                                </Button>
+                              )}
+                              {canDelete && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" disabled={!isDeletable}>
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                      <span className="sr-only">Delete</span>
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete the user <strong>{user.firstName} {user.lastName}</strong> and all associated data.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDeleteUser(user)} className="bg-destructive hover:bg-destructive/90">
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
                 </Table>
-            </CardContent>
-        </Card>
-      )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -70,7 +70,7 @@ export default function ProfilePage() {
 
         toast({
             title: 'Success!',
-            description: 'Your password has been changed successfully.' + (wasFirstTime ? '' : ' Please log in again.'),
+            description: 'Your password has been changed successfully.'
         });
         
         // Only force logout if it was not a mandatory first-time change
@@ -79,7 +79,8 @@ export default function ProfilePage() {
                 logout();
             }, 500);
         } else {
-            router.push('/dashboard');
+             // Use a full page reload to ensure the new session state is properly loaded.
+             window.location.href = '/dashboard';
         }
 
     } catch (error: any) {
@@ -96,85 +97,74 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-4 md:gap-8">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">My Profile</h1>
-        <p className="text-muted-foreground">Manage your account settings.</p>
-      </div>
-
-       {user?.passwordChangeRequired && (
-        <Alert variant="destructive" className="border-yellow-500/50 text-yellow-500 dark:border-yellow-500 [&>svg]:text-yellow-500">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Action Required</AlertTitle>
-            <AlertDescription>
-                For your security, you must change your temporary password before you can access the dashboard.
-            </AlertDescription>
-        </Alert>
-      )}
-      
-      <Card className="max-w-2xl">
-        <CardHeader>
-          <CardTitle>Change Password</CardTitle>
-          <CardDescription>
-            Enter your current password and a new password to update your credentials.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="currentPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Current Password</FormLabel>
-                    <FormControl>
-                      <PasswordInput placeholder="••••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+    <Card className="w-full max-w-lg">
+      <CardHeader>
+        <CardTitle>Change Password</CardTitle>
+      </CardHeader>
+      <CardContent>
+         {user?.passwordChangeRequired && (
+          <Alert variant="destructive" className="mb-6 border-yellow-500/50 text-yellow-500 dark:border-yellow-500 [&>svg]:text-yellow-500">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Action Required</AlertTitle>
+              <AlertDescription>
+                  For your security, change your temporary password before accessing the dashboard.
+              </AlertDescription>
+          </Alert>
+        )}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="currentPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Current Password</FormLabel>
+                  <FormControl>
+                    <PasswordInput placeholder="••••••••" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="newPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>New Password</FormLabel>
+                  <FormControl>
+                    <PasswordInput placeholder="••••••••" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Confirm New Password</FormLabel>
+                  <FormControl>
+                    <PasswordInput placeholder="••••••••" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="flex justify-end pt-2">
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <KeyRound className="mr-2 h-4 w-4" />
                 )}
-              />
-              <FormField
-                control={form.control}
-                name="newPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>New Password</FormLabel>
-                    <FormControl>
-                      <PasswordInput placeholder="••••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirm New Password</FormLabel>
-                    <FormControl>
-                      <PasswordInput placeholder="••••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="flex justify-end">
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <KeyRound className="mr-2 h-4 w-4" />
-                  )}
-                  Change Password
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-    </div>
+                Change Password
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
   );
 }
