@@ -4,24 +4,10 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, Suspense } from "react";
-import prisma from "@/lib/prisma";
-
-async function getAttendeeIdFromTransaction(transactionId: string | null) {
-    if (!transactionId) return null;
-    
-    // This part must run on the server, we will move it to a server action.
-    // For now, we simulate a delay and redirect logic.
-    // In a real app, this would be an action:
-    // const order = await prisma.pendingOrder.findUnique({ where: { transactionId }});
-    // return order?.attendeeId;
-
-    // This is a placeholder for the logic that needs to be moved.
-    return new Promise(resolve => setTimeout(() => resolve(null), 2000));
-}
 
 function SuccessContent() {
     const router = useRouter();
@@ -29,7 +15,10 @@ function SuccessContent() {
     const transactionId = searchParams.get('transaction_id');
 
     useEffect(() => {
-        if (!transactionId) return;
+        if (!transactionId) {
+            router.replace('/'); // No transaction ID, go home.
+            return;
+        };
 
         const interval = setInterval(async () => {
              try {
@@ -37,15 +26,19 @@ function SuccessContent() {
                 const response = await fetch(`/api/payment/status/${transactionId}`);
                 if (response.ok) {
                     const data = await response.json();
-                    if (data.attendeeId) {
+                    if (data.status === 'COMPLETED' && data.attendeeId) {
                         clearInterval(interval);
                         router.replace(`/ticket/${data.attendeeId}/confirmation`);
+                    } else if (data.status === 'FAILED') {
+                        clearInterval(interval);
+                        // Redirect to a failure page or show a toast
+                        router.replace(`/`);
                     }
                 }
              } catch (error) {
                 console.error("Error polling for payment status:", error);
              }
-        }, 2000); // Poll every 2 seconds
+        }, 3000); // Poll every 3 seconds
 
         // Cleanup on component unmount
         return () => clearInterval(interval);

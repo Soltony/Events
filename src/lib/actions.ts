@@ -755,23 +755,20 @@ export async function purchaseTickets(request: PurchaseRequest) {
     const ticketTypes = await prisma.ticketType.findMany({
         where: { id: { in: ticketTypeIds } }
     });
-
-    let totalAmount = 0;
-    const itemsForArifpay = [];
-
+    
+    const itemsForGateway = [];
     for (const ticket of tickets) {
         const ticketType = ticketTypes.find(tt => tt.id === ticket.id);
         if (!ticketType) throw new Error(`Ticket type with id ${ticket.id} not found.`);
         if ((ticketType.total - ticketType.sold) < ticket.quantity) {
             throw new Error(`Not enough tickets available for ${ticketType.name}.`);
         }
-        totalAmount += Number(ticketType.price) * ticket.quantity;
 
-        itemsForArifpay.push({
-          name: ticketType.name,
+        itemsForGateway.push({
+          name: `${event.name} - ${ticketType.name}`,
           quantity: ticket.quantity,
           price: Number(ticketType.price),
-          description: `Ticket for ${event.name}`
+          description: `Event ticket for ${event.name}`
         });
     }
     
@@ -791,30 +788,22 @@ export async function purchaseTickets(request: PurchaseRequest) {
             throw new Error("APP_URL environment variable is not set.");
         }
 
-        // The name passed to ArifPay should be a single descriptor for the whole purchase
-        const firstTicketName = itemsForArifpay[0]?.name || 'Event Ticket';
-        const purchaseName = tickets.length > 1 
-            ? `${event.name} - Multiple Tickets`
-            : `${event.name} - ${firstTicketName}`;
-
         const response = await fetch(`${appUrl}/api/payment/arifpay/initiate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 eventId: eventId,
                 ticketTypeId: tickets[0].id, // Pass a representative ticketTypeId
-                quantity: purchaseQuantity,
-                price: totalAmount,
-                name: purchaseName, 
                 attendeeData: attendeeDataForApi,
                 promoCode: promoCode,
+                items: itemsForGateway,
             }),
         });
 
         const result = await response.json();
 
         if (response.ok && result.paymentUrl) {
-            redirect(result.paymentUrl);
+            redirect(result.paymentUrl + `&transaction_id=${result.sessionId}`);
         } else {
             throw new Error(result.error || 'Failed to initiate payment session.');
         }
@@ -822,7 +811,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
         if (error.digest?.startsWith('NEXT_REDIRECT')) {
             throw error;
         }
-        console.error("Failed to initiate ArifPay payment:", error);
+        console.error("Failed to initiate payment:", error);
         throw new Error(error.message);
     }
 }
