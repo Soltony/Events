@@ -1,7 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { randomBytes } from 'crypto';
 
 function formatPhoneNumber(phone: string): string {
     if (phone.startsWith('09') && phone.length === 10) {
@@ -10,37 +9,27 @@ function formatPhoneNumber(phone: string): string {
     if (phone.startsWith('07') && phone.length === 10) {
         return '251' + phone.substring(1);
     }
-    // Return as is if it's already in a different format (e.g., 2519...)
     return phone;
 }
 
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { eventId, ticketTypeId, quantity, price, name, attendeeData, promoCode } = body;
+        const { eventId, ticketTypeId, attendeeData, promoCode, items } = body;
         
-        if (!eventId || !ticketTypeId || !quantity || !price || !name || !attendeeData) {
+        if (!eventId || !ticketTypeId || !attendeeData || !items) {
             return NextResponse.json({ error: 'Missing required payment details.' }, { status: 400 });
         }
 
-        const event = await prisma.event.findUnique({ where: { id: eventId }});
-        if (!event) {
-             return NextResponse.json({ error: 'Event not found.' }, { status: 404 });
-        }
+        const gatewayUrl = process.env.PAYMENT_GATEWAY_URL;
+        const apiKey = process.env.PAYMENT_GATEWAY_API_KEY;
+        const cbsAccount = process.env.PAYMENT_GATEWAY_CBS_ACCOUNT;
 
-        const nonce = randomBytes(16).toString('hex');
-        const expireDate = new Date();
-        expireDate.setMinutes(expireDate.getMinutes() + 30); // 30-minute expiry
-
-        const appUrl = process.env.APP_URL;
-        if (!appUrl) {
-            console.error("APP_URL is not set in environment variables.");
+        if (!gatewayUrl || !apiKey || !cbsAccount) {
+            console.error("Payment gateway environment variables are not set.");
             return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
         }
-        
-        const totalAmount = Number(price);
 
-        // Create a pending order to be confirmed by the webhook
         const pendingOrder = await prisma.pendingOrder.create({
             data: {
                 eventId,
@@ -51,55 +40,37 @@ export async function POST(req: NextRequest) {
             },
         });
 
-        const arifpayData = {
-            cancelUrl: `${appUrl}/events/${eventId}`,
-            phone: formatPhoneNumber(attendeeData.phone || '251954926213'),
-            email: attendeeData.email || 'telebirrTest@gmail.com', // Use provided email or fallback
-            nonce: nonce,
-            errorUrl: `${appUrl}/events/${eventId}?error=payment_failed`,
-            notifyUrl: `${appUrl}/api/payment/arifpay/notify`,
-            successUrl: `${appUrl}/payment/success?transaction_id=${pendingOrder.transactionId}`,
-            paymentMethods: ['TELEBIRR'],
-            expireDate: expireDate.toISOString(),
-            items: [{
-                name: name,
-                quantity: 1,
-                price: totalAmount,
-                description: `Ticket for ${event.name}`
-            }],
-            beneficiaries: [{
-                accountNumber: '01320811436100', // Static account number
-                bank: 'AWINETAA', // Static bank name
-                amount: totalAmount,
-            }],
-            lang: 'EN',
+        const gatewayData = {
+            phone: formatPhoneNumber(attendeeData.phone || '251911707917'),
+            email: attendeeData.email || 'telebinTest@gmail.com',
+            cbs: cbsAccount,
+            items: items,
         };
 
-        const arifpayResponse = await fetch('https://gateway.arifpay.net/api/checkout/session', {
+        const gatewayResponse = await fetch(`${gatewayUrl}/create-session`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-arifpay-key': process.env.ARIFPAY_API_KEY!,
+                'Api-Key': apiKey,
             },
-            body: JSON.stringify(arifpayData),
+            body: JSON.stringify(gatewayData),
         });
 
-        const arifpayResult = await arifpayResponse.json();
+        const gatewayResult = await gatewayResponse.json();
         
-        if (!arifpayResponse.ok || !arifpayResult.data?.sessionId) {
-            console.error('ArifPay API Error:', arifpayResult);
-            return NextResponse.json({ error: 'Error communicating with payment gateway.' }, { status: 500 });
+        if (gatewayResult.ResponseCode !== "0" || !gatewayResult.Data?.URL) {
+            console.error('Payment Gateway API Error:', gatewayResult);
+            return NextResponse.json({ error: gatewayResult.ResponseDescription || 'Error communicating with payment gateway.' }, { status: 500 });
         }
-
-        // Update the pending order with the session ID from ArifPay
+        
+        const sessionId = gatewayResult.Data.NA;
+        
         await prisma.pendingOrder.update({
             where: { id: pendingOrder.id },
-            data: {
-                arifpaySessionId: arifpayResult.data.sessionId,
-            }
+            data: { arifpaySessionId: sessionId },
         });
 
-        return NextResponse.json({ paymentUrl: arifpayResult.data.paymentUrl });
+        return NextResponse.json({ paymentUrl: gatewayResult.Data.URL, sessionId: sessionId });
 
     } catch (error: any) {
         console.error('Payment initiation failed:', error);
