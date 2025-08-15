@@ -22,18 +22,17 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing required payment details.' }, { status: 400 });
         }
         
-        const paymentGatewayUrl = process.env.PAYMENT_GATEWAY_URL;
-        const apiKey = process.env.PAYMENT_GATEWAY_API_KEY;
-        const cbsAccount = process.env.PAYMENT_GATEWAY_CBS_ACCOUNT;
+        const paymentGatewayUrl = process.env.BASE_URL;
+        const apiKey = process.env.ARIFPAY_API_KEY;
 
-        if (!paymentGatewayUrl || !apiKey || !cbsAccount) {
+        if (!paymentGatewayUrl || !apiKey) {
             console.error("Payment gateway environment variables are not set.");
             return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
         }
 
         const event = await prisma.event.findUnique({ where: { id: eventId }});
-        if (!event) {
-             return NextResponse.json({ error: 'Event not found.' }, { status: 404 });
+        if (!event || !event.cbsAccount) {
+             return NextResponse.json({ error: 'Event or CBS Account not found.' }, { status: 404 });
         }
         
         // Create a pending order to be confirmed by the webhook
@@ -47,7 +46,7 @@ export async function POST(req: NextRequest) {
             },
         });
 
-        const itemsForGateway = tickets.map(ticket => ({
+        const itemsForGateway = tickets.map((ticket: { name: any; quantity: any; price: any; }) => ({
             name: `${event.name} - ${ticket.name}`,
             quantity: ticket.quantity,
             price: Number(ticket.price),
@@ -55,9 +54,9 @@ export async function POST(req: NextRequest) {
         }));
         
         const gatewayPayload = {
-            phone: formatPhoneNumber(attendeeData.phone || ''),
+            phone: formatPhoneNumber(attendeeData.phoneNumber || ''),
             email: attendeeData.email || 'guest@example.com',
-            cbs: cbsAccount,
+            cbs: event.cbsAccount,
             items: itemsForGateway,
         };
 

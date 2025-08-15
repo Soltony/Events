@@ -35,6 +35,7 @@ const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   location: z.string().min(3, { message: 'Location is required.' }),
+  cbsAccount: z.string().min(3, { message: 'CBS Account is required.' }),
   hint: z.string().optional(),
   startDate: z.date({
     required_error: 'A start date and time for the event is required.',
@@ -74,6 +75,7 @@ export default function EditEventPage() {
       name: '',
       description: '',
       location: '',
+      cbsAccount: '',
       hint: '',
       category: '',
       otherCategory: '',
@@ -100,6 +102,7 @@ export default function EditEventPage() {
             name: event.name,
             description: event.description,
             location: event.location,
+            cbsAccount: event.cbsAccount || '',
             hint: event.hint || '',
             category: isOtherCategory ? 'Other' : event.category,
             otherCategory: isOtherCategory ? event.category : '',
@@ -341,6 +344,23 @@ export default function EditEventPage() {
                     </FormControl>
                     <FormDescription>
                       Start typing to search for a location in Ethiopia.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="cbsAccount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CBS Account</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., 7000*****" {...field} />
+                    </FormControl>
+                     <FormDescription>
+                      The Core Banking Beneficiary account for this event.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

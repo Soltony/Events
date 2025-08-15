@@ -12,112 +12,127 @@ datasource db {
 }
 
 model User {
-  id                     String    @id @default(cuid())
-  firstName              String
-  lastName               String
-  email                  String?   @unique
-  phoneNumber            String    @unique
-  passwordChangeRequired Boolean   @default(false)
-  roleId                 String
-  role                   Role      @relation(fields: [roleId], references: [id])
-  events                 Event[]
-  attendees              Attendee[]
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
+  id                      String   @id @default(cuid())
+  firstName               String
+  lastName                String
+  phoneNumber             String   @unique
+  email                   String?  @unique
+  passwordChangeRequired  Boolean  @default(false)
+  cbsAccount              String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  roleId                  String
+  role                    Role     @relation(fields: [roleId], references: [id])
+  events                  Event[]
+  attendees               Attendee[]
+
+  @@index([roleId])
 }
 
 model Role {
-  id          String   @id @default(cuid())
-  name        String   @unique
+  id          String  @id @default(cuid())
+  name        String  @unique
   description String?
   permissions String?
   users       User[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 }
 
 model Event {
-  id           Int          @id @default(autoincrement())
-  name         String
-  description  String
-  startDate    DateTime
-  endDate      DateTime?
-  location     String
-  cbsAccount   String?
-  hint         String?
-  category     String
-  image        String?
-  organizerId  String
-  organizer    User         @relation(fields: [organizerId], references: [id])
-  ticketTypes  TicketType[]
-  attendees    Attendee[]
-  promoCodes   PromoCode[]
+  id          Int          @id @default(autoincrement())
+  name        String
+  description String
+  startDate   DateTime
+  endDate     DateTime?
+  location    String
+  cbsAccount  String?
+  hint        String?
+  category    String
+  image       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  organizerId String
+  organizer   User         @relation(fields: [organizerId], references: [id])
+  ticketTypes TicketType[]
+  attendees   Attendee[]
+  promoCodes  PromoCode[]
   pendingOrders PendingOrder[]
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+
+  @@index([organizerId])
 }
 
 model TicketType {
   id        Int        @id @default(autoincrement())
   name      String
-  price     Decimal
+  price     Decimal    @db.Decimal(10, 2)
   total     Int
   sold      Int        @default(0)
-  eventId   Int
-  event     Event      @relation(fields: [eventId], references: [id])
-  attendees Attendee[]
-  pendingOrders PendingOrder[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+  eventId   Int
+  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  attendees Attendee[]
+
+  @@index([eventId])
 }
 
 model Attendee {
   id           Int        @id @default(autoincrement())
   name         String
   phoneNumber  String?
+  checkedIn    Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
   eventId      Int
   ticketTypeId Int
   userId       String?
-  checkedIn    Boolean    @default(false)
-  event        Event      @relation(fields: [eventId], references: [id])
-  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
+  event        Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id], onDelete: Cascade)
   user         User?      @relation(fields: [userId], references: [id])
   pendingOrders PendingOrder[]
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+
+  @@index([eventId])
+  @@index([ticketTypeId])
+  @@index([userId])
 }
 
 model PromoCode {
   id        Int           @id @default(autoincrement())
-  code      String
+  code      String        @unique
   type      PromoCodeType
-  value     Decimal
-  maxUses   Int
+  value     Decimal       @db.Decimal(10, 2)
   uses      Int           @default(0)
-  eventId   Int
-  event     Event         @relation(fields: [eventId], references: [id])
+  maxUses   Int
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
+  eventId   Int
+  event     Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@unique([code, eventId])
+  @@index([eventId])
 }
 
 model PendingOrder {
-  id               Int        @id @default(autoincrement())
-  transactionId    String     @unique @default(cuid())
-  arifpaySessionId String?
+  id               String    @id @default(cuid())
+  status           String    @default("PENDING") // PENDING, COMPLETED, FAILED
+  arifpaySessionId String?   @unique
+  transactionId    String?   @unique
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  // Storing the details needed to fulfill the order upon webhook confirmation
   eventId          Int
   ticketTypeId     Int?
-  attendeeId       Int?       @unique
-  attendeeData     Json
   promoCode        String?
-  status           String     @default("PENDING") // PENDING, COMPLETED, FAILED
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
-  event            Event      @relation(fields: [eventId], references: [id])
-  ticketType       TicketType? @relation(fields: [ticketTypeId], references: [id])
-  attendee         Attendee?  @relation(fields: [attendeeId], references: [id])
+  attendeeData     Json
+  
+  // Link to the created attendee after successful payment
+  attendeeId       Int?      @unique
+  attendee         Attendee? @relation(fields: [attendeeId], references: [id])
+
+  event            Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
 }
+
 
 enum PromoCodeType {
   PERCENTAGE

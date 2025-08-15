@@ -146,7 +146,7 @@ export async function getEventDetails(id: number) {
 }
 
 export async function addEvent(data: any) {
-    const { tickets, startDate, endDate, otherCategory, ...eventData } = data;
+    const { tickets, startDate, endDate, otherCategory, cbsAccount, ...eventData } = data;
     const user = await getCurrentUser(cookies());
     if (!user) {
         throw new Error('User is not authenticated.');
@@ -167,6 +167,7 @@ export async function addEvent(data: any) {
             category: finalCategory,
             startDate: startDate,
             endDate: endDate,
+            cbsAccount: cbsAccount,
         },
     });
 
@@ -186,7 +187,7 @@ export async function addEvent(data: any) {
 }
 
 export async function updateEvent(id: number, data: any) {
-    const { startDate, endDate, otherCategory, ...eventData } = data;
+    const { startDate, endDate, otherCategory, cbsAccount, ...eventData } = data;
     const user = await getCurrentUser(cookies());
     if (!user) {
         throw new Error('User is not authenticated.');
@@ -212,6 +213,7 @@ export async function updateEvent(id: number, data: any) {
             category: finalCategory,
             startDate: startDate,
             endDate: endDate,
+            cbsAccount: cbsAccount,
         }
     });
 
@@ -469,7 +471,7 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
 
 
 export async function addUser(data: any) {
-    const { firstName, lastName, phoneNumber, email, password, roleId } = data;
+    const { firstName, lastName, phoneNumber, email, password, roleId, cbsAccount } = data;
 
     const phoneRegex = /^(09|07)\d{8}$/;
     if (!phoneRegex.test(phoneNumber)) {
@@ -536,6 +538,7 @@ export async function addUser(data: any) {
             phoneNumber,
             roleId,
             passwordChangeRequired: true,
+            cbsAccount,
         };
 
         if (email) {
@@ -570,13 +573,14 @@ export async function addUser(data: any) {
 }
 
 export async function updateUser(userId: string, data: Partial<User>) {
-    const { firstName, lastName, roleId } = data;
+    const { firstName, lastName, roleId, cbsAccount } = data;
     const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: {
             firstName,
             lastName,
             roleId,
+            cbsAccount,
         },
     });
 
@@ -803,6 +807,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
                 name: purchaseName, 
                 attendeeData: attendeeDataForApi,
                 promoCode: promoCode,
+                tickets: tickets,
             }),
         });
 
