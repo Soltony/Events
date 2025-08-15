@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -113,6 +112,7 @@ export async function getEventById(id: number) {
         where: { id },
         include: {
             ticketTypes: true,
+            organizer: true,
         },
     });
     return serialize(event);
@@ -470,7 +470,7 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
 
 
 export async function addUser(data: any) {
-    const { firstName, lastName, phoneNumber, email, password, roleId } = data;
+    const { firstName, lastName, phoneNumber, email, password, roleId, cbsAccount } = data;
 
     const phoneRegex = /^(09|07)\d{8}$/;
     if (!phoneRegex.test(phoneNumber)) {
@@ -537,6 +537,7 @@ export async function addUser(data: any) {
             phoneNumber,
             roleId,
             passwordChangeRequired: true,
+            cbsAccount,
         };
 
         if (email) {
@@ -571,13 +572,14 @@ export async function addUser(data: any) {
 }
 
 export async function updateUser(userId: string, data: Partial<User>) {
-    const { firstName, lastName, roleId } = data;
+    const { firstName, lastName, roleId, cbsAccount } = data;
     const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: {
             firstName,
             lastName,
             roleId,
+            cbsAccount,
         },
     });
 
@@ -724,62 +726,27 @@ interface PurchaseRequest {
   attendeeDetails: {
     name: string;
     phone: string;
+    email?: string;
   };
 }
 
 export async function purchaseTickets(request: PurchaseRequest) {
     'use server';
-
     const { eventId, tickets, promoCode, attendeeDetails } = request;
 
     if (!attendeeDetails.name || !attendeeDetails.phone) {
         throw new Error("Attendee name and phone number are required.");
     }
-     if (tickets.length === 0) {
+    if (tickets.length === 0) {
         throw new Error("No tickets in purchase request.");
     }
 
-    const event = await prisma.event.findUnique({where: {id: eventId}});
-    if (!event) {
-        throw new Error("Event not found.");
-    }
-
-    const targetUser = await prisma.user.findUnique({
-        where: { phoneNumber: attendeeDetails.phone }
-    });
-
-    const ticketTypeIds = tickets.map(t => t.id);
-    const ticketTypes = await prisma.ticketType.findMany({
-        where: { id: { in: ticketTypeIds } }
-    });
-
-    let totalAmount = 0;
-    const itemsForArifpay = [];
-
-    for (const ticket of tickets) {
-        const ticketType = ticketTypes.find(tt => tt.id === ticket.id);
-        if (!ticketType) throw new Error(`Ticket type with id ${ticket.id} not found.`);
-        if ((ticketType.total - ticketType.sold) < ticket.quantity) {
-            throw new Error(`Not enough tickets available for ${ticketType.name}.`);
-        }
-        totalAmount += Number(ticketType.price) * ticket.quantity;
-
-        itemsForArifpay.push({
-          name: ticketType.name,
-          quantity: ticket.quantity,
-          price: Number(ticketType.price),
-          description: `Ticket for ${event.name}`
-        });
-    }
-    
-    const purchaseQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0);
-
-    const attendeeDataForApi = {
-        name: attendeeDetails.name,
-        email: targetUser?.email,
-        userId: targetUser?.id,
-        phone: attendeeDetails.phone,
-        quantity: purchaseQuantity,
+    // This data is used by the API route to call the payment gateway
+    const purchaseData = {
+        eventId,
+        tickets,
+        promoCode,
+        attendeeDetails,
     };
 
     try {
@@ -788,24 +755,10 @@ export async function purchaseTickets(request: PurchaseRequest) {
             throw new Error("APP_URL environment variable is not set.");
         }
 
-        // The name passed to ArifPay should be a single descriptor for the whole purchase
-        const firstTicketName = itemsForArifpay[0]?.name || 'Event Ticket';
-        const purchaseName = tickets.length > 1 
-            ? `${event.name} - Multiple Tickets`
-            : `${event.name} - ${firstTicketName}`;
-
         const response = await fetch(`${appUrl}/api/payment/arifpay/initiate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                eventId: eventId,
-                ticketTypeId: tickets[0].id, // Pass a representative ticketTypeId
-                quantity: purchaseQuantity,
-                price: totalAmount,
-                name: purchaseName, 
-                attendeeData: attendeeDataForApi,
-                promoCode: promoCode,
-            }),
+            body: JSON.stringify(purchaseData),
         });
 
         const result = await response.json();
@@ -819,7 +772,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
         if (error.digest?.startsWith('NEXT_REDIRECT')) {
             throw error;
         }
-        console.error("Failed to initiate ArifPay payment:", error);
+        console.error("Failed to initiate payment:", error);
         throw new Error(error.message);
     }
 }

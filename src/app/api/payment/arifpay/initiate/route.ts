@@ -10,96 +10,89 @@ function formatPhoneNumber(phone: string): string {
     if (phone.startsWith('07') && phone.length === 10) {
         return '251' + phone.substring(1);
     }
-    // Return as is if it's already in a different format (e.g., 2519...)
     return phone;
 }
 
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { eventId, ticketTypeId, quantity, price, name, attendeeData, promoCode } = body;
+        const { eventId, tickets, promoCode, attendeeDetails } = body;
         
-        if (!eventId || !ticketTypeId || !quantity || !price || !name || !attendeeData) {
+        if (!eventId || !tickets || !Array.isArray(tickets) || tickets.length === 0 || !attendeeDetails) {
             return NextResponse.json({ error: 'Missing required payment details.' }, { status: 400 });
         }
 
-        const event = await prisma.event.findUnique({ where: { id: eventId }});
-        if (!event) {
-             return NextResponse.json({ error: 'Event not found.' }, { status: 404 });
+        const event = await prisma.event.findUnique({ 
+            where: { id: eventId },
+            include: { organizer: true }
+        });
+
+        if (!event || !event.organizer || !event.organizer.cbsAccount) {
+             return NextResponse.json({ error: 'Event or organizer CBS account not found.' }, { status: 404 });
         }
 
-        const nonce = randomBytes(16).toString('hex');
-        const expireDate = new Date();
-        expireDate.setMinutes(expireDate.getMinutes() + 30); // 30-minute expiry
+        const totalAmount = tickets.reduce((sum, ticket) => sum + (ticket.price * ticket.quantity), 0);
+        const totalQuantity = tickets.reduce((sum, ticket) => sum + ticket.quantity, 0);
 
-        const appUrl = process.env.APP_URL;
-        if (!appUrl) {
-            console.error("APP_URL is not set in environment variables.");
-            return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
-        }
-        
-        const totalAmount = Number(price);
-
-        // Create a pending order to be confirmed by the webhook
         const pendingOrder = await prisma.pendingOrder.create({
             data: {
                 eventId,
-                ticketTypeId,
-                attendeeData,
+                ticketTypeId: tickets[0].id, // For simplicity, associate with the first ticket type
+                attendeeData: {
+                    name: attendeeDetails.name,
+                    phoneNumber: attendeeDetails.phone,
+                    userId: attendeeDetails.userId,
+                    quantity: totalQuantity,
+                },
                 promoCode,
                 status: 'PENDING',
             },
         });
 
-        const arifpayData = {
-            cancelUrl: `${appUrl}/events/${eventId}`,
-            phone: formatPhoneNumber(attendeeData.phone || '251954926213'),
-            email: attendeeData.email || 'telebirrTest@gmail.com', // Use provided email or fallback
-            nonce: nonce,
-            errorUrl: `${appUrl}/events/${eventId}?error=payment_failed`,
-            notifyUrl: `${appUrl}/api/payment/arifpay/notify`,
-            successUrl: `${appUrl}/payment/success?transaction_id=${pendingOrder.transactionId}`,
-            paymentMethods: ['TELEBIRR'],
-            expireDate: expireDate.toISOString(),
+        const paymentGatewayUrl = `${process.env.BASE_URL}/api/payment/createsession`;
+        const apiKey = process.env.ARIFPAY_API_KEY;
+
+        if (!paymentGatewayUrl || !apiKey) {
+            console.error("Payment gateway URL or API key is not configured.");
+            return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
+        }
+
+        const paymentGatewayData = {
+            phone: formatPhoneNumber(attendeeDetails.phone),
+            email: `${formatPhoneNumber(attendeeDetails.phone)}@nibticket.com`,
+            cbs: event.organizer.cbsAccount,
             items: [{
-                name: name,
-                quantity: 1,
+                name: event.name,
+                quantity: totalQuantity,
                 price: totalAmount,
-                description: `Ticket for ${event.name}`
+                description: event.description,
             }],
-            beneficiaries: [{
-                accountNumber: '01320811436100', // Static account number
-                bank: 'AWINETAA', // Static bank name
-                amount: totalAmount,
-            }],
-            lang: 'EN',
         };
 
-        const arifpayResponse = await fetch('https://gateway.arifpay.net/api/checkout/session', {
+        const paymentGatewayResponse = await fetch(paymentGatewayUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-arifpay-key': process.env.ARIFPAY_API_KEY!,
+                'Api-Key': apiKey,
             },
-            body: JSON.stringify(arifpayData),
+            body: JSON.stringify(paymentGatewayData),
         });
 
-        const arifpayResult = await arifpayResponse.json();
+        const paymentGatewayResult = await paymentGatewayResponse.json();
         
-        if (!arifpayResponse.ok || !arifpayResult.data?.sessionId) {
-            console.error('ArifPay API Error:', arifpayResult);
-            return NextResponse.json({ error: 'Error communicating with payment gateway.' }, { status: 500 });
+        if (paymentGatewayResult.responseCode !== "0" || !paymentGatewayResult.data?.url || !paymentGatewayResult.data?.na) {
+            console.error('Payment Gateway API Error:', paymentGatewayResult);
+            return NextResponse.json({ error: paymentGatewayResult.responseDescription || 'Error communicating with payment gateway.' }, { status: 500 });
         }
 
-        // Update the pending order with the session ID from ArifPay
         await prisma.pendingOrder.update({
             where: { id: pendingOrder.id },
             data: {
-                arifpaySessionId: arifpayResult.data.sessionId,
+                arifpaySessionId: paymentGatewayResult.data.na,
             }
         });
 
-        return NextResponse.json({ paymentUrl: arifpayResult.data.paymentUrl });
+        return NextResponse.json({ paymentUrl: paymentGatewayResult.data.url });
 
     } catch (error: any) {
         console.error('Payment initiation failed:', error);
