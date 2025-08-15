@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
             include: { organizer: true }
         });
 
-        if (!event || !event.organizer || !event.organizer.cbsAccount) {
+        if (!event || !event.organizer) {
              return NextResponse.json({ error: 'Event or organizer CBS account not found.' }, { status: 404 });
         }
 
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
         const paymentGatewayData = {
             phone: formatPhoneNumber(attendeeDetails.phone),
             email: `${formatPhoneNumber(attendeeDetails.phone)}@nibticket.com`,
-            cbs: event.organizer.cbsAccount,
+            cbs: "7000101633395",
             items: [{
                 name: event.name,
                 quantity: totalQuantity,
@@ -68,6 +68,8 @@ export async function POST(req: NextRequest) {
                 description: event.description,
             }],
         };
+
+        console.log("Payment Gateway Data:", paymentGatewayData);
 
         const paymentGatewayResponse = await fetch(paymentGatewayUrl, {
             method: 'POST',
@@ -77,6 +79,8 @@ export async function POST(req: NextRequest) {
             },
             body: JSON.stringify(paymentGatewayData),
         });
+
+        console.log("Payment Gateway Response:", paymentGatewayResponse);
 
         const paymentGatewayResult = await paymentGatewayResponse.json();
         
