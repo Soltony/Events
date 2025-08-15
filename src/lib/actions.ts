@@ -5,8 +5,7 @@ import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee } from '@prisma/client';
 import { redirect } from 'next/navigation';
-import { ReadonlyRequestCookies, cookies } from 'next/headers';
-import type { DateRange } from 'react-day-picker';
+import { cookies } from 'next/headers';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -16,8 +15,9 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
 ));
 
 // This function can be used in any server action to get the currently logged-in user.
-async function getCurrentUser(cookieStore: ReadonlyRequestCookies): Promise<(User & { role: Role }) | null> {
+async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
   try {
+    const cookieStore = cookies();
     const tokenCookie = cookieStore.get('authTokens');
 
     if (!tokenCookie?.value) {
@@ -61,7 +61,7 @@ async function getCurrentUser(cookieStore: ReadonlyRequestCookies): Promise<(Use
 
 // Event Actions
 export async function getEvents() {
-    const user = await getCurrentUser(cookies());
+    const user = await getCurrentUser();
     if (!user) {
         // Return empty array if not authenticated, AuthGuard will handle redirection
         return [];
@@ -118,7 +118,7 @@ export async function getEventById(id: number) {
 }
 
 export async function getEventDetails(id: number) {
-    const user = await getCurrentUser(cookies());
+    const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
     }
@@ -147,7 +147,7 @@ export async function getEventDetails(id: number) {
 
 export async function addEvent(data: any) {
     const { tickets, startDate, endDate, otherCategory, cbsAccount, ...eventData } = data;
-    const user = await getCurrentUser(cookies());
+    const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
     }
@@ -188,7 +188,7 @@ export async function addEvent(data: any) {
 
 export async function updateEvent(id: number, data: any) {
     const { startDate, endDate, otherCategory, cbsAccount, ...eventData } = data;
-    const user = await getCurrentUser(cookies());
+    const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
     }
@@ -227,7 +227,7 @@ export async function updateEvent(id: number, data: any) {
 }
 
 export async function deleteEvent(id: number) {
-  const user = await getCurrentUser(cookies());
+  const user = await getCurrentUser();
   if (!user) {
     throw new Error('User is not authenticated.');
   }
@@ -319,7 +319,7 @@ export async function deletePromoCode(promoCodeId: number) {
 
 // Dashboard Actions
 export async function getDashboardData() {
-    const user = await getCurrentUser(cookies());
+    const user = await getCurrentUser();
     if (!user) {
          return {
             totalRevenue: 0,
@@ -367,7 +367,7 @@ export async function getDashboardData() {
 
 // Reports Actions
 export async function getReportsData(dateRange?: DateRange) {
-    const user = await getCurrentUser(cookies());
+    const user = await getCurrentUser();
     if (!user) {
         return {
             productSales: [],
@@ -436,7 +436,7 @@ export async function getReportsData(dateRange?: DateRange) {
 
 // Settings Actions
 export async function getUsersAndRoles() {
-    const currentUser = await getCurrentUser(cookies());
+    const currentUser = await getCurrentUser();
     if (!currentUser) {
         return { users: [], roles: [] };
     }
@@ -841,7 +841,7 @@ export async function getTicketDetailsForConfirmation(attendeeId: number) {
     }
 
     if (attendee.userId) {
-      const user = await getCurrentUser(cookies());
+      const user = await getCurrentUser();
       if (user && attendee.userId !== user.id) {
           const cookieHeader = cookies().get('myTickets');
           const localTicketIds = cookieHeader ? JSON.parse(cookieHeader.value) : [];
