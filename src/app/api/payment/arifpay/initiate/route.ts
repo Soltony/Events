@@ -31,8 +31,13 @@ export async function POST(req: NextRequest) {
         }
 
         const event = await prisma.event.findUnique({ where: { id: eventId }});
-        if (!event || !event.cbsAccount) {
-             return NextResponse.json({ error: 'Event or CBS Account not found.' }, { status: 404 });
+        if (!event) {
+             return NextResponse.json({ error: 'Event not found.' }, { status: 404 });
+        }
+
+        const organizer = await prisma.user.findUnique({ where: { id: event.organizerId }});
+        if (!organizer || !organizer.cbsAccount) {
+            return NextResponse.json({ error: 'Event organizer or CBS Account not configured.' }, { status: 404 });
         }
         
         // Create a pending order to be confirmed by the webhook
@@ -56,7 +61,7 @@ export async function POST(req: NextRequest) {
         const gatewayPayload = {
             phone: formatPhoneNumber(attendeeData.phoneNumber || ''),
             email: attendeeData.email || 'guest@example.com',
-            cbs: event.cbsAccount,
+            cbs: organizer.cbsAccount,
             items: itemsForGateway,
         };
 
