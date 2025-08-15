@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
         }
 
         if (transactionStatus === 'SUCCESS') {
-            const { name, email, userId, quantity } = order.attendeeData as { name: string, email?: string, userId?: string, quantity: number };
+            const { name, phoneNumber, userId, quantity } = order.attendeeData as { name: string, phoneNumber?: string, userId?: string, quantity: number };
 
             const createdAttendees = await prisma.$transaction(async (tx) => {
                 
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
                 for (let i = 0; i < purchaseQuantity; i++) {
                      attendeesToCreate.push({
                         name: name,
-                        email: email,
+                        phoneNumber: phoneNumber,
                         eventId: order.eventId,
                         ticketTypeId: ticketType.id,
                         userId: userId,
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
 
                 // This is a simplification; we're just getting the last one for the pending order link.
                 const lastCreated = await tx.attendee.findFirst({
-                    where: { eventId: order.eventId, name, email, userId },
+                    where: { eventId: order.eventId, name, phoneNumber, userId },
                     orderBy: { createdAt: 'desc' }
                 });
 

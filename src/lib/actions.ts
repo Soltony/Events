@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -776,9 +775,8 @@ export async function purchaseTickets(request: PurchaseRequest) {
 
     const attendeeDataForApi = {
         name: attendeeDetails.name,
-        email: targetUser?.email,
+        phoneNumber: attendeeDetails.phone,
         userId: targetUser?.id,
-        phone: attendeeDetails.phone,
         quantity: purchaseQuantity,
     };
 

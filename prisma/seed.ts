@@ -70,6 +70,7 @@ async function main() {
       startDate: addDays(today, 30),
       endDate: addDays(today, 32),
       location: 'Metropolis Convention Center',
+      cbsAccount: '700012345',
       category: 'Technology',
       image: '/image/nibtickets.jpg',
       hint: 'technology conference',
@@ -98,6 +99,7 @@ async function main() {
       startDate: addDays(today, 60),
       endDate: addDays(today, 61),
       location: 'Sunshine Valley Park',
+      cbsAccount: '700067890',
       category: 'Music',
       image: '/image/nibtickets.jpg',
       hint: 'music festival',
@@ -120,6 +122,7 @@ async function main() {
       description: 'A curated exhibition showcasing the vibrant works of emerging local artists. Discover new talent, purchase unique pieces, and meet the creators.',
       startDate: addDays(today, 15),
       location: 'The Downtown Gallery',
+      cbsAccount: '700054321',
       category: 'Art',
       image: '/image/nibtickets.jpg',
       hint: 'art gallery',
@@ -144,7 +147,7 @@ async function main() {
         data: [
           {
               name: 'John Doe',
-              email: 'john.doe@example.com',
+              phoneNumber: '0911223344',
               eventId: event1.id,
               ticketTypeId: generalTicketId,
               userId: adminUser.id,
@@ -152,7 +155,7 @@ async function main() {
           },
           {
               name: 'Jane Smith',
-              email: 'jane.smith@example.com',
+              phoneNumber: '0955667788',
               eventId: event1.id,
               ticketTypeId: vipTicketId,
               userId: adminUser.id,
