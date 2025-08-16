@@ -75,6 +75,8 @@ export async function POST(req: NextRequest) {
             body: JSON.stringify(paymentGatewayData),
         });
 
+        console.log("Payment Gateway Response:", paymentGatewayResponse);
+
         const paymentGatewayResult = await paymentGatewayResponse.json();
         
         if (paymentGatewayResult.responseCode !== "0" || !paymentGatewayResult.data?.url || !paymentGatewayResult.data?.na) {
