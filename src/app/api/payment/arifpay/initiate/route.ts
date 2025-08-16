@@ -22,13 +22,10 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing required payment details.' }, { status: 400 });
         }
 
-        const event = await prisma.event.findUnique({ 
-            where: { id: eventId },
-            include: { organizer: true }
-        });
+        const event = await prisma.event.findUnique({ where: { id: eventId } });
 
-        if (!event || !event.organizer || !event.organizer.cbsAccount) {
-             return NextResponse.json({ error: 'Event or organizer CBS account not found.' }, { status: 404 });
+        if (!event || !event.nibBankAccount) {
+             return NextResponse.json({ error: 'Event or event Nib bank account not found.' }, { status: 404 });
         }
 
         const totalAmount = tickets.reduce((sum, ticket) => sum + (ticket.price * ticket.quantity), 0);
@@ -49,7 +46,7 @@ export async function POST(req: NextRequest) {
             },
         });
 
-        const paymentGatewayUrl = `${process.env.BASE_URL}/api/payment/createsession`;
+        const paymentGatewayUrl = process.env.BASE_URL;
         const apiKey = process.env.ARIFPAY_API_KEY;
 
         if (!paymentGatewayUrl || !apiKey) {
@@ -60,7 +57,7 @@ export async function POST(req: NextRequest) {
         const paymentGatewayData = {
             phone: formatPhoneNumber(attendeeDetails.phone),
             email: `${formatPhoneNumber(attendeeDetails.phone)}@nibticket.com`,
-            cbs: event.organizer.cbsAccount,
+            cbs: event.nibBankAccount,
             items: [{
                 name: event.name,
                 quantity: totalQuantity,
@@ -69,7 +66,7 @@ export async function POST(req: NextRequest) {
             }],
         };
 
-        const paymentGatewayResponse = await fetch(paymentGatewayUrl, {
+        const paymentGatewayResponse = await fetch(`${paymentGatewayUrl}/api/payment/createsession`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

@@ -74,6 +74,7 @@ async function main() {
       image: '/image/nibtickets.jpg',
       hint: 'technology conference',
       organizerId: adminUser.id,
+      nibBankAccount: '7000123456789',
       ticketTypes: {
         create: [
           { name: 'General Admission', price: 299.00, total: 1000, sold: 450 },
@@ -102,6 +103,7 @@ async function main() {
       image: '/image/nibtickets.jpg',
       hint: 'music festival',
       organizerId: adminUser.id,
+      nibBankAccount: '7000987654321',
       ticketTypes: {
         create: [
           { name: 'Weekend Pass', price: 180.00, total: 5000, sold: 2100 },
@@ -124,6 +126,7 @@ async function main() {
       image: '/image/nibtickets.jpg',
       hint: 'art gallery',
       organizerId: adminUser.id,
+      nibBankAccount: '7000112233445',
       ticketTypes: {
         create: [
           { name: 'Standard Entry', price: 25.00, total: 500, sold: 120 },
@@ -144,7 +147,7 @@ async function main() {
         data: [
           {
               name: 'John Doe',
-              email: 'john.doe@example.com',
+              phoneNumber: '0911223344',
               eventId: event1.id,
               ticketTypeId: generalTicketId,
               userId: adminUser.id,
@@ -152,7 +155,7 @@ async function main() {
           },
           {
               name: 'Jane Smith',
-              email: 'jane.smith@example.com',
+              phoneNumber: '0955667788',
               eventId: event1.id,
               ticketTypeId: vipTicketId,
               userId: adminUser.id,
