@@ -3,43 +3,36 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, Suspense } from "react";
-import prisma from "@/lib/prisma";
+import { useEffect, Suspense, useState } from "react";
 
-async function getAttendeeIdFromTransaction(transactionId: string | null) {
-    if (!transactionId) return null;
-    
-    // This part must run on the server, we will move it to a server action.
-    // For now, we simulate a delay and redirect logic.
-    // In a real app, this would be an action:
-    // const order = await prisma.pendingOrder.findUnique({ where: { transactionId }});
-    // return order?.attendeeId;
-
-    // This is a placeholder for the logic that needs to be moved.
-    return new Promise(resolve => setTimeout(() => resolve(null), 2000));
-}
 
 function SuccessContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const transactionId = searchParams.get('transaction_id');
+    const [countdown, setCountdown] = useState(10);
+    const [finalAttendeeId, setFinalAttendeeId] = useState<number | null>(null);
 
+    // Polling for status
     useEffect(() => {
         if (!transactionId) return;
 
         const interval = setInterval(async () => {
              try {
-                // Poll the server to check if the pending order has been processed by the webhook
                 const response = await fetch(`/api/payment/status/${transactionId}`);
                 if (response.ok) {
                     const data = await response.json();
-                    if (data.attendeeId) {
+                    if (data.status === 'COMPLETED' && data.attendeeId) {
+                        setFinalAttendeeId(data.attendeeId);
                         clearInterval(interval);
-                        router.replace(`/ticket/${data.attendeeId}/confirmation`);
+                    } else if (data.status === 'FAILED') {
+                        // This case shouldn't happen on success page, but handle it
+                        clearInterval(interval);
+                        const eventId = searchParams.get('event_id');
+                        router.replace(`/payment/failure?event_id=${eventId}`);
                     }
                 }
              } catch (error) {
@@ -50,7 +43,25 @@ function SuccessContent() {
         // Cleanup on component unmount
         return () => clearInterval(interval);
 
-    }, [transactionId, router]);
+    }, [transactionId, router, searchParams]);
+
+    // Countdown and redirect
+    useEffect(() => {
+      if (finalAttendeeId) {
+        const countdownInterval = setInterval(() => {
+          setCountdown(prev => prev - 1);
+        }, 1000);
+
+        const redirectTimeout = setTimeout(() => {
+          window.location.href = `https://nibteratickets.nibbank.com.et/ticket/${finalAttendeeId}/confirmation`;
+        }, 10000);
+
+        return () => {
+          clearInterval(countdownInterval);
+          clearTimeout(redirectTimeout);
+        };
+      }
+    }, [finalAttendeeId]);
 
 
     return (
@@ -63,9 +74,20 @@ function SuccessContent() {
                 </CardDescription>
             </CardHeader>
             <CardContent className="p-8 text-center">
-                <p className="text-muted-foreground mb-6">
-                    This page will automatically redirect once your ticket is confirmed. Please do not close this window.
-                </p>
+                {finalAttendeeId ? (
+                   <>
+                     <p className="text-muted-foreground mb-2">
+                        Your ticket has been confirmed!
+                     </p>
+                     <p className="text-muted-foreground mb-6">
+                        Redirecting you to your ticket in {countdown} seconds...
+                     </p>
+                   </>
+                ) : (
+                    <p className="text-muted-foreground mb-6">
+                        This page will automatically redirect once your ticket is confirmed. Please do not close this window.
+                    </p>
+                )}
                 <div className="flex justify-center gap-4">
                     <Button asChild variant="outline">
                         <Link href="/">Back to All Events</Link>
@@ -76,28 +98,10 @@ function SuccessContent() {
     );
 }
 
-function SuccessSkeleton() {
-    return (
-        <Card>
-            <CardHeader className="text-center items-center p-8">
-                <Skeleton className="h-16 w-16 rounded-full" />
-                <Skeleton className="h-8 w-64 mt-4" />
-                <Skeleton className="h-5 w-80 mt-2" />
-            </CardHeader>
-            <CardContent className="p-8 space-y-4 text-center">
-                <Skeleton className="h-5 w-full" />
-                <div className="flex justify-center">
-                    <Skeleton className="h-10 w-36" />
-                </div>
-            </CardContent>
-        </Card>
-    )
-}
-
 export default function PaymentSuccessPage() {
     return (
         <div className="container mx-auto py-12 max-w-2xl">
-            <Suspense fallback={<SuccessSkeleton />}>
+            <Suspense fallback={<div>Loading...</div>}>
                 <SuccessContent />
             </Suspense>
         </div>

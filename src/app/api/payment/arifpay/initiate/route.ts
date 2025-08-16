@@ -22,17 +22,23 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing required payment details.' }, { status: 400 });
         }
 
-        const event = await prisma.event.findUnique({ where: { id: eventId } });
+        const event = await prisma.event.findUnique({
+            where: { id: eventId },
+            include: { organizer: true }
+        });
 
-        if (!event || !event.nibBankAccount) {
-             return NextResponse.json({ error: 'Event or event Nib bank account not found.' }, { status: 404 });
+        if (!event || !event.organizer?.nibBankAccount) {
+             return NextResponse.json({ error: 'Event or organizer Nib bank account not found.' }, { status: 404 });
         }
 
         const totalAmount = tickets.reduce((sum, ticket) => sum + (ticket.price * ticket.quantity), 0);
         const totalQuantity = tickets.reduce((sum, ticket) => sum + ticket.quantity, 0);
 
+        const transactionId = randomBytes(16).toString('hex');
+        
         const pendingOrder = await prisma.pendingOrder.create({
             data: {
+                transactionId,
                 eventId,
                 ticketTypeId: tickets[0].id, // For simplicity, associate with the first ticket type
                 attendeeData: {
@@ -48,8 +54,10 @@ export async function POST(req: NextRequest) {
 
         const paymentGatewayUrl = process.env.BASE_URL;
         const apiKey = process.env.ARIFPAY_API_KEY;
+        const successUrl = `${process.env.SUCCESS_URL}?transaction_id=${transactionId}&event_id=${eventId}`;
+        const failureUrl = `${process.env.FAILURE_URL}?event_id=${eventId}`;
 
-        if (!paymentGatewayUrl || !apiKey) {
+        if (!paymentGatewayUrl || !apiKey || !process.env.SUCCESS_URL || !process.env.FAILURE_URL) {
             console.error("Payment gateway URL or API key is not configured.");
             return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
         }
@@ -57,13 +65,15 @@ export async function POST(req: NextRequest) {
         const paymentGatewayData = {
             phone: formatPhoneNumber(attendeeDetails.phone),
             email: `${formatPhoneNumber(attendeeDetails.phone)}@nibticket.com`,
-            cbs: event.nibBankAccount,
+            cbs: event.organizer.nibBankAccount,
             items: [{
                 name: event.name,
                 quantity: totalQuantity,
                 price: totalAmount,
                 description: event.description,
             }],
+            successUrl: successUrl,
+            failureUrl: failureUrl,
         };
 
         const paymentGatewayResponse = await fetch(`${paymentGatewayUrl}/api/payment/createsession`, {
