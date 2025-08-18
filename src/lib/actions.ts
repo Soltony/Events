@@ -743,7 +743,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
     if (tickets.length === 0) {
         throw new Error("No tickets in purchase request.");
     }
-
+    
     const user = await getCurrentUser();
     
     // This data is used by the API route to call the payment gateway
