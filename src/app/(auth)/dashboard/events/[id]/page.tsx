@@ -297,7 +297,7 @@ export default function EventDetailPage() {
     try {
       const headers = [
         { key: 'name', label: 'Name' },
-        { key: 'email', label: 'Email' },
+        { key: 'phoneNumber', label: 'Phone Number' },
         { key: 'ticketType.name', label: 'Ticket Type' },
         { key: 'checkedIn', label: 'Checked In' },
         { key: 'createdAt', label: 'Purchase Date' },
@@ -500,7 +500,7 @@ export default function EventDetailPage() {
                                     <TableHead className="w-[50px]">Check-in</TableHead>
                                     <TableHead>Name</TableHead>
                                     <TableHead>Ticket Type</TableHead>
-                                    <TableHead>Email</TableHead>
+                                    <TableHead>Phone Number</TableHead>
                                     <TableHead className="text-right">Status</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -514,7 +514,7 @@ export default function EventDetailPage() {
                                         <TableCell>
                                             <Badge variant={attendee.ticketType.name === 'VIP Pass' ? 'default' : 'secondary'}>{attendee.ticketType.name}</Badge>
                                         </TableCell>
-                                        <TableCell>{attendee.email}</TableCell>
+                                        <TableCell>{attendee.phoneNumber}</TableCell>
                                         <TableCell className="text-right">
                                             <Badge variant="outline" className={cn(attendee.checkedIn ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-transparent' : '')}>
                                                 {attendee.checkedIn ? 'Checked In' : 'Awaiting'}

@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee } from '@prisma/client';
 import { redirect } from 'next/navigation';
-import { ReadonlyRequestCookies, cookies } from 'next/headers';
+import { cookies } from 'next/headers';
 import type { DateRange } from 'react-day-picker';
 
 // Helper to ensure data is serializable
@@ -744,12 +744,17 @@ export async function purchaseTickets(request: PurchaseRequest) {
         throw new Error("No tickets in purchase request.");
     }
 
+    const user = await getCurrentUser();
+    
     // This data is used by the API route to call the payment gateway
     const purchaseData = {
         eventId,
         tickets,
         promoCode,
-        attendeeDetails,
+        attendeeDetails: {
+            ...attendeeDetails,
+            userId: user?.id,
+        }
     };
 
     try {
@@ -775,7 +780,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
         if (error.digest?.startsWith('NEXT_REDIRECT')) {
             throw error;
         }
-        console.error("Failed to initiate payment:", error);
+        console.error("Failed to initiate ArifPay payment:", error);
         throw new Error(error.message);
     }
 }
@@ -796,7 +801,8 @@ export async function getTicketDetailsForConfirmation(attendeeId: number) {
     if (attendee.userId) {
       const user = await getCurrentUser();
       if (user && attendee.userId !== user.id) {
-          const cookieHeader = cookies().get('myTickets');
+          const cookieStore = cookies();
+          const cookieHeader = cookieStore.get('myTickets');
           const localTicketIds = cookieHeader ? JSON.parse(cookieHeader.value) : [];
           if (!localTicketIds.includes(attendeeId)) {
              // Not their ticket and not a guest purchase from this session
