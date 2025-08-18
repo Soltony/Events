@@ -15,40 +15,24 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { eventId, tickets, promoCode, attendeeDetails } = body;
 
-        if (!eventId || !tickets || !Array.isArray(tickets) || tickets.length === 0 || !attendeeDetails) {
+        if (!eventId || !tickets?.length || !attendeeDetails) {
             return NextResponse.json({ error: 'Missing required payment details.' }, { status: 400 });
         }
 
-        const event = await prisma.event.findUnique({
-            where: { id: eventId },
-        });
+        const event = await prisma.event.findUnique({ where: { id: eventId } });
 
-        if (!event || !event.nibBankAccount) {
+        if (!event?.nibBankAccount) {
             return NextResponse.json({ error: 'Event or organizer Nib bank account not found.' }, { status: 404 });
         }
 
-        const totalAmount = tickets.reduce((sum, ticket) => sum + (ticket.price * ticket.quantity), 0);
-        const totalQuantity = tickets.reduce((sum, ticket) => sum + ticket.quantity, 0);
-
+        const totalAmount = tickets.reduce((sum, t) => sum + t.price * t.quantity, 0);
+        const totalQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0);
         const transactionId = randomBytes(16).toString('hex');
-        
-        const paymentGatewayUrl = process.env.BASE_URL;
-        const apiKey = process.env.ARIFPAY_API_KEY;
-        const successUrl = `${process.env.SUCCESS_URL}?transaction_id=${transactionId}&event_id=${eventId}`;
-        const failureUrl = `${process.env.FAILURE_URL}?event_id=${eventId}`;
-        const callbackUrl = process.env.ARIFPAY_CALLBACK_URL;
 
-
-        if (!paymentGatewayUrl || !apiKey || !process.env.SUCCESS_URL || !process.env.FAILURE_URL || !callbackUrl) {
-            console.error("Payment gateway URL, API key, or callback/redirect URLs are not configured.");
-            return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
-        }
-        
         const pendingOrder = await prisma.pendingOrder.create({
             data: {
-                transactionId,
                 eventId,
-                ticketTypeId: tickets[0].id, // first ticket type
+                ticketTypeId: tickets[0].id,
                 attendeeData: {
                     name: attendeeDetails.name,
                     phoneNumber: attendeeDetails.phone,
@@ -60,29 +44,38 @@ export async function POST(req: NextRequest) {
             },
         });
 
+        const paymentGatewayUrl = process.env.BASE_URL;
+        const apiKey = process.env.ARIFPAY_API_KEY;
+        const successUrl = `${process.env.SUCCESS_URL}?transaction_id=${transactionId}&event_id=${eventId}`;
+        const failureUrl = `${process.env.FAILURE_URL}?event_id=${eventId}`;
+        const callbackUrl = process.env.ARIFPAY_CALLBACK_URL;
+
+        if (!paymentGatewayUrl || !apiKey || !successUrl || !failureUrl || !callbackUrl) {
+            console.error("Payment gateway URL, API key, or callback/redirect URLs are missing.");
+            return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
+        }
+
         const paymentGatewayData = {
             phone: formatPhoneNumber(attendeeDetails.phone),
             email: `${formatPhoneNumber(attendeeDetails.phone)}@nibticket.com`,
             cbs: event.nibBankAccount,
-            items: [{
-                name: event.name,
-                quantity: totalQuantity,
-                price: totalAmount,
-                description: event.description,
-            }],
-            successUrl: successUrl,
-            failureUrl: failureUrl,
-            callbackUrl: callbackUrl,
+            items: [{ name: event.name, quantity: totalQuantity, price: totalAmount, description: event.description }],
+            successUrl,
+            failureUrl,
+            callbackUrl,
         };
 
-        const paymentGatewayResponse = await fetch(`${paymentGatewayUrl}/api/payment/createsession`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Api-Key': apiKey,
-            },
-            body: JSON.stringify(paymentGatewayData),
-        });
+        let paymentGatewayResponse;
+        try {
+            paymentGatewayResponse = await fetch(`${paymentGatewayUrl}/api/payment/createsession`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Api-Key': apiKey },
+                body: JSON.stringify(paymentGatewayData),
+            });
+        } catch (networkError) {
+            console.error("Network error while connecting to ArifPay:", networkError);
+            return NextResponse.json({ error: 'Cannot reach ArifPay service. Please try again later.' }, { status: 503 });
+        }
 
         const rawText = await paymentGatewayResponse.text();
         console.log("ArifPay raw response:", rawText);
@@ -90,8 +83,8 @@ export async function POST(req: NextRequest) {
         let paymentGatewayResult: any;
         try {
             paymentGatewayResult = JSON.parse(rawText);
-        } catch (e) {
-            console.error("Failed to parse ArifPay response as JSON", e);
+        } catch (parseError) {
+            console.error("Failed to parse ArifPay response as JSON:", parseError);
             return NextResponse.json({ error: 'Invalid response from payment gateway.' }, { status: 502 });
         }
 
@@ -106,7 +99,6 @@ export async function POST(req: NextRequest) {
         });
 
         return NextResponse.json({ paymentUrl: paymentGatewayResult.Data.URL });
-
     } catch (error: any) {
         console.error('Payment initiation failed:', error);
         return NextResponse.json({ error: error.message || 'An unexpected error occurred.' }, { status: 500 });
