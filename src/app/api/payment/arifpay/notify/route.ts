@@ -1,5 +1,4 @@
 
-
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
@@ -9,11 +8,12 @@ export async function POST(req: NextRequest) {
         const payload = await req.json();
         console.log('ArifPay Notification Payload:', payload);
         
-        const { sessionId, transactionStatus } = payload;
+        const { sessionId, transaction } = payload;
+        const transactionStatus = transaction?.transactionStatus;
 
-        if (!sessionId) {
-            console.error("No sessionId in ArifPay notification.");
-            return NextResponse.json({ error: 'Session ID is missing' }, { status: 400 });
+        if (!sessionId || !transactionStatus) {
+            console.error("No sessionId or transactionStatus in ArifPay notification.");
+            return NextResponse.json({ error: 'Session ID or transaction status is missing' }, { status: 400 });
         }
         
         const order = await prisma.pendingOrder.findFirst({

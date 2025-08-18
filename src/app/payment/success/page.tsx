@@ -53,7 +53,7 @@ function SuccessContent() {
         }, 1000);
 
         const redirectTimeout = setTimeout(() => {
-          window.location.href = `https://nibteratickets.nibbank.com.et/ticket/${finalAttendeeId}/confirmation`;
+          window.location.href = `/ticket/${finalAttendeeId}/confirmation`;
         }, 10000);
 
         return () => {

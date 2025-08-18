@@ -20,9 +20,9 @@ function FailureContent() {
 
         const redirectTimeout = setTimeout(() => {
             if (eventId) {
-                window.location.href = `https://nibteratickets.nibbank.com.et/events/${eventId}`;
+                window.location.href = `/events/${eventId}`;
             } else {
-                window.location.href = `https://nibteratickets.nibbank.com.et/`;
+                window.location.href = `/`;
             }
         }, 10000);
 
