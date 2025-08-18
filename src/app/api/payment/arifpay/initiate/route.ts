@@ -35,22 +35,6 @@ export async function POST(req: NextRequest) {
 
         const transactionId = randomBytes(16).toString('hex');
         
-        const pendingOrder = await prisma.pendingOrder.create({
-            data: {
-                transactionId,
-                eventId,
-                ticketTypeId: tickets[0].id, // For simplicity, associate with the first ticket type
-                attendeeData: {
-                    name: attendeeDetails.name,
-                    phoneNumber: attendeeDetails.phone,
-                    userId: attendeeDetails.userId,
-                    quantity: totalQuantity,
-                },
-                promoCode,
-                status: 'PENDING',
-            },
-        });
-
         const paymentGatewayUrl = process.env.BASE_URL;
         const apiKey = process.env.ARIFPAY_API_KEY;
         const successUrl = `${process.env.SUCCESS_URL}?transaction_id=${transactionId}&event_id=${eventId}`;
@@ -60,6 +44,24 @@ export async function POST(req: NextRequest) {
             console.error("Payment gateway URL or API key is not configured.");
             return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
         }
+        
+        const pendingOrder = await prisma.pendingOrder.create({
+            data: {
+                transactionId,
+                eventId,
+                ticketTypeId: tickets[0].id,
+                attendeeData: {
+                    name: attendeeDetails.name,
+                    phoneNumber: attendeeDetails.phone,
+                    userId: attendeeDetails.userId,
+                    quantity: totalQuantity,
+                },
+                promoCode,
+                status: 'PENDING',
+                successUrl: successUrl,
+                failureUrl: failureUrl,
+            },
+        });
 
         const paymentGatewayData = {
             phone: formatPhoneNumber(attendeeDetails.phone),
@@ -83,8 +85,6 @@ export async function POST(req: NextRequest) {
             },
             body: JSON.stringify(paymentGatewayData),
         });
-
-        console.log("Payment Gateway Response:", paymentGatewayResponse);
 
         const paymentGatewayResult = await paymentGatewayResponse.json();
         
