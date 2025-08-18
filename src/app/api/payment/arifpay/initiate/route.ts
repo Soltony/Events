@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { randomBytes } from 'crypto';
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
         
         const pendingOrder = await prisma.pendingOrder.create({
             data: {
-                //transactionId,
+                transactionId,
                 eventId,
                 ticketTypeId: tickets[0].id, // first ticket type
                 attendeeData: {
@@ -58,16 +59,6 @@ export async function POST(req: NextRequest) {
                 status: 'PENDING',
             },
         });
-
-        const paymentGatewayUrl = process.env.BASE_URL;
-        const apiKey = process.env.ARIFPAY_API_KEY;
-        const successUrl = `${process.env.SUCCESS_URL}?transaction_id=${transactionId}&event_id=${eventId}`;
-        const failureUrl = `${process.env.FAILURE_URL}?event_id=${eventId}`;
-
-        if (!paymentGatewayUrl || !apiKey || !process.env.SUCCESS_URL || !process.env.FAILURE_URL) {
-            console.error("Payment gateway URL or API key is not configured.");
-            return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
-        }
 
         const paymentGatewayData = {
             phone: formatPhoneNumber(attendeeDetails.phone),
