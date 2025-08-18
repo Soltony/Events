@@ -39,9 +39,11 @@ export async function POST(req: NextRequest) {
         const apiKey = process.env.ARIFPAY_API_KEY;
         const successUrl = `${process.env.SUCCESS_URL}?transaction_id=${transactionId}&event_id=${eventId}`;
         const failureUrl = `${process.env.FAILURE_URL}?event_id=${eventId}`;
+        const callbackUrl = process.env.ARIFPAY_CALLBACK_URL;
 
-        if (!paymentGatewayUrl || !apiKey || !process.env.SUCCESS_URL || !process.env.FAILURE_URL) {
-            console.error("Payment gateway URL or API key is not configured.");
+
+        if (!paymentGatewayUrl || !apiKey || !process.env.SUCCESS_URL || !process.env.FAILURE_URL || !callbackUrl) {
+            console.error("Payment gateway URL, API key, or callback/redirect URLs are not configured.");
             return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
         }
         
@@ -75,6 +77,7 @@ export async function POST(req: NextRequest) {
             }],
             successUrl: successUrl,
             failureUrl: failureUrl,
+            callbackUrl: callbackUrl,
         };
 
         const paymentGatewayResponse = await fetch(`${paymentGatewayUrl}/api/payment/createsession`, {
