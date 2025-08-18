@@ -84,7 +84,6 @@ export async function POST(req: NextRequest) {
             body: JSON.stringify(paymentGatewayData),
         });
 
-        // ✅ Log raw response first
         const rawText = await paymentGatewayResponse.text();
         console.log("ArifPay raw response:", rawText);
 
