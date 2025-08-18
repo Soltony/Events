@@ -24,10 +24,9 @@ export async function POST(req: NextRequest) {
 
         const event = await prisma.event.findUnique({
             where: { id: eventId },
-            include: { organizer: true }
         });
 
-        if (!event || !event.organizer?.nibBankAccount) {
+        if (!event || !event.nibBankAccount) {
              return NextResponse.json({ error: 'Event or organizer Nib bank account not found.' }, { status: 404 });
         }
 
@@ -65,7 +64,7 @@ export async function POST(req: NextRequest) {
         const paymentGatewayData = {
             phone: formatPhoneNumber(attendeeDetails.phone),
             email: `${formatPhoneNumber(attendeeDetails.phone)}@nibticket.com`,
-            cbs: event.organizer.nibBankAccount,
+            cbs: event.nibBankAccount,
             items: [{
                 name: event.name,
                 quantity: totalQuantity,
