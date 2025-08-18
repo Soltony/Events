@@ -86,7 +86,16 @@ export async function POST(req: NextRequest) {
             body: JSON.stringify(paymentGatewayData),
         });
 
-        const paymentGatewayResult = await paymentGatewayResponse.json();
+        const rawText = await paymentGatewayResponse.text();
+        console.log("ArifPay raw response:", rawText);
+
+        let paymentGatewayResult;
+        try {
+          paymentGatewayResult = JSON.parse(rawText);
+        } catch (e) {
+          console.error("Failed to parse ArifPay response as JSON", e);
+          return NextResponse.json({ error: 'Invalid response from payment gateway.' }, { status: 502 });
+        }
         
         if (paymentGatewayResult.ResponseCode !== "0" || !paymentGatewayResult.Data?.URL || !paymentGatewayResult.Data?.NA) {
             console.error('Payment Gateway API Error:', paymentGatewayResult);
