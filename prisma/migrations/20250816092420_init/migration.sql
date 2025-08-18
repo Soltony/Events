@@ -8,10 +8,12 @@ CREATE TABLE "User" (
     "lastName" TEXT NOT NULL,
     "phoneNumber" TEXT NOT NULL,
     "email" TEXT,
-    "roleId" TEXT NOT NULL,
     "passwordChangeRequired" BOOLEAN NOT NULL DEFAULT true,
+    "cbsAccount" TEXT,
+    "roleId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "nibBankAccount" TEXT,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -36,12 +38,13 @@ CREATE TABLE "Event" (
     "startDate" TIMESTAMP(3) NOT NULL,
     "endDate" TIMESTAMP(3),
     "location" TEXT NOT NULL,
-    "hint" TEXT,
     "category" TEXT NOT NULL,
     "image" TEXT,
+    "hint" TEXT,
     "organizerId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "nibBankAccount" TEXT NOT NULL,
 
     CONSTRAINT "Event_pkey" PRIMARY KEY ("id")
 );
@@ -64,11 +67,11 @@ CREATE TABLE "TicketType" (
 CREATE TABLE "Attendee" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
-    "email" TEXT,
-    "checkedIn" BOOLEAN NOT NULL DEFAULT false,
+    "phoneNumber" TEXT,
     "eventId" INTEGER NOT NULL,
     "ticketTypeId" INTEGER NOT NULL,
     "userId" TEXT,
+    "checkedIn" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -92,17 +95,15 @@ CREATE TABLE "PromoCode" (
 
 -- CreateTable
 CREATE TABLE "PendingOrder" (
-    "id" SERIAL NOT NULL,
-    "transactionId" TEXT NOT NULL,
-    "arifpaySessionId" TEXT,
+    "id" TEXT NOT NULL,
     "eventId" INTEGER NOT NULL,
-    "ticketTypeId" INTEGER NOT NULL,
+    "attendeeId" INTEGER,
+    "ticketTypeId" INTEGER,
     "attendeeData" JSONB NOT NULL,
     "promoCode" TEXT,
     "status" TEXT NOT NULL DEFAULT 'PENDING',
-    "attendeeId" INTEGER,
+    "arifpaySessionId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "PendingOrder_pkey" PRIMARY KEY ("id")
 );
@@ -117,16 +118,13 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 CREATE UNIQUE INDEX "Role_name_key" ON "Role"("name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "PromoCode_code_key" ON "PromoCode"("code");
-
--- CreateIndex
-CREATE UNIQUE INDEX "PendingOrder_transactionId_key" ON "PendingOrder"("transactionId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "PendingOrder_arifpaySessionId_key" ON "PendingOrder"("arifpaySessionId");
+CREATE UNIQUE INDEX "PromoCode_code_eventId_key" ON "PromoCode"("code", "eventId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PendingOrder_attendeeId_key" ON "PendingOrder"("attendeeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PendingOrder_arifpaySessionId_key" ON "PendingOrder"("arifpaySessionId");
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -151,9 +149,6 @@ ALTER TABLE "PromoCode" ADD CONSTRAINT "PromoCode_eventId_fkey" FOREIGN KEY ("ev
 
 -- AddForeignKey
 ALTER TABLE "PendingOrder" ADD CONSTRAINT "PendingOrder_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "PendingOrder" ADD CONSTRAINT "PendingOrder_ticketTypeId_fkey" FOREIGN KEY ("ticketTypeId") REFERENCES "TicketType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PendingOrder" ADD CONSTRAINT "PendingOrder_attendeeId_fkey" FOREIGN KEY ("attendeeId") REFERENCES "Attendee"("id") ON DELETE SET NULL ON UPDATE CASCADE;

@@ -79,19 +79,19 @@ export async function POST(req: NextRequest) {
 
         const paymentGatewayResult = await paymentGatewayResponse.json();
         
-        if (paymentGatewayResult.responseCode !== "0" || !paymentGatewayResult.data?.url || !paymentGatewayResult.data?.na) {
+        if (paymentGatewayResult.ResponseCode !== "0" || !paymentGatewayResult.Data?.URL || !paymentGatewayResult.Data?.NA) {
             console.error('Payment Gateway API Error:', paymentGatewayResult);
-            return NextResponse.json({ error: paymentGatewayResult.responseDescription || 'Error communicating with payment gateway.' }, { status: 500 });
+            return NextResponse.json({ error: paymentGatewayResult.ResponseDescription || 'Error communicating with payment gateway.' }, { status: 500 });
         }
 
         await prisma.pendingOrder.update({
             where: { id: pendingOrder.id },
             data: {
-                arifpaySessionId: paymentGatewayResult.data.na,
+                arifpaySessionId: paymentGatewayResult.Data.NA,
             }
         });
 
-        return NextResponse.json({ paymentUrl: paymentGatewayResult.data.url });
+        return NextResponse.json({ paymentUrl: paymentGatewayResult.Data.URL });
 
     } catch (error: any) {
         console.error('Payment initiation failed:', error);
