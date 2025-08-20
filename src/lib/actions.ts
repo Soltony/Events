@@ -471,7 +471,7 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
 
 
 export async function addUser(data: any) {
-    const { firstName, lastName, phoneNumber, email, password, roleId, cbsAccount, nibBankAccount } = data;
+    const { firstName, lastName, phoneNumber, email, password, roleId } = data;
 
     const phoneRegex = /^(09|07)\d{8}$/;
     if (!phoneRegex.test(phoneNumber)) {
@@ -538,8 +538,6 @@ export async function addUser(data: any) {
             phoneNumber,
             roleId,
             passwordChangeRequired: true,
-            cbsAccount,
-            nibBankAccount,
         };
 
         if (email) {
@@ -574,7 +572,7 @@ export async function addUser(data: any) {
 }
 
 export async function updateUser(userId: string, data: Partial<User>) {
-    const { firstName, lastName, phoneNumber, roleId, cbsAccount, nibBankAccount } = data;
+    const { firstName, lastName, phoneNumber, roleId } = data;
     const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: {
@@ -582,8 +580,6 @@ export async function updateUser(userId: string, data: Partial<User>) {
             lastName,
             phoneNumber,
             roleId,
-            cbsAccount,
-            nibBankAccount,
         },
     });
 
