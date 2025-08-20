@@ -574,12 +574,13 @@ export async function addUser(data: any) {
 }
 
 export async function updateUser(userId: string, data: Partial<User>) {
-    const { firstName, lastName, roleId, cbsAccount, nibBankAccount } = data;
+    const { firstName, lastName, phoneNumber, roleId, cbsAccount, nibBankAccount } = data;
     const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: {
             firstName,
             lastName,
+            phoneNumber,
             roleId,
             cbsAccount,
             nibBankAccount,
@@ -660,13 +661,7 @@ export async function deleteUser(userId: string, phoneNumber: string) {
 
 
 export async function getRoles() {
-    const roles = await prisma.role.findMany({
-         where: {
-            name: {
-                not: 'Admin'
-            }
-        }
-    });
+    const roles = await prisma.role.findMany();
     return serialize(roles);
 }
 

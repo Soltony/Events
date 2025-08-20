@@ -26,7 +26,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -42,6 +41,7 @@ import { useAuth } from '@/context/auth-context';
 const editUserFormSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required." }),
   lastName: z.string().min(1, { message: "Last name is required." }),
+  phoneNumber: z.string().min(10, { message: "Phone number must be at least 10 digits." }),
   roleId: z.string({ required_error: "Please select a role." }),
 });
 
@@ -74,6 +74,7 @@ export default function EditUserPage() {
         defaultValues: {
             firstName: '',
             lastName: '',
+            phoneNumber: '',
             roleId: '',
         }
     });
@@ -95,21 +96,22 @@ export default function EditUserPage() {
                     const currentUserRoleRank = currentUser.role?.name ? (roleHierarchy[currentUser.role.name] || 0) : 0;
                     const targetUserRoleRank = userData.role?.name ? (roleHierarchy[userData.role.name] || 0) : 0;
 
-                    // A user can edit their own profile
                     const isEditingSelf = currentUser.id === userData.id;
+                    const isCurrentUserAdmin = currentUser.role?.name === 'Admin';
 
-                    // Deny access if a user tries to edit someone with an equal or higher role, unless it's their own profile
-                    if (!isEditingSelf && currentUserRoleRank <= targetUserRoleRank) {
+                    // Deny access if a user tries to edit someone with an equal or higher role, unless it's their own profile or they are an admin.
+                    if (!isEditingSelf && !isCurrentUserAdmin && currentUserRoleRank <= targetUserRoleRank) {
                         toast({ variant: 'destructive', title: 'Access Denied', description: "You don't have permission to edit this user." });
                         router.push('/dashboard/settings/users');
                         return;
                     }
 
                     setUser(userData);
-                    setRoles(rolesData.filter((role: Role) => role.name !== 'Admin'));
+                    setRoles(rolesData);
                     form.reset({
                         firstName: userData.firstName,
                         lastName: userData.lastName,
+                        phoneNumber: userData.phoneNumber,
                         roleId: userData.roleId,
                     });
                 } else {
@@ -199,20 +201,26 @@ export default function EditUserPage() {
                         )}/>
                     </div>
                     
-                    <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
-                        <FormControl>
-                            <Input placeholder="0912345678" value={user?.phoneNumber || ''} disabled />
-                        </FormControl>
-                        <FormDescription>Phone number cannot be changed.</FormDescription>
-                    </FormItem>
+                    <FormField
+                        control={form.control}
+                        name="phoneNumber"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Phone Number</FormLabel>
+                            <FormControl>
+                                <Input placeholder="0912345678" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
                    
                     <FormField control={form.control} name="roleId" render={({ field }) => (
                         <FormItem><FormLabel>Role</FormLabel>
                             <Select 
                                 onValueChange={field.onChange} 
                                 value={field.value}
-                                disabled={user?.role?.name === 'Admin'}
+                                disabled={currentUser?.id === userId}
                             >
                                 <FormControl><SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
                                 <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
