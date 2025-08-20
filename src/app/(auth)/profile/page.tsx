@@ -85,7 +85,15 @@ export default function ProfilePage() {
 
     } catch (error: any) {
         console.error("Failed to change password:", error);
-        const errorMessage = error.response?.data?.errors?.[0] || error.message || 'Failed to change password.';
+        let errorMessage = 'Failed to change password.';
+        if (error.response?.status === 401) {
+            errorMessage = 'Password change failed. Please try again.';
+        } else if (error.response?.data?.errors?.[0]) {
+            errorMessage = error.response.data.errors[0];
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+
         toast({
             variant: 'destructive',
             title: 'Error',
