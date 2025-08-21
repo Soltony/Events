@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
-import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee } from '@prisma/client';
+import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee, EventStatus } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import type { DateRange } from 'react-day-picker';
@@ -87,6 +87,7 @@ export async function getPublicEvents(): Promise<(Event & { ticketTypes: TicketT
 
     const events = await prisma.event.findMany({
         where: {
+            status: 'APPROVED',
             OR: [
                 {
                     endDate: {
@@ -169,6 +170,7 @@ export async function addEvent(data: any) {
             category: finalCategory,
             startDate: startDate,
             endDate: endDate,
+            status: user.role.name === 'Admin' ? 'APPROVED' : 'PENDING',
         },
     });
 
@@ -214,6 +216,8 @@ export async function updateEvent(id: number, data: any) {
             category: finalCategory,
             startDate: startDate,
             endDate: endDate,
+            // When an event is edited, it goes back to pending unless edited by an admin
+            status: user.role.name === 'Admin' ? eventToUpdate.status : 'PENDING',
         }
     });
 
@@ -223,6 +227,29 @@ export async function updateEvent(id: number, data: any) {
     revalidatePath(`/events/${id}`);
     revalidatePath('/');
 
+    return serialize(updatedEvent);
+}
+
+export async function updateEventStatus(id: number, status: EventStatus, rejectionReason?: string) {
+    const user = await getCurrentUser();
+    if (!user || user.role.name !== 'Admin') {
+        throw new Error("You are not authorized to perform this action.");
+    }
+    
+    const eventToUpdate = await prisma.event.findUnique({ where: { id }});
+    if (!eventToUpdate) throw new Error("Event not found");
+
+    const updatedEvent = await prisma.event.update({
+        where: { id },
+        data: {
+            status: status,
+            rejectionReason: status === 'REJECTED' ? rejectionReason : null,
+        }
+    });
+
+    revalidatePath('/dashboard/events');
+    revalidatePath(`/dashboard/events/${id}`);
+    revalidatePath('/');
     return serialize(updatedEvent);
 }
 
@@ -329,7 +356,8 @@ export async function getDashboardData() {
         };
     }
 
-    const whereClause = user.role.name === 'Admin' ? {} : { organizerId: user.id };
+    const whereClause: any = user.role.name === 'Admin' ? {} : { organizerId: user.id };
+    whereClause.status = 'APPROVED';
     
     const events = await prisma.event.findMany({
         where: whereClause,
@@ -343,7 +371,8 @@ export async function getDashboardData() {
         }
     });
 
-    const totalEvents = events.length;
+    const totalEvents = await prisma.event.count({ where: whereClause });
+
     const totalRevenue = events.reduce((sum, event) => {
         return sum + event.ticketTypes.reduce((eventSum, tt) => eventSum + (tt.sold * Number(tt.price)), 0)
     }, 0);
@@ -376,7 +405,7 @@ export async function getReportsData(dateRange?: DateRange) {
         };
     }
 
-    const whereClause: any = {};
+    const whereClause: any = { status: 'APPROVED' };
 
     if (user.role.name !== 'Admin') {
         whereClause.organizerId = user.id;
@@ -789,19 +818,26 @@ export async function getTicketDetailsForConfirmation(attendeeId: number) {
         return null;
     }
 
-    if (attendee.userId) {
-      const user = await getCurrentUser();
-      if (user && attendee.userId !== user.id) {
-          const cookieStore = cookies();
-          const cookieHeader = cookieStore.get('myTickets');
-          const localTicketIds = cookieHeader ? JSON.parse(cookieHeader.value) : [];
-          if (!localTicketIds.includes(attendeeId)) {
-             // Not their ticket and not a guest purchase from this session
-          }
-      }
+    // Guest users can view tickets they just bought via local storage linking
+    if (!attendee.userId) {
+        const cookieStore = cookies();
+        const localTicketsCookie = cookieStore.get('myTickets');
+        if (localTicketsCookie) {
+            const localTicketIds = JSON.parse(localTicketsCookie.value) as number[];
+            if (localTicketIds.includes(attendeeId)) {
+                return serialize(attendee);
+            }
+        }
     }
 
-    return serialize(attendee);
+    // Logged-in users can view their own tickets
+    const user = await getCurrentUser();
+    if (user && attendee.userId === user.id) {
+        return serialize(attendee);
+    }
+    
+    // If neither of the above, deny access.
+    return null;
 }
 
 export async function getTicketsByUserId(userId: string | null, localTicketIds: number[] = []) {

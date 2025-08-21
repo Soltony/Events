@@ -71,6 +71,7 @@ async function main() {
       endDate: addDays(today, 32),
       location: 'Metropolis Convention Center',
       category: 'Technology',
+      status: 'APPROVED',
       image: '/image/nibtickets.jpg',
       hint: 'technology conference',
       organizerId: adminUser.id,
@@ -100,6 +101,7 @@ async function main() {
       endDate: addDays(today, 61),
       location: 'Sunshine Valley Park',
       category: 'Music',
+      status: 'APPROVED',
       image: '/image/nibtickets.jpg',
       hint: 'music festival',
       organizerId: adminUser.id,
@@ -123,6 +125,7 @@ async function main() {
       startDate: addDays(today, 15),
       location: 'The Downtown Gallery',
       category: 'Art',
+      status: 'APPROVED',
       image: '/image/nibtickets.jpg',
       hint: 'art gallery',
       organizerId: adminUser.id,
@@ -178,5 +181,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
-
-    
