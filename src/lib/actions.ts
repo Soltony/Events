@@ -71,19 +71,14 @@ export async function getEvents(status?: EventStatus | 'all') {
         return [];
     }
 
-    let whereClause: any = {};
+    const whereClause: any = {};
 
-    if (user.role.name === 'Admin') {
-        // Admin sees all events, filtered only by status if provided
-        if (status && status !== 'all') {
-            whereClause.status = status;
-        }
-    } else {
-        // Non-admin users see only their own events
+    if (user.role.name !== 'Admin') {
         whereClause.organizerId = user.id;
-        if (status && status !== 'all') {
-            whereClause.status = status;
-        }
+    }
+
+    if (status && status !== 'all') {
+        whereClause.status = status;
     }
     
     const events = await prisma.event.findMany({
@@ -931,5 +926,3 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
-
-    
