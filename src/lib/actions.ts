@@ -65,7 +65,6 @@ async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
 export async function getEvents() {
     const user = await getCurrentUser();
     if (!user) {
-        // Return empty array if not authenticated, AuthGuard will handle redirection
         return [];
     }
 
@@ -156,10 +155,8 @@ export async function addEvent(data: any) {
         throw new Error('User is not authenticated.');
     }
 
-    // Determine the final category and remove the temporary 'otherCategory' field
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
     
-    // Set default image if one isn't provided
     if (!eventData.image) {
         eventData.image = '/image/nibtickets.jpg';
     }
@@ -197,7 +194,6 @@ export async function updateEvent(id: number, data: any) {
         throw new Error('User is not authenticated.');
     }
 
-    // Determine the final category
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
 
     const eventDataForUpdate = { ...eventData };
@@ -217,7 +213,6 @@ export async function updateEvent(id: number, data: any) {
             category: finalCategory,
             startDate: startDate,
             endDate: endDate,
-            // When an event is edited, it goes back to pending unless edited by an admin
             status: user.role.name === 'Admin' ? eventToUpdate.status : 'PENDING',
         }
     });
@@ -360,10 +355,9 @@ export async function getDashboardData() {
     }
 
     const isUserAdmin = user.role.name === 'Admin';
-    const baseWhereClause: any = isUserAdmin ? {} : { organizerId: user.id };
-    
-    // For revenue and sales, only count approved events
-    const approvedWhereClause = { ...baseWhereClause, status: 'APPROVED' };
+    const organizerFilter = isUserAdmin ? {} : { organizerId: user.id };
+
+    const approvedWhereClause = { ...organizerFilter, status: 'APPROVED' };
     
     const approvedEvents = await prisma.event.findMany({
         where: approvedWhereClause,
@@ -377,9 +371,8 @@ export async function getDashboardData() {
         }
     });
 
-    const totalEvents = await prisma.event.count({ where: baseWhereClause });
+    const totalEvents = await prisma.event.count({ where: organizerFilter });
     
-    // Admins see all pending events, others see none on their dashboard
     const pendingEvents = isUserAdmin 
         ? await prisma.event.count({ where: { status: 'PENDING' } }) 
         : 0;
@@ -455,7 +448,6 @@ export async function getReportsData(dateRange?: DateRange) {
     const promoCodes = events.flatMap(e => e.promoCodes.map(pc => ({ ...pc, event: { name: e.name } })));
     
     const promoCodeData = promoCodes.map(code => {
-        // This estimation logic is kept from mock data as there's no order history
         const avgTicketPrice = 50; 
         let totalDiscount = 0;
         if (code.type === 'PERCENTAGE') {
@@ -550,7 +542,6 @@ export async function addUser(data: any) {
                                               
         if (!responseData || !responseData.isSuccess) {
             const errorMessage = responseData.errors?.join(', ') || 'Failed to register user with auth service.';
-            // Pass the specific error message from the auth service forward
             throw new Error(errorMessage);
         }
         
@@ -604,7 +595,6 @@ export async function addUser(data: any) {
             throw new Error('A user with this email address already exists in the local database.');
         }
         
-        // Check for specific auth service error messages
         if (error.message.includes('already taken')) {
             throw new Error(error.message);
         }
@@ -882,7 +872,7 @@ export async function getTicketsByUserId(userId: string | null, localTicketIds: 
     return serialize(tickets);
 }
 
-export async function validatePromoCode(eventId: number, promoCode: string): Promise<PromoCode | null> {
+export async function validatePromoCode(promoCode: string, eventId: number): Promise<PromoCode | null> {
     const promo = await prisma.promoCode.findFirst({
         where: {
             code: promoCode,
