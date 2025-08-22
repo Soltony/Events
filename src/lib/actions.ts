@@ -71,20 +71,22 @@ export async function getEvents(status?: EventStatus | 'all') {
         return [];
     }
 
+    const isAdmin = user.role.name === 'Admin';
     const whereClause: any = {};
-
-    if (user.role.name !== 'Admin') {
-        whereClause.organizerId = user.id;
-    }
-
+    
     if (status && status !== 'all') {
         whereClause.status = status;
+    }
+    
+    if (!isAdmin) {
+        whereClause.organizerId = user.id;
     }
     
     const events = await prisma.event.findMany({
         where: whereClause,
         orderBy: { startDate: 'asc' },
     });
+
     return serialize(events);
 }
 
