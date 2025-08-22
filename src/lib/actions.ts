@@ -68,7 +68,6 @@ async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
 export async function getEvents(status?: EventStatus | 'all') {
     const user = await getCurrentUser();
     if (!user) {
-        // If no user, return empty array. This protects authenticated routes.
         return [];
     }
 
@@ -79,7 +78,6 @@ export async function getEvents(status?: EventStatus | 'all') {
         whereClause.status = status;
     }
 
-    // Admins see all events (filtered by status), others see only their own.
     if (!isAdmin) {
         whereClause.organizerId = user.id;
     }
