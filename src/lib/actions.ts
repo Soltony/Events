@@ -169,6 +169,7 @@ export async function addEvent(data: any) {
             startDate: startDate,
             endDate: endDate,
             status: user.role.name === 'Admin' ? 'APPROVED' : 'PENDING',
+            rejectionReason: null,
         },
     });
 
@@ -267,6 +268,7 @@ export async function deleteEvent(id: number) {
     prisma.attendee.deleteMany({ where: { eventId: id } }),
     prisma.promoCode.deleteMany({ where: { eventId: id } }),
     prisma.ticketType.deleteMany({ where: { eventId: id } }),
+    prisma.pendingOrder.deleteMany({ where: { eventId: id } }),
     prisma.event.delete({ where: { id } }),
   ]);
   
@@ -872,7 +874,7 @@ export async function getTicketsByUserId(userId: string | null, localTicketIds: 
     return serialize(tickets);
 }
 
-export async function validatePromoCode(promoCode: string, eventId: number): Promise<PromoCode | null> {
+export async function validatePromoCode(eventId: number, promoCode: string): Promise<PromoCode | null> {
     const promo = await prisma.promoCode.findFirst({
         where: {
             code: promoCode,
