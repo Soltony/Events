@@ -23,6 +23,7 @@ async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
     const tokenCookie = cookieStore.get('authTokens');
 
     if (!tokenCookie?.value) {
+      console.error("GetCurrentUser: Auth token cookie not found.");
       return null;
     }
     
@@ -30,11 +31,13 @@ async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
     const token = tokenData.accessToken;
 
     if (!token) {
+        console.error("GetCurrentUser: Access token not in cookie.");
         return null;
     }
 
     const payloadBase64 = token.split('.')[1];
     if (!payloadBase64) {
+        console.error("GetCurrentUser: Invalid token format.");
         return null;
     }
 
@@ -42,6 +45,7 @@ async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
     const decoded = JSON.parse(decodedJson);
 
     if (!decoded || typeof decoded === 'string' || !decoded.sub) {
+        console.error("GetCurrentUser: Invalid token payload.");
         return null;
     }
 
@@ -62,24 +66,31 @@ async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
 
 
 // Event Actions
-export async function getEvents() {
+export async function getEvents(status?: EventStatus | 'all') {
     const user = await getCurrentUser();
     if (!user) {
         return [];
     }
 
-    const whereClause: { organizerId?: string } = {};
+    const whereClause: any = {};
 
+    // If user is not an Admin, they can only see their own events.
     if (user.role.name !== 'Admin') {
         whereClause.organizerId = user.id;
     }
 
+    // Apply status filter if it's provided and not 'all'
+    if (status && status !== 'all') {
+        whereClause.status = status;
+    }
+    
     const events = await prisma.event.findMany({
         where: whereClause,
         orderBy: { startDate: 'asc' },
     });
     return serialize(events);
 }
+
 
 export async function getPublicEvents(): Promise<(Event & { ticketTypes: TicketType[] })[]> {
     const today = new Date();
@@ -358,6 +369,9 @@ export async function getDashboardData() {
 
     const isUserAdmin = user.role.name === 'Admin';
     const organizerFilter = isUserAdmin ? {} : { organizerId: user.id };
+    
+    // Total events should not be filtered by status
+    const totalEvents = await prisma.event.count({ where: organizerFilter });
 
     const approvedWhereClause = { ...organizerFilter, status: 'APPROVED' };
     
@@ -372,13 +386,11 @@ export async function getDashboardData() {
             }
         }
     });
-
-    const totalEvents = await prisma.event.count({ where: organizerFilter });
     
-    const pendingEvents = isUserAdmin 
-        ? await prisma.event.count({ where: { status: 'PENDING' } }) 
-        : 0;
-
+    // Pending events for admin should not be filtered by organizer
+    const pendingEventsFilter = isUserAdmin ? { status: 'PENDING' } : { organizerId: user.id, status: 'PENDING' };
+    const pendingEvents = await prisma.event.count({ where: pendingEventsFilter });
+    
     const totalRevenue = approvedEvents.reduce((sum, event) => {
         return sum + event.ticketTypes.reduce((eventSum, tt) => eventSum + (tt.sold * Number(tt.price)), 0)
     }, 0);
