@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -352,15 +353,18 @@ export async function getDashboardData() {
             totalRevenue: 0,
             totalTicketsSold: 0,
             totalEvents: 0,
+            pendingEvents: 0,
             salesData: [],
         };
     }
 
-    const whereClause: any = user.role.name === 'Admin' ? {} : { organizerId: user.id };
-    whereClause.status = 'APPROVED';
+    const baseWhereClause: any = user.role.name === 'Admin' ? {} : { organizerId: user.id };
     
-    const events = await prisma.event.findMany({
-        where: whereClause,
+    // For revenue and sales, only count approved events
+    const approvedWhereClause = { ...baseWhereClause, status: 'APPROVED' };
+    
+    const approvedEvents = await prisma.event.findMany({
+        where: approvedWhereClause,
         include: {
             ticketTypes: {
                 select: {
@@ -371,16 +375,19 @@ export async function getDashboardData() {
         }
     });
 
-    const totalEvents = await prisma.event.count({ where: whereClause });
+    const totalEvents = await prisma.event.count({ where: baseWhereClause });
+    const pendingEvents = user.role.name === 'Admin' 
+        ? await prisma.event.count({ where: { status: 'PENDING' } }) 
+        : 0;
 
-    const totalRevenue = events.reduce((sum, event) => {
+    const totalRevenue = approvedEvents.reduce((sum, event) => {
         return sum + event.ticketTypes.reduce((eventSum, tt) => eventSum + (tt.sold * Number(tt.price)), 0)
     }, 0);
-    const totalTicketsSold = events.reduce((sum, event) => {
+    const totalTicketsSold = approvedEvents.reduce((sum, event) => {
         return sum + event.ticketTypes.reduce((eventSum, tt) => eventSum + tt.sold, 0)
     }, 0);
     
-    const chartData = events.map(event => ({
+    const chartData = approvedEvents.map(event => ({
         name: event.name,
         ticketsSold: event.ticketTypes.reduce((sum, t) => sum + t.sold, 0),
     })).filter(e => e.ticketsSold > 0);
@@ -389,6 +396,7 @@ export async function getDashboardData() {
         totalRevenue,
         totalTicketsSold,
         totalEvents,
+        pendingEvents,
         salesData: chartData,
     });
 }
