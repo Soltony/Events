@@ -68,20 +68,22 @@ async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
 export async function getEvents(status?: EventStatus | 'all') {
     const user = await getCurrentUser();
     if (!user) {
+        // If no user, return empty array. This protects authenticated routes.
         return [];
     }
 
     const isAdmin = user.role.name === 'Admin';
-    const whereClause: any = {};
-    
+    let whereClause: any = {};
+
     if (status && status !== 'all') {
         whereClause.status = status;
     }
-    
+
+    // Admins see all events (filtered by status), others see only their own.
     if (!isAdmin) {
         whereClause.organizerId = user.id;
     }
-    
+
     const events = await prisma.event.findMany({
         where: whereClause,
         orderBy: { startDate: 'asc' },
@@ -369,10 +371,9 @@ export async function getDashboardData() {
     const isUserAdmin = user.role.name === 'Admin';
     const organizerFilter = isUserAdmin ? {} : { organizerId: user.id };
     
-    // Total events should not be filtered by status
     const totalEvents = await prisma.event.count({ where: organizerFilter });
 
-    const approvedWhereClause = { ...organizerFilter, status: 'APPROVED' };
+    const approvedWhereClause = { ...organizerFilter, status: 'APPROVED' as EventStatus };
     
     const approvedEvents = await prisma.event.findMany({
         where: approvedWhereClause,
@@ -386,7 +387,8 @@ export async function getDashboardData() {
         }
     });
     
-    const pendingEventsFilter = isUserAdmin ? { status: 'PENDING' } : { organizerId: user.id, status: 'PENDING' };
+    // Admin sees all pending events, others see only their own
+    const pendingEventsFilter = isUserAdmin ? { status: 'PENDING' as EventStatus } : { organizerId: user.id, status: 'PENDING' as EventStatus };
     const pendingEvents = await prisma.event.count({ where: pendingEventsFilter });
     
     const totalRevenue = approvedEvents.reduce((sum, event) => {
@@ -884,7 +886,7 @@ export async function getTicketsByUserId(userId: string | null, localTicketIds: 
     return serialize(tickets);
 }
 
-export async function validatePromoCode(eventId: number, promoCode: string): Promise<PromoCode | null> {
+export async function validatePromoCode(promoCode: string, eventId: number): Promise<PromoCode | null> {
     const promo = await prisma.promoCode.findFirst({
         where: {
             code: promoCode,
