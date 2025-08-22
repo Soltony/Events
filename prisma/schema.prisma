@@ -1,10 +1,4 @@
 
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -15,30 +9,28 @@ generator client {
 }
 
 model User {
-  id                      String   @id @default(cuid())
+  id                      String    @id @default(uuid())
   firstName               String
   lastName                String
-  phoneNumber             String   @unique
-  email                   String?  @unique
-  passwordChangeRequired  Boolean  @default(true)
-  cbsAccount              String?
+  email                   String?   @unique
+  phoneNumber             String    @unique
+  passwordChangeRequired  Boolean   @default(false)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
   roleId                  String
-  role                    Role     @relation(fields: [roleId], references: [id])
+  role                    Role      @relation(fields: [roleId], references: [id])
   events                  Event[]
   attendees               Attendee[]
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
-  nibBankAccount          String?
 }
 
 model Role {
-  id          String   @id @default(cuid())
+  id          String   @id @default(uuid())
   name        String   @unique
   description String?
   permissions String?
-  users       User[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  users       User[]
 }
 
 model Event {
@@ -52,75 +44,83 @@ model Event {
   image           String?
   hint            String?
   organizerId     String
-  organizer       User          @relation(fields: [organizerId], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  status          EventStatus   @default(PENDING)
+  rejectionReason String?
+  nibBankAccount  String
+  organizer       User          @relation(fields: [organizerId], references: [id], onDelete: Cascade)
   ticketTypes     TicketType[]
   attendees       Attendee[]
   promoCodes      PromoCode[]
   pendingOrders   PendingOrder[]
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  nibBankAccount  String
 }
 
 model TicketType {
-  id        Int        @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   name      String
-  price     Decimal    @db.Decimal(10, 2)
+  price     Decimal  @db.Decimal(10, 2)
   total     Int
-  sold      Int        @default(0)
+  sold      Int      @default(0)
   eventId   Int
-  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   attendees Attendee[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
 }
 
 model Attendee {
-  id           Int          @id @default(autoincrement())
+  id           Int        @id @default(autoincrement())
   name         String
   phoneNumber  String?
   eventId      Int
-  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
   ticketTypeId Int
-  ticketType   TicketType   @relation(fields: [ticketTypeId], references: [id])
   userId       String?
-  user         User?        @relation(fields: [userId], references: [id])
-  checkedIn    Boolean      @default(false)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  pendingOrder PendingOrder?
+  checkedIn    Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  event        Event      @relation(fields: [eventId], references: [id], onDelete: NoAction)
+  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id], onDelete: NoAction)
+  user         User?      @relation(fields: [userId], references: [id])
+  pendingOrder PendingOrder[]
 }
 
 model PromoCode {
   id        Int           @id @default(autoincrement())
-  code      String
+  code      String        @unique
   type      PromoCodeType
   value     Decimal       @db.Decimal(10, 2)
   maxUses   Int
   uses      Int           @default(0)
   eventId   Int
-  event     Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
-
-  @@unique([code, eventId])
+  event     Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }
 
 model PendingOrder {
-  id              String      @id @default(cuid())
-  eventId         Int
-  event           Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  attendeeId      Int?        @unique
-  attendee        Attendee?   @relation(fields: [attendeeId], references: [id], onDelete: SetNull)
-  ticketTypeId    Int?
-  attendeeData    Json
-  promoCode       String?
-  status          String      @default("PENDING") // PENDING, COMPLETED, FAILED
-  arifpaySessionId String?    @unique
-  createdAt       DateTime    @default(now())
+  id               Int      @id @default(autoincrement())
+  transactionId    String?  @unique
+  arifpaySessionId String?  @unique
+  eventId          Int
+  ticketTypeId     Int?
+  attendeeData     Json
+  promoCode        String?
+  status           String   @default("PENDING") // PENDING, COMPLETED, FAILED
+  attendeeId       Int?     @unique
+  attendee         Attendee? @relation(fields: [attendeeId], references: [id])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  event            Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }
 
 enum PromoCodeType {
   PERCENTAGE
   FIXED
+}
+
+enum EventStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
