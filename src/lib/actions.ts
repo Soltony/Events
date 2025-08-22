@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -72,16 +71,19 @@ export async function getEvents(status?: EventStatus | 'all') {
         return [];
     }
 
-    const whereClause: any = {};
+    let whereClause: any = {};
 
-    // If user is not an Admin, they can only see their own events.
-    if (user.role.name !== 'Admin') {
+    if (user.role.name === 'Admin') {
+        // Admin sees all events, filtered only by status if provided
+        if (status && status !== 'all') {
+            whereClause.status = status;
+        }
+    } else {
+        // Non-admin users see only their own events
         whereClause.organizerId = user.id;
-    }
-
-    // Apply status filter if it's provided and not 'all'
-    if (status && status !== 'all') {
-        whereClause.status = status;
+        if (status && status !== 'all') {
+            whereClause.status = status;
+        }
     }
     
     const events = await prisma.event.findMany({
@@ -387,7 +389,6 @@ export async function getDashboardData() {
         }
     });
     
-    // Pending events for admin should not be filtered by organizer
     const pendingEventsFilter = isUserAdmin ? { status: 'PENDING' } : { organizerId: user.id, status: 'PENDING' };
     const pendingEvents = await prisma.event.count({ where: pendingEventsFilter });
     
@@ -930,3 +931,5 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
+    
