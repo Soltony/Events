@@ -221,7 +221,7 @@ export default function ManageEventsPage() {
   const renderTabContent = (status: string) => {
     const eventsForTab = filteredEvents(status);
     return (
-        <TabsContent value={status}>
+        <TabsContent value={status} className="mt-4">
              {loading ? (
                 <div className="grid gap-4 md:gap-8 md:grid-cols-2 lg:grid-cols-4">
                     {[...Array(4)].map((_, i) => (
@@ -285,7 +285,9 @@ export default function ManageEventsPage() {
                 {renderTabContent('all')}
             </Tabs>
         ) : (
-             renderTabContent('all')
+            <Tabs defaultValue="all">
+                {renderTabContent('all')}
+            </Tabs>
         )}
 
 
