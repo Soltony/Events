@@ -158,16 +158,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const resolvedRefreshToken = refreshToken || RefreshToken;
 
         if (resolvedAccessToken) {
-          const newTokens = { accessToken: resolvedAccessToken, refreshToken: resolvedRefreshToken };
-          setTokens(newTokens);
-          setAuthToken(resolvedAccessToken);
-          setCookie('authTokens', JSON.stringify(newTokens), 1);
           
           // Force a fresh fetch of user data from DB to get correct role/permissions
           const userData = await getUserByPhoneNumber(data.phoneNumber);
           if (!userData) {
             throw new Error('Failed to retrieve user data after login.');
           }
+
+          if (userData.status === 'INACTIVE') {
+            throw new Error('Your account is inactive. Please contact an administrator.');
+          }
+          
+          const newTokens = { accessToken: resolvedAccessToken, refreshToken: resolvedRefreshToken };
+          setTokens(newTokens);
+          setAuthToken(resolvedAccessToken);
+          setCookie('authTokens', JSON.stringify(newTokens), 1);
+          
           setUser(userData);
           localStorage.setItem('authUser', JSON.stringify(userData));
           
