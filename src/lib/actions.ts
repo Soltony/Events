@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -185,7 +184,7 @@ export async function addEvent(data: any) {
     }
 
     revalidatePath('/dashboard/events');
-    revalidatePath('/dashboard/events/new');
+    revalidatePath('/dashboard');
     revalidatePath('/');
     return serialize(newEvent);
 }

@@ -29,6 +29,7 @@ import { addEvent } from '@/lib/actions';
 import { Separator } from '@/components/ui/separator';
 import LocationInput from '@/components/location-input';
 import { DateTimePicker } from '@/components/datetime-picker';
+import { useAuth } from '@/context/auth-context';
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
@@ -68,6 +69,7 @@ const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 export default function CreateEventPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -101,11 +103,20 @@ export default function CreateEventPage() {
             ...data,
             category: data.category === 'Other' ? data.otherCategory : data.category,
         };
-        await addEvent(finalData);
-        toast({
-            title: 'Event Created!',
-            description: `Successfully created "${data.name}".`,
-        });
+        const newEvent = await addEvent(finalData);
+        
+        if (newEvent.status === 'PENDING') {
+            toast({
+                title: 'Event Submitted!',
+                description: `Your event "${data.name}" is now pending admin approval.`,
+            });
+        } else {
+            toast({
+                title: 'Event Created!',
+                description: `Successfully created "${data.name}".`,
+            });
+        }
+        
         router.push('/dashboard/events');
     } catch (error) {
         console.error("Failed to create event:", error);
