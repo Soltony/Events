@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, ArrowUpRight, Pencil, Trash2, MapPin, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { PlusCircle, ArrowUpRight, Pencil, Trash2, MapPin, CheckCircle2, XCircle, Loader2, Eye } from "lucide-react";
 import Link from 'next/link';
 import Image from 'next/image';
 import { getEvents, deleteEvent, updateEventStatus } from '@/lib/actions';
@@ -43,7 +43,7 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     return format(new Date(startDate), startDateFormat);
 }
 
-const EventCard = ({ event, isAdmin, onApprove, onReject, onDelete }: { event: Event, isAdmin: boolean, onApprove: (e: Event) => void, onReject: (e: Event) => void, onDelete: (e: Event) => void }) => {
+const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolean, onDelete: (e: Event) => void }) => {
     const imageUrl = event.image || '/image/nibtickets.jpg';
     
     const statusBadge = (status: string) => {
@@ -83,14 +83,11 @@ const EventCard = ({ event, isAdmin, onApprove, onReject, onDelete }: { event: E
         </CardContent>
         <CardFooter className="p-2 border-t flex justify-end gap-1">
             {event.status === 'PENDING' && isAdmin ? (
-                <>
-                    <Button variant="outline" className="w-full" onClick={() => onApprove(event)}>
-                        <CheckCircle2 className="h-4 w-4 mr-2" /> Approve
-                    </Button>
-                    <Button variant="destructive" className="w-full" onClick={() => onReject(event)}>
-                        <XCircle className="h-4 w-4 mr-2" /> Reject
-                    </Button>
-                </>
+                <Button asChild className="w-full">
+                    <Link href={`/dashboard/events/${event.id}`}>
+                        <Eye className="h-4 w-4 mr-2" /> Review Event
+                    </Link>
+                </Button>
             ) : (
                 <>
                     <Button asChild variant="ghost" size="icon">
@@ -120,7 +117,7 @@ const EventCard = ({ event, isAdmin, onApprove, onReject, onDelete }: { event: E
 };
 
 
-const EventGrid = ({ events, isLoading, isAdmin, onApprove, onReject, onDelete }: { events: Event[], isLoading: boolean, isAdmin: boolean, onApprove: (e: Event) => void, onReject: (e: Event) => void, onDelete: (e: Event) => void }) => {
+const EventGrid = ({ events, isLoading, isAdmin, onDelete }: { events: Event[], isLoading: boolean, isAdmin: boolean, onDelete: (e: Event) => void }) => {
     if (isLoading) {
         return (
             <div className="grid gap-4 md:gap-8 md:grid-cols-2 lg:grid-cols-4">
@@ -158,8 +155,6 @@ const EventGrid = ({ events, isLoading, isAdmin, onApprove, onReject, onDelete }
                     key={event.id}
                     event={event}
                     isAdmin={isAdmin}
-                    onApprove={onApprove}
-                    onReject={onReject}
                     onDelete={onDelete}
                 />
             ))}
@@ -324,16 +319,16 @@ export default function ManageEventsPage() {
             </TabsList>
         )}
         <TabsContent value="pending" className="mt-4">
-            <EventGrid events={pendingEvents} isLoading={loading} isAdmin={isAdmin} onApprove={handleApprove} onReject={handleOpenRejectDialog} onDelete={handleOpenDeleteDialog} />
+            <EventGrid events={pendingEvents} isLoading={loading} isAdmin={isAdmin} onDelete={handleOpenDeleteDialog} />
         </TabsContent>
         <TabsContent value="approved" className="mt-4">
-            <EventGrid events={approvedEvents} isLoading={loading} isAdmin={isAdmin} onApprove={handleApprove} onReject={handleOpenRejectDialog} onDelete={handleOpenDeleteDialog} />
+            <EventGrid events={approvedEvents} isLoading={loading} isAdmin={isAdmin} onDelete={handleOpenDeleteDialog} />
         </TabsContent>
         <TabsContent value="rejected" className="mt-4">
-            <EventGrid events={rejectedEvents} isLoading={loading} isAdmin={isAdmin} onApprove={handleApprove} onReject={handleOpenRejectDialog} onDelete={handleOpenDeleteDialog} />
+            <EventGrid events={rejectedEvents} isLoading={loading} isAdmin={isAdmin} onDelete={handleOpenDeleteDialog} />
         </TabsContent>
         <TabsContent value="all" className="mt-4">
-            <EventGrid events={allEvents} isLoading={loading} isAdmin={isAdmin} onApprove={handleApprove} onReject={handleOpenRejectDialog} onDelete={handleOpenDeleteDialog} />
+            <EventGrid events={allEvents} isLoading={loading} isAdmin={isAdmin} onDelete={handleOpenDeleteDialog} />
         </TabsContent>
       </Tabs>
 

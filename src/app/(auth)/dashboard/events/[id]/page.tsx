@@ -33,8 +33,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { PlusCircle, DollarSign, FileDown, Ticket as TicketIcon, ArrowLeft, Loader2, MapPin, Info, Pencil, Trash2 } from 'lucide-react';
-import { getEventDetails, addTicketType, addPromoCode, updateTicketType, deleteTicketType, updatePromoCode, deletePromoCode } from '@/lib/actions';
+import { PlusCircle, DollarSign, FileDown, Ticket as TicketIcon, ArrowLeft, Loader2, MapPin, Info, Pencil, Trash2, CheckCircle2, XCircle } from 'lucide-react';
+import { getEventDetails, addTicketType, addPromoCode, updateTicketType, deleteTicketType, updatePromoCode, deletePromoCode, updateEventStatus } from '@/lib/actions';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { cn } from "@/lib/utils";
@@ -72,6 +72,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useAuth } from '@/context/auth-context';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 interface EventDetails extends Event {
     ticketTypes: TicketType[];
@@ -129,6 +132,8 @@ export default function EventDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const eventId = params.id ? parseInt(params.id, 10) : -1;
+  const { user } = useAuth();
+  const isAdmin = user?.role?.name === 'Admin';
   const [event, setEvent] = useState<EventDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAddTicketTypeOpen, setIsAddTicketTypeOpen] = useState(false);
@@ -139,7 +144,9 @@ export default function EventDetailPage() {
   const [promoToEdit, setPromoToEdit] = useState<PromoCode | null>(null);
   const [itemToDelete, setItemToDelete] = useState<{ id: number; name: string; type: 'ticket' | 'promo' } | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
-
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 
@@ -329,6 +336,36 @@ export default function EventDetailPage() {
     }
   }
 
+  const handleApprove = async () => {
+    if (!event) return;
+    setActionLoading(true);
+    try {
+      await updateEventStatus(event.id, 'APPROVED');
+      toast({ title: 'Event Approved', description: `"${event.name}" is now live.`});
+      await fetchEvent(); // Refreshes the current page
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to approve event.' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!event) return;
+    setActionLoading(true);
+    try {
+      await updateEventStatus(event.id, 'REJECTED', rejectionReason);
+      toast({ title: 'Event Rejected' });
+      await fetchEvent(); // Refreshes the current page
+    } catch (error) {
+       toast({ variant: 'destructive', title: 'Error', description: 'Failed to reject event.' });
+    } finally {
+      setActionLoading(false);
+      setIsRejectDialogOpen(false);
+      setRejectionReason('');
+    }
+  }
+
 
   if (loading) {
     return (
@@ -416,7 +453,19 @@ export default function EventDetailPage() {
                     </div>
                 </div>
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+                 {isAdmin && event.status === 'PENDING' && (
+                  <div className="flex gap-2">
+                      <Button variant="outline" onClick={handleApprove} disabled={actionLoading}>
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          Approve
+                      </Button>
+                       <Button variant="destructive" onClick={() => setIsRejectDialogOpen(true)} disabled={actionLoading}>
+                          <XCircle className="mr-2 h-4 w-4" />
+                          Reject
+                      </Button>
+                  </div>
+                 )}
                 <Button onClick={handleExport} disabled={isExporting}>
                     {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
                     Export Report
@@ -806,6 +855,33 @@ export default function EventDetailPage() {
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>
+     <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Reject Event: {event?.name}</DialogTitle>
+                <DialogDescription>Please provide a reason for rejecting this event. This will be visible to the organizer.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="rejection-reason" className="text-right">Reason</Label>
+                    <Textarea 
+                        id="rejection-reason"
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        className="col-span-3"
+                        placeholder="e.g., Missing required information, event not suitable for platform."
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="ghost" onClick={() => setIsRejectDialogOpen(false)}>Cancel</Button>
+                <Button variant="destructive" onClick={handleReject} disabled={actionLoading}>
+                    {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Confirm Rejection
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
     </>
   );
 }
