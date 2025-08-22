@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
-import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee, EventStatus } from '@prisma/client';
+import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee, EventStatus, UserStatus } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import type { DateRange } from 'react-day-picker';
@@ -637,6 +637,15 @@ export async function updateUserRole(userId: string, newRoleId: string) {
     const user = await prisma.user.update({
         where: { id: userId },
         data: { roleId: newRoleId },
+    });
+    revalidatePath('/dashboard/settings/users');
+    return serialize(user);
+}
+
+export async function updateUserStatus(userId: string, status: UserStatus) {
+    const user = await prisma.user.update({
+        where: { id: userId },
+        data: { status },
     });
     revalidatePath('/dashboard/settings/users');
     return serialize(user);

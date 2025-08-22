@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { User, Role } from '@prisma/client';
+import type { User, Role, UserStatus } from '@prisma/client';
 import {
   Card,
   CardContent,
@@ -27,23 +27,15 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useRouter } from 'next/navigation';
-import { UserPlus, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
+import { UserPlus, ArrowLeft, Pencil } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast"
 import { Skeleton } from '@/components/ui/skeleton';
-import { getUsersAndRoles, updateUserRole, deleteUser } from '@/lib/actions';
+import { getUsersAndRoles, updateUserRole, updateUserStatus } from '@/lib/actions';
 import Link from 'next/link';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { useAuth } from '@/context/auth-context';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface UserWithRole extends User {
     role: Role;
@@ -114,15 +106,19 @@ export default function UserManagementPage() {
         }
     };
 
-    const handleDeleteUser = async (user: UserWithRole) => {
+    const handleStatusChange = async (userId: string, newStatus: UserStatus) => {
+         const oldUsers = [...users];
+        const newUsers = users.map(user => user.id === userId ? { ...user, status: newStatus } : user);
+        setUsers(newUsers);
         try {
-            await deleteUser(user.id, user.phoneNumber);
-            toast({ title: 'User Deleted', description: `${user.firstName} ${user.lastName} has been removed.`});
-            fetchData();
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to delete user.' });
+            await updateUserStatus(userId, newStatus);
+            toast({ title: 'User Status Updated', description: `User is now ${newStatus.toLowerCase()}.` });
+        } catch (error) {
+            setUsers(oldUsers);
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to update user status.' });
         }
-    };
+    }
+
 
   return (
     <div className="flex flex-1 justify-center p-4">
@@ -150,7 +146,7 @@ export default function UserManagementPage() {
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>All Users</CardTitle>
-                  <CardDescription>Assign roles to users in the system.</CardDescription>
+                  <CardDescription>Assign roles and manage status for users in the system.</CardDescription>
                 </div>
                 {hasPermission('User Registration:Create') && (
                   <Button asChild style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
@@ -167,21 +163,20 @@ export default function UserManagementPage() {
                       <TableHead>Name</TableHead>
                       <TableHead>Phone Number</TableHead>
                       <TableHead className="w-[180px]">Role</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {users.map((user) => {
                       const canUpdate = hasPermission('User Management:Update');
-                      const canDelete = hasPermission('User Management:Delete');
                       
                       const isSelf = user.id === currentUser?.id;
                       const isTargetAdmin = user.role?.name === 'Admin';
                       
                       const isEditable = (canUpdate && !isTargetAdmin) || isSelf;
-                      const isDeletable = canDelete && !isSelf && !isTargetAdmin;
-                      
                       const canChangeRole = canUpdate && !isSelf && !isTargetAdmin;
+                      const canChangeStatus = canUpdate && !isSelf && !isTargetAdmin;
 
                       return (
                         <TableRow key={user.id}>
@@ -199,6 +194,19 @@ export default function UserManagementPage() {
                               <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
                             </Select>
                           </TableCell>
+                           <TableCell>
+                                <div className="flex items-center space-x-2">
+                                    <Switch
+                                        id={`status-switch-${user.id}`}
+                                        checked={user.status === 'ACTIVE'}
+                                        onCheckedChange={(checked) => handleStatusChange(user.id, checked ? 'ACTIVE' : 'INACTIVE')}
+                                        disabled={!canChangeStatus}
+                                    />
+                                    <Badge variant="outline" className={cn(user.status === 'ACTIVE' ? "border-green-500 text-green-700" : "border-red-500 text-red-700")}>
+                                        {user.status}
+                                    </Badge>
+                                </div>
+                            </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
                               {canUpdate && (
@@ -208,30 +216,6 @@ export default function UserManagementPage() {
                                     <span className="sr-only">Edit</span>
                                   </Link>
                                 </Button>
-                              )}
-                              {canDelete && (
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" disabled={!isDeletable}>
-                                      <Trash2 className="h-4 w-4 text-destructive" />
-                                      <span className="sr-only">Delete</span>
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        This action cannot be undone. This will permanently delete the user <strong>{user.firstName} {user.lastName}</strong> and all associated data.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => handleDeleteUser(user)} className="bg-destructive hover:bg-destructive/90">
-                                        Delete
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
                               )}
                             </div>
                           </TableCell>
