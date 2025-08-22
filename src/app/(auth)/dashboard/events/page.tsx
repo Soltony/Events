@@ -186,14 +186,15 @@ export default function ManageEventsPage() {
   const isAdmin = user?.role?.name === 'Admin';
   const [activeTab, setActiveTab] = useState(isAdmin ? 'pending' : 'all');
 
-  const fetchEventsByStatus = useCallback(async (status: EventStatus | 'all') => {
+  const fetchEventsByStatus = useCallback(async (status: 'pending' | 'approved' | 'rejected' | 'all') => {
       setLoading(true);
       try {
-          const fetchedEvents = await getEvents(status);
+          const statusParam = status === 'all' ? 'all' : status.toUpperCase() as EventStatus;
+          const fetchedEvents = await getEvents(statusParam);
           switch(status) {
-              case 'PENDING': setPendingEvents(fetchedEvents); break;
-              case 'APPROVED': setApprovedEvents(fetchedEvents); break;
-              case 'REJECTED': setRejectedEvents(fetchedEvents); break;
+              case 'pending': setPendingEvents(fetchedEvents); break;
+              case 'approved': setApprovedEvents(fetchedEvents); break;
+              case 'rejected': setRejectedEvents(fetchedEvents); break;
               case 'all': setAllEvents(fetchedEvents); break;
           }
       } catch (error) {
@@ -205,24 +206,22 @@ export default function ManageEventsPage() {
   }, [toast]);
   
   useEffect(() => {
-    fetchEventsByStatus(activeTab as EventStatus | 'all');
+    fetchEventsByStatus(activeTab as 'pending' | 'approved' | 'rejected' | 'all');
   }, [activeTab, fetchEventsByStatus]);
 
   const refreshCurrentTabData = useCallback(() => {
-    fetchEventsByStatus(activeTab as EventStatus | 'all');
+    fetchEventsByStatus(activeTab as 'pending' | 'approved' | 'rejected' | 'all');
   }, [activeTab, fetchEventsByStatus]);
 
   const refreshAllTabs = useCallback(async () => {
     if (isAdmin) {
-        await Promise.all([
-            fetchEventsByStatus('PENDING'),
-            fetchEventsByStatus('APPROVED'),
-            fetchEventsByStatus('REJECTED'),
-            fetchEventsByStatus('all'),
-        ]);
-    } else {
-        await fetchEventsByStatus('all');
+        // We only need to refetch the data for the specific lists, not all at once
+        await fetchEventsByStatus('pending');
+        await fetchEventsByStatus('approved');
+        await fetchEventsByStatus('rejected');
     }
+    // Both admin and user might need to see their full list updated
+    await fetchEventsByStatus('all');
   }, [isAdmin, fetchEventsByStatus]);
 
   
@@ -265,8 +264,8 @@ export default function ManageEventsPage() {
     try {
       await updateEventStatus(event.id, 'APPROVED');
       toast({ title: 'Event Approved', description: `"${event.name}" is now live.`});
-      await refreshAllTabs(); // Refresh all tabs data after status change
-      setActiveTab('approved'); // Switch to approved tab
+      await refreshAllTabs();
+      setActiveTab('approved');
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to approve event.' });
     } finally {
@@ -280,8 +279,8 @@ export default function ManageEventsPage() {
     try {
       await updateEventStatus(eventToModify.id, 'REJECTED', rejectionReason);
       toast({ title: 'Event Rejected' });
-      await refreshAllTabs(); // Refresh all tabs data
-      setActiveTab('rejected'); // Switch to rejected tab
+      await refreshAllTabs();
+      setActiveTab('rejected');
     } catch (error) {
        toast({ variant: 'destructive', title: 'Error', description: 'Failed to reject event.' });
     } finally {
