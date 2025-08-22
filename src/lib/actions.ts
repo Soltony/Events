@@ -249,6 +249,7 @@ export async function updateEventStatus(id: number, status: EventStatus, rejecti
     });
 
     revalidatePath('/dashboard/events');
+    revalidatePath('/dashboard');
     revalidatePath(`/dashboard/events/${id}`);
     revalidatePath('/');
     return serialize(updatedEvent);
@@ -358,7 +359,8 @@ export async function getDashboardData() {
         };
     }
 
-    const baseWhereClause: any = user.role.name === 'Admin' ? {} : { organizerId: user.id };
+    const isUserAdmin = user.role.name === 'Admin';
+    const baseWhereClause: any = isUserAdmin ? {} : { organizerId: user.id };
     
     // For revenue and sales, only count approved events
     const approvedWhereClause = { ...baseWhereClause, status: 'APPROVED' };
@@ -376,13 +378,16 @@ export async function getDashboardData() {
     });
 
     const totalEvents = await prisma.event.count({ where: baseWhereClause });
-    const pendingEvents = user.role.name === 'Admin' 
+    
+    // Admins see all pending events, others see none on their dashboard
+    const pendingEvents = isUserAdmin 
         ? await prisma.event.count({ where: { status: 'PENDING' } }) 
         : 0;
 
     const totalRevenue = approvedEvents.reduce((sum, event) => {
         return sum + event.ticketTypes.reduce((eventSum, tt) => eventSum + (tt.sold * Number(tt.price)), 0)
     }, 0);
+
     const totalTicketsSold = approvedEvents.reduce((sum, event) => {
         return sum + event.ticketTypes.reduce((eventSum, tt) => eventSum + tt.sold, 0)
     }, 0);
