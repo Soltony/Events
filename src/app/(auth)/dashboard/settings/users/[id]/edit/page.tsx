@@ -43,6 +43,11 @@ const editUserFormSchema = z.object({
   lastName: z.string().min(1, { message: "Last name is required." }),
   phoneNumber: z.string().min(10, { message: "Phone number must be at least 10 digits." }),
   roleId: z.string({ required_error: "Please select a role." }),
+  nibBankAccount: z.string()
+    .optional()
+    .or(z.literal(''))
+    .refine(val => !val || (val.length >= 13 && val.length <= 15), { message: "NIB Account must be between 13 and 15 digits." })
+    .refine(val => !val || val.startsWith('70'), { message: "NIB Account must start with 70." })
 });
 
 type EditUserFormValues = z.infer<typeof editUserFormSchema>;
@@ -76,6 +81,7 @@ export default function EditUserPage() {
             lastName: '',
             phoneNumber: '',
             roleId: '',
+            nibBankAccount: '',
         }
     });
 
@@ -113,6 +119,7 @@ export default function EditUserPage() {
                         lastName: userData.lastName,
                         phoneNumber: userData.phoneNumber,
                         roleId: userData.roleId,
+                        nibBankAccount: userData.nibBankAccount || '',
                     });
                 } else {
                     toast({ variant: 'destructive', title: 'Error', description: 'User not found.' });
@@ -209,6 +216,20 @@ export default function EditUserPage() {
                             <FormLabel>Phone Number</FormLabel>
                             <FormControl>
                                 <Input placeholder="0912345678" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+
+                    <FormField
+                        control={form.control}
+                        name="nibBankAccount"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>NIB Account</FormLabel>
+                            <FormControl>
+                                <Input placeholder="700***********" {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>

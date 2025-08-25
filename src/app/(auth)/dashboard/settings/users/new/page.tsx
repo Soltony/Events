@@ -45,6 +45,11 @@ const addUserFormSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }).optional().or(z.literal('')),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
   roleId: z.string({ required_error: "Please select a role." }),
+  nibBankAccount: z.string()
+    .optional()
+    .or(z.literal(''))
+    .refine(val => !val || (val.length >= 13 && val.length <= 15), { message: "NIB Account must be between 13 and 15 digits." })
+    .refine(val => !val || val.startsWith('70'), { message: "NIB Account must start with 70." })
 });
 
 type AddUserFormValues = z.infer<typeof addUserFormSchema>;
@@ -87,6 +92,7 @@ export default function UserRegistrationPage() {
           phoneNumber: "",
           email: "",
           password: "",
+          nibBankAccount: "",
         },
     });
 
@@ -140,6 +146,9 @@ export default function UserRegistrationPage() {
                         )}/>
                         <FormField control={addUserForm.control} name="email" render={({ field }) => (
                             <FormItem><FormLabel>Email (Optional)</FormLabel><FormControl><Input placeholder="john.doe@example.com" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <FormField control={addUserForm.control} name="nibBankAccount" render={({ field }) => (
+                            <FormItem><FormLabel>NIB Account</FormLabel><FormControl><Input placeholder="700***********" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
                     <FormField control={addUserForm.control} name="password" render={({ field }) => (
                         <FormItem><FormLabel>Password</FormLabel><FormControl><PasswordInput placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>
