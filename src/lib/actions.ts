@@ -517,7 +517,7 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
 
 
 export async function addUser(data: any) {
-    const { firstName, lastName, phoneNumber, email, password, roleId, nibBankAccount } = data;
+    const { firstName, lastName, phoneNumber, email, roleId, nibBankAccount } = data;
 
     const phoneRegex = /^(09|07)\d{8}$/;
     if (!phoneRegex.test(phoneNumber)) {
@@ -528,13 +528,10 @@ export async function addUser(data: any) {
     if (!authApiUrl) {
       throw new Error('Auth API URL not configured.');
     }
-    const cookieStore = cookies();
-        const tokenCookie = cookieStore.get('authTokens');
-        if (!tokenCookie?.value) {
-            throw new Error('Authentication token not found');
-        }
-        const tokenData = JSON.parse(tokenCookie.value);
-        const token = tokenData.accessToken;
+    
+    const emailPrefix = email.split('@')[0];
+    const password = `${emailPrefix}@123`;
+    
     try {
         const registrationResponse = await fetch(`${authApiUrl}/api/Auth/register`, {
             method: 'POST',
