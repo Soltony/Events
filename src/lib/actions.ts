@@ -165,6 +165,10 @@ export async function addEvent(data: any) {
         throw new Error('User is not authenticated.');
     }
 
+    if (!user.nibBankAccount) {
+        throw new Error('You must have a NIB Account set in your profile to create an event.');
+    }
+
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
     
     if (!eventData.image) {
@@ -175,6 +179,7 @@ export async function addEvent(data: any) {
         data: {
             ...eventData,
             organizerId: user.id,
+            nibBankAccount: user.nibBankAccount,
             category: finalCategory,
             startDate: startDate,
             endDate: endDate,

@@ -35,10 +35,6 @@ const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   location: z.string().min(3, { message: 'Location is required.' }),
-  nibBankAccount: z.string()
-    .min(13, { message: 'Nib Account must be between 13 and 20 digits.' })
-    .max(20, { message: 'Nib Account must be between 13 and 20 digits.' })
-    .regex(/^[0-9]+$/, { message: 'Nib Account must only contain numbers.' }),
   hint: z.string().optional(),
   startDate: z.date({
     required_error: 'A start date and time for the event is required.',
@@ -80,7 +76,6 @@ export default function CreateEventPage() {
       name: '',
       description: '',
       location: '',
-      nibBankAccount: '',
       hint: '',
       category: '',
       otherCategory: '',
@@ -118,12 +113,12 @@ export default function CreateEventPage() {
         }
         
         router.push('/dashboard/events');
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to create event:", error);
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'Failed to create event. Please try again.',
+            description: error.message || 'Failed to create event. Please try again.',
         });
     } finally {
         setIsSubmitting(false);
@@ -253,22 +248,6 @@ export default function CreateEventPage() {
                       />
                     )}
                 </div>
-                <FormField
-                  control={form.control}
-                  name="nibBankAccount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nib Account</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., 7000*****" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        Enter the 13-20 digit Nib bank account for this event's transactions.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                       control={form.control}
