@@ -535,7 +535,7 @@ export async function addUser(data: any) {
     }
     
     const emailPrefix = email.split('@')[0];
-    const password = emailPrefix;
+    const password = `${emailPrefix}@123`;
     
     try {
         const registrationResponse = await fetch(`${authApiUrl}/api/Auth/register`, {
