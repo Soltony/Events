@@ -32,7 +32,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Loader2, ArrowLeft, Save } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Mail } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast"
 import { getRoles, getUserById, updateUser } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -42,6 +42,7 @@ const editUserFormSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required." }),
   lastName: z.string().min(1, { message: "Last name is required." }),
   phoneNumber: z.string().min(10, { message: "Phone number must be at least 10 digits." }),
+  email: z.string().email({ message: "Invalid email address." }),
   roleId: z.string({ required_error: "Please select a role." }),
   nibBankAccount: z.string()
     .optional()
@@ -80,6 +81,7 @@ export default function EditUserPage() {
             firstName: '',
             lastName: '',
             phoneNumber: '',
+            email: '',
             roleId: '',
             nibBankAccount: '',
         }
@@ -118,6 +120,7 @@ export default function EditUserPage() {
                         firstName: userData.firstName,
                         lastName: userData.lastName,
                         phoneNumber: userData.phoneNumber,
+                        email: userData.email || '',
                         roleId: userData.roleId,
                         nibBankAccount: userData.nibBankAccount || '',
                     });
@@ -216,6 +219,20 @@ export default function EditUserPage() {
                             <FormLabel>Phone Number</FormLabel>
                             <FormControl>
                                 <Input placeholder="0912345678" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+
+                    <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                                <Input placeholder="john.doe@example.com" {...field} readOnly className="bg-muted" />
                             </FormControl>
                             <FormMessage />
                         </FormItem>

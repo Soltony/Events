@@ -614,7 +614,7 @@ export async function addUser(data: any) {
 }
 
 export async function updateUser(userId: string, data: Partial<User>) {
-    const { firstName, lastName, phoneNumber, roleId, nibBankAccount } = data;
+    const { firstName, lastName, phoneNumber, roleId, nibBankAccount, email } = data;
     const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: {
@@ -623,6 +623,7 @@ export async function updateUser(userId: string, data: Partial<User>) {
             phoneNumber,
             roleId,
             nibBankAccount: nibBankAccount || null,
+            email,
         },
     });
 
