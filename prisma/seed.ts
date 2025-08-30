@@ -42,14 +42,16 @@ async function main() {
   // Create Users
   const adminUser = await prisma.user.upsert({
     where: { phoneNumber: '0912345678' },
-    update: {},
+    update: {
+        nibBankAccount: '7000101672811'
+    },
     create: {
       id: 'b1e55c84-9055-4eb5-8bd4-a262538f7e66',
       firstName: 'Admin',
       lastName: 'User',
       phoneNumber: '0912345678',
       roleId: adminRole.id,
-      nibBankAccount: '7000123456789'
+      nibBankAccount: '7000101672811'
     },
   });
 
@@ -182,4 +184,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
-
