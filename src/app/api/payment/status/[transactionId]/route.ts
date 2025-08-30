@@ -8,15 +8,20 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { transactionId: string } }
 ) {
-  const transactionId = params.transactionId;
+  const id = params.transactionId;
 
   try {
-    if (!transactionId) {
-      return NextResponse.json({ error: 'Transaction ID is required.' }, { status: 400 });
+    if (!id) {
+      return NextResponse.json({ error: 'Transaction ID or Session ID is required.' }, { status: 400 });
     }
 
-    const order = await prisma.pendingOrder.findUnique({
-      where: { transactionId },
+    const order = await prisma.pendingOrder.findFirst({
+      where: { 
+          OR: [
+              { transactionId: id },
+              { arifpaySessionId: id },
+          ]
+      },
     });
 
     if (!order) {
@@ -33,7 +38,7 @@ export async function GET(
     return NextResponse.json({ status: order.status });
 
   } catch (error) {
-    console.error(`Failed to get payment status for ${transactionId}:`, error);
+    console.error(`Failed to get payment status for ${id}:`, error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
