@@ -10,9 +10,7 @@ export async function POST(req: NextRequest) {
         const payload = await req.json();
         console.log('ArifPay Notification Payload:', payload);
         
-        const { transaction } = payload;
-        const sessionId = transaction?.sessionId; // Use the sessionId from the gateway
-        const transactionStatus = transaction?.transactionStatus;
+        const { sessionId, transactionStatus } = payload;
 
         if (!sessionId || !transactionStatus) {
             console.error("No sessionId or transactionStatus in ArifPay notification.");
