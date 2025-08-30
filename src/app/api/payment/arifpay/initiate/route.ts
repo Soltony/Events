@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
 
         const pendingOrder = await prisma.pendingOrder.create({
             data: {
-                transactionId: transactionId,
+                transactionId: transactionId, // This is the crucial fix
                 eventId,
                 ticketTypeId: tickets[0].id,
                 attendeeData: {
