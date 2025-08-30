@@ -48,7 +48,8 @@ async function main() {
       firstName: 'Admin',
       lastName: 'User',
       phoneNumber: '0912345678',
-      roleId: adminRole.id
+      roleId: adminRole.id,
+      nibBankAccount: '7000123456789'
     },
   });
 
@@ -181,3 +182,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
+
