@@ -89,7 +89,7 @@ function SuccessContent() {
                     </p>
                 )}
                 <div className="flex justify-center gap-4">
-                    <Button asChild variant="outline">
+                     <Button asChild>
                         <Link href="/">Back to All Events</Link>
                     </Button>
                 </div>

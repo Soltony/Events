@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
 
         const pendingOrder = await prisma.pendingOrder.create({
             data: {
+                transactionId: transactionId,
                 eventId,
                 ticketTypeId: tickets[0].id,
                 attendeeData: {
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
             successUrl,
             failureUrl,
             callbackUrl,
+            transactionId: transactionId, // Pass our transaction ID
         };
 
         let paymentGatewayResponse;
