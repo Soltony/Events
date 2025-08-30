@@ -1,4 +1,6 @@
 
+'use server';
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
@@ -9,26 +11,26 @@ export async function POST(req: NextRequest) {
         console.log('ArifPay Notification Payload:', payload);
         
         const { transaction } = payload;
-        const transactionId = transaction?.transactionId; // Use the transactionId from the gateway
+        const sessionId = transaction?.sessionId; // Use the sessionId from the gateway
         const transactionStatus = transaction?.transactionStatus;
 
-        if (!transactionId || !transactionStatus) {
-            console.error("No transactionId or transactionStatus in ArifPay notification.");
-            return NextResponse.json({ error: 'Transaction ID or status is missing' }, { status: 400 });
+        if (!sessionId || !transactionStatus) {
+            console.error("No sessionId or transactionStatus in ArifPay notification.");
+            return NextResponse.json({ error: 'Session ID or status is missing' }, { status: 400 });
         }
         
         const order = await prisma.pendingOrder.findFirst({
-            where: { transactionId: transactionId },
+            where: { arifpaySessionId: sessionId },
         });
 
         if (!order) {
-            console.error(`Order not found for transaction: ${transactionId}`);
+            console.error(`Order not found for session: ${sessionId}`);
             return NextResponse.json({ message: 'Order not found' }, { status: 404 });
         }
         
         // Idempotency check: if order is already completed, do nothing.
         if (order.status === 'COMPLETED') {
-             console.log(`Order for transaction ${transactionId} already handled.`);
+             console.log(`Order for session ${sessionId} already handled.`);
              return NextResponse.json({ message: 'Already handled' }, { status: 200 });
         }
 
@@ -110,14 +112,14 @@ export async function POST(req: NextRequest) {
             revalidatePath('/');
             revalidatePath('/tickets');
 
-            console.log(`Successfully processed payment for transaction ${transactionId}. Attendee ID for confirmation: ${createdAttendees?.id}`);
+            console.log(`Successfully processed payment for session ${sessionId}. Attendee ID for confirmation: ${createdAttendees?.id}`);
         } else {
             // Handle failed or cancelled payment
             await prisma.pendingOrder.update({
                 where: { id: order.id },
                 data: { status: 'FAILED' },
             });
-            console.log(`Payment failed or was cancelled for transaction ${transactionId}.`);
+            console.log(`Payment failed or was cancelled for session ${sessionId}.`);
         }
 
         return NextResponse.json({ message: 'Notification handled successfully' }, { status: 200 });
