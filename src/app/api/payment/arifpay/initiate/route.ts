@@ -29,9 +29,11 @@ export async function POST(req: NextRequest) {
         const totalQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0);
         const transactionId = randomBytes(16).toString('hex');
 
+        // Note: The pendingOrder is created before we get the arifpaySessionId.
+        // We will update it with the session ID after the gateway response.
         const pendingOrder = await prisma.pendingOrder.create({
             data: {
-                transactionId: transactionId,
+                transactionId: transactionId, // <-- This is the crucial fix: Save our internal transactionId
                 eventId,
                 ticketTypeId: tickets[0].id,
                 attendeeData: {
@@ -95,6 +97,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: paymentGatewayResult.ResponseDescription || 'Error communicating with payment gateway.' }, { status: 502 });
         }
 
+        // Now, update the pendingOrder with the session ID from ArifPay
         await prisma.pendingOrder.update({
             where: { id: pendingOrder.id },
             data: { arifpaySessionId: paymentGatewayResult.Data.NA },
