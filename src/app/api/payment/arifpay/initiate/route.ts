@@ -29,8 +29,7 @@ export async function POST(req: NextRequest) {
         const totalQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0);
         const transactionId = randomBytes(16).toString('hex');
 
-        // Note: The pendingOrder is created before we get the arifpaySessionId.
-        // We will update it with the session ID after the gateway response.
+        // Create the pending order with our internal transaction ID first.
         const pendingOrder = await prisma.pendingOrder.create({
             data: {
                 transactionId: transactionId, // <-- This is the crucial fix: Save our internal transactionId
@@ -49,9 +48,11 @@ export async function POST(req: NextRequest) {
 
         const paymentGatewayUrl = process.env.BASE_URL;
         const apiKey = process.env.ARIFPAY_API_KEY;
+        // The success URL should use our internal transactionId for the frontend to poll
         const successUrl = `${process.env.SUCCESS_URL}?transaction_id=${transactionId}&event_id=${eventId}`;
         const failureUrl = `${process.env.FAILURE_URL}?event_id=${eventId}`;
         const callbackUrl = process.env.ARIFPAY_CALLBACK_URL;
+
 
         if (!paymentGatewayUrl || !apiKey || !successUrl || !failureUrl || !callbackUrl) {
             console.error("Payment gateway URL, API key, or callback/redirect URLs are missing.");
