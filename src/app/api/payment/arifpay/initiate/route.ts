@@ -29,10 +29,10 @@ export async function POST(req: NextRequest) {
         const totalQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0);
         const transactionId = randomBytes(16).toString('hex');
 
-        // Create the pending order with our internal transaction ID first.
+        // Create the pending order first without the ArifPay session ID.
         const pendingOrder = await prisma.pendingOrder.create({
             data: {
-                transactionId: transactionId, // <-- This is the crucial fix: Save our internal transactionId
+                transactionId: transactionId,
                 eventId,
                 ticketTypeId: tickets[0].id,
                 attendeeData: {
@@ -48,16 +48,17 @@ export async function POST(req: NextRequest) {
 
         const paymentGatewayUrl = process.env.BASE_URL;
         const apiKey = process.env.ARIFPAY_API_KEY;
-        // The success URL should use our internal transactionId for the frontend to poll
-        const successUrl = `${process.env.SUCCESS_URL}?transaction_id=${transactionId}&event_id=${eventId}`;
         const failureUrl = `${process.env.FAILURE_URL}?event_id=${eventId}`;
         const callbackUrl = process.env.ARIFPAY_CALLBACK_URL;
 
-
-        if (!paymentGatewayUrl || !apiKey || !successUrl || !failureUrl || !callbackUrl) {
+        if (!paymentGatewayUrl || !apiKey || !failureUrl || !callbackUrl) {
             console.error("Payment gateway URL, API key, or callback/redirect URLs are missing.");
             return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
         }
+        
+        // This is a temporary success URL. We will get the real one from ArifPay.
+        // We will construct the final success URL *after* getting the session ID from ArifPay.
+        const successUrl = `${process.env.SUCCESS_URL}?transaction_id=${transactionId}`;
 
         const paymentGatewayData = {
             phone: formatPhoneNumber(attendeeDetails.phone),
@@ -83,8 +84,6 @@ export async function POST(req: NextRequest) {
         }
 
         const rawText = await paymentGatewayResponse.text();
-        console.log("ArifPay raw response:", rawText);
-
         let paymentGatewayResult: any;
         try {
             paymentGatewayResult = JSON.parse(rawText);
@@ -97,8 +96,8 @@ export async function POST(req: NextRequest) {
             console.error('Payment Gateway API Error:', paymentGatewayResult);
             return NextResponse.json({ error: paymentGatewayResult.ResponseDescription || 'Error communicating with payment gateway.' }, { status: 502 });
         }
-
-        // Now, update the pendingOrder with the session ID from ArifPay
+        
+        // Now that we have the session ID from ArifPay, update our pending order.
         await prisma.pendingOrder.update({
             where: { id: pendingOrder.id },
             data: { arifpaySessionId: paymentGatewayResult.Data.NA },
