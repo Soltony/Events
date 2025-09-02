@@ -50,15 +50,12 @@ export async function POST(req: NextRequest) {
         const apiKey = process.env.ARIFPAY_API_KEY;
         const failureUrl = `${process.env.FAILURE_URL}?event_id=${eventId}`;
         const callbackUrl = process.env.ARIFPAY_CALLBACK_URL;
+        const successUrl = `${process.env.SUCCESS_URL}?transaction_id=${transactionId}`;
 
-        if (!paymentGatewayUrl || !apiKey || !failureUrl || !callbackUrl) {
+        if (!paymentGatewayUrl || !apiKey || !failureUrl || !callbackUrl || !successUrl) {
             console.error("Payment gateway URL, API key, or callback/redirect URLs are missing.");
             return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
         }
-        
-        // This is a temporary success URL. We will get the real one from ArifPay.
-        // We will construct the final success URL *after* getting the session ID from ArifPay.
-        const successUrl = `${process.env.SUCCESS_URL}?transaction_id=${transactionId}`;
 
         const paymentGatewayData = {
             phone: formatPhoneNumber(attendeeDetails.phone),
