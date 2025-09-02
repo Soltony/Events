@@ -37,6 +37,8 @@ function SuccessContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const transactionId = searchParams.get('transaction_id');
+    const sessionId = searchParams.get('session_id');
+    const idToCheck = sessionId || transactionId; // prefer sessionId
     
     const [ticket, setTicket] = useState<TicketDetails | null>(null);
     const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
@@ -45,16 +47,16 @@ function SuccessContent() {
     const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
 
     useEffect(() => {
-        if (!transactionId) {
-            setError("Transaction ID is missing from the URL.");
-            setLoading(false);
-            return;
-        }
+    if (!idToCheck) {
+    setError("Transaction or Session ID is missing from the URL.");
+    setLoading(false);
+    return;
+  }
 
-        const pollForStatus = async (retries = 10, delay = 2000): Promise<number | null> => {
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const response = await fetch(`/api/payment/status/${transactionId}`);
+  const pollForStatus = async (retries = 10, delay = 2000): Promise<number | null> => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const response = await fetch(`/api/payment/status/${idToCheck}`);
                     if (!response.ok) {
                         await new Promise(resolve => setTimeout(resolve, delay));
                         continue;
@@ -110,7 +112,7 @@ function SuccessContent() {
             router.replace(`/payment/failure?event_id=${eventId}`);
         });
 
-    }, [transactionId, searchParams, router]);
+    }, [idToCheck, searchParams, router]);
 
     const handleDownload = () => {
         if (!qrCodeDataUrl || !ticket) return;

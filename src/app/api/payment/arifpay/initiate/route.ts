@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
             email: `${formatPhoneNumber(attendeeDetails.phone)}@nibticket.com`,
             cbs: event.nibBankAccount,
             items: [{ name: event.name, quantity: totalQuantity, price: totalAmount, description: event.description }],
-            successUrl, // Ensure successUrl is included
+            successUrl,
             failureUrl,
             callbackUrl,
             transactionId: transactionId,
@@ -99,8 +99,8 @@ export async function POST(req: NextRequest) {
             where: { id: pendingOrder.id },
             data: { arifpaySessionId: paymentGatewayResult.Data.NA },
         });
-
-        return NextResponse.json({ paymentUrl: paymentGatewayResult.Data.URL });
+        const finalSuccessUrl = `${process.env.SUCCESS_URL}?transaction_id=${transactionId}&session_id=${paymentGatewayResult.Data.NA}`;
+        return NextResponse.json({ paymentUrl: paymentGatewayResult.Data.URL, successUrl: finalSuccessUrl });
     } catch (error: any) {
         console.error('Payment initiation failed:', error);
         return NextResponse.json({ error: error.message || 'An unexpected error occurred.' }, { status: 500 });
