@@ -62,10 +62,10 @@ export async function POST(req: NextRequest) {
             email: `${formatPhoneNumber(attendeeDetails.phone)}@nibticket.com`,
             cbs: event.nibBankAccount,
             items: [{ name: event.name, quantity: totalQuantity, price: totalAmount, description: event.description }],
-            successUrl,
+            successUrl, // Ensure successUrl is included
             failureUrl,
             callbackUrl,
-            transactionId: transactionId, // Pass our transaction ID
+            transactionId: transactionId,
         };
 
         let paymentGatewayResponse;
@@ -79,13 +79,13 @@ export async function POST(req: NextRequest) {
             console.error("Network error while connecting to ArifPay:", networkError);
             return NextResponse.json({ error: 'Cannot reach ArifPay service. Please try again later.' }, { status: 503 });
         }
-
+        
         const rawText = await paymentGatewayResponse.text();
         let paymentGatewayResult: any;
         try {
             paymentGatewayResult = JSON.parse(rawText);
         } catch (parseError) {
-            console.error("Failed to parse ArifPay response as JSON:", parseError);
+            console.error("Failed to parse ArifPay response as JSON:", rawText);
             return NextResponse.json({ error: 'Invalid response from payment gateway.' }, { status: 502 });
         }
 
