@@ -165,8 +165,22 @@ export async function addEvent(data: any) {
         throw new Error('User is not authenticated.');
     }
 
-    if (!user.nibBankAccount) {
+    let nibBankAccount = user.nibBankAccount;
+
+    if (user.role.name !== 'Admin' && !nibBankAccount) {
         throw new Error('You must have a NIB Account set in your profile to create an event.');
+    }
+
+    // If admin is creating and has no NIB account, use the default admin's account as a fallback
+    if (user.role.name === 'Admin' && !nibBankAccount) {
+        const defaultAdmin = await prisma.user.findFirst({
+            where: { role: { name: 'Admin' } },
+            orderBy: { createdAt: 'asc' },
+        });
+        if (!defaultAdmin?.nibBankAccount) {
+            throw new Error('The default Admin user does not have a NIB account set. Cannot create event.');
+        }
+        nibBankAccount = defaultAdmin.nibBankAccount;
     }
 
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
@@ -179,7 +193,7 @@ export async function addEvent(data: any) {
         data: {
             ...eventData,
             organizerId: user.id,
-            nibBankAccount: user.nibBankAccount,
+            nibBankAccount: nibBankAccount,
             category: finalCategory,
             startDate: startDate,
             endDate: endDate,
