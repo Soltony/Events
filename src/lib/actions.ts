@@ -177,10 +177,13 @@ export async function addEvent(data: any) {
             where: { role: { name: 'Admin' } },
             orderBy: { createdAt: 'asc' },
         });
-        if (!defaultAdmin?.nibBankAccount) {
-            throw new Error('The default Admin user does not have a NIB account set. Cannot create event.');
+        // If there's a default admin with an account, use it. Otherwise, proceed with null.
+        if (defaultAdmin?.nibBankAccount) {
+            nibBankAccount = defaultAdmin.nibBankAccount;
+        } else {
+            // Log a warning instead of throwing an error
+            console.warn("Admin event creation: Default admin has no NIB account. Event will be created without a bank account.");
         }
-        nibBankAccount = defaultAdmin.nibBankAccount;
     }
 
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
