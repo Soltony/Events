@@ -244,7 +244,9 @@ export default function EditUserPage() {
                         name="nibBankAccount"
                         render={({ field }) => (
                         <FormItem>
-                            <FormLabel>NIB Account</FormLabel>
+                            <FormLabel>
+                                NIB Account <span className="text-muted-foreground">(Optional)</span>
+                            </FormLabel>
                             <FormControl>
                                 <Input placeholder="700***********" {...field} />
                             </FormControl>

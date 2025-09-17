@@ -145,7 +145,13 @@ export default function UserRegistrationPage() {
                             <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" placeholder="john.doe@example.com" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
                         <FormField control={addUserForm.control} name="nibBankAccount" render={({ field }) => (
-                            <FormItem><FormLabel>NIB Account</FormLabel><FormControl><Input placeholder="700***********" {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem>
+                                <FormLabel>
+                                    NIB Account <span className="text-muted-foreground">(Optional)</span>
+                                </FormLabel>
+                                <FormControl><Input placeholder="700***********" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
                         )}/>
                         <FormField control={addUserForm.control} name="roleId" render={({ field }) => (
                         <FormItem><FormLabel>Role</FormLabel>
