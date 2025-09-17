@@ -16,10 +16,10 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
 ));
 
 // This function can be used in any server action to get the currently logged-in user.
-async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
+export async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
   try {
     const cookieStore = cookies();
-    const tokenCookie = cookieStore.get('authTokens');
+    const tokenCookie = await cookieStore.get('authTokens');
 
     if (!tokenCookie?.value) {
       console.error("GetCurrentUser: Auth token cookie not found.");
@@ -687,7 +687,7 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         }
 
         const cookieStore = cookies();
-        const tokenCookie = cookieStore.get('authTokens');
+        const tokenCookie = await cookieStore.get('authTokens');
         if (!tokenCookie?.value) {
             throw new Error('Authentication token not found');
         }
@@ -862,15 +862,15 @@ export async function getTicketDetailsForConfirmation(attendeeId: number) {
         return null;
     }
     
+    // Allow guest access if no user is associated with the ticket
+    if (!attendee.userId) {
+        return serialize(attendee);
+    }
+
     const user = await getCurrentUser();
     
     // Logged-in users can view their own tickets
     if (user && attendee.userId === user.id) {
-        return serialize(attendee);
-    }
-
-    // Allow guest access if no user is associated with the ticket
-    if (!attendee.userId) {
         return serialize(attendee);
     }
     
