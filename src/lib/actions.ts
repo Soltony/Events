@@ -167,23 +167,21 @@ export async function addEvent(data: any) {
 
     let nibBankAccount = user.nibBankAccount;
 
-    if (user.role.name !== 'Admin' && !nibBankAccount) {
-        throw new Error('You must have a NIB Account set in your profile to create an event.');
-    }
-
-    // If admin is creating and has no NIB account, use the default admin's account as a fallback
     if (user.role.name === 'Admin' && !nibBankAccount) {
         const defaultAdmin = await prisma.user.findFirst({
             where: { role: { name: 'Admin' } },
             orderBy: { createdAt: 'asc' },
         });
-        // If there's a default admin with an account, use it. Otherwise, proceed with null.
+        
         if (defaultAdmin?.nibBankAccount) {
             nibBankAccount = defaultAdmin.nibBankAccount;
         } else {
-            // Log a warning instead of throwing an error
-            console.warn("Admin event creation: Default admin has no NIB account. Event will be created without a bank account.");
+            console.warn("Admin event creation: Default admin has no NIB account. Event will be created without a bank account, but this may cause payout issues.");
         }
+    }
+
+    if (user.role.name !== 'Admin' && !nibBankAccount) {
+        throw new Error('You must have a NIB Account set in your profile to create an event.');
     }
 
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
@@ -863,26 +861,20 @@ export async function getTicketDetailsForConfirmation(attendeeId: number) {
     if (!attendee) {
         return null;
     }
-
-    // Guest users can view tickets they just bought via local storage linking
-    if (!attendee.userId) {
-        const cookieStore = cookies();
-        const localTicketsCookie = cookieStore.get('myTickets');
-        if (localTicketsCookie) {
-            const localTicketIds = JSON.parse(localTicketsCookie.value) as number[];
-            if (localTicketIds.includes(attendeeId)) {
-                return serialize(attendee);
-            }
-        }
-    }
-
-    // Logged-in users can view their own tickets
+    
     const user = await getCurrentUser();
+    
+    // Logged-in users can view their own tickets
     if (user && attendee.userId === user.id) {
         return serialize(attendee);
     }
+
+    // Allow guest access if no user is associated with the ticket
+    if (!attendee.userId) {
+        return serialize(attendee);
+    }
     
-    // If neither of the above, deny access.
+    // If ticket has a user, but it doesn't match the logged-in user, deny access.
     return null;
 }
 
