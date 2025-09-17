@@ -70,12 +70,23 @@ export async function POST(req: NextRequest) {
 
         let paymentGatewayResponse;
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
+
             paymentGatewayResponse = await fetch(`${paymentGatewayUrl}/api/payment/createsession`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Api-Key': apiKey },
                 body: JSON.stringify(paymentGatewayData),
+                signal: controller.signal,
             });
-        } catch (networkError) {
+            
+            clearTimeout(timeoutId);
+
+        } catch (networkError: any) {
+            if (networkError.name === 'AbortError') {
+                 console.error("ArifPay API call timed out:", networkError);
+                 return NextResponse.json({ error: 'Payment gateway is not responding. Please try again later.' }, { status: 504 });
+            }
             console.error("Network error while connecting to ArifPay:", networkError);
             return NextResponse.json({ error: 'Cannot reach ArifPay service. Please try again later.' }, { status: 503 });
         }
