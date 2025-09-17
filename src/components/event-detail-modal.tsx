@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
@@ -33,7 +32,7 @@ interface EventWithTickets extends Event {
 }
 
 interface EventDetailModalProps {
-  event: EventWithTickets;
+  event: EventWithTickets | null; // Allow event to be null
   isOpen: boolean;
   onClose: () => void;
 }

@@ -15,7 +15,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AuthStatus } from "@/components/auth-status";
-import EventDetailModal from "@/components/event-detail-modal";
 
 
 interface EventWithTickets extends Event {
@@ -41,8 +40,6 @@ export default function PublicHomePage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedEvent, setSelectedEvent] = useState<EventWithTickets | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -58,16 +55,6 @@ export default function PublicHomePage() {
     }
     fetchData();
   }, []);
-
-  const handleEventClick = (event: EventWithTickets) => {
-    setSelectedEvent(event);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedEvent(null);
-  };
 
   const categories = useMemo(() => {
     const allCategories = new Set(events.map(event => event.category));
@@ -140,25 +127,25 @@ export default function PublicHomePage() {
           filteredEvents.map((event) => {
             const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
             return (
-              <Card key={event.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
-                <CardHeader className="p-0">
-                  <button onClick={() => handleEventClick(event)} className="w-full text-left">
+              <Link href={`/events/${event.id}`} key={event.id} className="group">
+                <Card className="flex flex-col h-full group-hover:shadow-lg transition-shadow duration-300">
+                  <CardHeader className="p-0">
                     <Image src={imageUrl} alt={event.name} width={600} height={338} className="rounded-t-lg object-cover aspect-video" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}/>
-                  </button>
-                </CardHeader>
-                <CardContent className="p-3 flex-1 space-y-1">
-                  <Badge variant="outline" className="text-xs">{event.category}</Badge>
-                  <CardTitle className="text-base leading-tight">{event.name}</CardTitle>
-                  <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
-                </CardContent>
-                <CardFooter className="p-3 pt-0">
-                    <Button asChild className="w-full" size="sm">
-                       <Link href={`/events/${event.id}`}>
-                         Buy Tickets <ArrowUpRight className="h-4 w-4" />
-                       </Link>
-                    </Button>
-                </CardFooter>
-              </Card>
+                  </CardHeader>
+                  <CardContent className="p-3 flex-1 space-y-1">
+                    <Badge variant="outline" className="text-xs">{event.category}</Badge>
+                    <CardTitle className="text-base leading-tight">{event.name}</CardTitle>
+                    <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
+                  </CardContent>
+                  <CardFooter className="p-3 pt-0">
+                      <Button asChild className="w-full" size="sm">
+                         <span >
+                           Buy Tickets <ArrowUpRight className="h-4 w-4" />
+                         </span>
+                      </Button>
+                  </CardFooter>
+                </Card>
+              </Link>
             )
           })
         ) : (
@@ -170,13 +157,6 @@ export default function PublicHomePage() {
             </Card>
         )}
       </div>
-      {selectedEvent && (
-        <EventDetailModal
-          event={selectedEvent}
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-        />
-      )}     
     </div>
   );
 }
