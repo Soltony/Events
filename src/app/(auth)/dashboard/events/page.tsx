@@ -296,13 +296,6 @@ export default function ManageEventsPage() {
             {isAdmin ? 'Review, approve, and manage all events.' : 'Select an event to view its details and manage it.'}
           </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button asChild>
-            <Link href="/dashboard/events/new">
-              <PlusCircle className="mr-2 h-4 w-4" /> Create Event
-            </Link>
-          </Button>
-        </div>
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
