@@ -163,6 +163,7 @@ export default function ProfilePage() {
             </div>
           </form>
         </Form>
+        <p className="text-sm text-muted-foreground mt-4">Password must contain both uppercase and lowercase letters.</p>
       </CardContent>
     </Card>
   );
