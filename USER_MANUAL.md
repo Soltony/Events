@@ -16,7 +16,7 @@ The homepage is your gateway to all exciting upcoming events.
 
 ### 2. Viewing Event Details
 
-Clicking on any event card will open a pop-up window with more details. For a full-screen view, click the "Buy Tickets" button.
+Clicking on any event card will take you directly to the full event details page.
 
 -   **Event Information**: View the event's date, time, location, and a detailed description.
 -   **Ticket Tiers**: See the different types of tickets available, their prices, and how many are left.
@@ -67,7 +67,7 @@ The dashboard is the central hub for managing your activities.
 This is where you view, create, edit, and manage all your events.
 
 #### Creating an Event
-1.  Click the **Create Event** button.
+1.  From the main navigation, click **Create Event**.
 2.  Fill in the form with all required details:
     -   `Event Name`, `Description`, `Category`
     -   `Start Date & Time`, `End Date & Time` (optional)
@@ -126,8 +126,8 @@ The `Settings` section is for user and role management. Access is based on permi
 
 #### User Registration
 1.  Navigate to `Settings` > `User Registration`.
-2.  Fill in the new user's `First Name`, `Last Name`, `Phone Number`, `Email`, and assign them a `Role`. The NIB account is optional.
-3.  A temporary password will be generated from their email (e.g., `user@example.com` becomes `user@123`). The user will be required to change it on their first login.
+2.  Fill in the new user's `First Name`, `Last Name`, and `Phone Number`. Assign them a `Role`. The email and NIB account are optional.
+3.  A temporary password will be set to **user@123**. The user will be required to change this on their first login.
 
 #### Role Management
 1.  Navigate to `Settings` > `Role Management`.

@@ -41,7 +41,7 @@ const addUserFormSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required." }),
   lastName: z.string().min(1, { message: "Last name is required." }),
   phoneNumber: z.string().min(10, { message: "Phone number must be at least 10 digits." }),
-  email: z.string().email({ message: "A valid email is required to generate a password." }),
+  email: z.string().email({ message: "Invalid email address." }).optional().or(z.literal('')),
   roleId: z.string({ required_error: "Please select a role." }),
   nibBankAccount: z.string()
     .optional()
@@ -125,7 +125,7 @@ export default function UserRegistrationPage() {
         <Card>
             <CardHeader>
                 <CardTitle>New User Details</CardTitle>
-                <CardDescription>Fill out the form below to register a new user. A temporary password will be generated from their email.</CardDescription>
+                <CardDescription>Fill out the form to register a new user. The temporary password will be "user@123".</CardDescription>
             </CardHeader>
             <CardContent>
                 <Form {...addUserForm}>
@@ -142,7 +142,7 @@ export default function UserRegistrationPage() {
                         <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="0912345678" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
                         <FormField control={addUserForm.control} name="email" render={({ field }) => (
-                            <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" placeholder="john.doe@example.com" {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Email <span className="text-muted-foreground">(Optional)</span></FormLabel><FormControl><Input type="email" placeholder="john.doe@example.com" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
                         <FormField control={addUserForm.control} name="nibBankAccount" render={({ field }) => (
                             <FormItem>

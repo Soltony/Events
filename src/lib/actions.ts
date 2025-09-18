@@ -549,8 +549,7 @@ export async function addUser(data: any) {
       throw new Error('Auth API URL not configured.');
     }
     
-    const emailPrefix = email.split('@')[0];
-    const password = `${emailPrefix}@123`;
+    const password = "user@123";
     
     try {
         const registrationResponse = await fetch(`${authApiUrl}/api/Auth/register`, {
