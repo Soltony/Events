@@ -88,7 +88,7 @@ export default function ProfilePage() {
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: "Password must contain both uppercase and lowercase letters.",
+            description: "Password change failed. Please try again.",
         });
     } finally {
         setIsSubmitting(false);
