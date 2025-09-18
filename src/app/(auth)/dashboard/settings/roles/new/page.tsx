@@ -6,7 +6,7 @@ import { useForm, Controller } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
@@ -161,12 +161,18 @@ export default function CreateRolePage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
-       <div className="space-y-2">
+       <div className="flex items-center gap-4">
+        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
+          <ArrowLeft className="h-4 w-4" />
+          <span className="sr-only">Back</span>
+        </Button>
+        <div>
           <h1 className="text-3xl font-bold tracking-tight">Create New Role</h1>
           <p className="text-muted-foreground">
             Define a new role and select the granular permissions it has for each page.
           </p>
         </div>
+      </div>
       <Card>
         <CardContent className="pt-6">
           <Form {...form}>
