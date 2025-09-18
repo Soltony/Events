@@ -569,7 +569,16 @@ export async function addUser(data: any) {
         const responseData = await registrationResponse.json();
                                               
         if (!responseData || !responseData.isSuccess) {
-            const errorMessage = responseData.errors?.join(', ') || 'Failed to register user with auth service.';
+            let errorMessage = 'Failed to register user with auth service.';
+            if (responseData.errors) {
+              if (Array.isArray(responseData.errors)) {
+                errorMessage = responseData.errors.join(', ');
+              } else if (typeof responseData.errors === 'string') {
+                errorMessage = responseData.errors;
+              } else if (typeof responseData.errors === 'object') {
+                errorMessage = Object.values(responseData.errors).flat().join(' ');
+              }
+            }
             throw new Error(errorMessage);
         }
         
