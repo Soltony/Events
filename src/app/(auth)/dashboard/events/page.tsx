@@ -181,44 +181,35 @@ export default function ManageEventsPage() {
   const isAdmin = user?.role?.name === 'Admin';
   const [activeTab, setActiveTab] = useState(isAdmin ? 'pending' : 'all');
 
-  const fetchEventsByStatus = useCallback(async (status: 'pending' | 'approved' | 'rejected' | 'all') => {
-      setLoading(true);
-      try {
-          const statusParam = status === 'all' ? 'all' : status.toUpperCase() as EventStatus;
-          const fetchedEvents = await getEvents(statusParam);
-          switch(status) {
-              case 'pending': setPendingEvents(fetchedEvents); break;
-              case 'approved': setApprovedEvents(fetchedEvents); break;
-              case 'rejected': setRejectedEvents(fetchedEvents); break;
-              case 'all': setAllEvents(fetchedEvents); break;
-          }
-      } catch (error) {
-          console.error(`Failed to fetch ${status} events:`, error);
-          toast({ variant: 'destructive', title: 'Error', description: `Failed to load ${status} events.` });
-      } finally {
-          setLoading(false);
-      }
-  }, [toast]);
-  
-  useEffect(() => {
-    fetchEventsByStatus(activeTab as 'pending' | 'approved' | 'rejected' | 'all');
-  }, [activeTab, fetchEventsByStatus]);
-
-  const refreshCurrentTabData = useCallback(() => {
-    fetchEventsByStatus(activeTab as 'pending' | 'approved' | 'rejected' | 'all');
-  }, [activeTab, fetchEventsByStatus]);
-
-  const refreshAllTabs = useCallback(async () => {
-    if (isAdmin) {
-        // We only need to refetch the data for the specific lists, not all at once
-        await fetchEventsByStatus('pending');
-        await fetchEventsByStatus('approved');
-        await fetchEventsByStatus('rejected');
+  const fetchAllEvents = useCallback(async () => {
+    setLoading(true);
+    try {
+        if (isAdmin) {
+            const [pending, approved, rejected, all] = await Promise.all([
+                getEvents('PENDING'),
+                getEvents('APPROVED'),
+                getEvents('REJECTED'),
+                getEvents('all'),
+            ]);
+            setPendingEvents(pending);
+            setApprovedEvents(approved);
+            setRejectedEvents(rejected);
+            setAllEvents(all);
+        } else {
+            const allUserEvents = await getEvents('all');
+            setAllEvents(allUserEvents);
+        }
+    } catch (error) {
+        console.error("Failed to fetch events:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to load events.' });
+    } finally {
+        setLoading(false);
     }
-    // Both admin and user might need to see their full list updated
-    await fetchEventsByStatus('all');
-  }, [isAdmin, fetchEventsByStatus]);
+  }, [isAdmin, toast]);
 
+  useEffect(() => {
+    fetchAllEvents();
+  }, [fetchAllEvents]);
   
   const handleOpenDeleteDialog = (event: Event) => {
     setEventToModify(event);
@@ -239,7 +230,7 @@ export default function ManageEventsPage() {
             title: 'Event Deleted',
             description: `"${eventToModify.name}" has been successfully deleted.`,
         });
-        refreshCurrentTabData();
+        fetchAllEvents();
     } catch (error) {
         console.error("Failed to delete event:", error);
         toast({
@@ -259,7 +250,7 @@ export default function ManageEventsPage() {
     try {
       await updateEventStatus(event.id, 'APPROVED');
       toast({ title: 'Event Approved', description: `"${event.name}" is now live.`});
-      await refreshAllTabs();
+      await fetchAllEvents();
       setActiveTab('approved');
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to approve event.' });
@@ -274,7 +265,7 @@ export default function ManageEventsPage() {
     try {
       await updateEventStatus(eventToModify.id, 'REJECTED', rejectionReason);
       toast({ title: 'Event Rejected' });
-      await refreshAllTabs();
+      await fetchAllEvents();
       setActiveTab('rejected');
     } catch (error) {
        toast({ variant: 'destructive', title: 'Error', description: 'Failed to reject event.' });
@@ -296,6 +287,11 @@ export default function ManageEventsPage() {
             {isAdmin ? 'Review, approve, and manage all events.' : 'Select an event to view its details and manage it.'}
           </p>
         </div>
+        <Button asChild>
+          <Link href="/dashboard/events/new">
+            <PlusCircle className="mr-2 h-4 w-4" /> Create Event
+          </Link>
+        </Button>
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -308,7 +304,7 @@ export default function ManageEventsPage() {
             </TabsList>
         ) : (
              <TabsList>
-                 <TabsTrigger value="all">My Events</TabsTrigger>
+                 <TabsTrigger value="all">My Events ({allEvents.length})</TabsTrigger>
             </TabsList>
         )}
         <TabsContent value="pending" className="mt-4">
