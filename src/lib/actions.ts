@@ -19,7 +19,7 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
 export async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
   try {
     const cookieStore = cookies();
-    const tokenCookie = await cookieStore.get('authTokens');
+    const tokenCookie = cookieStore.get('authTokens');
 
     if (!tokenCookie?.value) {
       console.error("GetCurrentUser: Auth token cookie not found.");
@@ -552,6 +552,9 @@ export async function addUser(data: any) {
     const password = "user@123";
     
     try {
+        // If email is not provided, create one from the phone number for the auth service
+        const authServiceEmail = email || `${phoneNumber}@nibtickets.com`;
+
         const registrationResponse = await fetch(`${authApiUrl}/api/Auth/register`, {
             method: 'POST',
             headers: { 
@@ -561,7 +564,7 @@ export async function addUser(data: any) {
                 firstName,
                 lastName,
                 phoneNumber,
-                email: email || undefined,
+                email: authServiceEmail,
                 password,
             }),
         });
@@ -576,6 +579,7 @@ export async function addUser(data: any) {
               } else if (typeof responseData.errors === 'string') {
                 errorMessage = responseData.errors;
               } else if (typeof responseData.errors === 'object') {
+                // Handle cases where errors is an object of arrays, like ASP.NET validation
                 errorMessage = Object.values(responseData.errors).flat().join(' ');
               }
             }
