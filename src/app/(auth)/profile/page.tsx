@@ -85,16 +85,10 @@ export default function ProfilePage() {
 
     } catch (error: any) {
         console.error("Failed to change password:", error);
-        let apiError = error.response?.data?.errors?.join(', ') || error.message || "Password change failed. Please try again.";
-
-        if (typeof apiError === 'string' && (apiError.includes('uppercase') || apiError.includes('lowercase'))) {
-            apiError = "Password must contain both uppercase and lowercase letters.";
-        }
-
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: apiError,
+            description: "Password must contain both uppercase and lowercase letters.",
         });
     } finally {
         setIsSubmitting(false);
