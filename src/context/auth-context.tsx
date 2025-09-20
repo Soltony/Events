@@ -199,7 +199,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
       } else {
-        throw new Error(response.data.errors?.join(', ') || 'Login failed');
+        const errorMessage = response.data.errors?.join(', ') || 'Login failed. Please check your credentials.';
+        throw new Error(errorMessage);
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'An error occurred during login.';
