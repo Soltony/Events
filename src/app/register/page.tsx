@@ -66,7 +66,22 @@ export default function RegisterPage() {
          throw new Error(response.data.errors?.join(', ') || 'Registration failed');
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'An unknown error occurred.';
+      let errorMessage = 'An unknown error occurred.';
+      if (error.response?.data?.errors) {
+        const errors = error.response.data.errors;
+        if (Array.isArray(errors)) {
+          errorMessage = errors.join(', ');
+        } else {
+          errorMessage = String(errors);
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      if (errorMessage.toLowerCase().includes('phone number is already registered')) {
+        errorMessage = 'This phone number is already registered.';
+      }
+
        toast({
         variant: 'destructive',
         title: 'Registration Failed',
