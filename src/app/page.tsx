@@ -62,7 +62,7 @@ export default function PublicHomePage() {
     return ['All', ...Array.from(allCategories)];
   }, [events]);
 
-  const { carouselEvents, gridEvents } = useMemo(() => {
+  const { upcomingEvents, otherEvents } = useMemo(() => {
     const now = new Date();
     
     const filteredEvents = events.filter(event => {
@@ -77,8 +77,8 @@ export default function PublicHomePage() {
     const other = filteredEvents.filter(event => new Date(event.startDate) <= now);
 
     return { 
-        carouselEvents: upcoming,
-        gridEvents: other
+        upcomingEvents: upcoming,
+        otherEvents: other
     };
   }, [events, searchQuery, selectedCategory]);
 
@@ -124,10 +124,10 @@ export default function PublicHomePage() {
       
       {loading ? (
         <div className="p-4 lg:p-6"><Skeleton className="h-[400px] w-full" /></div>
-      ) : carouselEvents.length > 0 ? (
+      ) : upcomingEvents.length > 0 ? (
         <div className="py-6">
             <h2 className="text-3xl font-bold tracking-tight text-center mb-4">Upcoming Events</h2>
-            <EventsCarousel events={carouselEvents} />
+            <EventsCarousel events={upcomingEvents} />
         </div>
       ) : null}
       
@@ -140,8 +140,8 @@ export default function PublicHomePage() {
                     <CardFooter className="p-3 pt-0"><Skeleton className="h-9 w-full" /></CardFooter>
                 </Card>
             ))
-        ) : gridEvents.length > 0 ? (
-          gridEvents.map((event) => {
+        ) : otherEvents.length > 0 ? (
+          otherEvents.map((event) => {
             const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
             return (
               <Link href={`/events/${event.id}`} key={event.id} className="group">
@@ -166,7 +166,7 @@ export default function PublicHomePage() {
             )
           })
         ) : (
-             !loading && carouselEvents.length > 0 && gridEvents.length === 0 ? null :
+             !loading && upcomingEvents.length > 0 && otherEvents.length === 0 ? null :
             <Card className="sm:col-span-2 lg:col-span-3 xl:col-span-5 flex items-center justify-center p-8 text-center">
                 <div>
                     <h3 className="text-2xl font-semibold tracking-tight">No Events Found</h3>
