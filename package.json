@@ -43,6 +43,8 @@
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "dotenv": "^16.5.0",
+    "embla-carousel-autoplay": "^8.1.7",
+    "embla-carousel-react": "^8.1.7",
     "firebase": "^11.9.1",
     "html5-qrcode": "^2.3.8",
     "leaflet": "^1.9.4",

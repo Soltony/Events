@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AuthStatus } from "@/components/auth-status";
+import EventsCarousel from "@/components/events-carousel";
 
 
 interface EventWithTickets extends Event {
@@ -61,14 +62,37 @@ export default function PublicHomePage() {
     return ['All', ...Array.from(allCategories)];
   }, [events]);
 
-  const filteredEvents = useMemo(() => {
-    return events.filter(event => {
-      const matchesCategory = selectedCategory === 'All' || event.category === selectedCategory;
-      const matchesSearch = !searchQuery || 
-        event.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        event.description.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
+  const { liveEvents, upcomingEvents } = useMemo(() => {
+    const now = new Date();
+    const live: EventWithTickets[] = [];
+    const upcoming: EventWithTickets[] = [];
+
+    events.forEach(event => {
+        const startDate = new Date(event.startDate);
+        const endDate = event.endDate ? new Date(event.endDate) : null;
+        const isLive = startDate <= now && (!endDate || endDate >= now);
+
+        if (isLive) {
+            live.push(event);
+        } else {
+            upcoming.push(event);
+        }
     });
+
+    const filterAndSearch = (eventList: EventWithTickets[]) => {
+      return eventList.filter(event => {
+        const matchesCategory = selectedCategory === 'All' || event.category === selectedCategory;
+        const matchesSearch = !searchQuery || 
+          event.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+          event.description.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesCategory && matchesSearch;
+      });
+    }
+
+    return { 
+        liveEvents: filterAndSearch(live),
+        upcomingEvents: filterAndSearch(upcoming) 
+    };
   }, [events, searchQuery, selectedCategory]);
 
   return (
@@ -110,7 +134,17 @@ export default function PublicHomePage() {
           </div>
         </div>
       </div>
-      <div className="text-center px-4 lg:px-6">
+      
+      {loading ? (
+        <div className="p-4 lg:p-6"><Skeleton className="h-[400px] w-full" /></div>
+      ) : liveEvents.length > 0 ? (
+        <div className="py-6">
+            <h2 className="text-2xl font-bold tracking-tight text-center mb-4">Live Now</h2>
+            <EventsCarousel events={liveEvents} />
+        </div>
+      ) : null}
+
+      <div className="text-center px-4 lg:px-6 pt-8">
         <h1 className="text-3xl font-bold tracking-tight">Upcoming Events</h1>
       </div>
       
@@ -123,8 +157,8 @@ export default function PublicHomePage() {
                     <CardFooter className="p-3 pt-0"><Skeleton className="h-9 w-full" /></CardFooter>
                 </Card>
             ))
-        ) : filteredEvents.length > 0 ? (
-          filteredEvents.map((event) => {
+        ) : upcomingEvents.length > 0 ? (
+          upcomingEvents.map((event) => {
             const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
             return (
               <Link href={`/events/${event.id}`} key={event.id} className="group">
@@ -151,7 +185,7 @@ export default function PublicHomePage() {
         ) : (
             <Card className="sm:col-span-2 lg:col-span-3 xl:col-span-5 flex items-center justify-center p-8 text-center">
                 <div>
-                    <h3 className="text-2xl font-semibold tracking-tight">No Events Found</h3>
+                    <h3 className="text-2xl font-semibold tracking-tight">No Upcoming Events Found</h3>
                     <p className="text-muted-foreground mt-2 mb-6">Try adjusting your search or filter criteria.</p>
                 </div>
             </Card>
