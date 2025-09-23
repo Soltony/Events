@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -59,11 +58,16 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolea
         );
     }
     
+    const gradientStyle = event.color
+      ? { background: `linear-gradient(to top, ${event.color}BF, transparent)` }
+      : { background: `linear-gradient(to top, #000000BF, transparent)` };
+
     return (
         <Card className="flex flex-col hover:shadow-lg transition-shadow duration-300 relative">
         {isAdmin && event.status && statusBadge(event.status)}
-        <CardHeader className="p-0">
-            <Image src={imageUrl} alt={event.name} width={600} height={400} className="rounded-t-lg object-cover aspect-[3/2]" data-ai-hint={event.hint ?? 'event'} />
+        <CardHeader className="p-0 relative aspect-[3/2]">
+            <Image src={imageUrl} alt={event.name} fill className="rounded-t-lg object-cover" data-ai-hint={event.hint ?? 'event'} />
+             <div className="absolute inset-0" style={gradientStyle}></div>
         </CardHeader>
         <CardContent className="p-4 flex-1 space-y-2">
             <Badge variant="outline" className="text-xs">{event.category}</Badge>
