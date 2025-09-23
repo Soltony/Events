@@ -5,7 +5,7 @@ import * as React from 'react';
 import Autoplay from "embla-carousel-autoplay";
 import Image from 'next/image';
 import Link from 'next/link';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Carousel,
   CarouselContent,
@@ -14,9 +14,7 @@ import {
   CarouselPrevious,
 } from '@/components/ui/carousel';
 import type { Event, TicketType } from '@prisma/client';
-import { Badge } from './ui/badge';
-import { Button } from './ui/button';
-import { ArrowUpRight } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
@@ -56,19 +54,12 @@ export default function EventsCarousel({ events }: { events: EventWithTickets[] 
                                         className="object-cover"
                                         onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}
                                     />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
                                     <div className="absolute bottom-0 left-0 p-4">
-                                        <Badge variant="destructive" className="mb-2">LIVE NOW</Badge>
                                         <h3 className="text-lg font-bold text-white leading-tight">{event.name}</h3>
+                                        <p className="text-xs text-white/80">{format(new Date(event.startDate), 'LLL dd, y')}</p>
                                     </div>
                                 </CardContent>
-                                <CardFooter className="p-3">
-                                      <Button asChild className="w-full" size="sm">
-                                        <span >
-                                            Get Tickets <ArrowUpRight className="h-4 w-4" />
-                                        </span>
-                                    </Button>
-                                </CardFooter>
                             </Card>
                         </Link>
                     </div>
