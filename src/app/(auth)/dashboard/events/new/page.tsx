@@ -43,6 +43,7 @@ const eventFormSchema = z.object({
   category: z.string({ required_error: 'Please select a category.' }),
   otherCategory: z.string().optional(),
   image: z.string().optional(),
+  color: z.string().optional(),
   tickets: z.array(z.object({
     name: z.string().min(1, { message: "Ticket name can't be empty."}),
     price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
@@ -80,6 +81,7 @@ export default function CreateEventPage() {
       category: '',
       otherCategory: '',
       image: '',
+      color: '#000000',
       tickets: [{ name: 'General Admission', price: 25, total: 100 }],
     },
   });
@@ -327,54 +329,73 @@ export default function CreateEventPage() {
 
                 <div className="space-y-4">
                   <div>
-                    <FormLabel>Event Image</FormLabel>
-                    <FormDescription>Upload an image for your event.</FormDescription>
+                    <FormLabel>Event Visuals</FormLabel>
+                    <FormDescription>Upload an image and choose a theme color for your event.</FormDescription>
                     <FormMessage className="pt-2">{form.formState.errors.image?.message}</FormMessage>
                   </div>
-                  <div className="w-full max-w-sm">
-                    <FormField
-                        control={form.control}
-                        name="image"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormControl>
-                              <div className="aspect-video rounded-md relative group bg-muted border-dashed border-2 flex items-center justify-center">
-                                {isUploading && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
-                                        <Loader2 className="h-8 w-8 animate-spin text-white" />
-                                    </div>
-                                )}
-                                {previewImage && !isUploading ? (
-                                  <Image
-                                    src={previewImage}
-                                    alt="Event image preview"
-                                    fill
-                                    className="object-cover rounded-md"
-                                    onError={(e) => {
-                                      const target = e.target as HTMLImageElement;
-                                      target.src = DEFAULT_IMAGE_PLACEHOLDER;
-                                      target.srcset = '';
-                                    }}
-                                  />
-                                ) : null}
-                                <div className={`absolute inset-0 flex items-center justify-center gap-2 transition-opacity ${previewImage ? 'bg-black/40 opacity-0 group-hover:opacity-100' : 'bg-transparent'} ${isUploading ? 'opacity-0' : ''}`}>
-                                  <label htmlFor="image-upload" className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 px-3 cursor-pointer bg-secondary text-secondary-foreground hover:bg-secondary/80">
-                                    <UploadCloud className="mr-2 h-4 w-4" />
-                                    {previewImage ? 'Change' : 'Upload'}
-                                    <Input
-                                      id="image-upload"
-                                      type="file"
-                                      className="sr-only"
-                                      accept="image/png, image/jpeg, image/gif"
-                                      onChange={handleFileChange}
-                                      disabled={isUploading}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                    <div className="w-full max-w-sm">
+                      <FormField
+                          control={form.control}
+                          name="image"
+                          render={({ field }) => (
+                          <FormItem>
+                              <FormControl>
+                                <div className="aspect-video rounded-md relative group bg-muted border-dashed border-2 flex items-center justify-center">
+                                  {isUploading && (
+                                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
+                                          <Loader2 className="h-8 w-8 animate-spin text-white" />
+                                      </div>
+                                  )}
+                                  {previewImage && !isUploading ? (
+                                    <Image
+                                      src={previewImage}
+                                      alt="Event image preview"
+                                      fill
+                                      className="object-cover rounded-md"
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.src = DEFAULT_IMAGE_PLACEHOLDER;
+                                        target.srcset = '';
+                                      }}
                                     />
-                                  </label>
+                                  ) : null}
+                                  <div className={`absolute inset-0 flex items-center justify-center gap-2 transition-opacity ${previewImage ? 'bg-black/40 opacity-0 group-hover:opacity-100' : 'bg-transparent'} ${isUploading ? 'opacity-0' : ''}`}>
+                                    <label htmlFor="image-upload" className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 px-3 cursor-pointer bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                                      <UploadCloud className="mr-2 h-4 w-4" />
+                                      {previewImage ? 'Change' : 'Upload'}
+                                      <Input
+                                        id="image-upload"
+                                        type="file"
+                                        className="sr-only"
+                                        accept="image/png, image/jpeg, image/gif"
+                                        onChange={handleFileChange}
+                                        disabled={isUploading}
+                                      />
+                                    </label>
+                                  </div>
                                 </div>
-                              </div>
+                              </FormControl>
+                              <FormMessage />
+                          </FormItem>
+                          )}
+                        />
+                    </div>
+                     <FormField
+                        control={form.control}
+                        name="color"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Theme Color</FormLabel>
+                            <FormControl>
+                               <div className="relative flex items-center">
+                                  <Input type="color" {...field} className="w-24 p-1" />
+                                  <span className="ml-4 text-muted-foreground">{field.value}</span>
+                               </div>
                             </FormControl>
+                            <FormDescription>Used for gradients on your event card.</FormDescription>
                             <FormMessage />
-                        </FormItem>
+                          </FormItem>
                         )}
                       />
                   </div>

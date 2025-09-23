@@ -143,11 +143,16 @@ export default function PublicHomePage() {
         ) : otherEvents.length > 0 ? (
           otherEvents.map((event) => {
             const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
+            const gradientStyle = event.color
+              ? { background: `linear-gradient(to top, ${event.color}BF, transparent)` }
+              : { background: `linear-gradient(to top, #000000BF, transparent)` };
+
             return (
               <Link href={`/events/${event.id}`} key={event.id} className="group">
-                <Card className="flex flex-col h-full group-hover:shadow-lg transition-shadow duration-300">
-                  <CardHeader className="p-0">
-                    <Image src={imageUrl} alt={event.name} width={600} height={338} className="rounded-t-lg object-cover aspect-video" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}/>
+                <Card className="flex flex-col h-full group-hover:shadow-lg transition-shadow duration-300 overflow-hidden">
+                  <CardHeader className="p-0 relative aspect-video">
+                    <Image src={imageUrl} alt={event.name} fill className="rounded-t-lg object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}/>
+                    <div className="absolute inset-0" style={gradientStyle}></div>
                   </CardHeader>
                   <CardContent className="p-3 flex-1 space-y-1">
                     <Badge variant="outline" className="text-xs">{event.category}</Badge>
