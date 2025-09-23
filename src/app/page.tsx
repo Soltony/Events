@@ -64,32 +64,21 @@ export default function PublicHomePage() {
 
   const { carouselEvents, gridEvents } = useMemo(() => {
     const now = new Date();
-    const upcoming: EventWithTickets[] = [];
-    const other: EventWithTickets[] = [];
-
-    events.forEach(event => {
-        const startDate = new Date(event.startDate);
-        // Simple logic: if it starts in the future, it's upcoming for the carousel
-        if (startDate > now) {
-            upcoming.push(event);
-        } else {
-            other.push(event);
-        }
-    });
-
-    const filterAndSearch = (eventList: EventWithTickets[]) => {
-      return eventList.filter(event => {
+    
+    const filteredEvents = events.filter(event => {
         const matchesCategory = selectedCategory === 'All' || event.category === selectedCategory;
         const matchesSearch = !searchQuery || 
           event.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
           event.description.toLowerCase().includes(searchQuery.toLowerCase());
         return matchesCategory && matchesSearch;
       });
-    }
+
+    const upcoming = filteredEvents.filter(event => new Date(event.startDate) > now);
+    const other = filteredEvents.filter(event => new Date(event.startDate) <= now);
 
     return { 
-        carouselEvents: filterAndSearch(upcoming),
-        gridEvents: filterAndSearch(other)
+        carouselEvents: upcoming,
+        gridEvents: other
     };
   }, [events, searchQuery, selectedCategory]);
 
@@ -177,9 +166,10 @@ export default function PublicHomePage() {
             )
           })
         ) : (
+             !loading && carouselEvents.length > 0 && gridEvents.length === 0 ? null :
             <Card className="sm:col-span-2 lg:col-span-3 xl:col-span-5 flex items-center justify-center p-8 text-center">
                 <div>
-                    <h3 className="text-2xl font-semibold tracking-tight">No Other Events Found</h3>
+                    <h3 className="text-2xl font-semibold tracking-tight">No Events Found</h3>
                     <p className="text-muted-foreground mt-2 mb-6">Try adjusting your search or filter criteria.</p>
                 </div>
             </Card>
