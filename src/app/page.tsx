@@ -35,6 +35,25 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     return format(new Date(startDate), startDateFormat);
 }
 
+function isColorLight(hexColor?: string | null): boolean {
+    if (!hexColor) return false;
+    const hex = hexColor.replace('#', '');
+    if (!(hex.length === 3 || hex.length === 6)) return false;
+    const normalized = hex.length === 3
+        ? hex.split('').map((c) => c + c).join('')
+        : hex;
+    const r = parseInt(normalized.substring(0, 2), 16);
+    const g = parseInt(normalized.substring(2, 4), 16);
+    const b = parseInt(normalized.substring(4, 6), 16);
+    // Calculate relative luminance (sRGB)
+    const srgb = [r, g, b].map((v) => {
+        const c = v / 255;
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    const luminance = 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
+    return luminance > 0.65; // threshold; higher means lighter color
+}
+
 const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 
 export default function PublicHomePage() {
@@ -165,6 +184,7 @@ export default function PublicHomePage() {
             const gradientStyle = event.color
               ? { background: `linear-gradient(to bottom, ${event.color}, transparent)` }
               : { background: `linear-gradient(to bottom, #000000, transparent)` };
+            const useDarkText = isColorLight(event.color);
 
             return (
               <Link href={`/events/${event.id}`} key={event.id} className="group">
@@ -175,12 +195,12 @@ export default function PublicHomePage() {
                       <Image src={imageUrl} alt={event.name} fill className="rounded-t-lg object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}/>
                       <div className="absolute inset-0 bg-transparent"></div>
                     </CardHeader>
-                    <CardContent className="p-3 flex-1 space-y-1 bg-transparent text-white">
-                      <Badge variant="outline" className="text-xs bg-white/20 text-white border-white/50">{event.category}</Badge>
+                    <CardContent className={`p-3 flex-1 space-y-1 bg-transparent ${useDarkText ? 'text-black' : 'text-white'}` }>
+                      <Badge variant="outline" className={`text-xs ${getCategoryBadgeClass(event.category)} ${useDarkText ? 'border-black/20' : 'border-white/50'} ${useDarkText ? 'bg-black/5 text-black' : 'bg-white/20 text-white'}`}>{event.category}</Badge>
                       <CardTitle className="text-base leading-tight">{event.name}</CardTitle>
-                      <CardDescription className="text-xs text-white/90">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
+                      <CardDescription className={`text-xs ${useDarkText ? 'text-black/70' : 'text-white/90'}`}>{formatEventDate(event.startDate, event.endDate)}</CardDescription>
                     </CardContent>
-                    <CardFooter className="p-3 pt-0 bg-transparent rounded-b-lg border-t border-white/20">
+                    <CardFooter className={`p-3 pt-0 bg-transparent rounded-b-lg border-t ${useDarkText ? 'border-black/10' : 'border-white/20'}` }>
                         <Button asChild className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground" size="sm">
                            <span >
                              Buy Tickets <ArrowUpRight className="h-4 w-4" />
