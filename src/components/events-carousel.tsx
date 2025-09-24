@@ -25,7 +25,7 @@ const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 
 export default function EventsCarousel({ events }: { events: EventWithTickets[] }) {
   const plugin = React.useRef(
-    Autoplay({ delay: 400, stopOnInteraction: false, stopOnMouseEnter: true, playOnInit: true })
+    Autoplay({ delay: 2000, stopOnInteraction: false, stopOnMouseEnter: true, playOnInit: true })
   );
 
   if (events.length === 0) {
