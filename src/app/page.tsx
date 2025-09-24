@@ -21,6 +21,7 @@ import EventsCarousel from "@/components/events-carousel";
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
+    color?: string | null;
 }
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
@@ -42,6 +43,21 @@ export default function PublicHomePage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+
+  const getCategoryBadgeClass = (category: string) => {
+    switch (category) {
+      case 'Technology':
+        return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'Community':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'Music':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      case 'Art':
+        return 'bg-pink-100 text-pink-800 border-pink-200';
+      default:
+        return 'bg-accent/10 text-accent border-accent/20';
+    }
+  }
 
   useEffect(() => {
     async function fetchData() {
@@ -85,54 +101,55 @@ export default function PublicHomePage() {
 
   return (
     <div className="flex flex-1 flex-col">
-    <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-4 lg:px-6 py-4">
-        <div className="flex-shrink-0">
-          <Image src="/image/nibtickets.jpg"alt="NibTera Tickets Logo" width={200} height={50} data-ai-hint="logo nibtera" />
-        </div>
-        <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
-          <div className="relative flex-1 md:flex-initial w-full sm:w-auto md:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input 
-              placeholder="Search events..."
-              className="pl-10"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+      {/* Hero / Controls */}
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-primary/10 to-accent/10" />
+        <div className="relative flex flex-col md:flex-row items-center justify-between gap-4 px-4 lg:px-6 py-6">
+          <div className="flex items-center gap-3">
+            <Image src="/image/nibtickets.jpg" alt="NibTera Tickets Logo" width={200} height={50} data-ai-hint="logo nibtera" />
           </div>
-          <div className="flex gap-4 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+            <div className="relative flex-1 md:flex-initial w-full sm:w-auto md:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                placeholder="Search events..."
+                className="pl-10 rounded-full"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Filter by category" />
+              <SelectTrigger className="w-full sm:w-44 rounded-full">
+                <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map(category => (
-                  <SelectItem key={category} value={category}>{category}</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Button asChild variant="outline" className="w-full">
-                <Link href="/tickets">
-                    <Ticket className="mr-2 h-4 w-4" />
-                    My Tickets
-                </Link>
+            <Button asChild className="w-full sm:w-auto rounded-full bg-accent hover:bg-accent/90 text-accent-foreground">
+              <Link href="/tickets">
+                <Ticket className="mr-2 h-4 w-4" />
+                My Tickets
+              </Link>
             </Button>
-          </div>
-          <div className="w-full sm:w-auto">
-             <AuthStatus />
+            <div className="w-full sm:w-auto">
+              <AuthStatus />
+            </div>
           </div>
         </div>
       </div>
-      
-      {loading ? (
-        <div className="p-4 lg:p-6"><Skeleton className="h-[400px] w-full" /></div>
-      ) : upcomingEvents.length > 0 ? (
-        <div className="py-6">
-            <h2 className="text-3xl font-bold tracking-tight text-center mb-4">Upcoming Events</h2>
-            <EventsCarousel events={upcomingEvents} />
-        </div>
-      ) : null}
-      
-       <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 p-4 lg:p-6">
+
+      <div className="text-center px-4 lg:px-6 pt-2 pb-1">
+        <h1 className="text-3xl font-bold tracking-tight">
+          Upcoming Events
+        </h1>
+      </div>
+
+      <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 p-4 lg:p-6">
         {loading ? (
              [...Array(10)].map((_, i) => (
                 <Card key={i}>
@@ -155,13 +172,23 @@ export default function PublicHomePage() {
                     <Image src={imageUrl} alt={event.name} fill className="rounded-t-lg object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}/>
                     <div className="absolute inset-0 bg-transparent"></div>
                   </CardHeader>
+<<<<<<< HEAD
                   <CardContent className="p-3 flex-1 space-y-1 bg-transparent text-white">
                     <Badge variant="outline" className="text-xs bg-white/20 text-white border-white/50">{event.category}</Badge>
+=======
+                  <CardContent className="p-3 flex-1 space-y-1 bg-card">
+                    <Badge variant="outline" className={`text-xs ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
+>>>>>>> 0add0ca9f0a1046102dc51485574677d653f4c00
                     <CardTitle className="text-base leading-tight">{event.name}</CardTitle>
                     <CardDescription className="text-xs text-white/90">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
                   </CardContent>
+<<<<<<< HEAD
                   <CardFooter className="p-3 pt-0 bg-transparent rounded-b-lg border-t border-white/20">
                       <Button asChild className="w-full" size="sm">
+=======
+                  <CardFooter className="p-3 pt-0 bg-card rounded-b-lg">
+                      <Button asChild className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground" size="sm">
+>>>>>>> 0add0ca9f0a1046102dc51485574677d653f4c00
                          <span >
                            Buy Tickets <ArrowUpRight className="h-4 w-4" />
                          </span>

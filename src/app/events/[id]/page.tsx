@@ -99,6 +99,21 @@ export default function PublicEventDetailPage() {
       return Object.values(selectedTickets).reduce((acc, ticket) => acc + ticket.quantity, 0);
   }, [selectedTickets]);
 
+  const getCategoryBadgeClass = (category: string) => {
+    switch (category) {
+      case 'Technology':
+        return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'Community':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'Music':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      case 'Art':
+        return 'bg-pink-100 text-pink-800 border-pink-200';
+      default:
+        return 'bg-accent/10 text-accent border-accent/20';
+    }
+  }
+
   const updateTicketQuantity = (ticketType: TicketType, quantity: number) => {
     setSelectedTickets(prev => {
       const newSelected = { ...prev };
@@ -208,7 +223,7 @@ export default function PublicEventDetailPage() {
 
         <div className="p-6 md:p-8 space-y-8">
             <div>
-                <Badge variant="outline" className="mb-2 w-min whitespace-nowrap">{event.category}</Badge>
+                <Badge variant="outline" className={`mb-2 w-min whitespace-nowrap ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
                 <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{event.name}</h1>
                 <div className="text-lg text-muted-foreground space-y-2 pt-4">
                     <div className="flex items-center gap-3">
