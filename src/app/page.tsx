@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -91,11 +90,10 @@ export default function PublicHomePage() {
       });
 
     const upcoming = filteredEvents.filter(event => new Date(event.startDate) > now);
-    const other = filteredEvents.filter(event => new Date(event.startDate) <= now);
 
     return { 
         upcomingEvents: upcoming,
-        otherEvents: other
+        otherEvents: filteredEvents
     };
   }, [events, searchQuery, selectedCategory]);
 
@@ -152,13 +150,7 @@ export default function PublicHomePage() {
 
       <EventsCarousel events={upcomingEvents} />
 
-      <div className="text-center px-4 lg:px-6 pt-12 pb-8">
-        <h2 className="text-3xl font-bold tracking-tight">
-          All Events
-        </h2>
-      </div>
-
-      <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 p-4 lg:p-6">
+      <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 p-4 lg:p-6 mt-8">
         {loading ? (
              [...Array(10)].map((_, i) => (
                 <Card key={i}>
@@ -171,28 +163,31 @@ export default function PublicHomePage() {
           otherEvents.map((event) => {
             const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
             const gradientStyle = event.color
-              ? { background: `linear-gradient(to bottom, ${event.color}, #ffffff)` }
-              : { background: `linear-gradient(to bottom, #000000, #ffffff)` };
+              ? { background: `linear-gradient(to bottom, ${event.color}, transparent)` }
+              : { background: `linear-gradient(to bottom, #000000, transparent)` };
 
             return (
               <Link href={`/events/${event.id}`} key={event.id} className="group">
-                <Card className="flex flex-col h-full group-hover:shadow-lg transition-shadow duration-300 overflow-hidden bg-card text-card-foreground" style={gradientStyle}>
-                  <CardHeader className="p-0 relative aspect-video bg-transparent">
-                    <Image src={imageUrl} alt={event.name} fill className="rounded-t-lg object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}/>
-                    <div className="absolute inset-0 bg-transparent"></div>
-                  </CardHeader>
-                  <CardContent className="p-3 flex-1 space-y-1 bg-transparent text-white">
-                    <Badge variant="outline" className="text-xs bg-white/20 text-white border-white/50">{event.category}</Badge>
-                    <CardTitle className="text-base leading-tight">{event.name}</CardTitle>
-                    <CardDescription className="text-xs text-white/90">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
-                  </CardContent>
-                  <CardFooter className="p-3 pt-0 bg-transparent rounded-b-lg border-t border-white/20">
-                      <Button asChild className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground" size="sm">
-                         <span >
-                           Buy Tickets <ArrowUpRight className="h-4 w-4" />
-                         </span>
-                      </Button>
-                  </CardFooter>
+                <Card className="flex flex-col h-full group-hover:shadow-lg transition-shadow duration-300 overflow-hidden relative">
+                  <div className="absolute inset-0" style={gradientStyle} />
+                  <div className="relative z-10 flex flex-col h-full">
+                    <CardHeader className="p-0 relative aspect-video bg-transparent">
+                      <Image src={imageUrl} alt={event.name} fill className="rounded-t-lg object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}/>
+                      <div className="absolute inset-0 bg-transparent"></div>
+                    </CardHeader>
+                    <CardContent className="p-3 flex-1 space-y-1 bg-transparent text-white">
+                      <Badge variant="outline" className="text-xs bg-white/20 text-white border-white/50">{event.category}</Badge>
+                      <CardTitle className="text-base leading-tight">{event.name}</CardTitle>
+                      <CardDescription className="text-xs text-white/90">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
+                    </CardContent>
+                    <CardFooter className="p-3 pt-0 bg-transparent rounded-b-lg border-t border-white/20">
+                        <Button asChild className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground" size="sm">
+                           <span >
+                             Buy Tickets <ArrowUpRight className="h-4 w-4" />
+                           </span>
+                        </Button>
+                    </CardFooter>
+                  </div>
                 </Card>
               </Link>
             )
