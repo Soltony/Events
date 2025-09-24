@@ -176,7 +176,7 @@ export default function PublicHomePage() {
                       <div className="absolute inset-0 bg-transparent"></div>
                     </CardHeader>
                     <CardContent className="p-3 flex-1 space-y-1 bg-transparent text-white">
-                      <Badge variant="outline" className="text-xs bg-white/20 text-white border-white/50">{event.category}</Badge>
+                      <Badge variant="outline" className={`text-xs ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
                       <CardTitle className="text-base leading-tight">{event.name}</CardTitle>
                       <CardDescription className="text-xs text-white/90">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
                     </CardContent>
