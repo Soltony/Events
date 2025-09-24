@@ -62,12 +62,13 @@ export async function POST(req: NextRequest) {
             email: `${formatPhoneNumber(attendeeDetails.phone)}@nibticket.com`,
             cbs: event.nibBankAccount,
             items: [{ name: event.name, quantity: totalQuantity, price: totalAmount, description: event.description }],
-            successUrl,
-            failureUrl,
-            callbackUrl,
-            transactionId: transactionId,
         };
+  // successUrl,
+            // failureUrl,
+            // callbackUrl,
+            // transactionId: transactionId,
 
+            console.log(paymentGatewayData);
         let paymentGatewayResponse;
         try {
             const controller = new AbortController();
@@ -79,6 +80,8 @@ export async function POST(req: NextRequest) {
                 body: JSON.stringify(paymentGatewayData),
                 signal: controller.signal,
             });
+
+            console.log("Payment Gateway Response:", paymentGatewayResponse);
             
             clearTimeout(timeoutId);
 

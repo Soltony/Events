@@ -549,7 +549,7 @@ export async function addUser(data: any) {
       throw new Error('Auth API URL not configured.');
     }
     
-    const password = "user@123";
+    const password = "User@123";
     
     try {
         // If email is not provided, create one from the phone number for the auth service
