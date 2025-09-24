@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -91,11 +90,10 @@ export default function PublicHomePage() {
       });
 
     const upcoming = filteredEvents.filter(event => new Date(event.startDate) > now);
-    const other = filteredEvents.filter(event => new Date(event.startDate) <= now);
 
     return { 
         upcomingEvents: upcoming,
-        otherEvents: other
+        otherEvents: filteredEvents
     };
   }, [events, searchQuery, selectedCategory]);
 
@@ -152,13 +150,7 @@ export default function PublicHomePage() {
 
       <EventsCarousel events={upcomingEvents} />
 
-      <div className="text-center px-4 lg:px-6 pt-12 pb-8">
-        <h2 className="text-3xl font-bold tracking-tight">
-          All Events
-        </h2>
-      </div>
-
-      <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 p-4 lg:p-6">
+      <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 p-4 lg:p-6 mt-8">
         {loading ? (
              [...Array(10)].map((_, i) => (
                 <Card key={i}>
@@ -171,8 +163,8 @@ export default function PublicHomePage() {
           otherEvents.map((event) => {
             const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
             const gradientStyle = event.color
-              ? { background: `linear-gradient(to bottom, ${event.color}, #ffffff)` }
-              : { background: `linear-gradient(to bottom, #000000, #ffffff)` };
+              ? { background: `linear-gradient(to top, ${event.color}, #ffffff)` }
+              : { background: `linear-gradient(to top, #000000, #ffffff)` };
 
             return (
               <Link href={`/events/${event.id}`} key={event.id} className="group">
