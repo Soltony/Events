@@ -76,4 +76,3 @@ export default function EventsCarousel({ events }: { events: EventWithTickets[] 
     </Carousel>
   );
 }
-
