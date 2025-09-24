@@ -64,29 +64,29 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolea
       : { background: `linear-gradient(to bottom, #000000, transparent)` };
 
     return (
-        <Card className="flex flex-col hover:shadow-lg transition-shadow duration-300 relative" style={gradientStyle}>
+        <Card className="flex flex-col hover:shadow-lg transition-shadow duration-300 relative bg-card text-card-foreground" style={gradientStyle}>
         {isAdmin && event.status && statusBadge(event.status)}
         <CardHeader className="p-0 relative aspect-[3/2] bg-transparent">
             <Image src={imageUrl} alt={event.name} fill className="rounded-t-lg object-cover" data-ai-hint={event.hint ?? 'event'} />
              <div className="absolute inset-0 bg-transparent"></div>
         </CardHeader>
-        <CardContent className="p-4 flex-1 space-y-2 bg-card">
-            <Badge variant="outline" className="text-xs">{event.category}</Badge>
+        <CardContent className="p-4 flex-1 space-y-2 bg-transparent text-white">
+            <Badge variant="outline" className="text-xs bg-white/20 text-white border-white/50">{event.category}</Badge>
             <CardTitle className="text-lg leading-tight">{event.name}</CardTitle>
             <div className="space-y-1 pt-1">
-            <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
-            <CardDescription className="flex items-center gap-1.5 pt-1 text-xs">
+            <CardDescription className="text-xs text-white/90">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
+            <CardDescription className="flex items-center gap-1.5 pt-1 text-xs text-white/90">
                 <MapPin className="h-3 w-3" />
                 {event.location}
             </CardDescription>
             {event.status === 'REJECTED' && event.rejectionReason && (
-                <CardDescription className="text-xs text-destructive pt-1 italic">
+                <CardDescription className="text-xs text-red-300 pt-1 italic">
                     Reason: {event.rejectionReason}
                 </CardDescription>
             )}
             </div>
         </CardContent>
-        <CardFooter className="p-2 border-t flex justify-end gap-1 bg-card rounded-b-lg">
+        <CardFooter className="p-2 border-t flex justify-end gap-1 bg-transparent rounded-b-lg border-white/20">
             {event.status === 'PENDING' && isAdmin ? (
                 <Button asChild className="w-full">
                     <Link href={`/dashboard/events/${event.id}`}>
@@ -95,7 +95,7 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolea
                 </Button>
             ) : (
                 <>
-                    <Button asChild variant="ghost" size="icon">
+                    <Button asChild variant="ghost" size="icon" className="text-white hover:text-white hover:bg-white/10">
                         <Link href={`/dashboard/events/${event.id}/edit`} aria-label="Edit Event">
                             <Pencil className="h-4 w-4" />
                         </Link>
@@ -103,13 +103,13 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolea
                     <Button 
                         variant="ghost" 
                         size="icon"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        className="text-red-300 hover:text-red-300 hover:bg-red-500/20"
                         onClick={() => onDelete(event)}
                         aria-label="Delete Event"
                     >
                         <Trash2 className="h-4 w-4" />
                     </Button>
-                    <Button asChild size="icon" className="ml-auto">
+                    <Button asChild size="icon" className="ml-auto bg-white/90 text-black hover:bg-white">
                         <Link href={`/dashboard/events/${event.id}`} aria-label="Manage Event">
                             <ArrowUpRight className="h-4 w-4" />
                         </Link>
