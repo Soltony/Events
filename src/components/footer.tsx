@@ -4,13 +4,8 @@ export function Footer() {
   return (
     <footer style={{ backgroundColor: "#fdf3d7" }} className="text-black">
       <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8">
-<<<<<<< HEAD
         <div className="flex flex-col items-center justify-center gap-4">
-          <p className="text-sm text-center text-muted-foreground">
-=======
-        <div className="flex flex-col items-center text-center space-y-4">
-          <p className="text-sm text-black/80">
->>>>>>> 0d7b3485aab2c1f97523ec9b021509f47f9f2440
+          <p className="text-sm text-center text-black/80">
             &copy; {new Date().getFullYear()} NibTera Tickets. All rights reserved.
           </p>
           <div className="flex justify-center space-x-4">
