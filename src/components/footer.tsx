@@ -6,8 +6,8 @@ export function Footer() {
   return (
     <footer className="bg-background text-foreground border-t">
       <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-center md:text-left text-muted-foreground">
+        <div className="flex flex-col items-center justify-center gap-4">
+          <p className="text-sm text-center text-muted-foreground">
             &copy; {new Date().getFullYear()} NibTera Tickets. All rights reserved.
           </p>
           <div className="flex justify-center space-x-4">
