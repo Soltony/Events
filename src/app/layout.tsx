@@ -4,7 +4,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/auth-context';
 import { AuthStatus } from '@/components/auth-status';
-import { Footer } from '@/components/footer';
+import { ConditionalFooter } from '@/components/conditional-footer';
 
 export const metadata: Metadata = {
   title: 'NibTera Tickets',
@@ -36,7 +36,7 @@ export default function RootLayout({
               <main className="flex-1 bg-background">
                 {children}
               </main>
-              <Footer />
+              <ConditionalFooter />
           </div>
           <Toaster />
         </AuthProvider>
