@@ -162,8 +162,8 @@ export default function PublicHomePage() {
           [...upcomingEvents, ...otherEvents].map((event) => {
             const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
             const gradientStyle = event.color
-              ? { background: `linear-gradient(to bottom, ${event.color}, transparent)` }
-              : { background: `linear-gradient(to bottom, #000000, transparent)` };
+              ? { background: `linear-gradient(to bottom, ${event.color}, #ffffff)` }
+              : { background: `linear-gradient(to bottom, #000000, #ffffff)` };
 
             return (
               <Link href={`/events/${event.id}`} key={event.id} className="group">
@@ -172,12 +172,12 @@ export default function PublicHomePage() {
                     <Image src={imageUrl} alt={event.name} fill className="rounded-t-lg object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}/>
                     <div className="absolute inset-0 bg-transparent"></div>
                   </CardHeader>
-                  <CardContent className="p-3 flex-1 space-y-1 bg-card">
+                  <CardContent className="p-3 flex-1 space-y-1">
                     <Badge variant="outline" className={`text-xs ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
                     <CardTitle className="text-base leading-tight">{event.name}</CardTitle>
                     <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
                   </CardContent>
-                  <CardFooter className="p-3 pt-0 bg-card rounded-b-lg">
+                  <CardFooter className="p-3 pt-0">
                       <Button asChild className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground" size="sm">
                          <span >
                            Buy Tickets <ArrowUpRight className="h-4 w-4" />
