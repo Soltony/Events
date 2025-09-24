@@ -28,6 +28,10 @@ export default function EventsCarousel({ events }: { events: EventWithTickets[] 
     Autoplay({ delay: 5000, stopOnInteraction: true })
   );
 
+  if (events.length === 0) {
+    return null;
+  }
+
   return (
     <Carousel
       plugins={[plugin.current]}
@@ -50,13 +54,14 @@ export default function EventsCarousel({ events }: { events: EventWithTickets[] 
                 <CarouselItem key={event.id} className="md:basis-1/2 lg:basis-1/3">
                     <div className="p-1">
                         <Link href={`/events/${event.id}`} className="group">
-                             <Card className="flex flex-col h-full group-hover:shadow-lg transition-shadow duration-300 overflow-hidden bg-card text-card-foreground" style={gradientStyle}>
+                             <Card className="flex flex-col h-full group-hover:shadow-lg transition-shadow duration-300 overflow-hidden bg-card text-card-foreground">
                                 <CardContent className="p-0 relative aspect-video bg-transparent">
+                                    <div className="absolute inset-0 z-0" style={gradientStyle}></div>
                                     <Image
                                         src={imageUrl}
                                         alt={event.name}
                                         fill
-                                        className="object-cover rounded-lg"
+                                        className="object-cover rounded-lg -z-10"
                                         onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}
                                     />
                                     <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/60 to-transparent rounded-b-lg">
