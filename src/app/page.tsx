@@ -171,8 +171,8 @@ export default function PublicHomePage() {
           otherEvents.map((event) => {
             const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
             const gradientStyle = event.color
-              ? { background: `linear-gradient(to bottom, ${event.color}, transparent)` }
-              : { background: `linear-gradient(to bottom, #000000, transparent)` };
+              ? { background: `linear-gradient(to bottom, ${event.color}, #ffffff)` }
+              : { background: `linear-gradient(to bottom, #000000, #ffffff)` };
 
             return (
               <Link href={`/events/${event.id}`} key={event.id} className="group">
