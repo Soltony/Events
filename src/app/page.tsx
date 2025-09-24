@@ -140,8 +140,8 @@ export default function PublicHomePage() {
                     <CardFooter className="p-3 pt-0"><Skeleton className="h-9 w-full" /></CardFooter>
                 </Card>
             ))
-        ) : otherEvents.length > 0 ? (
-          otherEvents.map((event) => {
+        ) : (upcomingEvents.length > 0 || otherEvents.length > 0) ? (
+          [...upcomingEvents, ...otherEvents].map((event) => {
             const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
             const gradientStyle = event.color
               ? { background: `linear-gradient(to top, ${event.color}BF, transparent)` }
@@ -171,7 +171,6 @@ export default function PublicHomePage() {
             )
           })
         ) : (
-             !loading && upcomingEvents.length > 0 && otherEvents.length === 0 ? null :
             <Card className="sm:col-span-2 lg:col-span-3 xl:col-span-5 flex items-center justify-center p-8 text-center">
                 <div>
                     <h3 className="text-2xl font-semibold tracking-tight">No Events Found</h3>
