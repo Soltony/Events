@@ -171,9 +171,6 @@ export default function PublicHomePage() {
                   <CardHeader className="p-0 relative aspect-video bg-transparent">
                     <Image src={imageUrl} alt={event.name} fill className="rounded-t-lg object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}/>
                     <div className="absolute inset-0 bg-transparent"></div>
-                <Card className="flex flex-col h-full border hover:border-primary/50 group-hover:shadow-xl transition-all duration-300">
-                  <CardHeader className="p-0">
-                    <Image src={imageUrl} alt={event.name} width={600} height={338} className="rounded-t-lg object-cover aspect-video" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}/>
                   </CardHeader>
                   <CardContent className="p-3 flex-1 space-y-1 bg-card">
                     <Badge variant="outline" className={`text-xs ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
