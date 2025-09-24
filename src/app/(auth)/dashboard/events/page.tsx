@@ -59,13 +59,18 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolea
         );
     }
     
+    const gradientStyle = event.color
+      ? { background: `linear-gradient(to bottom, ${event.color}, transparent)` }
+      : { background: `linear-gradient(to bottom, #000000, transparent)` };
+
     return (
-        <Card className="flex flex-col hover:shadow-lg transition-shadow duration-300 relative">
+        <Card className="flex flex-col hover:shadow-lg transition-shadow duration-300 relative" style={gradientStyle}>
         {isAdmin && event.status && statusBadge(event.status)}
-        <CardHeader className="p-0">
-            <Image src={imageUrl} alt={event.name} width={600} height={400} className="rounded-t-lg object-cover aspect-[3/2]" data-ai-hint={event.hint ?? 'event'} />
+        <CardHeader className="p-0 relative aspect-[3/2] bg-transparent">
+            <Image src={imageUrl} alt={event.name} fill className="rounded-t-lg object-cover" data-ai-hint={event.hint ?? 'event'} />
+             <div className="absolute inset-0 bg-transparent"></div>
         </CardHeader>
-        <CardContent className="p-4 flex-1 space-y-2">
+        <CardContent className="p-4 flex-1 space-y-2 bg-card">
             <Badge variant="outline" className="text-xs">{event.category}</Badge>
             <CardTitle className="text-lg leading-tight">{event.name}</CardTitle>
             <div className="space-y-1 pt-1">
@@ -81,7 +86,7 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolea
             )}
             </div>
         </CardContent>
-        <CardFooter className="p-2 border-t flex justify-end gap-1">
+        <CardFooter className="p-2 border-t flex justify-end gap-1 bg-card rounded-b-lg">
             {event.status === 'PENDING' && isAdmin ? (
                 <Button asChild className="w-full">
                     <Link href={`/dashboard/events/${event.id}`}>

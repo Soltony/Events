@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -15,10 +16,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AuthStatus } from "@/components/auth-status";
+import EventsCarousel from "@/components/events-carousel";
 
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
+    color?: string | null;
 }
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
@@ -76,14 +79,24 @@ export default function PublicHomePage() {
     return ['All', ...Array.from(allCategories)];
   }, [events]);
 
-  const filteredEvents = useMemo(() => {
-    return events.filter(event => {
-      const matchesCategory = selectedCategory === 'All' || event.category === selectedCategory;
-      const matchesSearch = !searchQuery || 
-        event.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        event.description.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
-    });
+  const { upcomingEvents, otherEvents } = useMemo(() => {
+    const now = new Date();
+    
+    const filteredEvents = events.filter(event => {
+        const matchesCategory = selectedCategory === 'All' || event.category === selectedCategory;
+        const matchesSearch = !searchQuery || 
+          event.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+          event.description.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesCategory && matchesSearch;
+      });
+
+    const upcoming = filteredEvents.filter(event => new Date(event.startDate) > now);
+    const other = filteredEvents.filter(event => new Date(event.startDate) <= now);
+
+    return { 
+        upcomingEvents: upcoming,
+        otherEvents: other
+    };
   }, [events, searchQuery, selectedCategory]);
 
   return (
@@ -145,21 +158,29 @@ export default function PublicHomePage() {
                     <CardFooter className="p-3 pt-0"><Skeleton className="h-9 w-full" /></CardFooter>
                 </Card>
             ))
-        ) : filteredEvents.length > 0 ? (
-          filteredEvents.map((event) => {
+        ) : (upcomingEvents.length > 0 || otherEvents.length > 0) ? (
+          [...upcomingEvents, ...otherEvents].map((event) => {
             const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
+            const gradientStyle = event.color
+              ? { background: `linear-gradient(to bottom, ${event.color}, transparent)` }
+              : { background: `linear-gradient(to bottom, #000000, transparent)` };
+
             return (
               <Link href={`/events/${event.id}`} key={event.id} className="group">
+                <Card className="flex flex-col h-full group-hover:shadow-lg transition-shadow duration-300 overflow-hidden" style={gradientStyle}>
+                  <CardHeader className="p-0 relative aspect-video bg-transparent">
+                    <Image src={imageUrl} alt={event.name} fill className="rounded-t-lg object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}/>
+                    <div className="absolute inset-0 bg-transparent"></div>
                 <Card className="flex flex-col h-full border hover:border-primary/50 group-hover:shadow-xl transition-all duration-300">
                   <CardHeader className="p-0">
                     <Image src={imageUrl} alt={event.name} width={600} height={338} className="rounded-t-lg object-cover aspect-video" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}/>
                   </CardHeader>
-                  <CardContent className="p-3 flex-1 space-y-1">
+                  <CardContent className="p-3 flex-1 space-y-1 bg-card">
                     <Badge variant="outline" className={`text-xs ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
                     <CardTitle className="text-base leading-tight">{event.name}</CardTitle>
                     <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
                   </CardContent>
-                  <CardFooter className="p-3 pt-0">
+                  <CardFooter className="p-3 pt-0 bg-card rounded-b-lg">
                       <Button asChild className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground" size="sm">
                          <span >
                            Buy Tickets <ArrowUpRight className="h-4 w-4" />
