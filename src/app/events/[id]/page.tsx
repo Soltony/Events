@@ -32,6 +32,7 @@ import { Label } from '@/components/ui/label';
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
+    color?: string | null;
 }
 
 type SelectedTicket = {
@@ -135,7 +136,7 @@ export default function PublicEventDetailPage() {
     if (!promoCode) return;
     setIsPromoLoading(true);
     try {
-        const result = await validatePromoCode(eventId, promoCode);
+        const result = await validatePromoCode(promoCode, eventId);
         if (result) {
             setAppliedPromo(result);
             toast({ title: "Success", description: "Promo code applied!" });
@@ -213,15 +214,19 @@ export default function PublicEventDetailPage() {
   }
   
   const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
+  const gradientStyle = event.color
+    ? { background: `linear-gradient(to bottom, ${event.color}, #ffffff)` }
+    : { background: `linear-gradient(to bottom, #000000, #ffffff)` };
 
   return (
     <div className="container mx-auto p-4 md:p-8 max-w-4xl">
-      <div className="bg-card shadow-xl rounded-lg overflow-hidden">
-        <div className="relative w-full aspect-video">
+      <div className="relative bg-card shadow-xl rounded-lg overflow-hidden">
+        <div className="absolute inset-0" style={gradientStyle} />
+        <div className="relative z-10 w-full aspect-video">
           <Image src={imageUrl} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
         </div>
 
-        <div className="p-6 md:p-8 space-y-8">
+        <div className="relative z-10 p-6 md:p-8 space-y-8">
             <div>
                 <Badge variant="outline" className={`mb-2 w-min whitespace-nowrap ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
                 <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{event.name}</h1>
