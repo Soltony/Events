@@ -32,20 +32,12 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased" suppressHydrationWarning={true}>
         <AuthProvider>
-          <div className="relative min-h-screen w-full">
-             <Image
-                src="/image/bg.jpg"
-                alt="Background"
-                fill
-                objectFit="cover"
-                className="-z-10 opacity-30"
-              />
-            <div className="flex flex-col min-h-screen">
-                <main className="flex-1">
-                  {children}
-                </main>
-                <ConditionalFooter />
-            </div>
+                    <div className="flex flex-col min-h-screen relative">
+              <main className="flex-1 bg-background">
+                {children}
+              </main>
+              <ConditionalFooter />
+
           </div>
           <Toaster />
         </AuthProvider>

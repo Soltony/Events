@@ -118,10 +118,20 @@ export default function PublicHomePage() {
   }, [events, searchQuery, selectedCategory]);
 
   return (
-    <div className="flex flex-1 flex-col">
+        <div className="relative flex flex-1 flex-col">
+      <Image
+        src="/image/bg.jpg"
+        alt="Background"
+        layout="fill"
+        objectFit="cover"
+        className="-z-10"
+      />
+      <div className="flex flex-1 flex-col bg-background/80 backdrop-blur-sm">
+
         {/* Hero / Controls */}
         <div className="relative overflow-hidden">
-          <div className="relative container mx-auto px-4 lg:px-6 py-2 space-y-2">
+                <div className="relative container mx-auto px-4 lg:px-6 py-4 space-y-4">
+
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <Image src="/image/nibtickets.jpg" alt="NibTera Tickets Logo" width={200} height={50} data-ai-hint="logo nibtera" />
