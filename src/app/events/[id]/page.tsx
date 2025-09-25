@@ -219,158 +219,316 @@ export default function PublicEventDetailPage() {
     : { background: `linear-gradient(to bottom, #000000, #ffffff)` };
 
   return (
-    <div className="container mx-auto p-4 md:p-8 max-w-4xl">
+    <div className="container mx-auto p-4 md:p-8 max-w-6xl">
       <div className="relative bg-card shadow-xl rounded-lg overflow-hidden">
         <div className="absolute inset-0" style={gradientStyle} />
-        <div className="relative z-10 w-full aspect-video">
+
+        {/* Mobile header image */}
+        <div className="relative z-10 w-full aspect-video md:hidden">
           <Image src={imageUrl} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
         </div>
 
-        <div className="relative z-10 p-6 md:p-8 space-y-8">
-            <div>
+        <div className="relative z-10 p-6 md:p-8">
+          {/* Desktop layout */}
+          <div className="hidden md:grid md:grid-cols-12 gap-8">
+            {/* Left: image and event details */}
+            <div className="md:col-span-7 space-y-6">
+              <div className="relative w-full aspect-[4/3] overflow-hidden rounded-lg">
+                <Image src={imageUrl} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
+              </div>
+              <div>
                 <Badge variant="outline" className={`mb-2 w-min whitespace-nowrap ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{event.name}</h1>
+                <h1 className="text-4xl font-bold tracking-tight">{event.name}</h1>
                 <div className="text-lg text-muted-foreground space-y-2 pt-4">
-                    <div className="flex items-center gap-3">
-                        <Calendar className="h-5 w-5" />
-                        <span>{formatEventDate(event.startDate, event.endDate)}</span>
+                  <div className="flex items-center gap-3">
+                    <Calendar className="h-5 w-5" />
+                    <span>{formatEventDate(event.startDate, event.endDate)}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <MapPin className="h-5 w-5" />
+                    <span>{event.location}</span>
+                  </div>
+                  {event.hint && (
+                    <div className="flex items-start gap-3 text-base">
+                      <Info className="h-5 w-5 mt-1 flex-shrink-0" />
+                      <p className="text-muted-foreground">{event.hint}</p>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <MapPin className="h-5 w-5" />
-                        <span>{event.location}</span>
-                    </div>
-                    {event.hint && (
-                      <div className="flex items-start gap-3 text-base">
-                          <Info className="h-5 w-5 mt-1 flex-shrink-0" />
-                          <p className="text-muted-foreground">{event.hint}</p>
-                      </div>
-                    )}
+                  )}
                 </div>
-            </div>
-
-            <div className="border-t"></div>
-
-            <div>
+              </div>
+              <div className="border-t"></div>
+              <div>
                 <h3 className="text-2xl font-semibold mb-4">About this Event</h3>
                 <p className="text-base text-muted-foreground whitespace-pre-wrap leading-relaxed">{event.description}</p>
+              </div>
             </div>
-            
+
+            {/* Right: tickets panel (sticky) */}
+            <div className="md:col-span-5">
+              <div className="md:sticky md:top-6 md:max-h-[calc(100vh-3rem)] md:overflow-auto space-y-6">
+                <div>
+                  <h3 className="text-2xl font-semibold mb-4">Tickets</h3>
+                  <div className="space-y-4">
+                    {event.ticketTypes.length > 0 ? (
+                      event.ticketTypes.map(ticket => {
+                        const selectedQuantity = selectedTickets[ticket.id]?.quantity || 0;
+                        const remaining = ticket.total - ticket.sold;
+                        return (
+                          <div key={ticket.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-lg border bg-secondary/50">
+                            <div className="mb-3 sm:mb-0">
+                              <h4 className="font-semibold text-lg">{ticket.name}</h4>
+                              <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">ETB {Number(ticket.price).toFixed(2)}</p>
+                              <p className="text-sm text-muted-foreground">{remaining > 0 ? `${remaining} remaining` : 'Sold Out'}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.max(0, selectedQuantity - 1))} disabled={selectedQuantity === 0}>
+                                <MinusCircle className="h-4 w-4" />
+                              </Button>
+                              <span className="w-10 text-center font-bold">{selectedQuantity}</span>
+                              <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))} disabled={remaining === 0 || selectedQuantity >= remaining}>
+                                <PlusCircle className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        )
+                      })
+                    ) : (
+                      <p className="text-muted-foreground">Tickets are not yet available for this event.</p>
+                    )}
+                  </div>
+                </div>
+
+                {totalItems > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Order Summary</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex justify-between">
+                        <span>Subtotal ({totalItems} items)</span>
+                        <span className="font-semibold">ETB {subtotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Promo Code" 
+                          value={promoCode}
+                          onChange={e => setPromoCode(e.target.value)}
+                          className="flex-grow"
+                        />
+                        <Button onClick={handleApplyPromoCode} disabled={isPromoLoading || !promoCode}>
+                          {isPromoLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Apply
+                        </Button>
+                      </div>
+                      {appliedPromo && (
+                        <div className="flex justify-between text-green-600">
+                          <span>Discount ({appliedPromo.code})</span>
+                          <span className="font-semibold">- ETB {discount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="border-t"></div>
+                      <div className="flex justify-between text-xl font-bold">
+                        <span>Total</span>
+                        <span>ETB {total.toFixed(2)}</span>
+                      </div>
+                    </CardContent>
+                    <CardFooter>
+                      <AlertDialog open={isPurchaseModalOpen} onOpenChange={setIsPurchaseModalOpen}>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            disabled={totalItems === 0}
+                            className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+                            size="lg"
+                          >
+                            <ShoppingCart className="mr-2 h-4 w-4" />
+                            Purchase Tickets
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Attendee Information</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Please provide your name and phone number for the ticket.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <div className="space-y-4">
+                            <div className="grid gap-2">
+                              <Label htmlFor="name">Full Name</Label>
+                              <div className="relative">
+                                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input id="name" placeholder="Enter your full name" value={attendeeName} onChange={e => setAttendeeName(e.target.value)} className="pl-10" />
+                              </div>
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor="phone">Phone Number</Label>
+                              <div className="relative">
+                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input id="phone" placeholder="e.g., 0912345678" value={attendeePhone} onChange={e => setAttendeePhone(e.target.value)} className="pl-10" />
+                              </div>
+                            </div>
+                          </div>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handlePurchase} disabled={isPending}>
+                              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                              Proceed to Payment
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </CardFooter>
+                  </Card>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile layout (unchanged) */}
+          <div className="md:hidden space-y-8">
+            <div>
+              <Badge variant="outline" className={`mb-2 w-min whitespace-nowrap ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
+              <h1 className="text-3xl font-bold tracking-tight">{event.name}</h1>
+              <div className="text-lg text-muted-foreground space-y-2 pt-4">
+                <div className="flex items-center gap-3">
+                  <Calendar className="h-5 w-5" />
+                  <span>{formatEventDate(event.startDate, event.endDate)}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <MapPin className="h-5 w-5" />
+                  <span>{event.location}</span>
+                </div>
+                {event.hint && (
+                  <div className="flex items-start gap-3 text-base">
+                    <Info className="h-5 w-5 mt-1 flex-shrink-0" />
+                    <p className="text-muted-foreground">{event.hint}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="border-t"></div>
 
             <div>
-                <h3 className="text-2xl font-semibold mb-4">Tickets</h3>
-                <div className="space-y-4">
-                    {event.ticketTypes.length > 0 ? (
-                        event.ticketTypes.map(ticket => {
-                            const selectedQuantity = selectedTickets[ticket.id]?.quantity || 0;
-                            const remaining = ticket.total - ticket.sold;
-                            return (
-                                <div key={ticket.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-lg border bg-secondary/50">
-                                    <div className="mb-3 sm:mb-0">
-                                        <h4 className="font-semibold text-lg">{ticket.name}</h4>
-                                        <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">ETB {Number(ticket.price).toFixed(2)}</p>
-                                        <p className="text-sm text-muted-foreground">{remaining > 0 ? `${remaining} remaining` : 'Sold Out'}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.max(0, selectedQuantity - 1))} disabled={selectedQuantity === 0}>
-                                            <MinusCircle className="h-4 w-4" />
-                                        </Button>
-                                        <span className="w-10 text-center font-bold">{selectedQuantity}</span>
-                                        <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))} disabled={remaining === 0 || selectedQuantity >= remaining}>
-                                            <PlusCircle className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            )
-                        })
-                    ) : (
-                        <p className="text-muted-foreground">Tickets are not yet available for this event.</p>
-                    )}
-                </div>
+              <h3 className="text-2xl font-semibold mb-4">About this Event</h3>
+              <p className="text-base text-muted-foreground whitespace-pre-wrap leading-relaxed">{event.description}</p>
+            </div>
+
+            <div className="border-t"></div>
+
+            <div>
+              <h3 className="text-2xl font-semibold mb-4">Tickets</h3>
+              <div className="space-y-4">
+                {event.ticketTypes.length > 0 ? (
+                  event.ticketTypes.map(ticket => {
+                    const selectedQuantity = selectedTickets[ticket.id]?.quantity || 0;
+                    const remaining = ticket.total - ticket.sold;
+                    return (
+                      <div key={ticket.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-lg border bg-secondary/50">
+                        <div className="mb-3 sm:mb-0">
+                          <h4 className="font-semibold text-lg">{ticket.name}</h4>
+                          <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">ETB {Number(ticket.price).toFixed(2)}</p>
+                          <p className="text-sm text-muted-foreground">{remaining > 0 ? `${remaining} remaining` : 'Sold Out'}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.max(0, selectedQuantity - 1))} disabled={selectedQuantity === 0}>
+                            <MinusCircle className="h-4 w-4" />
+                          </Button>
+                          <span className="w-10 text-center font-bold">{selectedQuantity}</span>
+                          <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))} disabled={remaining === 0 || selectedQuantity >= remaining}>
+                            <PlusCircle className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <p className="text-muted-foreground">Tickets are not yet available for this event.</p>
+                )}
+              </div>
             </div>
 
             {totalItems > 0 && (
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Order Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex justify-between">
-                            <span>Subtotal ({totalItems} items)</span>
-                            <span className="font-semibold">ETB {subtotal.toFixed(2)}</span>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Order Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between">
+                    <span>Subtotal ({totalItems} items)</span>
+                    <span className="font-semibold">ETB {subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="Promo Code" 
+                      value={promoCode}
+                      onChange={e => setPromoCode(e.target.value)}
+                      className="flex-grow"
+                    />
+                    <Button onClick={handleApplyPromoCode} disabled={isPromoLoading || !promoCode}>
+                      {isPromoLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Apply
+                    </Button>
+                  </div>
+                  {appliedPromo && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Discount ({appliedPromo.code})</span>
+                      <span className="font-semibold">- ETB {discount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="border-t"></div>
+                  <div className="flex justify-between text-xl font-bold">
+                    <span>Total</span>
+                    <span>ETB {total.toFixed(2)}</span>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <AlertDialog open={isPurchaseModalOpen} onOpenChange={setIsPurchaseModalOpen}>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        disabled={totalItems === 0}
+                        className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+                        size="lg"
+                      >
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        Purchase Tickets
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Attendee Information</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Please provide your name and phone number for the ticket.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="space-y-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="name">Full Name</Label>
+                          <div className="relative">
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input id="name" placeholder="Enter your full name" value={attendeeName} onChange={e => setAttendeeName(e.target.value)} className="pl-10" />
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                            <Input 
-                                placeholder="Promo Code" 
-                                value={promoCode}
-                                onChange={e => setPromoCode(e.target.value)}
-                                className="flex-grow"
-                            />
-                            <Button onClick={handleApplyPromoCode} disabled={isPromoLoading || !promoCode}>
-                                {isPromoLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Apply
-                            </Button>
+                        <div className="grid gap-2">
+                          <Label htmlFor="phone">Phone Number</Label>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input id="phone" placeholder="e.g., 0912345678" value={attendeePhone} onChange={e => setAttendeePhone(e.target.value)} className="pl-10" />
+                          </div>
                         </div>
-                        {appliedPromo && (
-                             <div className="flex justify-between text-green-600">
-                                <span>Discount ({appliedPromo.code})</span>
-                                <span className="font-semibold">- ETB {discount.toFixed(2)}</span>
-                            </div>
-                        )}
-                        <div className="border-t"></div>
-                        <div className="flex justify-between text-xl font-bold">
-                            <span>Total</span>
-                            <span>ETB {total.toFixed(2)}</span>
-                        </div>
-                    </CardContent>
-                    <CardFooter>
-                         <AlertDialog open={isPurchaseModalOpen} onOpenChange={setIsPurchaseModalOpen}>
-                            <AlertDialogTrigger asChild>
-                                 <Button 
-                                    disabled={totalItems === 0}
-                                    className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
-                                    size="lg"
-                                >
-                                    <ShoppingCart className="mr-2 h-4 w-4" />
-                                    Purchase Tickets
-                                </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                <AlertDialogTitle>Attendee Information</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    Please provide your name and phone number for the ticket.
-                                </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <div className="space-y-4">
-                                  <div className="grid gap-2">
-                                      <Label htmlFor="name">Full Name</Label>
-                                      <div className="relative">
-                                          <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                          <Input id="name" placeholder="Enter your full name" value={attendeeName} onChange={e => setAttendeeName(e.target.value)} className="pl-10" />
-                                      </div>
-                                  </div>
-                                  <div className="grid gap-2">
-                                      <Label htmlFor="phone">Phone Number</Label>
-                                       <div className="relative">
-                                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                          <Input id="phone" placeholder="e.g., 0912345678" value={attendeePhone} onChange={e => setAttendeePhone(e.target.value)} className="pl-10" />
-                                      </div>
-                                  </div>
-                                </div>
-                                <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handlePurchase} disabled={isPending}>
-                                     {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Proceed to Payment
-                                </AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    </CardFooter>
-                </Card>
+                      </div>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handlePurchase} disabled={isPending}>
+                          {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Proceed to Payment
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </CardFooter>
+              </Card>
             )}
-
+          </div>
         </div>
       </div>
     </div>
