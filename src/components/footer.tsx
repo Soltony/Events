@@ -1,4 +1,4 @@
-import { Facebook, Twitter, Instagram } from 'lucide-react';
+import { Facebook, Twitter, Instagram, Linkedin, Youtube, Send } from 'lucide-react';
 
 export function Footer() {
   return (
@@ -10,25 +10,49 @@ export function Footer() {
           </p>
           <div className="flex justify-center space-x-4">
             <a
-              href="#"
+              href="https://web.facebook.com/nib.intbank"
+              target="_blank"
+              rel="noopener noreferrer"
               aria-label="Facebook"
               className="hover:text-sidebar-accent transition-colors"
             >
               <Facebook className="h-5 w-5" />
             </a>
             <a
-              href="#"
-              aria-label="Twitter"
+              href="https://www.linkedin.com/company/nib-internationalbank"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Linkedin"
               className="hover:text-sidebar-accent transition-colors"
             >
-              <Twitter className="h-5 w-5" />
+              <Linkedin className="h-5 w-5" />
             </a>
             <a
-              href="#"
+              href="https://www.instagram.com/nib_internationalbank/"
+              target="_blank"
+              rel="noopener noreferrer"
               aria-label="Instagram"
               className="hover:text-sidebar-accent transition-colors"
             >
               <Instagram className="h-5 w-5" />
+            </a>
+            <a
+              href="https://www.youtube.com/channel/UCn_-tUsAPEKdzm_b2BOCOdA"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Youtube"
+              className="hover:text-sidebar-accent transition-colors"
+            >
+              <Youtube className="h-5 w-5" />
+            </a>
+            <a
+              href="https://t.me/nibinternationalbanksc"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Telegram"
+              className="hover:text-sidebar-accent transition-colors"
+            >
+              <Send className="h-5 w-5" />
             </a>
           </div>
         </div>
