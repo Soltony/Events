@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -131,52 +130,53 @@ export default function PublicHomePage() {
         {/* Hero / Controls */}
         <div className="relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background/5 to-accent/10" />
-          <div className="relative flex flex-col md:flex-row items-center justify-between gap-4 px-4 lg:px-6 py-6">
-            <div className="flex items-center gap-3">
-              <Image src="/image/nibtickets.jpg" alt="NibTera Tickets Logo" width={200} height={50} data-ai-hint="logo nibtera" />
+          <div className="relative container mx-auto px-4 lg:px-6 py-4 space-y-4">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Image src="/image/nibtickets.jpg" alt="NibTera Tickets Logo" width={200} height={50} data-ai-hint="logo nibtera" />
+              </div>
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                <div className="relative flex-1 md:flex-initial w-full sm:w-auto md:w-72">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search events..."
+                    className="pl-10 rounded-full"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger className="w-full sm:w-44 rounded-full">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button asChild className="w-full sm:w-auto rounded-full bg-accent hover:bg-accent/90 text-accent-foreground">
+                  <Link href="/tickets">
+                    <Ticket className="mr-2 h-4 w-4" />
+                    My Tickets
+                  </Link>
+                </Button>
+                <div className="w-full sm:w-auto">
+                  <AuthStatus />
+                </div>
+              </div>
             </div>
-            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-              <div className="relative flex-1 md:flex-initial w-full sm:w-auto md:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input
-                  placeholder="Search events..."
-                  className="pl-10 rounded-full"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-full sm:w-44 rounded-full">
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button asChild className="w-full sm:w-auto rounded-full bg-accent hover:bg-accent/90 text-accent-foreground">
-                <Link href="/tickets">
-                  <Ticket className="mr-2 h-4 w-4" />
-                  My Tickets
-                </Link>
-              </Button>
-              <div className="w-full sm:w-auto">
-                <AuthStatus />
-              </div>
+            <div className="text-center pt-2 pb-2">
+              <h2 className="text-3xl font-bold tracking-tight">
+                Upcoming Events
+              </h2>
+              <p className="text-muted-foreground mt-2">Check out these exciting upcoming events!</p>
             </div>
           </div>
         </div>
         
-        <div className="text-center px-4 lg:px-6 pt-12 pb-8">
-          <h2 className="text-3xl font-bold tracking-tight">
-            Upcoming Events
-          </h2>
-          <p className="text-muted-foreground mt-2">Check out these exciting upcoming events!</p>
-        </div>
-
         <EventsCarousel events={upcomingEvents} />
 
         <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 p-4 lg:p-6 mt-8">
@@ -235,3 +235,5 @@ export default function PublicHomePage() {
     </div>
   );
 }
+
+    
