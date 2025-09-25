@@ -99,7 +99,8 @@ export default function PublicHomePage() {
   }, [events]);
 
   const { upcomingEvents, otherEvents } = useMemo(() => {
-    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
     const filteredEvents = events.filter(event => {
         const matchesCategory = selectedCategory === 'All' || event.category === selectedCategory;
@@ -109,7 +110,7 @@ export default function PublicHomePage() {
         return matchesCategory && matchesSearch;
       });
 
-    const upcoming = filteredEvents.filter(event => new Date(event.startDate) > now);
+    const upcoming = filteredEvents.filter(event => new Date(event.startDate) >= today);
 
     return { 
         upcomingEvents: upcoming,
