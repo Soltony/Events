@@ -121,7 +121,6 @@ export default function PublicHomePage() {
     <div className="flex flex-1 flex-col">
         {/* Hero / Controls */}
         <div className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background/5 to-accent/10" />
           <div className="relative container mx-auto px-4 lg:px-6 py-2 space-y-2">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -160,7 +159,7 @@ export default function PublicHomePage() {
                 </div>
               </div>
             </div>
-            <div className="text-center pt-2 pb-2">
+            <div className="text-center py-2">
               <h2 className="text-3xl font-bold tracking-tight">
                 Upcoming Events
               </h2>
@@ -190,7 +189,7 @@ export default function PublicHomePage() {
 
               return (
                 <Link href={`/events/${event.id}`} key={event.id} className="group">
-                  <Card className="flex flex-col h-full group-hover:shadow-lg transition-shadow duration-300 overflow-hidden relative bg-card/80">
+                  <Card className="flex flex-col h-full group-hover:shadow-lg transition-shadow duration-300 overflow-hidden bg-card/80">
                     <div className="absolute inset-0" style={gradientStyle} />
                     <div className="relative z-10 flex flex-col h-full">
                       <CardHeader className="p-0 relative aspect-video bg-transparent">

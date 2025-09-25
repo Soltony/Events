@@ -36,11 +36,11 @@ export default function RootLayout({
              <Image
                 src="/image/bg.jpg"
                 alt="Background"
-                layout="fill"
+                fill
                 objectFit="cover"
-                className="-z-10"
+                className="-z-10 opacity-30"
               />
-            <div className="flex flex-col min-h-screen bg-background/80 backdrop-blur-sm">
+            <div className="flex flex-col min-h-screen">
                 <main className="flex-1">
                   {children}
                 </main>
