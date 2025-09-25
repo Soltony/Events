@@ -79,7 +79,7 @@ export default function EditEventPage() {
       category: '',
       otherCategory: '',
       image: '',
-      color: '#000000',
+      color: '#864b20',
     },
   });
 
@@ -108,7 +108,7 @@ export default function EditEventPage() {
             startDate: new Date(event.startDate),
             endDate: event.endDate ? new Date(event.endDate) : undefined,
             image: event.image || '',
-            color: event.color || '#000000',
+            color: event.color || '#864b20',
           });
           if (event.image) {
             setPreviewImage(event.image);
@@ -168,11 +168,11 @@ export default function EditEventPage() {
               setPreviewImage(response.data.url); // Final URL
             } else {
               toast({ variant: 'destructive', title: 'Upload failed', description: response.data.error });
-              setPreviewImage(form.getValues('image')); // Revert to original on failure
+              setPreviewImage(form.getValues('image') ?? null); // Revert to original on failure
             }
           } catch (error) {
             toast({ variant: 'destructive', title: 'Upload failed', description: 'An error occurred.' });
-            setPreviewImage(form.getValues('image'));
+            setPreviewImage(form.getValues('image') ?? null);
           } finally {
             setIsUploading(false);
           }

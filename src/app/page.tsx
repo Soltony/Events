@@ -126,25 +126,25 @@ export default function PublicHomePage() {
       />
       <div className="flex flex-1 flex-col bg-background/80 backdrop-blur-sm">
         {/* Hero / Controls */}
-        <div className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background/5 to-accent/10" />
-          <div className="relative container mx-auto px-4 lg:px-6 py-4 space-y-4">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="relative overflow-hidden">
+           <div className="absolute inset-0 bg-gradient-to-r from-[#fff4d6] via-[#ffe2a3] to-[#ffcf6b]" />
+           <div className="relative container mx-auto px-4 lg:px-6 py-3 space-y-2">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-3 w-full text-[#3b2900]">
               <div className="flex items-center gap-3">
                 <Image src="/image/nibtickets.jpg" alt="NibTera Tickets Logo" width={200} height={50} data-ai-hint="logo nibtera" />
               </div>
               <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
                 <div className="relative flex-1 md:flex-initial w-full sm:w-auto md:w-72">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[#6b4e16]" />
                   <Input
                     placeholder="Search events..."
-                    className="pl-10 rounded-full"
+                    className="pl-10 rounded-full bg-white/95 border-[#e8c15a] focus-visible:ring-2 focus-visible:ring-[#b97a0b] focus-visible:border-[#b97a0b] text-black placeholder:text-black/60"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
                 <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="w-full sm:w-44 rounded-full">
+                  <SelectTrigger className="w-full sm:w-44 rounded-full bg-white/95 border-[#e8c15a] text-black">
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -155,7 +155,7 @@ export default function PublicHomePage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Button asChild className="w-full sm:w-auto rounded-full bg-accent hover:bg-accent/90 text-accent-foreground">
+                <Button asChild className="w-full sm:w-auto rounded-full bg-[#7a4b22] hover:bg-[#6b3f1d] text-white shadow">
                   <Link href="/tickets">
                     <Ticket className="mr-2 h-4 w-4" />
                     My Tickets
@@ -166,15 +166,16 @@ export default function PublicHomePage() {
                 </div>
               </div>
             </div>
-            <div className="text-center pt-1 pb-1">
-              <h2 className="text-3xl font-bold tracking-tight">
-                Upcoming Events
-              </h2>
-              <p className="text-muted-foreground mt-2">Check out these exciting upcoming events!</p>
-            </div>
+            
           </div>
         </div>
         
+        {/* Title below header for better hierarchy */}
+        <div className="container mx-auto px-4 lg:px-6 mt-3 text-center">
+           <h2 className="text-3xl font-bold tracking-tight">Upcoming Events</h2>
+           <p className="text-muted-foreground mt-1">Check out these exciting upcoming events!</p>
+        </div>
+
         <EventsCarousel events={upcomingEvents} />
 
         <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 p-4 lg:p-6 mt-8">

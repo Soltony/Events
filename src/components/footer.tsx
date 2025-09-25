@@ -2,7 +2,9 @@ import { Facebook, Instagram, Linkedin, Youtube, Send } from 'lucide-react';
 
 export function Footer() {
   return (
-    <footer style={{ backgroundColor: "#fdf3d7" }} className="text-black">
+    <footer className="text-black relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-r from-[#fff4d6] via-[#ffe2a3] to-[#ffcf6b]" />
+      <div className="relative">
       <div className="container mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center justify-center gap-4">
           <p className="text-sm text-center text-black/80">
@@ -56,6 +58,7 @@ export function Footer() {
             </a>
           </div>
         </div>
+      </div>
       </div>
     </footer>
   );
