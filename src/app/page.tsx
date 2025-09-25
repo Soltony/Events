@@ -130,7 +130,7 @@ export default function PublicHomePage() {
         {/* Hero / Controls */}
         <div className="relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background/5 to-accent/10" />
-          <div className="relative container mx-auto px-4 lg:px-6 py-6 space-y-8">
+          <div className="relative container mx-auto px-4 lg:px-6 py-4 space-y-4">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <Image src="/image/nibtickets.jpg" alt="NibTera Tickets Logo" width={200} height={50} data-ai-hint="logo nibtera" />
@@ -168,7 +168,7 @@ export default function PublicHomePage() {
                 </div>
               </div>
             </div>
-            <div className="text-center pt-8 pb-4">
+            <div className="text-center pt-2 pb-2">
               <h2 className="text-3xl font-bold tracking-tight">
                 Upcoming Events
               </h2>
@@ -235,3 +235,5 @@ export default function PublicHomePage() {
     </div>
   );
 }
+
+    
