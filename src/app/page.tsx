@@ -20,7 +20,6 @@ import EventsCarousel from "@/components/events-carousel";
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
-    color?: string | null;
 }
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
@@ -122,9 +121,8 @@ export default function PublicHomePage() {
       <Image
         src="/image/bg.jpg"
         alt="Background"
-        layout="fill"
-        objectFit="cover"
-        className="-z-10"
+        fill
+        className="-z-10 object-cover"
       />
       <div className="flex flex-1 flex-col bg-background/80 backdrop-blur-sm">
 
@@ -232,6 +230,7 @@ export default function PublicHomePage() {
               </Card>
           )}
         </div>
-    </div>
+      </div>
+      </div>
   );
 }
