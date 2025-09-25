@@ -1,9 +1,9 @@
 
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/auth-context';
-import { AuthStatus } from '@/components/auth-status';
 import { ConditionalFooter } from '@/components/conditional-footer';
 
 export const metadata: Metadata = {
@@ -32,11 +32,20 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased" suppressHydrationWarning={true}>
         <AuthProvider>
-          <div className="flex flex-col min-h-screen relative">
-              <main className="flex-1 bg-background">
-                {children}
-              </main>
-              <ConditionalFooter />
+          <div className="relative min-h-screen w-full">
+             <Image
+                src="/image/bg.jpg"
+                alt="Background"
+                layout="fill"
+                objectFit="cover"
+                className="-z-10"
+              />
+            <div className="flex flex-col min-h-screen bg-background/80 backdrop-blur-sm">
+                <main className="flex-1">
+                  {children}
+                </main>
+                <ConditionalFooter />
+            </div>
           </div>
           <Toaster />
         </AuthProvider>
