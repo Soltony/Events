@@ -159,7 +159,11 @@ export default function PublicHomePage() {
                 </div>
               </div>
             </div>
+<<<<<<< HEAD
             <div className="text-center py-2">
+=======
+            <div className="text-center pt-1 pb-1">
+>>>>>>> 99fc4f8affa2afa46276477efba52852bae1c4f1
               <h2 className="text-3xl font-bold tracking-tight">
                 Upcoming Events
               </h2>
