@@ -118,7 +118,7 @@ export default function PublicHomePage() {
   }, [events, searchQuery, selectedCategory]);
 
   return (
-        <div className="relative flex flex-1 flex-col">
+    <div className="relative flex flex-1 flex-col">
       <Image
         src="/image/bg.jpg"
         alt="Background"
@@ -127,11 +127,10 @@ export default function PublicHomePage() {
         className="-z-10"
       />
       <div className="flex flex-1 flex-col bg-background/80 backdrop-blur-sm">
-
         {/* Hero / Controls */}
         <div className="relative overflow-hidden">
-                <div className="relative container mx-auto px-4 lg:px-6 py-4 space-y-4">
-
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background/5 to-accent/10" />
+          <div className="relative container mx-auto px-4 lg:px-6 py-4 space-y-4">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <Image src="/image/nibtickets.jpg" alt="NibTera Tickets Logo" width={200} height={50} data-ai-hint="logo nibtera" />
@@ -199,7 +198,7 @@ export default function PublicHomePage() {
 
               return (
                 <Link href={`/events/${event.id}`} key={event.id} className="group">
-                  <Card className="flex flex-col h-full group-hover:shadow-lg transition-shadow duration-300 overflow-hidden bg-card/80">
+                  <Card className="flex flex-col h-full group-hover:shadow-lg transition-shadow duration-300 overflow-hidden relative bg-card/80">
                     <div className="absolute inset-0" style={gradientStyle} />
                     <div className="relative z-10 flex flex-col h-full">
                       <CardHeader className="p-0 relative aspect-video bg-transparent">
@@ -232,6 +231,9 @@ export default function PublicHomePage() {
               </Card>
           )}
         </div>
+      </div>
     </div>
   );
 }
+
+    
