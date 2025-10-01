@@ -5,18 +5,27 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/auth-context';
 import { ConditionalFooter } from '@/components/conditional-footer';
-
+import { headers } from 'next/headers'
+import { ScriptProps } from 'next/script';
+import React from 'react';
+ 
 export const metadata: Metadata = {
   title: 'NibTera Tickets',
   description: 'The ultimate solution for event ticketing.',
   icons: null,
 };
-
+ 
+function Script(props: ScriptProps) : React.ReactElement {
+  const nonce = headers().get('x-nonce') ?? undefined;
+  return <script nonce={nonce} {...props}></script>;
+}
+ 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nonce = headers().get('x-nonce') ?? ""
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
