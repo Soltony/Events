@@ -15,7 +15,6 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
         : value
 ));
 
-// This function can be used in any server action to get the currently logged-in user.
 export async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
   try {
     const cookieStore = cookies();
@@ -34,7 +33,6 @@ export async function getCurrentUser(): Promise<(User & { role: Role }) | null> 
 
     const payloadBase64 = token.split('.')[1];
     if (!payloadBase64) {
-        console.error("GetCurrentUser: Invalid token format.");
         return null;
     }
 
@@ -42,7 +40,6 @@ export async function getCurrentUser(): Promise<(User & { role: Role }) | null> 
     const decoded = JSON.parse(decodedJson);
 
     if (!decoded || typeof decoded === 'string' || !decoded.sub) {
-        console.error("GetCurrentUser: Invalid token payload.");
         return null;
     }
 
