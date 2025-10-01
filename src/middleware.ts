@@ -18,6 +18,7 @@ export function middleware(req: NextRequest) {
     object-src 'none';
     base-uri 'self';
     form-action 'self';
+    frame-ancestors 'none';
   `;
 
   const requestHeaders = new Headers(req.headers);
