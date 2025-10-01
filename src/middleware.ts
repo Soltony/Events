@@ -4,14 +4,21 @@ import { NextRequest, NextResponse } from 'next/server';
 export function middleware(req: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
   
-  // Loosened for development purposes, but you can tighten this in production
+  // ArifPay URL for connect-src, if available
+  const arifPayUrl = process.env.BASE_URL ? new URL(process.env.BASE_URL).origin : '';
+
   const cspHeader = `
     default-src 'self';
+<<<<<<< HEAD
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https: http:;
     style-src 'self' 'unsafe-line' https://fonts.googleapis.com;
+=======
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+>>>>>>> 040c09b8d2b66731c35a1cef09d04c1251352b43
     font-src 'self' https://fonts.gstatic.com;
-    img-src 'self' data: https://placehold.co https://storage.googleapis.com;
-    connect-src 'self' https://nominatim.openstreetmap.org;
+    img-src 'self' data: https://placehold.co https://storage.googleapis.com https://picsum.photos;
+    connect-src 'self' https://nominatim.openstreetmap.org ${arifPayUrl};
     frame-src 'self';
     object-src 'none';
     base-uri 'self';
@@ -34,6 +41,7 @@ export function middleware(req: NextRequest) {
 
   // Also set the CSP header on the response
   res.headers.set('Content-Security-Policy', cspHeader.replace(/\s{2,}/g, ' ').trim());
+  res.headers.set('X-Content-Type-Options', 'nosniff');
 
   return res;
 }

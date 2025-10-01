@@ -195,7 +195,7 @@ export default function PublicHomePage() {
                           />
                         </CardItem>
                         <div
-                          className="flex-1 flex flex-col justify-between"
+                          className="flex-1 flex flex-col justify-between rounded-b-xl"
                           style={gradientStyle}
                         >
                                 <CardItem
@@ -207,13 +207,13 @@ export default function PublicHomePage() {
                                   <h3 className="text-base font-bold leading-tight text-black">{event.name}</h3>
                                   <p className="text-xs text-black/90 min-h-[2.5rem]">{formatEventDate(event.startDate, event.endDate)}</p>
                                 </CardItem>
-                                <div className="flex justify-between items-center mt-auto px-3">
+                                <div className="flex justify-between items-center mt-auto px-3 pb-3">
                                   <CardItem
                                     translateZ={20}
                                     as="button"
                                     className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground p-2 text-xs font-bold"
                                   >
-                                    Buy Tickets <ArrowUpRight className="h-4 w-4 inline" />
+                                    Buy Ticket
                                   </CardItem>
                                 </div>
                         </div>
