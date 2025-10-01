@@ -178,9 +178,9 @@ export default function PublicHomePage() {
               : { background: `linear-gradient(to top, #000000BF, #F9FAFB00)` };
 
               return (
-                <Link href={`/events/${event.id}`} key={event.id} className="group">
-                  <CardContainer containerClassName="py-0">
-                    <CardBody className="bg-gray-50 relative group/card  dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-auto h-auto rounded-xl p-4 border  ">
+                <Link href={`/events/${event.id}`} key={event.id} className="group h-full">
+                  <CardContainer containerClassName="py-0 h-full">
+                    <CardBody className="bg-gray-50 relative group/card dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-auto h-full rounded-xl p-4 border flex flex-col">
                         <CardItem translateZ="100" className="w-full relative">
                           <Image
                             src={imageUrl}
@@ -191,17 +191,17 @@ export default function PublicHomePage() {
                             data-ai-hint={event.hint ?? 'event'}
                             onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}
                           />
-                          <div className="absolute inset-0 rounded-xl" style={gradientStyle} />
+                           <div className="absolute inset-0 rounded-xl" style={gradientStyle} />
                         </CardItem>
                         <CardItem
                           translateZ="50"
                           className="p-3 flex-1 space-y-1 bg-transparent text-black"
                         >
-                          <Badge variant="outline" className={`text-xs ${getCategoryBadgeClass(event.category)} border-black/20 bg-black/5 text-black`}>{event.category}</Badge>
+                          <Badge variant="outline" className={`text-xs border-black/20 bg-black/5 text-black`}>{event.category}</Badge>
                           <h3 className="text-base font-bold leading-tight text-black">{event.name}</h3>
-                          <p className="text-xs text-black/90">{formatEventDate(event.startDate, event.endDate)}</p>
+                          <p className="text-xs text-black/90 min-h-[2.5rem]">{formatEventDate(event.startDate, event.endDate)}</p>
                         </CardItem>
-                        <div className="flex justify-between items-center mt-4 px-3">
+                        <div className="flex justify-between items-center mt-auto px-3">
                           <CardItem
                             translateZ={20}
                             as="button"
@@ -228,5 +228,3 @@ export default function PublicHomePage() {
     </div>
   );
 }
-
-    
