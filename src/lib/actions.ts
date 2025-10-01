@@ -22,7 +22,7 @@ export async function getCurrentUser(): Promise<(User & { role: Role }) | null> 
     const tokenCookie = cookieStore.get('authTokens');
 
     if (!tokenCookie?.value) {
-      console.error("GetCurrentUser: Auth token cookie not found.");
+      // console.error("GetCurrentUser: Auth token cookie not found.");
       return null;
     }
     
@@ -30,7 +30,7 @@ export async function getCurrentUser(): Promise<(User & { role: Role }) | null> 
     const token = tokenData.accessToken;
 
     if (!token) {
-        console.error("GetCurrentUser: Access token not in cookie.");
+        // console.error("GetCurrentUser: Access token not in cookie.");
         return null;
     }
 

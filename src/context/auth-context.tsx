@@ -32,20 +32,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const SESSION_TIMEOUT_DURATION = 15 * 60 * 1000; // 15 minutes
 
-function setCookie(name: string, value: string, days: number) {
-    let expires = "";
-    if (days) {
-        const date = new Date();
-        date.setTime(date.getTime() + (days*24*60*60*1000));
-        expires = "; expires=" + date.toUTCString();
-    }
-    document.cookie = name + "=" + (value || "")  + expires + "; path=/; SameSite=Lax; Secure";
-}
-
-function eraseCookie(name: string) {   
-    document.cookie = name+'=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [user, setUser] = useState<UserWithRole | null>(null);
@@ -56,12 +42,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async (options?: { reason?: string }) => {
     const { reason } = options || {};
     
-    // Clear client-side state and storage first
     setUser(null);
     setTokens(null);
     setAuthToken(null);
     localStorage.removeItem('authUser');
-    eraseCookie('authTokens');
+    
+    // Call the server to clear the HttpOnly cookie
+    await fetch('/api/auth/session', { method: 'DELETE' });
     
     if (reason) {
         toast({
@@ -70,7 +57,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
     }
     
-    // We push to login after clearing state
     router.push('/login');
 
   }, [router, toast]);
@@ -99,20 +85,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem('authUser');
+    async function initializeAuth() {
+        try {
+            const storedUser = localStorage.getItem('authUser');
+            const response = await fetch('/api/auth/session');
 
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-      }
-    } catch (error) {
-        console.error("Failed to parse auth data from localStorage", error);
-        logout({ reason: 'Your session was corrupted. Please log in again.'});
-    } finally {
-        setIsLoading(false);
+            if (storedUser && response.ok) {
+                const { accessToken } = await response.json();
+                if (accessToken) {
+                    setAuthToken(accessToken);
+                    const parsedUser = JSON.parse(storedUser);
+                    setUser(parsedUser);
+                } else {
+                    await logout();
+                }
+            } else {
+                 await logout();
+            }
+        } catch (error) {
+            console.error("Failed to initialize auth state", error);
+            await logout();
+        } finally {
+            setIsLoading(false);
+        }
     }
-  }, [logout]);
+    initializeAuth();
+}, [logout]);
+
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
@@ -159,7 +158,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (resolvedAccessToken) {
           
-          // Force a fresh fetch of user data from DB to get correct role/permissions
           const userData = await getUserByPhoneNumber(data.phoneNumber);
           if (!userData) {
             throw new Error('Failed to retrieve user data after login.');
@@ -170,9 +168,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           
           const newTokens = { accessToken: resolvedAccessToken, refreshToken: resolvedRefreshToken };
+          
+          // Set HttpOnly cookie via API route
+          await fetch('/api/auth/session', {
+            method: 'POST',
+            body: JSON.stringify(newTokens),
+          });
+          
           setTokens(newTokens);
           setAuthToken(resolvedAccessToken);
-          setCookie('authTokens', JSON.stringify(newTokens), 1);
           
           setUser(userData);
           localStorage.setItem('authUser', JSON.stringify(userData));
@@ -185,7 +189,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (userData.passwordChangeRequired) {
               router.push('/profile');
           } else {
-             // Role-based redirection
               switch(userData.role?.name) {
                   case 'Admin':
                   default:
@@ -219,7 +222,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user || !user.role?.permissions) {
       return false;
     }
-    // Admin has all permissions
     if (user.role.name === 'Admin') return true;
     
     const userPermissions = user.role.permissions.split(',');
