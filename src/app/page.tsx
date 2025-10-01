@@ -195,7 +195,7 @@ export default function PublicHomePage() {
                           />
                         </CardItem>
                         <div
-                          className="flex-1 flex flex-col justify-between"
+                          className="flex-1 flex flex-col justify-between rounded-b-xl"
                           style={gradientStyle}
                         >
                                 <CardItem
