@@ -7,8 +7,8 @@ export function middleware(req: NextRequest) {
   // Loosened for development purposes, but you can tighten this in production
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'nonce-${nonce}' 'unsafe-eval' 'strict-dynamic' https: http:;
-    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https: http:;
+    style-src 'self' 'unsafe-line' https://fonts.googleapis.com;
     font-src 'self' https://fonts.gstatic.com;
     img-src 'self' data: https://placehold.co https://storage.googleapis.com;
     connect-src 'self' https://nominatim.openstreetmap.org;
