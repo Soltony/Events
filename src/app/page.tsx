@@ -47,15 +47,17 @@ export default function PublicHomePage() {
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
       case 'Technology':
-        return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'Community':
-        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+        return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'Music':
-        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+        return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'Art':
         return 'bg-pink-100 text-pink-800 border-pink-200';
+      case 'Community':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'Business':
+          return 'bg-indigo-100 text-indigo-800 border-indigo-200';
       default:
-        return 'bg-accent/10 text-accent border-accent/20';
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   }
 
@@ -197,7 +199,7 @@ export default function PublicHomePage() {
                                   translateZ="50"
                                   className="p-3 flex-1 space-y-1 bg-transparent text-black"
                                 >
-                                  <Badge variant="outline" className="text-xs border-black/20 bg-black/5 text-black">{event.category}</Badge>
+                                  <Badge variant="outline" className={`text-xs ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
                                   <h3 className="text-base font-bold leading-tight text-black">{event.name}</h3>
                                   <p className="text-xs text-black/90 min-h-[2.5rem]">{formatEventDate(event.startDate, event.endDate)}</p>
                                 </CardItem>

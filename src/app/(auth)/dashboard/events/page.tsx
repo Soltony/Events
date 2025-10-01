@@ -43,6 +43,23 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     return format(new Date(startDate), startDateFormat);
 }
 
+const getCategoryBadgeClass = (category: string) => {
+    switch (category) {
+      case 'Technology':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'Music':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'Art':
+        return 'bg-pink-100 text-pink-800 border-pink-200';
+      case 'Community':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'Business':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+}
+
 const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolean, onDelete: (e: Event) => void }) => {
     const imageUrl = event.image || '/image/nibtickets.jpg';
     
@@ -73,7 +90,7 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolea
                 <div className="absolute inset-0 bg-transparent"></div>
             </CardHeader>
             <CardContent className="p-4 flex-1 space-y-2 bg-transparent text-black">
-                <Badge variant="outline" className="text-xs bg-white/20 text-black border-black/50">{event.category}</Badge>
+                <Badge variant="outline" className={cn("text-xs", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
                 <CardTitle className="text-lg leading-tight">{event.name}</CardTitle>
                 <div className="space-y-1 pt-1">
                 <CardDescription className="text-xs text-black/90">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
