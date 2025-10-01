@@ -81,7 +81,7 @@ export default function CreateEventPage() {
       category: '',
       otherCategory: '',
       image: '',
-      color: '#000000',
+      color: '#864b20',
       tickets: [{ name: 'General Admission', price: 25, total: 100 }],
     },
   });
