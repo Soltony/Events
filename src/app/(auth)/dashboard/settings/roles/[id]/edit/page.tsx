@@ -4,8 +4,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import type { Role } from '@prisma/client';
 
@@ -53,10 +53,10 @@ const settingsPermissionCategories = {
 };
 
 
-function EditRoleFormComponent() {
+export default function EditRolePage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const roleId = searchParams.get('id');
+  const params = useParams<{ id: string }>();
+  const roleId = params.id;
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -311,11 +311,4 @@ function EditRoleFormComponent() {
   );
 }
 
-
-export default function EditRolePage() {
-    return (
-        <Suspense fallback={<div>Loading...</div>}>
-            <EditRoleFormComponent />
-        </Suspense>
-    )
-}
+    

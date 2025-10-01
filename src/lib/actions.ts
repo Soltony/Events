@@ -474,7 +474,7 @@ export async function getReportsData(dateRange?: DateRange) {
     const promoCodes = events.flatMap(e => e.promoCodes.map(pc => ({ ...pc, event: { name: e.name } })));
     
     const promoCodeData = promoCodes.map(code => {
-        const avgTicketPrice = 50; 
+        const avgTicketPrice = 50;
         let totalDiscount = 0;
         if (code.type === 'PERCENTAGE') {
             totalDiscount = code.uses * (avgTicketPrice * (Number(code.value) / 100));
@@ -765,7 +765,7 @@ export async function updateRole(id: string, data: Partial<Role>) {
         data: data,
     });
     revalidatePath('/dashboard/settings/roles');
-    revalidatePath(`/dashboard/settings/roles/edit?id=${id}`);
+    revalidatePath(`/dashboard/settings/roles/${id}/edit`);
     return serialize(role);
 }
 
@@ -951,3 +951,5 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
+    
