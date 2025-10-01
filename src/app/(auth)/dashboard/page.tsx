@@ -28,7 +28,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchData() {
-      // Don't fetch data until the auth state is confirmed to prevent race conditions
       if (isAuthLoading) return;
 
       try {
@@ -153,5 +152,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-

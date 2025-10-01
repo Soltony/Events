@@ -30,7 +30,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SESSION_TIMEOUT_DURATION = 15 * 60 * 1000; // 15 minutes
+const SESSION_TIMEOUT_DURATION = 15 * 60 * 1000; 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
@@ -47,7 +47,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthToken(null);
     localStorage.removeItem('authUser');
     
-    // Call the server to clear the HttpOnly cookie
     await fetch('/api/auth/session', { method: 'DELETE' });
     
     if (reason) {
@@ -118,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const resetTimeout = () => {
       clearTimeout(timeoutId);
-      if (localStorage.getItem('authUser')) { // Check for user presence instead of tokens
+      if (localStorage.getItem('authUser')) { 
           timeoutId = setTimeout(() => {
             logout({ reason: 'You have been logged out due to inactivity.' });
           }, SESSION_TIMEOUT_DURATION);
@@ -131,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         resetTimeout();
     };
 
-    if (user) { // Trigger based on user state
+    if (user) { 
       events.forEach(event => window.addEventListener(event, handleActivity));
       resetTimeout();
     }
@@ -169,7 +168,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           const newTokens = { accessToken: resolvedAccessToken, refreshToken: resolvedRefreshToken };
           
-          // Set HttpOnly cookie via API route
           await fetch('/api/auth/session', {
             method: 'POST',
             body: JSON.stringify(newTokens),

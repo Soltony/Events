@@ -49,19 +49,16 @@ interface ReportsData {
     promoCodes: PromoCodeReport[];
 }
 
-// Helper to convert array of objects to CSV
 function convertToCSV(data: any[], headers: { key: string, label: string }[]): string {
     const headerRow = headers.map(h => h.label).join(',');
     const bodyRows = data.map(row => {
         return headers.map(header => {
             let value = row[header.key];
             
-            // Format date objects
             if (header.key === 'date' && value instanceof Date) {
                 value = format(value, 'yyyy-MM-dd');
             }
 
-            // Handle nested objects (like event.name)
             if (header.key.includes('.')) {
                 const keys = header.key.split('.');
                 let nestedValue: any = row;
@@ -76,7 +73,6 @@ function convertToCSV(data: any[], headers: { key: string, label: string }[]): s
                 value = nestedValue;
             }
 
-            // Escape commas and quotes
             const stringValue = String(value ?? '').replace(/"/g, '""');
             return `"${stringValue}"`;
         }).join(',');
@@ -161,7 +157,6 @@ export default function ReportsPage() {
         } catch (error) {
             console.error("Failed to download report:", error);
         } finally {
-            // Add a small delay to allow download to initiate
             setTimeout(() => setDownloading(null), 500);
         }
     };

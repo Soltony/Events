@@ -40,7 +40,6 @@ export default function ScanQrPage() {
         setResult(null);
         
         try {
-            // Attempt to parse, but handle non-JSON QR codes gracefully.
             let ticketId;
             try {
                 const data = JSON.parse(decodedText);
@@ -86,7 +85,6 @@ export default function ScanQrPage() {
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            // This hidden div is a requirement for the html5-qrcode library to process files.
             const qrScanner = new Html5Qrcode('qr-code-reader-file-upload');
             try {
                 const decodedText = await qrScanner.scanFile(file, false);
@@ -167,7 +165,7 @@ export default function ScanQrPage() {
                             <QrScannerComponent
                                 onScanSuccess={handleScanSuccess}
                                 onScanFailure={(error) => {
-                                    // You can optionally handle scan failures, e.g., QR not found
+                                    // You can optionally handle scan failures
                                 }}
                             />
                          ) : (
@@ -177,7 +175,6 @@ export default function ScanQrPage() {
                             </div>
                          )}
                     </div>
-                     {/* Hidden element for file-based scanning */}
                     <div id="qr-code-reader-file-upload" style={{ display: 'none' }}></div>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">

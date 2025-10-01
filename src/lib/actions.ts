@@ -22,7 +22,6 @@ export async function getCurrentUser(): Promise<(User & { role: Role }) | null> 
     const tokenCookie = cookieStore.get('authTokens');
 
     if (!tokenCookie?.value) {
-      // console.error("GetCurrentUser: Auth token cookie not found.");
       return null;
     }
     
@@ -30,7 +29,6 @@ export async function getCurrentUser(): Promise<(User & { role: Role }) | null> 
     const token = tokenData.accessToken;
 
     if (!token) {
-        // console.error("GetCurrentUser: Access token not in cookie.");
         return null;
     }
 
@@ -405,7 +403,6 @@ export async function getDashboardData() {
         }
     });
     
-    // Admin sees all pending events, others see only their own
     const pendingEventsFilter = isUserAdmin ? { status: 'PENDING' as EventStatus } : { organizerId: user.id, status: 'PENDING' as EventStatus };
     const pendingEvents = await prisma.event.count({ where: pendingEventsFilter });
     
@@ -552,7 +549,6 @@ export async function addUser(data: any) {
     const password = "User@123";
     
     try {
-        // If email is not provided, create one from the phone number for the auth service
         const authServiceEmail = email || `${phoneNumber}@nibtickets.com`;
 
         const registrationResponse = await fetch(`${authApiUrl}/api/Auth/register`, {
@@ -579,7 +575,6 @@ export async function addUser(data: any) {
               } else if (typeof responseData.errors === 'string') {
                 errorMessage = responseData.errors;
               } else if (typeof responseData.errors === 'object') {
-                // Handle cases where errors is an object of arrays, like ASP.NET validation
                 errorMessage = Object.values(responseData.errors).flat().join(' ');
               }
             }
@@ -822,7 +817,6 @@ export async function purchaseTickets(request: PurchaseRequest) {
     
     const user = await getCurrentUser();
     
-    // This data is used by the API route to call the payment gateway
     const purchaseData = {
         eventId,
         tickets,
@@ -874,19 +868,16 @@ export async function getTicketDetailsForConfirmation(attendeeId: number) {
         return null;
     }
     
-    // Allow guest access if no user is associated with the ticket
     if (!attendee.userId) {
         return serialize(attendee);
     }
 
     const user = await getCurrentUser();
     
-    // Logged-in users can view their own tickets
     if (user && attendee.userId === user.id) {
         return serialize(attendee);
     }
     
-    // If ticket has a user, but it doesn't match the logged-in user, deny access.
     return null;
 }
 

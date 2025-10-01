@@ -32,7 +32,7 @@ interface EventWithTickets extends Event {
 }
 
 interface EventDetailModalProps {
-  event: EventWithTickets | null; // Allow event to be null
+  event: EventWithTickets | null; 
   isOpen: boolean;
   onClose: () => void;
 }

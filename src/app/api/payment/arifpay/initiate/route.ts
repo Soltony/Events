@@ -66,16 +66,12 @@ export async function POST(req: NextRequest) {
             cbs: event.nibBankAccount,
             items: [{ name: event.name, quantity: totalQuantity, price: totalAmount, description: event.description }],
         };
-  // successUrl,
-            // failureUrl,
-            // callbackUrl,
-            // transactionId: transactionId,
-
+  
             console.log(paymentGatewayData);
         let paymentGatewayResponse;
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 15000); 
 
             paymentGatewayResponse = await fetch(`${paymentGatewayUrl}/api/payment/createsession`, {
                 method: 'POST',
@@ -111,7 +107,6 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: paymentGatewayResult.ResponseDescription || 'Error communicating with payment gateway.' }, { status: 502 });
         }
         
-        // Now that we have the session ID from ArifPay, update our pending order.
         await prisma.pendingOrder.update({
             where: { id: pendingOrder.id },
             data: { arifpaySessionId: paymentGatewayResult.Data.NA },

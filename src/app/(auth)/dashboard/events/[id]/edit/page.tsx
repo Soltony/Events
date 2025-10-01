@@ -158,17 +158,17 @@ export default function EditEventPage() {
       const file = e.target.files?.[0];
       if (file) {
         setIsUploading(true);
-        setPreviewImage(URL.createObjectURL(file)); // Local preview
+        setPreviewImage(URL.createObjectURL(file)); 
         const reader = new FileReader();
         reader.onloadend = async () => {
           try {
             const response = await axios.post('/api/upload', { file: reader.result });
             if (response.data.success) {
               form.setValue('image', response.data.url);
-              setPreviewImage(response.data.url); // Final URL
+              setPreviewImage(response.data.url); 
             } else {
               toast({ variant: 'destructive', title: 'Upload failed', description: response.data.error });
-              setPreviewImage(form.getValues('image') ?? null); // Revert to original on failure
+              setPreviewImage(form.getValues('image') ?? null); 
             }
           } catch (error) {
             toast({ variant: 'destructive', title: 'Upload failed', description: 'An error occurred.' });
