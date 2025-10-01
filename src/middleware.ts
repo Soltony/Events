@@ -4,14 +4,16 @@ import { NextRequest, NextResponse } from 'next/server';
 export function middleware(req: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
   
-  // Loosened for development purposes, but you can tighten this in production
+  // ArifPay URL for connect-src, if available
+  const arifPayUrl = process.env.BASE_URL ? new URL(process.env.BASE_URL).origin : '';
+
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'nonce-${nonce}' 'unsafe-eval' 'strict-dynamic' https: http:;
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     font-src 'self' https://fonts.gstatic.com;
-    img-src 'self' data: https://placehold.co https://storage.googleapis.com;
-    connect-src 'self' https://nominatim.openstreetmap.org;
+    img-src 'self' data: https://placehold.co https://storage.googleapis.com https://picsum.photos;
+    connect-src 'self' https://nominatim.openstreetmap.org ${arifPayUrl};
     frame-src 'self';
     object-src 'none';
     base-uri 'self';
