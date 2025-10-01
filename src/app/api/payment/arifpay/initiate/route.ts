@@ -11,6 +11,9 @@ function formatPhoneNumber(phone: string): string {
 }
 
 export async function POST(req: NextRequest) {
+    if (req.method !== 'POST') {
+        return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
+    }
     try {
         const body = await req.json();
         const { eventId, tickets, promoCode, attendeeDetails } = body;

@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 export async function POST(req: NextRequest) {
+  if (req.method !== 'POST') {
+    return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
+  }
   try {
     const tokens = await req.json();
     const { accessToken, refreshToken } = tokens;
@@ -26,6 +29,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  if (req.method !== 'GET') {
+    return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
+  }
   const cookieStore = cookies();
   const tokenCookie = cookieStore.get('authTokens');
 
@@ -42,6 +48,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  if (req.method !== 'DELETE') {
+    return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
+  }
   cookies().delete('authTokens');
   return NextResponse.json({ success: true });
 }

@@ -6,6 +6,9 @@ import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 
 export async function POST(req: NextRequest) {
+    if (req.method !== 'POST') {
+        return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
+    }
     try {
         const payload = await req.json();
         console.log('ArifPay Notification Payload:', payload);

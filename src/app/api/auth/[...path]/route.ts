@@ -64,21 +64,33 @@ async function proxyRequest(req: NextRequest, path: string[]) {
 
 // ✅ Corrected functions
 export async function GET(req: NextRequest, context: any) {
+  if (req.method !== 'GET') {
+    return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
+  }
   const { path } = await context.params;
   return proxyRequest(req, path);
 }
 
 export async function POST(req: NextRequest, context: any) {
+  if (req.method !== 'POST') {
+    return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
+  }
   const { path } = await context.params;
   return proxyRequest(req, path);
 }
 
 export async function PUT(req: NextRequest, context: any) {
+  if (req.method !== 'PUT') {
+    return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
+  }
   const { path } = await context.params;
   return proxyRequest(req, path);
 }
 
 export async function DELETE(req: NextRequest, context: any) {
+  if (req.method !== 'DELETE') {
+    return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
+  }
   const { path } = await context.params;
   return proxyRequest(req, path);
 }
