@@ -34,6 +34,7 @@ export function middleware(req: NextRequest) {
 
   // Also set the CSP header on the response
   res.headers.set('Content-Security-Policy', cspHeader.replace(/\s{2,}/g, ' ').trim());
+  res.headers.set('X-Content-Type-Options', 'nosniff');
 
   return res;
 }
