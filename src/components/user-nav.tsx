@@ -36,6 +36,8 @@ export function UserNav() {
     'Role Management:Read'
   ].some(p => hasPermission(p));
 
+  const sanitizedPhoneNumber = user?.phoneNumber?.replace(/[^0-9+]/g, '');
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -52,7 +54,7 @@ export function UserNav() {
                 <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">{user.firstName} {user.lastName}</p>
                     <p className="text-xs leading-none text-muted-foreground">
-                    {user.phoneNumber}
+                    {sanitizedPhoneNumber}
                     </p>
                 </div>
             ) : (
