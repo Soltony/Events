@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -172,39 +173,43 @@ export default function PublicHomePage() {
         ) : (otherEvents.length > 0) ? (
           otherEvents.map((event) => {
             const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-            
+            const gradientStyle = event.color
+              ? { background: `linear-gradient(to top, ${event.color}BF, #F9FAFB00)` }
+              : { background: `linear-gradient(to top, #000000BF, #F9FAFB00)` };
+
               return (
                 <Link href={`/events/${event.id}`} key={event.id} className="group">
                   <CardContainer containerClassName="py-0">
                     <CardBody className="bg-gray-50 relative group/card dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-auto h-auto rounded-xl p-4 border">
-                      <CardItem translateZ="100" className="w-full">
-                        <Image
-                          src={imageUrl}
-                          height="1000"
-                          width="1000"
-                          className="h-48 w-full object-cover rounded-xl group-hover/card:shadow-xl"
-                          alt={event.name}
-                          data-ai-hint={event.hint ?? 'event'}
-                          onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}
-                        />
-                      </CardItem>
-                      <CardItem
-                        translateZ="50"
-                        className="p-3 flex-1 space-y-1 bg-transparent text-black"
-                      >
-                        <Badge variant="outline" className={`text-xs ${getCategoryBadgeClass(event.category)} border-black/20 bg-black/5 text-black`}>{event.category}</Badge>
-                        <CardTitle className="text-base leading-tight text-black">{event.name}</CardTitle>
-                        <CardDescription className="text-xs text-black/70">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
-                      </CardItem>
-                      <div className="flex justify-between items-center mt-4 px-3">
-                        <CardItem
-                          translateZ={20}
-                          as="button"
-                          className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground p-2 text-xs font-bold"
-                        >
-                          Buy Tickets <ArrowUpRight className="h-4 w-4 inline" />
+                        <CardItem translateZ="100" className="w-full relative">
+                          <Image
+                            src={imageUrl}
+                            height="1000"
+                            width="1000"
+                            className="h-48 w-full object-cover rounded-xl group-hover/card:shadow-xl"
+                            alt={event.name}
+                            data-ai-hint={event.hint ?? 'event'}
+                            onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}
+                          />
+                          <div className="absolute inset-0 rounded-xl" style={gradientStyle} />
                         </CardItem>
-                      </div>
+                        <CardItem
+                          translateZ="50"
+                          className="p-3 flex-1 space-y-1 bg-transparent text-black"
+                        >
+                          <Badge variant="outline" className={`text-xs ${getCategoryBadgeClass(event.category)} border-black/20 bg-black/5 text-black`}>{event.category}</Badge>
+                          <h3 className="text-base font-bold leading-tight text-black">{event.name}</h3>
+                          <p className="text-xs text-black/90">{formatEventDate(event.startDate, event.endDate)}</p>
+                        </CardItem>
+                        <div className="flex justify-between items-center mt-4 px-3">
+                          <CardItem
+                            translateZ={20}
+                            as="button"
+                            className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground p-2 text-xs font-bold"
+                          >
+                            Buy Tickets <ArrowUpRight className="h-4 w-4 inline" />
+                          </CardItem>
+                        </div>
                     </CardBody>
                   </CardContainer>
                 </Link>
