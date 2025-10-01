@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AuthStatus } from "@/components/auth-status";
 import EventsCarousel from "@/components/events-carousel";
+import { CardBody, CardContainer, CardItem } from "@/components/ui/3d-card";
 
 
 interface EventWithTickets extends Event {
@@ -178,7 +179,7 @@ export default function PublicHomePage() {
 
         <EventsCarousel events={upcomingEvents} />
 
-      <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 p-4 lg:p-6 mt-8">
+      <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 p-4 lg:p-6 mt-8">
         {loading ? (
             [...Array(10)].map((_, i) => (
                 <Card key={i}>
@@ -190,34 +191,42 @@ export default function PublicHomePage() {
         ) : (otherEvents.length > 0) ? (
           otherEvents.map((event) => {
             const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-            const gradientStyle = event.color
-              ? { background: `linear-gradient(to bottom, ${event.color}, transparent)` }
-              : { background: `linear-gradient(to bottom, #000000, transparent)` };
             const useDarkText = isColorLight(event.color);
 
               return (
                 <Link href={`/events/${event.id}`} key={event.id} className="group">
-                  <Card className="flex flex-col h-full group-hover:shadow-lg transition-shadow duration-300 overflow-hidden relative bg-card/80">
-                    <div className="absolute inset-0" style={gradientStyle} />
-                    <div className="relative z-10 flex flex-col h-full">
-                      <CardHeader className="p-0 relative aspect-video bg-transparent">
-                        <Image src={imageUrl} alt={event.name} fill className="rounded-t-lg object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}/>
-                        <div className="absolute inset-0 bg-transparent"></div>
-                      </CardHeader>
-                      <CardContent className={`p-3 flex-1 space-y-1 bg-transparent ${useDarkText ? 'text-black' : 'text-white'}` }>
+                  <CardContainer containerClassName="py-0">
+                    <CardBody className="bg-gray-50 relative group/card  dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-auto h-auto rounded-xl p-6 border">
+                      <CardItem translateZ="100" className="w-full mt-4">
+                        <Image
+                          src={imageUrl}
+                          height="1000"
+                          width="1000"
+                          className="h-60 w-full object-cover rounded-xl group-hover/card:shadow-xl"
+                          alt={event.name}
+                          data-ai-hint={event.hint ?? 'event'}
+                          onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}
+                        />
+                      </CardItem>
+                      <CardItem
+                        translateZ="50"
+                        className={`p-3 flex-1 space-y-1 bg-transparent ${useDarkText ? 'text-black' : 'text-white'}` }
+                      >
                         <Badge variant="outline" className={`text-xs ${getCategoryBadgeClass(event.category)} ${useDarkText ? 'border-black/20' : 'border-white/50'} ${useDarkText ? 'bg-black/5 text-black' : 'bg-white/20 text-white'}`}>{event.category}</Badge>
                         <CardTitle className="text-base leading-tight">{event.name}</CardTitle>
                         <CardDescription className={`text-xs ${useDarkText ? 'text-black/70' : 'text-white/90'}`}>{formatEventDate(event.startDate, event.endDate)}</CardDescription>
-                      </CardContent>
-                      <CardFooter className={`p-3 pt-0 bg-transparent rounded-b-lg border-t ${useDarkText ? 'border-black/10' : 'border-white/20'}` }>
-                          <Button asChild className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground" size="sm">
-                            <span >
-                              Buy Tickets <ArrowUpRight className="h-4 w-4" />
-                            </span>
-                          </Button>
-                      </CardFooter>
-                    </div>
-                  </Card>
+                      </CardItem>
+                      <div className="flex justify-between items-center mt-10">
+                        <CardItem
+                          translateZ={20}
+                          as="button"
+                          className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground p-2 text-xs font-bold"
+                        >
+                          Buy Tickets <ArrowUpRight className="h-4 w-4 inline" />
+                        </CardItem>
+                      </div>
+                    </CardBody>
+                  </CardContainer>
                 </Link>
               )
             })
