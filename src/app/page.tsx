@@ -194,6 +194,10 @@ export default function PublicHomePage() {
                             onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}
                           />
                         </CardItem>
+                        <div
+                          className="flex-1 flex flex-col justify-between"
+                          style={gradientStyle}
+                        >
                                 <CardItem
                                   as="div"
                                   translateZ="50"
@@ -212,6 +216,7 @@ export default function PublicHomePage() {
                                     Buy Tickets <ArrowUpRight className="h-4 w-4 inline" />
                                   </CardItem>
                                 </div>
+                        </div>
                     </CardBody>
                   </CardContainer>
                 </Link>
