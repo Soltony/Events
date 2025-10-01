@@ -181,28 +181,27 @@ export default function PublicHomePage() {
                 <Link href={`/events/${event.id}`} key={event.id} className="group h-full">
                   <CardContainer containerClassName="py-0 h-full">
                     <CardBody className="bg-gray-50 relative group/card dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-auto h-full rounded-xl p-4 border flex flex-col">
-                        <CardItem translateZ="100" className="w-full relative h-48">
+                        <CardItem translateZ="100" className="w-full relative">
                            <Image
                             src={imageUrl}
-                            fill
-                            className="object-cover rounded-xl group-hover/card:shadow-xl"
+                            height="1000"
+                            width="1000"
+                            className="h-48 w-full object-cover rounded-xl group-hover/card:shadow-xl"
                             alt={event.name}
                             data-ai-hint={event.hint ?? 'event'}
                             onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}
                           />
+                          <div className="absolute inset-0 rounded-xl" style={gradientStyle} />
                         </CardItem>
-                        <div className="relative pt-4 flex-1 flex flex-col">
-                            <div className="absolute -top-4 bottom-0 left-0 right-0" style={gradientStyle}></div>
-                            <div className="relative flex-1 flex flex-col">
                                 <CardItem
                                   translateZ="50"
-                                  className="flex-1 space-y-1 bg-transparent text-black"
+                                  className="p-3 flex-1 space-y-1 bg-transparent text-black"
                                 >
                                   <Badge variant="outline" className={`text-xs border-black/20 bg-black/5 text-black`}>{event.category}</Badge>
                                   <h3 className="text-base font-bold leading-tight text-black">{event.name}</h3>
                                   <p className="text-xs text-black/90 min-h-[2.5rem]">{formatEventDate(event.startDate, event.endDate)}</p>
                                 </CardItem>
-                                <div className="flex justify-between items-center mt-auto">
+                                <div className="flex justify-between items-center mt-auto px-3">
                                   <CardItem
                                     translateZ={20}
                                     as="button"
@@ -211,8 +210,6 @@ export default function PublicHomePage() {
                                     Buy Tickets <ArrowUpRight className="h-4 w-4 inline" />
                                   </CardItem>
                                 </div>
-                            </div>
-                        </div>
                     </CardBody>
                   </CardContainer>
                 </Link>
