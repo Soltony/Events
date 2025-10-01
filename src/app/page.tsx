@@ -191,13 +191,13 @@ export default function PublicHomePage() {
                             data-ai-hint={event.hint ?? 'event'}
                             onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}
                           />
-                          <div className="absolute inset-0 rounded-xl" style={gradientStyle} />
                         </CardItem>
                                 <CardItem
+                                  as="div"
                                   translateZ="50"
                                   className="p-3 flex-1 space-y-1 bg-transparent text-black"
                                 >
-                                  <Badge variant="outline" className={`text-xs border-black/20 bg-black/5 text-black`}>{event.category}</Badge>
+                                  <Badge variant="outline" className="text-xs border-black/20 bg-black/5 text-black">{event.category}</Badge>
                                   <h3 className="text-base font-bold leading-tight text-black">{event.name}</h3>
                                   <p className="text-xs text-black/90 min-h-[2.5rem]">{formatEventDate(event.startDate, event.endDate)}</p>
                                 </CardItem>
