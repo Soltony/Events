@@ -32,18 +32,15 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased" suppressHydrationWarning={true}>
         <AuthProvider>
-                    <div className="flex flex-col min-h-screen relative">
+            <div className="flex flex-col min-h-screen relative">
               <main className="flex-1 bg-background">
                 {children}
               </main>
               <ConditionalFooter />
-
-          </div>
-          <Toaster />
+            </div>
+            <Toaster />
         </AuthProvider>
       </body>
     </html>
   );
 }
-
-    
