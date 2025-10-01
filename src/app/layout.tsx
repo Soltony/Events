@@ -6,7 +6,6 @@ import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/auth-context';
 import { ConditionalFooter } from '@/components/conditional-footer';
 import { headers } from 'next/headers'
-import { ScriptProps } from 'next/script';
 import React from 'react';
  
 export const metadata: Metadata = {
@@ -14,10 +13,10 @@ export const metadata: Metadata = {
   description: 'The ultimate solution for event ticketing.',
   icons: null,
 };
- 
-function Script(props: ScriptProps) : React.ReactElement {
+
+function Script(props: React.ComponentProps<'script'>) {
   const nonce = headers().get('x-nonce') ?? undefined;
-  return <script nonce={nonce} {...props}></script>;
+  return <script nonce={nonce} {...props} />;
 }
  
 export default function RootLayout({
