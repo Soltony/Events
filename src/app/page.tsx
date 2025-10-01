@@ -161,7 +161,7 @@ export default function PublicHomePage() {
 
         <EventsCarousel events={upcomingEvents} />
 
-      <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 p-4 lg:p-6 mt-8">
+      <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 p-4 lg:p-6 mt-8">
         {loading ? (
             [...Array(10)].map((_, i) => (
                 <Card key={i}>
@@ -180,7 +180,7 @@ export default function PublicHomePage() {
               return (
                 <Link href={`/events/${event.id}`} key={event.id} className="group">
                   <CardContainer containerClassName="py-0">
-                    <CardBody className="bg-gray-50 relative group/card dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-auto h-auto rounded-xl p-4 border">
+                    <CardBody className="bg-gray-50 relative group/card  dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-auto h-auto rounded-xl p-4 border  ">
                         <CardItem translateZ="100" className="w-full relative">
                           <Image
                             src={imageUrl}
