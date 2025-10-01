@@ -35,25 +35,6 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     return format(new Date(startDate), startDateFormat);
 }
 
-function isColorLight(hexColor?: string | null): boolean {
-    if (!hexColor) return false;
-    const hex = hexColor.replace('#', '');
-    if (!(hex.length === 3 || hex.length === 6)) return false;
-    const normalized = hex.length === 3
-        ? hex.split('').map((c) => c + c).join('')
-        : hex;
-    const r = parseInt(normalized.substring(0, 2), 16);
-    const g = parseInt(normalized.substring(2, 4), 16);
-    const b = parseInt(normalized.substring(4, 6), 16);
-    // Calculate relative luminance (sRGB)
-    const srgb = [r, g, b].map((v) => {
-        const c = v / 255;
-        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-    });
-    const luminance = 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
-    return luminance > 0.65; // threshold; higher means lighter color
-}
-
 const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 
 export default function PublicHomePage() {
@@ -191,18 +172,17 @@ export default function PublicHomePage() {
         ) : (otherEvents.length > 0) ? (
           otherEvents.map((event) => {
             const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-            const useDarkText = isColorLight(event.color);
-
+            
               return (
                 <Link href={`/events/${event.id}`} key={event.id} className="group">
                   <CardContainer containerClassName="py-0">
-                    <CardBody className="bg-gray-50 relative group/card  dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-auto h-auto rounded-xl p-6 border">
-                      <CardItem translateZ="100" className="w-full mt-4">
+                    <CardBody className="bg-gray-50 relative group/card dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-auto h-auto rounded-xl p-4 border">
+                      <CardItem translateZ="100" className="w-full">
                         <Image
                           src={imageUrl}
                           height="1000"
                           width="1000"
-                          className="h-60 w-full object-cover rounded-xl group-hover/card:shadow-xl"
+                          className="h-48 w-full object-cover rounded-xl group-hover/card:shadow-xl"
                           alt={event.name}
                           data-ai-hint={event.hint ?? 'event'}
                           onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}
@@ -210,13 +190,13 @@ export default function PublicHomePage() {
                       </CardItem>
                       <CardItem
                         translateZ="50"
-                        className={`p-3 flex-1 space-y-1 bg-transparent ${useDarkText ? 'text-black' : 'text-white'}` }
+                        className="p-3 flex-1 space-y-1 bg-transparent text-black"
                       >
-                        <Badge variant="outline" className={`text-xs ${getCategoryBadgeClass(event.category)} ${useDarkText ? 'border-black/20' : 'border-white/50'} ${useDarkText ? 'bg-black/5 text-black' : 'bg-white/20 text-white'}`}>{event.category}</Badge>
-                        <CardTitle className="text-base leading-tight">{event.name}</CardTitle>
-                        <CardDescription className={`text-xs ${useDarkText ? 'text-black/70' : 'text-white/90'}`}>{formatEventDate(event.startDate, event.endDate)}</CardDescription>
+                        <Badge variant="outline" className={`text-xs ${getCategoryBadgeClass(event.category)} border-black/20 bg-black/5 text-black`}>{event.category}</Badge>
+                        <CardTitle className="text-base leading-tight text-black">{event.name}</CardTitle>
+                        <CardDescription className="text-xs text-black/70">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
                       </CardItem>
-                      <div className="flex justify-between items-center mt-10">
+                      <div className="flex justify-between items-center mt-4 px-3">
                         <CardItem
                           translateZ={20}
                           as="button"
