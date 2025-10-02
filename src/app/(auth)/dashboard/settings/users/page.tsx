@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -70,8 +71,8 @@ export default function UserManagementPage() {
                     return false;
                 }
                 
-                // Hide users with the same role (peers)
-                if (user.role.name === currentUser.role.name) {
+                // Hide users with the same role (peers) from sub-admins
+                if (currentUser.role.name !== 'Admin' && user.role.name === currentUser.role.name) {
                     return false;
                 }
 
