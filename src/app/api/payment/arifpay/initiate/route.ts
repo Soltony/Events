@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
 
         if (!paymentGatewayUrl || !apiKey || !failureUrl || !callbackUrl || !successUrl) {
             console.error("Payment gateway URL, API key, or callback/redirect URLs are missing.");
-            return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
+            return NextResponse.json({ error: 'Server configuration error.', pendingOrder }, { status: 500 });
         }
 
         const paymentGatewayData = {
@@ -87,10 +87,10 @@ export async function POST(req: NextRequest) {
         } catch (networkError: any) {
             if (networkError.name === 'AbortError') {
                  console.error("ArifPay API call timed out:", networkError);
-                 return NextResponse.json({ error: 'Payment gateway is not responding. Please try again later.' }, { status: 504 });
+                 return NextResponse.json({ error: 'Payment gateway is not responding. Please try again later.', pendingOrder }, { status: 504 });
             }
             console.error("Network error while connecting to ArifPay:", networkError);
-            return NextResponse.json({ error: 'Cannot reach ArifPay service. Please try again later.' }, { status: 503 });
+            return NextResponse.json({ error: 'Cannot reach ArifPay service. Please try again later.', pendingOrder }, { status: 503 });
         }
         
         const rawText = await paymentGatewayResponse.text();
@@ -99,12 +99,12 @@ export async function POST(req: NextRequest) {
             paymentGatewayResult = JSON.parse(rawText);
         } catch (parseError) {
             console.error("Failed to parse ArifPay response as JSON:", rawText);
-            return NextResponse.json({ error: 'Invalid response from payment gateway.' }, { status: 502 });
+            return NextResponse.json({ error: 'Invalid response from payment gateway.', pendingOrder }, { status: 502 });
         }
 
         if (paymentGatewayResult.ResponseCode !== "0" || !paymentGatewayResult.Data?.URL || !paymentGatewayResult.Data?.NA) {
             console.error('Payment Gateway API Error:', paymentGatewayResult);
-            return NextResponse.json({ error: paymentGatewayResult.ResponseDescription || 'Error communicating with payment gateway.' }, { status: 502 });
+            return NextResponse.json({ error: paymentGatewayResult.ResponseDescription || 'Error communicating with payment gateway.', pendingOrder }, { status: 502 });
         }
         
         await prisma.pendingOrder.update({
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
             data: { arifpaySessionId: paymentGatewayResult.Data.NA },
         });
         const finalSuccessUrl = `${process.env.SUCCESS_URL}?transaction_id=${transactionId}&session_id=${paymentGatewayResult.Data.NA}`;
-        return NextResponse.json({ paymentUrl: paymentGatewayResult.Data.URL, successUrl: finalSuccessUrl });
+        return NextResponse.json({ paymentUrl: paymentGatewayResult.Data.URL, successUrl: finalSuccessUrl, pendingOrder });
     } catch (error: any) {
         console.error('Payment initiation failed:', error);
         return NextResponse.json({ error: error.message || 'An unexpected error occurred.' }, { status: 500 });

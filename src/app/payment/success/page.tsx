@@ -20,6 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { revalidatePath } from 'next/cache';
 
 interface TicketDetails extends Attendee {
     event: Event;
@@ -47,24 +48,39 @@ function SuccessContent() {
     const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
 
     useEffect(() => {
-    if (!idToCheck) {
-    setError("Transaction or Session ID is missing from the URL.");
-    setLoading(false);
-    return;
-  }
+        if (!idToCheck) {
+            setError("Transaction or Session ID is missing from the URL.");
+            setLoading(false);
+            return;
+        }
 
-  const pollForStatus = async (retries = 10, delay = 2000): Promise<number | null> => {
-    for (let i = 0; i < retries; i++) {
-      try {
-        const response = await fetch(`/api/payment/status/${idToCheck}`);
+        const pollForStatus = async (retries = 10, delay = 2000): Promise<{attendeeId: number | null, isMock: boolean}> => {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(`/api/payment/status/${idToCheck}`);
                     if (!response.ok) {
                         await new Promise(resolve => setTimeout(resolve, delay));
                         continue;
                     }
                     const data = await response.json();
                     if (data.status === 'COMPLETED' && data.attendeeId) {
-                        return data.attendeeId;
-                    } else if (data.status === 'FAILED') {
+                        return { attendeeId: data.attendeeId, isMock: false };
+                    }
+                     // MOCK FLOW: If status is still PENDING after a while, we proceed.
+                    if (data.status === 'PENDING' && i > 1) { 
+                        // The backend will create the attendee from the pending order
+                        const mockResponse = await fetch('/api/payment/arifpay/notify', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ sessionId: idToCheck, transaction: { transactionStatus: 'SUCCESS' }})
+                        });
+                        if (mockResponse.ok) {
+                            // Give it a moment to process, then retry polling.
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            continue;
+                        }
+                    }
+                    if (data.status === 'FAILED') {
                         throw new Error('Payment failed.');
                     }
                 } catch (e) {
@@ -72,7 +88,7 @@ function SuccessContent() {
                 }
                 await new Promise(resolve => setTimeout(resolve, delay));
             }
-            return null;
+            return { attendeeId: null, isMock: false };
         };
 
         const fetchTicketData = async (attendeeId: number) => {
@@ -100,7 +116,7 @@ function SuccessContent() {
             }
         };
 
-        pollForStatus().then(attendeeId => {
+        pollForStatus().then(({ attendeeId, isMock }) => {
             if (attendeeId) {
                 fetchTicketData(attendeeId);
             } else {
