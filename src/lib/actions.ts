@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -823,6 +824,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
             userId: user?.id,
         }
     };
+
     let pendingOrder;
     try {
         const appUrl = process.env.APP_URL;
@@ -849,13 +851,13 @@ export async function purchaseTickets(request: PurchaseRequest) {
         if (error.digest?.startsWith('NEXT_REDIRECT')) {
             throw error;
         }
-        console.error("Failed to initiate ArifPay payment:", error.message, ". Proceeding with mock success flow.");
+        console.error("Failed to initiate payment:", error.message, ". Proceeding with mock success flow.");
 
         if (pendingOrder) {
             redirect(`/payment/success?transaction_id=${pendingOrder.transactionId}`);
         } else {
-            // Fallback if pending order wasn't even created
-            console.error("Could not create pending order for mock flow.");
+            // Fallback if pending order wasn't even created.
+            console.error("Could not create pending order for mock flow. Redirecting to failure.");
             redirect(`/payment/failure?event_id=${eventId}`);
         }
     }
