@@ -1,6 +1,13 @@
 
 import type { NextConfig } from "next";
 
+const securityHeaders = [
+    {
+      key: 'Strict-Transport-Security',
+      value: 'max-age=63072000; includeSubDomains; preload',
+    },
+];
+
 const nextConfig: NextConfig = {
   output: "standalone",
   typescript: {
@@ -8,6 +15,14 @@ const nextConfig: NextConfig = {
   },
   eslint: {
     ignoreDuringBuilds: true,
+  },
+  async headers() {
+    return [
+        {
+            source: '/:path*',
+            headers: securityHeaders,
+        },
+    ];
   },
   images: {
     remotePatterns: [
