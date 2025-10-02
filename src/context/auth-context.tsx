@@ -2,7 +2,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import api, { setAuthToken } from '@/lib/api';
 import { getUserByPhoneNumber } from '@/lib/actions';
@@ -37,17 +37,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserWithRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
   const { toast } = useToast();
 
-  const logout = useCallback(async (options?: { reason?: string }) => {
-    const { reason } = options || {};
-    
+  const clearAuthData = useCallback(async () => {
     setUser(null);
     setTokens(null);
     setAuthToken(null);
     localStorage.removeItem('authUser');
-    
     await fetch('/api/auth/session', { method: 'DELETE' });
+  }, []);
+
+  const logout = useCallback(async (options?: { reason?: string }) => {
+    const { reason } = options || {};
+    
+    await clearAuthData();
     
     if (reason) {
         toast({
@@ -56,9 +60,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
     }
     
-    router.push('/login');
+    // Only redirect if they are on a protected route.
+    if (pathname.startsWith('/dashboard')) {
+        router.push('/login');
+    }
 
-  }, [router, toast]);
+  }, [router, toast, clearAuthData, pathname]);
 
   const refreshUser = useCallback(async () => {
     const storedUser = localStorage.getItem('authUser');
@@ -96,20 +103,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     const parsedUser = JSON.parse(storedUser);
                     setUser(parsedUser);
                 } else {
-                    await logout();
+                    await clearAuthData();
                 }
             } else {
-                 await logout();
+                 await clearAuthData();
             }
         } catch (error) {
             console.error("Failed to initialize auth state", error);
-            await logout();
+            await clearAuthData();
         } finally {
             setIsLoading(false);
         }
     }
     initializeAuth();
-}, [logout]);
+}, [clearAuthData]);
 
 
   useEffect(() => {
