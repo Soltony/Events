@@ -26,6 +26,20 @@ const nextConfig = {
     ],
   },
   poweredByHeader: false,
+
+  async headers() {
+    return [
+      {
+        source: "/:path*", // apply to all routes
+        headers: [
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
