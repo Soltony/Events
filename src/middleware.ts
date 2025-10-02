@@ -23,17 +23,18 @@ export function middleware(req: NextRequest) {
 
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set('x-nonce', nonce);
-  requestHeaders.set(
-    'Content-Security-Policy',
-    // Replace newline characters and spaces
-    cspHeader.replace(/\s{2,}/g, ' ').trim()
-  );
-
-  return NextResponse.next({
+  
+  const res = NextResponse.next({
     request: {
       headers: requestHeaders,
     },
   });
+
+  // Also set the CSP header on the response
+  res.headers.set('Content-Security-Policy', cspHeader.replace(/\s{2,}/g, ' ').trim());
+  res.headers.set('X-Content-Type-Options', 'nosniff');
+
+  return res;
 }
 
 export const config = {
