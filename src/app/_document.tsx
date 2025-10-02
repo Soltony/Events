@@ -1,5 +1,7 @@
+
 import { Html, Head, Main, NextScript } from 'next/document'
 import type { DocumentProps } from 'next/document'
+import React from 'react';
  
 class MyDocument extends React.Component<DocumentProps & { nonce: string }> {
   render() {
