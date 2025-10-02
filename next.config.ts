@@ -1,41 +1,8 @@
-import type { NextConfig } from "next";
 
-const securityHeaders = [
-  {
-    key: "Content-Security-Policy",
-    value: `
-      default-src 'self';
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com;
-      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-      img-src 'self' https://placehold.co https://storage.googleapis.com data:;
-      font-src 'self' https://fonts.gstatic.com;
-      connect-src 'self' http://localhost:3000;
-      object-src 'none';
-      frame-ancestors 'none';
-      base-uri 'self';
-      form-action 'self'
-    `.replace(/\s{2,}/g, " "), // removes newlines/spaces
-  },
-  {
-    key: "X-Content-Type-Options",
-    value: "nosniff",
-  },
-  {
-    key: "X-Frame-Options",
-    value: "DENY",
-  },
-  {
-    key: "Referrer-Policy",
-    value: "strict-origin-when-cross-origin",
-  },
-  {
-    key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=()",
-  },
-];
+/ @type {import('next').NextConfig} */
 
-const nextConfig: NextConfig = {
-  output: "standalone",
+const nextConfig = {
+  output: 'standalone',
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -45,16 +12,16 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: "https",
-        hostname: "placehold.co",
-        port: "",
-        pathname: "/**",
+        protocol: 'https',
+        hostname: 'placehold.co',
+        port: '',
+        pathname: '/',
       },
       {
-        protocol: "https",
-        hostname: "storage.googleapis.com",
-        port: "",
-        pathname: "/**",
+        protocol: 'https',
+        hostname: 'storage.googleapis.com',
+        port: '',
+        pathname: '/**',
       },
     ],
   },
@@ -63,10 +30,6 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-<<<<<<< HEAD
-        source: "/(.*)",
-        headers: securityHeaders,
-=======
         source: "/:path*", // apply to all routes
         headers: [
           {
@@ -74,7 +37,6 @@ const nextConfig: NextConfig = {
             value: "nosniff",
           },
         ],
->>>>>>> 8ed13b1f339d0a58314ec95d847ebb3912a43b9c
       },
     ];
   },
