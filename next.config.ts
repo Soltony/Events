@@ -1,3 +1,4 @@
+
 import type { NextConfig } from "next";
 
 const securityHeaders = [
@@ -63,18 +64,8 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-<<<<<<< HEAD
         source: "/(.*)",
         headers: securityHeaders,
-=======
-        source: "/:path*", // apply to all routes
-        headers: [
-          {
-            key: "X-Content-Type-Options",
-            value: "nosniff",
-          },
-        ],
->>>>>>> 8ed13b1f339d0a58314ec95d847ebb3912a43b9c
       },
     ];
   },
