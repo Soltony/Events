@@ -13,6 +13,7 @@ import {
   SidebarContent,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 
 export default function AuthLayout({
@@ -55,6 +56,7 @@ export default function AuthLayout({
               <div className="flex-1">
                 {/* Page title would go here if needed */}
               </div>
+              <ThemeToggle />
               <UserNav />
             </header>
             <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 overflow-y-auto">

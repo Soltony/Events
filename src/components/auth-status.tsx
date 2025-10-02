@@ -7,6 +7,7 @@ import { Button } from './ui/button';
 import { UserNav } from './user-nav';
 import { Skeleton } from './ui/skeleton';
 import { usePathname } from 'next/navigation';
+import { ThemeToggle } from './theme-toggle';
 
 export function AuthStatus() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -25,12 +26,20 @@ export function AuthStatus() {
 
   if (isAuthenticated) {
     // We only show UserNav on non-dashboard pages from here.
-    return <UserNav />;
+    return (
+      <div className="flex items-center gap-2">
+        <ThemeToggle />
+        <UserNav />
+      </div>
+    )
   }
 
   return (
-    <Button asChild className="w-full">
-      <Link href="/login">Organizer Login</Link>
-    </Button>
+    <div className="flex items-center gap-2">
+       <ThemeToggle />
+        <Button asChild className="w-full">
+        <Link href="/login">Organizer Login</Link>
+        </Button>
+    </div>
   );
 }

@@ -7,6 +7,7 @@ import { AuthProvider } from '@/context/auth-context';
 import { ConditionalFooter } from '@/components/conditional-footer';
 import { headers } from 'next/headers'
 import React from 'react';
+import { ThemeProvider } from '@/components/theme-provider';
  
 export const metadata: Metadata = {
   title: 'NibTera Tickets',
@@ -39,15 +40,22 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased" suppressHydrationWarning={true}>
-        <AuthProvider>
-            <div className="flex flex-col min-h-screen relative">
-              <main className="flex-1 bg-background">
-                {children}
-              </main>
-              <ConditionalFooter />
-            </div>
-            <Toaster />
-        </AuthProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AuthProvider>
+              <div className="flex flex-col min-h-screen relative">
+                <main className="flex-1 bg-background">
+                  {children}
+                </main>
+                <ConditionalFooter />
+              </div>
+              <Toaster />
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
