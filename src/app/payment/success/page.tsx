@@ -145,9 +145,9 @@ function SuccessContent() {
              <Card className="shadow-lg">
                 <CardHeader className="text-center items-center bg-secondary/30 p-8">
                     <Loader2 className="h-16 w-16 text-primary animate-spin mb-4" />
-                    <CardTitle className="text-3xl">Finalizing Your Purchase...</CardTitle>
+                    <CardTitle className="text-3xl">Processing Payment...</CardTitle>
                     <CardDescription className="text-lg">
-                        Your payment is being processed. Please wait a moment.
+                        Your payment is being confirmed. Please wait a moment.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="p-8 text-center">
@@ -181,8 +181,8 @@ function SuccessContent() {
             <Card className="shadow-lg">
                 <CardHeader className="text-center items-center bg-green-50 dark:bg-green-900/10 p-8">
                     <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
-                    <CardTitle className="text-3xl">Ticket Confirmed!</CardTitle>
-                    <CardDescription className="text-lg">Thank you for your purchase.</CardDescription>
+                    <CardTitle className="text-3xl">Transaction Successful!</CardTitle>
+                    <CardDescription className="text-lg">Thank you for your purchase. Your ticket is confirmed.</CardDescription>
                 </CardHeader>
                 <CardContent className="p-8">
                     <div className="flex flex-col items-center space-y-6">
@@ -242,7 +242,7 @@ function SuccessContent() {
                 <AlertDialogContent>
                     <AlertDialogHeader className="text-center items-center">
                         <CheckCircle2 className="h-12 w-12 text-green-500 mb-4" />
-                        <AlertDialogTitle className="text-2xl">You have successfully paid for the ticket</AlertDialogTitle>
+                        <AlertDialogTitle className="text-2xl">Transaction Successful!</AlertDialogTitle>
                         <AlertDialogDescription>
                             Your ticket details are now ready.
                         </AlertDialogDescription>
