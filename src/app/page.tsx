@@ -162,12 +162,12 @@ export default function PublicHomePage() {
           ) : (otherEvents.length > 0) ? (
             otherEvents.map((event) => {
               const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-              const gradientStyle = { background: `linear-gradient(to top, ${event.color || '#ffc72e'}, #ffc72e00)` };
+              const gradientStyle = { background: `linear-gradient(to top, ${event.color || '#ffc72e'}, transparent)` };
 
               return (
                 <Link href={`/events/${event.id}`} key={event.id} className="group h-full">
                   <CardContainer containerClassName="py-0 h-full">
-                    <CardBody className="bg-yellow-300 relative group/card w-auto h-full rounded-xl p-4 border flex flex-col">
+                    <CardBody className="bg-white relative group/card w-auto h-full rounded-xl p-4 border flex flex-col">
                       <CardItem translateZ="100" className="w-full relative">
                         <Image
                           src={imageUrl}
