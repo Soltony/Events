@@ -218,7 +218,7 @@ export default function PublicEventDetailPage() {
   const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
   const gradientStyle = event.color
     ? { background: `linear-gradient(to bottom, ${event.color}, #ffffff)` }
-    : { background: `linear-gradient(to bottom, #000000, #ffffff)` };
+    : { background: `linear-gradient(to bottom, #f6b313, #ffffff)` };
 
   return (
     <div className="container mx-auto p-4 md:p-8 max-w-6xl">
