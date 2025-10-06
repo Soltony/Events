@@ -46,7 +46,7 @@ export default function DashboardPage() {
   const chartConfig = {
     ticketsSold: {
       label: "Tickets Sold",
-      color: "hsl(var(--primary))",
+      color: "#feb914",
     },
   };
   
