@@ -418,7 +418,7 @@ export default function EventDetailPage() {
   const chartConfig = {
     sold: {
       label: "Sold",
-      color: "hsl(var(--primary))",
+      color: "#feb914",
     },
     remaining: {
       label: "Remaining",
@@ -885,4 +885,3 @@ export default function EventDetailPage() {
     </>
   );
 }
-
