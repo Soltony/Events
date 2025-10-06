@@ -7,6 +7,7 @@ import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee,
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import type { DateRange } from 'react-day-picker';
+import { randomBytes } from 'crypto';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -828,26 +829,38 @@ export async function purchaseTickets(request: PurchaseRequest) {
     // we'll use the mock flow.
     const useMockFlow = process.env.NODE_ENV === 'development' || !process.env.BASE_URL || !process.env.ARIFPAY_API_KEY;
 
-    if (useMockFlow) {
-        console.log("Using mock payment flow.");
-        const appUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 3001}`;
-        const response = await fetch(`${appUrl}/api/payment/arifpay/initiate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...purchaseData, mock: true }),
-        });
-        const result = await response.json();
-        if (result.pendingOrder) {
-            redirect(`/payment/success?transaction_id=${result.pendingOrder.transactionId}`);
-        } else {
-            console.error("Could not create pending order for mock flow.");
-            redirect(`/payment/failure?event_id=${eventId}`);
-        }
-        return;
-    }
-
-    // Production flow with real payment gateway
     try {
+        if (useMockFlow) {
+            console.log("Using mock payment flow.");
+            const totalQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0);
+            const transactionId = randomBytes(16).toString('hex');
+
+            const pendingOrder = await prisma.pendingOrder.create({
+                data: {
+                    transactionId: transactionId,
+                    eventId,
+                    ticketTypeId: tickets[0].id,
+                    attendeeData: {
+                        name: attendeeDetails.name,
+                        phoneNumber: attendeeDetails.phone,
+                        userId: user?.id,
+                        quantity: totalQuantity,
+                    },
+                    promoCode,
+                    status: 'PENDING',
+                },
+            });
+
+            if (pendingOrder) {
+                redirect(`/payment/success?transaction_id=${pendingOrder.transactionId}`);
+            } else {
+                console.error("Could not create pending order for mock flow.");
+                redirect(`/payment/failure?event_id=${eventId}`);
+            }
+            return;
+        }
+
+        // Production flow with real payment gateway
         const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_VERCEL_URL;
         if (!appUrl) {
             throw new Error("App URL environment variable is not set.");
