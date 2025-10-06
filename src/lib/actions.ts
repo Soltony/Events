@@ -823,8 +823,30 @@ export async function purchaseTickets(request: PurchaseRequest) {
             userId: user?.id,
         }
     };
+    
+    // In a development environment, or if the real payment gateway isn't configured,
+    // we'll use the mock flow.
+    const useMockFlow = process.env.NODE_ENV === 'development' || !process.env.BASE_URL || !process.env.ARIFPAY_API_KEY;
 
-    let pendingOrder;
+    if (useMockFlow) {
+        console.log("Using mock payment flow.");
+        const appUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 3001}`;
+        const response = await fetch(`${appUrl}/api/payment/arifpay/initiate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...purchaseData, mock: true }),
+        });
+        const result = await response.json();
+        if (result.pendingOrder) {
+            redirect(`/payment/success?transaction_id=${result.pendingOrder.transactionId}`);
+        } else {
+            console.error("Could not create pending order for mock flow.");
+            redirect(`/payment/failure?event_id=${eventId}`);
+        }
+        return;
+    }
+
+    // Production flow with real payment gateway
     try {
         const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_VERCEL_URL;
         if (!appUrl) {
@@ -838,8 +860,6 @@ export async function purchaseTickets(request: PurchaseRequest) {
         });
 
         const result = await response.json();
-        
-        pendingOrder = result.pendingOrder;
 
         if (response.ok && result.paymentUrl) {
             redirect(result.paymentUrl);
@@ -850,25 +870,8 @@ export async function purchaseTickets(request: PurchaseRequest) {
         if (error.digest?.startsWith('NEXT_REDIRECT')) {
             throw error;
         }
-        console.error("Payment initiation failed:", error.message, ". Proceeding with mock success flow.");
-
-        if (pendingOrder) {
-            redirect(`/payment/success?transaction_id=${pendingOrder.transactionId}`);
-        } else {
-            // Fallback if pending order wasn't even created.
-             const response = await fetch(`${process.env.APP_URL}/api/payment/arifpay/initiate`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({...purchaseData, mock: true}), // Add a flag for mock
-            });
-             const result = await response.json();
-            if(result.pendingOrder) {
-                redirect(`/payment/success?transaction_id=${result.pendingOrder.transactionId}`);
-            } else {
-                console.error("Could not create pending order for mock flow. Redirecting to failure.");
-                redirect(`/payment/failure?event_id=${eventId}`);
-            }
-        }
+        console.error("Payment initiation failed:", error.message);
+        redirect(`/payment/failure?event_id=${eventId}`);
     }
 }
 
