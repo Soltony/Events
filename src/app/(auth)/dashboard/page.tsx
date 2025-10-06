@@ -139,7 +139,7 @@ export default function DashboardPage() {
                         <XAxis dataKey="name" tickLine={false} tickMargin={10} axisLine={false} />
                         <YAxis />
                         <Tooltip cursor={{fill: 'hsl(var(--muted))'}} content={<ChartTooltipContent />} />
-                        <Bar dataKey="ticketsSold" fill="var(--color-ticketsSold)" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="ticketsSold" fill="#feb914" radius={[4, 4, 0, 0]} />
                     </BarChart>
                 </ChartContainer>
             ) : (
