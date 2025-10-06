@@ -72,7 +72,6 @@ export default function PublicHomePage() {
             setLoading(false);
         }
     }
-    setLoading(true);
     fetchData();
   }, []);
 
@@ -102,7 +101,7 @@ export default function PublicHomePage() {
   }, [events, searchQuery, selectedCategory]);
 
   return (
-    <div className="relative flex flex-1 flex-col">
+    <div className="relative flex flex-1 flex-col overflow-hidden">
       <Image
         src="/image/bg.jpg"
         alt="Background"
@@ -155,79 +154,81 @@ export default function PublicHomePage() {
           </div>
         </div>
         
-        {/* Title below header for better hierarchy */}
-        <div className="container mx-auto px-4 lg:px-6 mt-3 text-center">
-           <h2 className="text-3xl font-bold tracking-tight">Upcoming Events</h2>
-           <p className="text-muted-foreground mt-1">Check out these exciting upcoming events!</p>
-        </div>
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* Title below header for better hierarchy */}
+          <div className="container mx-auto px-4 lg:px-6 mt-3 text-center">
+            <h2 className="text-3xl font-bold tracking-tight">Upcoming Events</h2>
+            <p className="text-muted-foreground mt-1">Check out these exciting upcoming events!</p>
+          </div>
 
-        <EventsCarousel events={upcomingEvents} />
+          <EventsCarousel events={upcomingEvents} />
 
-      <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 p-4 lg:p-6 mt-8">
-        {loading ? (
-            [...Array(10)].map((_, i) => (
-                <Card key={i}>
-                    <CardHeader className="p-0"><Skeleton className="w-full aspect-video rounded-t-lg" /></CardHeader>
-                    <CardContent className="p-3 space-y-1"><Skeleton className="h-4 w-16" /><Skeleton className="h-5 w-3/4" /><Skeleton className="h-4 w-1/2" /></CardContent>
-                    <CardFooter className="p-3 pt-0"><Skeleton className="h-9 w-full" /></CardFooter>
-                </Card>
-            ))
-        ) : (otherEvents.length > 0) ? (
-          otherEvents.map((event) => {
-            const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-            const gradientStyle = { background: `linear-gradient(to top, #ffc72e, #ffc72e00)` };
+          <div className="flex-1 grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 p-4 lg:p-6 mt-8 overflow-y-auto">
+            {loading ? (
+                [...Array(10)].map((_, i) => (
+                    <Card key={i}>
+                        <CardHeader className="p-0"><Skeleton className="w-full aspect-video rounded-t-lg" /></CardHeader>
+                        <CardContent className="p-3 space-y-1"><Skeleton className="h-4 w-16" /><Skeleton className="h-5 w-3/4" /><Skeleton className="h-4 w-1/2" /></CardContent>
+                        <CardFooter className="p-3 pt-0"><Skeleton className="h-9 w-full" /></CardFooter>
+                    </Card>
+                ))
+            ) : (otherEvents.length > 0) ? (
+              otherEvents.map((event) => {
+                const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
+                const gradientStyle = { background: `linear-gradient(to top, #ffc72e, #ffc72e00)` };
 
-              return (
-                <Link href={`/events/${event.id}`} key={event.id} className="group h-full">
-                  <CardContainer containerClassName="py-0 h-full">
-                    <CardBody className="bg-yellow-300 relative group/card  w-auto h-full rounded-xl p-4 border flex flex-col">
-                        <CardItem translateZ="100" className="w-full relative">
-                           <Image
-                            src={imageUrl}
-                            height="1000"
-                            width="1000"
-                            className="h-48 w-full object-cover rounded-xl group-hover/card:shadow-xl"
-                            alt={event.name}
-                            data-ai-hint={event.hint ?? 'event'}
-                            onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}
-                          />
-                        </CardItem>
-                        <div
-                          className="flex-1 flex flex-col justify-between rounded-b-xl"
-                          style={gradientStyle}
-                        >
-                                <CardItem
-                                  as="div"
-                                  translateZ="50"
-                                  className="p-3 flex-1 space-y-1 bg-transparent text-black"
-                                >
-                                  <Badge variant="outline" className={`text-xs ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
-                                  <h3 className="text-base font-bold leading-tight text-black">{event.name}</h3>
-                                  <p className="text-xs text-black/90 min-h-[2.5rem]">{formatEventDate(event.startDate, event.endDate)}</p>
-                                </CardItem>
-                                <div className="flex justify-between items-center mt-auto px-3 pb-3">
-                                  <CardItem
-                                    translateZ={20}
-                                    as="button"
-                                    className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground p-2 text-xs font-bold"
-                                  >
-                                    Buy Ticket
-                                  </CardItem>
-                                </div>
-                        </div>
-                    </CardBody>
-                  </CardContainer>
-                </Link>
-              )
-            })
-          ) : (
-              <Card className="sm:col-span-2 lg:col-span-3 xl:col-span-5 flex items-center justify-center p-8 text-center bg-card/80">
-                  <div>
-                      <h3 className="text-2xl font-semibold tracking-tight">No Events Found</h3>
-                      <p className="text-muted-foreground mt-2 mb-6">Try adjusting your search or filter criteria.</p>
-                  </div>
-              </Card>
-          )}
+                  return (
+                    <Link href={`/events/${event.id}`} key={event.id} className="group h-full">
+                      <CardContainer containerClassName="py-0 h-full">
+                        <CardBody className="bg-yellow-300 relative group/card  w-auto h-full rounded-xl p-4 border flex flex-col">
+                            <CardItem translateZ="100" className="w-full relative">
+                              <Image
+                                src={imageUrl}
+                                height="1000"
+                                width="1000"
+                                className="h-48 w-full object-cover rounded-xl group-hover/card:shadow-xl"
+                                alt={event.name}
+                                data-ai-hint={event.hint ?? 'event'}
+                                onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}
+                              />
+                            </CardItem>
+                            <div
+                              className="flex-1 flex flex-col justify-between rounded-b-xl"
+                              style={gradientStyle}
+                            >
+                                    <CardItem
+                                      as="div"
+                                      translateZ="50"
+                                      className="p-3 flex-1 space-y-1 bg-transparent text-black"
+                                    >
+                                      <Badge variant="outline" className={`text-xs ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
+                                      <h3 className="text-base font-bold leading-tight text-black">{event.name}</h3>
+                                      <p className="text-xs text-black/90 min-h-[2.5rem]">{formatEventDate(event.startDate, event.endDate)}</p>
+                                    </CardItem>
+                                    <div className="flex justify-between items-center mt-auto px-3 pb-3">
+                                      <CardItem
+                                        translateZ={20}
+                                        as="button"
+                                        className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground p-2 text-xs font-bold"
+                                      >
+                                        Buy Ticket
+                                      </CardItem>
+                                    </div>
+                            </div>
+                        </CardBody>
+                      </CardContainer>
+                    </Link>
+                  )
+                })
+              ) : (
+                  <Card className="sm:col-span-2 lg:col-span-3 xl:col-span-5 flex items-center justify-center p-8 text-center bg-card/80">
+                      <div>
+                          <h3 className="text-2xl font-semibold tracking-tight">No Events Found</h3>
+                          <p className="text-muted-foreground mt-2 mb-6">Try adjusting your search or filter criteria.</p>
+                      </div>
+                  </Card>
+              )}
+            </div>
         </div>
       </div>
     </div>
