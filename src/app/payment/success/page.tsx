@@ -55,15 +55,16 @@ function SuccessContent() {
                     if (data.status === 'COMPLETED' && data.attendeeId) {
                         return data.attendeeId;
                     }
-                    if (data.status === 'PENDING' && i > 1) { // After ~4s, assume mock flow
+                    if (data.status === 'PENDING' && i > 1) { // After ~4s, assume mock flow might be stuck
                         const mockResponse = await fetch('/api/payment/arifpay/notify', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ sessionId: idToCheck, transaction: { transactionStatus: 'SUCCESS' }})
                         });
                         if (mockResponse.ok) {
-                            await new Promise(resolve => setTimeout(resolve, 1500)); // wait for db update
-                            continue;
+                            // Give DB a moment to update after notification
+                            await new Promise(resolve => setTimeout(resolve, 1500)); 
+                            continue; // Retry fetching status immediately
                         }
                     }
                     if (data.status === 'FAILED') {

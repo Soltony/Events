@@ -51,7 +51,7 @@ export async function getCurrentUser(): Promise<(User & { role: Role }) | null> 
         include: { role: true },
     });
     
-    return user;
+    return serialize(user);
 
   } catch(e) {
       console.error("Error decoding token or finding user", e);
@@ -815,18 +815,6 @@ export async function purchaseTickets(request: PurchaseRequest) {
     
     const user = await getCurrentUser();
     
-    const purchaseData = {
-        eventId,
-        tickets,
-        promoCode,
-        attendeeDetails: {
-            ...attendeeDetails,
-            userId: user?.id,
-        }
-    };
-    
-    // In a development environment, or if the real payment gateway isn't configured,
-    // we'll use the mock flow.
     const useMockFlow = process.env.NODE_ENV === 'development' || !process.env.BASE_URL || !process.env.ARIFPAY_API_KEY;
 
     try {
@@ -838,6 +826,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
             const pendingOrder = await prisma.pendingOrder.create({
                 data: {
                     transactionId: transactionId,
+                    arifpaySessionId: transactionId, // Use the same ID for mock session
                     eventId,
                     ticketTypeId: tickets[0].id,
                     attendeeData: {
@@ -851,12 +840,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
                 },
             });
 
-            if (pendingOrder) {
-                redirect(`/payment/success?transaction_id=${pendingOrder.transactionId}`);
-            } else {
-                console.error("Could not create pending order for mock flow.");
-                redirect(`/payment/failure?event_id=${eventId}`);
-            }
+            redirect(`/payment/success?session_id=${pendingOrder.arifpaySessionId}`);
             return;
         }
 
@@ -865,6 +849,16 @@ export async function purchaseTickets(request: PurchaseRequest) {
         if (!appUrl) {
             throw new Error("App URL environment variable is not set.");
         }
+
+        const purchaseData = {
+            eventId,
+            tickets,
+            promoCode,
+            attendeeDetails: {
+                ...attendeeDetails,
+                userId: user?.id,
+            }
+        };
 
         const response = await fetch(`${appUrl}/api/payment/arifpay/initiate`, {
             method: 'POST',
