@@ -13,11 +13,6 @@ export const metadata: Metadata = {
   description: 'The ultimate solution for event ticketing.',
   icons: null,
 };
-
-function Script(props: React.ComponentProps<'script'>) {
-  const nonce = headers().get('x-nonce') ?? undefined;
-  return <script nonce={nonce} {...props} />;
-}
  
 export default async function RootLayout({
   children,
