@@ -50,4 +50,8 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  body:has(> .no-scroll) {
+    @apply overflow-hidden;
+  }
 }
