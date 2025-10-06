@@ -85,9 +85,10 @@ export default function ScanQrPage() {
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            const qrScanner = new Html5Qrcode('qr-code-reader-file-upload');
+            // Initialize Html5Qrcode without a DOM element for file scanning
+            const qrScanner = new Html5Qrcode(/* verbose= */ false);
             try {
-                const decodedText = await qrScanner.scanFile(file, false);
+                const decodedText = await qrScanner.scanFile(file, /* showImage= */ false);
                 await processScan(decodedText);
             } catch (err) {
                  setResult({ data: null, error: "Could not decode QR code from image." });
@@ -175,7 +176,6 @@ export default function ScanQrPage() {
                             </div>
                          )}
                     </div>
-                    <div id="qr-code-reader-file-upload" style={{ display: 'none' }}></div>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                         <Button onClick={() => {
