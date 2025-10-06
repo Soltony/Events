@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -62,6 +61,7 @@ export default function PublicHomePage() {
   }
 
   useEffect(() => {
+    setLoading(true);
     async function fetchData() {
         try {
             const fetchedEvents = await getPublicEvents();
@@ -101,7 +101,7 @@ export default function PublicHomePage() {
   }, [events, searchQuery, selectedCategory]);
 
   return (
-    <div className="relative flex flex-1 flex-col overflow-hidden">
+    <div className="relative flex flex-col h-screen overflow-hidden">
       <Image
         src="/image/bg.jpg"
         alt="Background"
@@ -110,7 +110,7 @@ export default function PublicHomePage() {
       />
       <div className="flex flex-1 flex-col bg-background/80 backdrop-blur-sm">
         {/* Hero / Controls */}
-          <div className="relative overflow-hidden">
+          <div className="relative">
            <div className="absolute inset-0 bg-gradient-to-r from-[#fff4d6] via-[#ffe2a3] to-[#ffcf6b]" />
            <div className="relative container mx-auto px-4 lg:px-6 py-3 space-y-2">
               <div className="flex flex-col md:flex-row items-center justify-between gap-3 w-full text-[#3b2900]">
@@ -163,7 +163,7 @@ export default function PublicHomePage() {
 
           <EventsCarousel events={upcomingEvents} />
 
-          <div className="flex-1 grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 p-4 lg:p-6 mt-8 overflow-y-auto">
+          <div className="flex-1 grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 p-4 lg:p-6 mt-8">
             {loading ? (
                 [...Array(10)].map((_, i) => (
                     <Card key={i}>
