@@ -61,8 +61,8 @@ export default function PublicHomePage() {
   }
 
   useEffect(() => {
-    setLoading(true);
     async function fetchData() {
+        setLoading(true);
         try {
             const fetchedEvents = await getPublicEvents();
             setEvents(fetchedEvents);
@@ -162,7 +162,7 @@ export default function PublicHomePage() {
           ) : (otherEvents.length > 0) ? (
             otherEvents.map((event) => {
               const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-              const gradientStyle = { background: `linear-gradient(to top, #ffc72e, #ffc72e00)` };
+              const gradientStyle = { background: `linear-gradient(to top, ${event.color || '#ffc72e'}, #ffc72e00)` };
 
               return (
                 <Link href={`/events/${event.id}`} key={event.id} className="group h-full">
@@ -196,7 +196,7 @@ export default function PublicHomePage() {
                           <CardItem
                             translateZ={20}
                             as="button"
-                            className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground p-2 text-xs font-bold"
+                            className="w-full rounded-full bg-accent hover:bg-accent/90 text-accent-foreground p-2 text-xs font-bold"
                           >
                             Buy Ticket
                           </CardItem>
