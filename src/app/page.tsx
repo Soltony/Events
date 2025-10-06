@@ -64,7 +64,6 @@ export default function PublicHomePage() {
   useEffect(() => {
     async function fetchData() {
         try {
-            setLoading(true);
             const fetchedEvents = await getPublicEvents();
             setEvents(fetchedEvents);
         } catch (error) {
@@ -73,6 +72,7 @@ export default function PublicHomePage() {
             setLoading(false);
         }
     }
+    setLoading(true);
     fetchData();
   }, []);
 
