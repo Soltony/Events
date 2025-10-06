@@ -103,7 +103,7 @@ export default function PublicHomePage() {
   return (
     <div className="flex flex-col min-h-screen">
       <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-[#fff4d6] via-[#ffe2a3] to-[#ffcf6b]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-yellow-100 via-yellow-200 to-yellow-300" />
         <div className="relative container mx-auto px-4 lg:px-6 py-3 space-y-2">
           <div className="flex flex-col md:flex-row items-center justify-between gap-3 w-full text-[#3b2900]">
             <div className="flex items-center gap-3">
