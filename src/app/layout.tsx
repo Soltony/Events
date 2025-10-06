@@ -19,7 +19,7 @@ function Script(props: React.ComponentProps<'script'>) {
   return <script nonce={nonce} {...props} />;
 }
  
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
