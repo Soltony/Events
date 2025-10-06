@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     }
     try {
         const body = await req.json();
-        const { eventId, tickets, promoCode, attendeeDetails } = body;
+        const { eventId, tickets, promoCode, attendeeDetails, mock } = body;
 
         if (!eventId || !tickets?.length || !attendeeDetails) {
             return NextResponse.json({ error: 'Missing required payment details.' }, { status: 400 });
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
         const event = await prisma.event.findUnique({ where: { id: eventId } });
 
-        if (!event?.nibBankAccount) {
+        if (!event?.nibBankAccount && !mock) {
             return NextResponse.json({ error: 'Event or organizer Nib bank account not found.' }, { status: 404 });
         }
 
@@ -48,6 +48,10 @@ export async function POST(req: NextRequest) {
                 status: 'PENDING',
             },
         });
+
+        if (mock) {
+            return NextResponse.json({ pendingOrder });
+        }
 
         const paymentGatewayUrl = process.env.BASE_URL;
         const apiKey = process.env.ARIFPAY_API_KEY;

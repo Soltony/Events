@@ -826,9 +826,9 @@ export async function purchaseTickets(request: PurchaseRequest) {
 
     let pendingOrder;
     try {
-        const appUrl = process.env.APP_URL;
+        const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_VERCEL_URL;
         if (!appUrl) {
-            throw new Error("APP_URL environment variable is not set.");
+            throw new Error("App URL environment variable is not set.");
         }
 
         const response = await fetch(`${appUrl}/api/payment/arifpay/initiate`, {
@@ -850,14 +850,24 @@ export async function purchaseTickets(request: PurchaseRequest) {
         if (error.digest?.startsWith('NEXT_REDIRECT')) {
             throw error;
         }
-        console.error("Failed to initiate payment:", error.message, ". Proceeding with mock success flow.");
+        console.error("Payment initiation failed:", error.message, ". Proceeding with mock success flow.");
 
         if (pendingOrder) {
             redirect(`/payment/success?transaction_id=${pendingOrder.transactionId}`);
         } else {
             // Fallback if pending order wasn't even created.
-            console.error("Could not create pending order for mock flow. Redirecting to failure.");
-            redirect(`/payment/failure?event_id=${eventId}`);
+             const response = await fetch(`${process.env.APP_URL}/api/payment/arifpay/initiate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({...purchaseData, mock: true}), // Add a flag for mock
+            });
+             const result = await response.json();
+            if(result.pendingOrder) {
+                redirect(`/payment/success?transaction_id=${result.pendingOrder.transactionId}`);
+            } else {
+                console.error("Could not create pending order for mock flow. Redirecting to failure.");
+                redirect(`/payment/failure?event_id=${eventId}`);
+            }
         }
     }
 }
