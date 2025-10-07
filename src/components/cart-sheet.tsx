@@ -9,7 +9,6 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-  SheetClose,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +32,7 @@ interface CartSheetProps {
   handleApplyPromoCode: () => void;
   removePromoCode: () => void;
   updateTicketQuantity: (ticket: SelectedTicket, quantity: number) => void;
+  eventColor?: string | null;
 }
 
 export default function CartSheet({
@@ -49,7 +49,13 @@ export default function CartSheet({
   handleApplyPromoCode,
   removePromoCode,
   updateTicketQuantity,
+  eventColor,
 }: CartSheetProps) {
+
+  const gradientStyle = eventColor
+    ? { backgroundColor: eventColor }
+    : { backgroundColor: '#864b20' };
+
   return (
     <>
     <Sheet>
@@ -60,52 +66,53 @@ export default function CartSheet({
                 <span className="sr-only">Open Cart</span>
             </Button>
         </SheetTrigger>
-        <SheetContent className="flex flex-col">
-            <SheetHeader>
-                <SheetTitle>Your Cart</SheetTitle>
-                <SheetDescription>
+        <SheetContent 
+          className="flex flex-col text-card-foreground"
+          style={gradientStyle}
+        >
+            <SheetHeader className="text-left">
+                <SheetTitle className="text-card-foreground">Your Cart</SheetTitle>
+                <SheetDescription className="text-muted-foreground">
                     Review your order and proceed to checkout.
                 </SheetDescription>
             </SheetHeader>
-            <div className="flex-1 min-h-0">
-                <ScrollArea className="h-full pr-4 -mr-6">
-                    <div className="space-y-4">
-                    {Object.values(selectedTickets).map(ticket => {
-                        const remaining = ticket.total - ticket.sold;
-                        return (
-                            <div key={ticket.id} className="flex items-center gap-4">
-                                <div className="flex-1">
-                                    <p className="font-semibold">{ticket.name}</p>
-                                    <p className="text-sm text-muted-foreground">ETB {ticket.price.toFixed(2)}</p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateTicketQuantity(ticket, Math.max(0, ticket.quantity - 1))} disabled={ticket.quantity === 0}>
-                                        <MinusCircle className="h-4 w-4" />
-                                    </Button>
-                                    <span className="w-8 text-center font-bold text-sm">{ticket.quantity}</span>
-                                    <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateTicketQuantity(ticket, Math.min(remaining, ticket.quantity + 1))} disabled={remaining === 0 || ticket.quantity >= remaining}>
-                                        <PlusCircle className="h-4 w-4" />
-                                    </Button>
-                                </div>
+            <ScrollArea className="flex-1 my-4">
+                <div className="space-y-4 pr-4">
+                {Object.values(selectedTickets).map(ticket => {
+                    const remaining = ticket.total - ticket.sold;
+                    return (
+                        <div key={ticket.id} className="flex items-center gap-4 p-3 rounded-lg bg-card/80 backdrop-blur-sm">
+                            <div className="flex-1">
+                                <p className="font-semibold">{ticket.name}</p>
+                                <p className="text-sm text-accent font-bold">ETB {ticket.price.toFixed(2)}</p>
                             </div>
-                        )
-                    })}
-                    </div>
-                </ScrollArea>
-            </div>
-            <SheetFooter className="flex-col space-y-4 pt-4 border-t">
+                            <div className="flex items-center gap-2">
+                                <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateTicketQuantity(ticket, Math.max(0, ticket.quantity - 1))} disabled={ticket.quantity === 0}>
+                                    <MinusCircle className="h-4 w-4" />
+                                </Button>
+                                <span className="w-8 text-center font-bold text-sm">{ticket.quantity}</span>
+                                <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateTicketQuantity(ticket, Math.min(remaining, ticket.quantity + 1))} disabled={remaining === 0 || ticket.quantity >= remaining}>
+                                    <PlusCircle className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    )
+                })}
+                </div>
+            </ScrollArea>
+            <SheetFooter className="mt-auto flex flex-col gap-4 !space-x-0 border-t border-card-foreground/20 pt-4">
                  <div className="space-y-2">
                     <div className="flex justify-between">
                         <span>Subtotal</span>
                         <span className="font-semibold">ETB {subtotal.toFixed(2)}</span>
                     </div>
                     {appliedPromo && (
-                        <div className="flex justify-between text-green-600">
+                        <div className="flex justify-between text-green-300">
                             <span>Discount ({appliedPromo.code})</span>
                             <span className="font-semibold">- ETB {discount.toFixed(2)}</span>
                         </div>
                     )}
-                    <div className="border-t"></div>
+                    <div className="border-t border-card-foreground/20"></div>
                     <div className="flex justify-between text-xl font-bold">
                         <span>Total</span>
                         <span>ETB {total.toFixed(2)}</span>
@@ -117,7 +124,7 @@ export default function CartSheet({
                         placeholder="Promo Code" 
                         value={promoCode}
                         onChange={e => setPromoCode(e.target.value)}
-                        className="flex-grow"
+                        className="flex-grow bg-card/80 border-card-foreground/30 placeholder:text-muted-foreground"
                         disabled={!!appliedPromo}
                     />
                     {appliedPromo ? (
@@ -125,7 +132,7 @@ export default function CartSheet({
                             <X className="h-4 w-4" />
                         </Button>
                     ) : (
-                        <Button onClick={handleApplyPromoCode} disabled={isPromoLoading || !promoCode}>
+                        <Button onClick={handleApplyPromoCode} disabled={isPromoLoading || !promoCode} variant="secondary">
                             {isPromoLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Apply
                         </Button>

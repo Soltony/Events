@@ -16,7 +16,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -324,6 +323,7 @@ export default function PublicEventDetailPage() {
       
       {totalItems > 0 &&
         <CartSheet
+          eventColor={event.color}
           selectedTickets={selectedTickets}
           subtotal={subtotal}
           discount={discount}
@@ -384,5 +384,6 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
+
 
 
