@@ -6,7 +6,7 @@ import { getEventById, validatePromoCode } from '@/lib/actions';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone } from 'lucide-react';
+import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone, ArrowLeft } from 'lucide-react';
 import { notFound, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import type { Event, TicketType, PromoCode } from '@prisma/client';
@@ -28,6 +28,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Label } from '@/components/ui/label';
+import Link from 'next/link';
 
 
 interface EventWithTickets extends Event {
@@ -222,6 +223,14 @@ export default function PublicEventDetailPage() {
 
   return (
     <div className="container mx-auto p-4 md:p-8 max-w-6xl">
+       <div className="mb-4">
+        <Button asChild variant="outline">
+          <Link href="/">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to all events
+          </Link>
+        </Button>
+      </div>
       <div className="relative bg-card shadow-xl rounded-lg overflow-hidden">
         <div className="absolute inset-0" style={gradientStyle} />
 
