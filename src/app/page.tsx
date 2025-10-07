@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowUpRight, Search, Ticket, CheckCircle, ShoppingCart, CreditCard, Phone, Facebook, Twitter, Instagram } from 'lucide-react';
+import { ArrowUpRight, Search, Ticket, CheckCircle, ShoppingCart, CreditCard } from 'lucide-react';
 import { getPublicEvents } from '@/lib/actions';
 import { format } from 'date-fns';
 import type { Event, TicketType } from '@prisma/client';
@@ -99,13 +99,14 @@ export default function PublicHomePage() {
         otherEvents: filteredEvents
     };
   }, [events, searchQuery, selectedCategory]);
+  
+  const gradientStyle = { background: `linear-gradient(to right, #fefce8, #fef9c3)` };
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-       <header className="sticky top-0 z-50">
-        <nav className="bg-white shadow-md">
-          <div className="container mx-auto px-4 lg:px-6 py-4 flex justify-between items-center">
-             <Link href="/" className="flex items-center gap-2 font-semibold">
+       <header className="sticky top-0 z-50" style={gradientStyle}>
+        <nav className="container mx-auto px-4 lg:px-6 py-4 flex justify-between items-center">
+            <Link href="/" className="flex items-center gap-2 font-semibold">
                 <Image
                     src="/image/nibtickets.jpg"
                     alt="Nibkera Tickets Logo"
@@ -115,18 +116,37 @@ export default function PublicHomePage() {
                     data-ai-hint="logo nibtera"
                 />
             </Link>
-            <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-              <Link href="#" className="text-foreground hover:text-primary transition-colors">HOME</Link>
-              <Link href="#" className="text-muted-foreground hover:text-primary transition-colors">EVENTS</Link>
-              <Link href="#" className="text-muted-foreground hover:text-primary transition-colors">SHOP</Link>
-              <Link href="#" className="text-muted-foreground hover:text-primary transition-colors">NEWS</Link>
-              <Link href="#" className="text-muted-foreground hover:text-primary transition-colors">FEATURES</Link>
-              <Link href="/dashboard/events/new" className="text-muted-foreground hover:text-primary transition-colors">CREATE EVENT</Link>
+            
+            <div className="hidden md:flex flex-1 justify-center items-center gap-4">
+                <div className="relative w-full max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                        placeholder="Search events..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10 bg-white rounded-full"
+                    />
+                </div>
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger className="w-[180px] bg-white rounded-full">
+                        <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {categories.map(category => (
+                            <SelectItem key={category} value={category}>{category}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
-             <div className="flex items-center gap-2">
+
+            <div className="flex items-center gap-2">
+                <Button asChild variant="outline" className="bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground rounded-full">
+                  <Link href="/tickets">
+                    <Ticket className="mr-2 h-4 w-4" /> My Tickets
+                  </Link>
+                </Button>
                 <AuthStatus />
             </div>
-          </div>
         </nav>
       </header>
 
@@ -156,13 +176,9 @@ export default function PublicHomePage() {
 
         <section className="py-12">
             <div className="container mx-auto px-4 lg:px-6">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                        <Ticket className="h-6 w-6 text-primary"/>
-                        Upcoming Events
-                    </h2>
-                </div>
-
+                <h2 className="text-2xl font-bold tracking-tight mb-6">
+                    Upcoming Events
+                </h2>
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {loading ? (
                     [...Array(8)].map((_, i) => (
@@ -176,28 +192,45 @@ export default function PublicHomePage() {
                     ))
                 ) : (otherEvents.length > 0) ? (
                     otherEvents.map((event) => {
-                    const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-                    return (
-                        <Card key={event.id} className="overflow-hidden group transition-shadow hover:shadow-xl">
-                            <Link href={`/events/${event.id}`}>
-                                <div className="aspect-[4/3] relative">
-                                    <Image
-                                        src={imageUrl}
-                                        fill
-                                        className="object-cover"
-                                        alt={event.name}
-                                        data-ai-hint={event.hint ?? 'event'}
-                                        onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}
-                                    />
-                                </div>
-                                <CardContent className="p-4">
-                                     <h3 className="font-semibold text-lg truncate group-hover:text-primary">{event.name}</h3>
-                                     <p className="text-sm text-muted-foreground">{format(new Date(event.startDate), 'LLL dd, y')}</p>
-                                     <p className="text-lg font-bold text-right mt-2 text-primary">Free</p>
-                                </CardContent>
-                            </Link>
-                        </Card>
-                    )
+                      const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
+                      const gradientStyle = event.color
+                        ? { background: `linear-gradient(to top, ${event.color}BF, transparent)` }
+                        : { background: `linear-gradient(to top, #f6b313BF, transparent)` };
+
+                      return (
+                        <CardContainer key={event.id} className="w-full">
+                          <CardBody className="bg-gray-50 relative group/card dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-auto h-auto rounded-xl p-0 border flex flex-col">
+                              <CardItem translateZ="50" className="w-full">
+                                <Link href={`/events/${event.id}`}>
+                                    <div className="aspect-[4/3] relative rounded-t-xl overflow-hidden">
+                                        <Image
+                                            src={imageUrl}
+                                            fill
+                                            className="object-cover"
+                                            alt={event.name}
+                                            data-ai-hint={event.hint ?? 'event'}
+                                            onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}
+                                        />
+                                        <div className="absolute inset-0" style={gradientStyle}></div>
+                                    </div>
+                                </Link>
+                              </CardItem>
+                              <div className="p-4 flex flex-col flex-grow bg-white rounded-b-xl">
+                                <CardItem translateZ="60" as="div" className="flex-grow">
+                                  <h3 className="font-semibold text-lg truncate group-hover/card:text-primary">{event.name}</h3>
+                                  <p className="text-sm text-muted-foreground mt-1">{format(new Date(event.startDate), 'LLL dd, y')}</p>
+                                </CardItem>
+                                <CardItem translateZ="40" as="div" className="mt-4">
+                                  <Button asChild className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
+                                    <Link href={`/events/${event.id}`}>
+                                      <Ticket className="mr-2 h-4 w-4" /> Buy Ticket
+                                    </Link>
+                                  </Button>
+                                </CardItem>
+                              </div>
+                          </CardBody>
+                        </CardContainer>
+                      )
                     })
                 ) : (
                     <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4 flex items-center justify-center p-8 text-center bg-gray-100 rounded-lg">
@@ -228,3 +261,4 @@ const Footer = () => (
       </div>
     </footer>
 )
+

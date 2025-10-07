@@ -20,7 +20,7 @@ export function AuthStatus() {
   }
   
   if (isLoading) {
-    return <Skeleton className="h-10 w-full rounded-md" />;
+    return <Skeleton className="h-10 w-32 rounded-full" />;
   }
 
   if (isAuthenticated) {
@@ -34,8 +34,8 @@ export function AuthStatus() {
 
   return (
     <div className="flex items-center gap-2">
-        <Button asChild className="w-full">
-        <Link href="/login">Organizer Login</Link>
+        <Button asChild className="rounded-full">
+          <Link href="/login">Organizer Login</Link>
         </Button>
     </div>
   );
