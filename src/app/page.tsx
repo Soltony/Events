@@ -202,7 +202,7 @@ export default function PublicHomePage() {
         </nav>
       </header>
 
-      <main className="flex-grow pt-[56px]">
+      <main className="flex-grow pt-14">
         <section className="relative w-full">
             <EventsCarousel events={upcomingEvents} />
             <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-center text-white p-4">
@@ -407,4 +407,5 @@ const Footer = () => (
     
 
     
+
 
