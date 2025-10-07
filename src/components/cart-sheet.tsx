@@ -113,26 +113,28 @@ export default function CartSheet({
                     </div>
                 </div>
 
-                <div className="flex gap-2">
-                    <Input 
-                        placeholder="Promo Code" 
-                        value={promoCode}
-                        onChange={e => setPromoCode(e.target.value)}
-                        className="flex-grow placeholder:text-muted-foreground"
-                        disabled={!!appliedPromo}
-                    />
-                    {appliedPromo ? (
-                        <Button onClick={removePromoCode} variant="outline" size="icon">
-                            <X className="h-4 w-4" />
-                        </Button>
-                    ) : (
-                        <Button onClick={handleApplyPromoCode} disabled={isPromoLoading || !promoCode} variant="secondary">
-                            {isPromoLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Apply
-                        </Button>
-                    )}
+                <div className="space-y-4">
+                    <div className="flex gap-2">
+                        <Input 
+                            placeholder="Promo Code" 
+                            value={promoCode}
+                            onChange={e => setPromoCode(e.target.value)}
+                            className="flex-grow placeholder:text-muted-foreground"
+                            disabled={!!appliedPromo}
+                        />
+                        {appliedPromo ? (
+                            <Button onClick={removePromoCode} variant="outline" size="icon">
+                                <X className="h-4 w-4" />
+                            </Button>
+                        ) : (
+                            <Button onClick={handleApplyPromoCode} disabled={isPromoLoading || !promoCode} variant="secondary">
+                                {isPromoLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Apply
+                            </Button>
+                        )}
+                    </div>
+                    {children}
                 </div>
-                {children}
             </SheetFooter>
         </SheetContent>
     </Sheet>
