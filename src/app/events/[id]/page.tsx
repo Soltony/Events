@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone, ArrowLeft, X } from 'lucide-react';
-import { notFound, useParams } from 'next/navigation';
+import { notFound, useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import type { Event, TicketType, PromoCode } from '@prisma/client';
 import { useEffect, useState, useTransition, useMemo } from 'react';
@@ -29,6 +29,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import CartSheet from '@/components/cart-sheet';
+import { cn } from '@/lib/utils';
 
 
 interface EventWithTickets extends Event {
@@ -60,6 +61,7 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 
 export default function PublicEventDetailPage() {
+  const router = useRouter();
   const params = useParams<{ id:string }>();
   const eventId = params ? parseInt(params.id, 10) : NaN;
   const [isPending, startTransition] = useTransition();
@@ -195,114 +197,120 @@ export default function PublicEventDetailPage() {
   
   if (loading || !event) {
     return (
-        <div className="container mx-auto p-4 md:p-8 max-w-4xl">
-             <div className="bg-card shadow-xl rounded-lg overflow-hidden">
-                <Skeleton className="w-full aspect-video" />
-                <div className="p-8 space-y-6">
-                    <Skeleton className="h-6 w-24" />
+      <div className="container mx-auto max-w-5xl py-8 px-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="md:col-span-2 space-y-8">
+                <Skeleton className="h-9 w-40" />
+                <Skeleton className="w-full aspect-[4/3] rounded-lg" />
+                <div className="space-y-4">
                     <Skeleton className="h-10 w-3/4" />
-                    <div className="space-y-4 pt-2">
-                        <Skeleton className="h-6 w-1/2" />
-                        <Skeleton className="h-6 w-1/3" />
-                    </div>
-                     <div className="border-t my-6"></div>
-                     <div className="space-y-4">
-                        <Skeleton className="h-6 w-40" />
-                        <Skeleton className="h-16 w-full" />
-                     </div>
-                     <div className="border-t my-6"></div>
-                      <div className="space-y-4">
-                        <Skeleton className="h-6 w-32" />
-                        <Skeleton className="h-20 w-full" />
-                        <Skeleton className="h-20 w-full" />
-                     </div>
+                    <Skeleton className="h-6 w-1/2" />
+                    <Skeleton className="h-6 w-1/3" />
+                </div>
+                <div className="space-y-4">
+                    <Skeleton className="h-8 w-48" />
+                    <Skeleton className="h-5 w-full" />
+                    <Skeleton className="h-5 w-full" />
+                    <Skeleton className="h-5 w-3/4" />
                 </div>
             </div>
+            <div className="space-y-8">
+                <Skeleton className="h-8 w-24" />
+                <Skeleton className="h-24 w-full rounded-lg" />
+                <Skeleton className="h-24 w-full rounded-lg" />
+            </div>
         </div>
+      </div>
     )
   }
   
   const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
   const gradientStyle = event.color
-    ? { background: `linear-gradient(to bottom, ${event.color}, #ffffff)` }
-    : { background: `linear-gradient(to bottom, #f6b313, #ffffff)` };
+    ? { backgroundColor: event.color }
+    : { backgroundColor: '#864b20' };
 
   return (
     <>
-      <div className="container mx-auto p-4 md:p-8 max-w-4xl space-y-8">
-        <div className="mb-4">
-            <Button asChild variant="outline">
+      <div 
+        className={cn(
+          "w-full min-h-screen",
+          event.color ? '' : 'bg-[#864b20]'
+        )}
+        style={event.color ? { backgroundColor: event.color } : {}}
+      >
+        <div className="container mx-auto max-w-5xl py-8 px-4">
+           <Button asChild variant="outline" className="absolute top-4 left-4 bg-white/80 hover:bg-white text-black">
               <Link href="/">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to all events
               </Link>
             </Button>
-        </div>
-        <div className="relative bg-card shadow-xl rounded-lg overflow-hidden">
-          <div className="absolute inset-0" style={gradientStyle} />
-          <div className="relative z-10 w-full aspect-video">
-            <Image src={imageUrl} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
-          </div>
-          <div className="relative z-10 p-6 md:p-8 space-y-8">
-            <div>
-              <Badge variant="outline" className={`mb-2 w-min whitespace-nowrap ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
-              <h1 className="text-4xl font-bold tracking-tight">{event.name}</h1>
-              <div className="text-lg text-muted-foreground space-y-2 pt-4">
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-5 w-5" />
-                  <span>{formatEventDate(event.startDate, event.endDate)}</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
+            <div className="md:col-span-2 space-y-8">
+                <div className="w-full aspect-[4/3] relative rounded-lg overflow-hidden shadow-lg">
+                    <Image src={imageUrl} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
                 </div>
-                <div className="flex items-center gap-3">
-                  <MapPin className="h-5 w-5" />
-                  <span>{event.location}</span>
-                </div>
-                {event.hint && (
-                  <div className="flex items-start gap-3 text-base">
-                    <Info className="h-5 w-5 mt-1 flex-shrink-0" />
-                    <p className="text-muted-foreground">{event.hint}</p>
+
+                <div className="bg-card/80 backdrop-blur-sm rounded-lg p-6 shadow-md">
+                  <Badge variant="outline" className={`mb-2 w-min whitespace-nowrap ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
+                  <h1 className="text-4xl font-bold tracking-tight">{event.name}</h1>
+                  <div className="text-lg text-muted-foreground space-y-2 pt-4">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="h-5 w-5" />
+                      <span>{formatEventDate(event.startDate, event.endDate)}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <MapPin className="h-5 w-5" />
+                      <span>{event.location}</span>
+                    </div>
+                    {event.hint && (
+                      <div className="flex items-start gap-3 text-base">
+                        <Info className="h-5 w-5 mt-1 flex-shrink-0" />
+                        <p className="text-muted-foreground">{event.hint}</p>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
+
+                <div className="bg-card/80 backdrop-blur-sm rounded-lg p-6 shadow-md">
+                  <h3 className="text-2xl font-semibold mb-4">About this Event</h3>
+                  <p className="text-base text-muted-foreground whitespace-pre-wrap leading-relaxed">{event.description}</p>
+                </div>
+            </div>
+
+            <div className="space-y-8">
+              <div className="bg-card/80 backdrop-blur-sm rounded-lg p-6 shadow-md">
+                <h3 className="text-2xl font-semibold mb-4">Tickets</h3>
+                <div className="space-y-4">
+                  {event.ticketTypes.length > 0 ? (
+                    event.ticketTypes.map(ticket => {
+                      const selectedQuantity = selectedTickets[ticket.id]?.quantity || 0;
+                      const remaining = ticket.total - ticket.sold;
+                      return (
+                        <div key={ticket.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-lg border bg-secondary/50">
+                          <div className="mb-3 sm:mb-0">
+                            <h4 className="font-semibold text-lg">{ticket.name}</h4>
+                            <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">ETB {Number(ticket.price).toFixed(2)}</p>
+                            <p className="text-sm text-muted-foreground">{remaining > 0 ? `${remaining} remaining` : 'Sold Out'}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.max(0, selectedQuantity - 1))} disabled={selectedQuantity === 0}>
+                              <MinusCircle className="h-4 w-4" />
+                            </Button>
+                            <span className="w-10 text-center font-bold">{selectedQuantity}</span>
+                            <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))} disabled={remaining === 0 || selectedQuantity >= remaining}>
+                              <PlusCircle className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )
+                    })
+                  ) : (
+                    <p className="text-muted-foreground">Tickets are not yet available for this event.</p>
+                  )}
+                </div>
               </div>
             </div>
-
-            <div className="border-t"></div>
-
-            <div>
-              <h3 className="text-2xl font-semibold mb-4">About this Event</h3>
-              <p className="text-base text-muted-foreground whitespace-pre-wrap leading-relaxed">{event.description}</p>
-            </div>
-          </div>
-        </div>
-
-        <div id="tickets" className="space-y-6 scroll-mt-20">
-          <h3 className="text-2xl font-semibold mb-4">Tickets</h3>
-          <div className="space-y-4">
-            {event.ticketTypes.length > 0 ? (
-              event.ticketTypes.map(ticket => {
-                const selectedQuantity = selectedTickets[ticket.id]?.quantity || 0;
-                const remaining = ticket.total - ticket.sold;
-                return (
-                  <div key={ticket.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-lg border bg-secondary/50">
-                    <div className="mb-3 sm:mb-0">
-                      <h4 className="font-semibold text-lg">{ticket.name}</h4>
-                      <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">ETB {Number(ticket.price).toFixed(2)}</p>
-                      <p className="text-sm text-muted-foreground">{remaining > 0 ? `${remaining} remaining` : 'Sold Out'}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.max(0, selectedQuantity - 1))} disabled={selectedQuantity === 0}>
-                        <MinusCircle className="h-4 w-4" />
-                      </Button>
-                      <span className="w-10 text-center font-bold">{selectedQuantity}</span>
-                      <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))} disabled={remaining === 0 || selectedQuantity >= remaining}>
-                        <PlusCircle className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )
-              })
-            ) : (
-              <p className="text-muted-foreground">Tickets are not yet available for this event.</p>
-            )}
           </div>
         </div>
       </div>
@@ -370,3 +378,4 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
+
