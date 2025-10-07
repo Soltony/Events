@@ -34,7 +34,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PlusCircle, DollarSign, FileDown, Ticket as TicketIcon, ArrowLeft, Loader2, MapPin, Info, Pencil, Trash2, CheckCircle2, XCircle } from 'lucide-react';
-import { getEventDetails, addTicketType, addPromoCode, updateTicketType, deleteTicketType, updatePromoCode, deletePromoCode, updateEventStatus } from '@/lib/actions';
+import { getEventDetails, addTicketType, addPromoCode, updateTicketType, deleteTicketType, updatePromoCode, deletePromoCode, updateEventStatus, checkInAttendee } from '@/lib/actions';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import { cn } from "@/lib/utils";
@@ -366,6 +366,20 @@ export default function EventDetailPage() {
     }
   }
 
+  const handleCheckIn = async (attendeeId: number, isChecked: boolean) => {
+    if (isChecked) { // Only handle check-in, not check-out for now
+        const result = await checkInAttendee(attendeeId);
+        if (result.error) {
+            toast({ variant: 'destructive', title: 'Check-in Failed', description: result.error });
+            // Revert checkbox state visually if API call fails
+            fetchEvent(); 
+        } else {
+            toast({ title: 'Check-in Successful', description: `${result.data?.name} has been checked in.` });
+            await fetchEvent(); 
+        }
+    }
+  };
+
 
   if (loading) {
     return (
@@ -557,7 +571,12 @@ export default function EventDetailPage() {
                                 {event.attendees.map((attendee) => (
                                     <TableRow key={attendee.id}>
                                         <TableCell>
-                                            <Checkbox checked={attendee.checkedIn} aria-label={`Check in ${attendee.name}`} />
+                                            <Checkbox
+                                                checked={attendee.checkedIn}
+                                                onCheckedChange={(isChecked) => handleCheckIn(attendee.id, !!isChecked)}
+                                                aria-label={`Check in ${attendee.name}`}
+                                                disabled={attendee.checkedIn}
+                                            />
                                         </TableCell>
                                         <TableCell className="font-medium">{attendee.name}</TableCell>
                                         <TableCell>

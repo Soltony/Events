@@ -42,19 +42,20 @@ export default function ScanQrPage() {
         try {
             let ticketId;
             try {
+                // Standard flow: QR code contains a JSON object
                 const data = JSON.parse(decodedText);
                 ticketId = data.ticketId;
-                if (!ticketId) {
+                if (!ticketId || isNaN(parseInt(ticketId, 10))) {
                    throw new Error("Invalid QR code format.");
                 }
+                ticketId = parseInt(ticketId, 10);
+
             } catch (e) {
-                 if (typeof decodedText === 'string' && decodedText.length > 0) {
+                 // Fallback flow: QR code contains only the ticket ID as a number
+                 if (typeof decodedText === 'string' && /^\d+$/.test(decodedText)) {
                     ticketId = parseInt(decodedText, 10);
-                    if (isNaN(ticketId)) {
-                        throw new Error("QR code contains invalid data.");
-                    }
                  } else {
-                    throw new Error("QR code is empty or unreadable.");
+                    throw new Error("QR code contains invalid data.");
                  }
             }
             
@@ -85,6 +86,7 @@ export default function ScanQrPage() {
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            // Do not pass an element ID. This is more reliable for file scanning.
             const qrScanner = new Html5Qrcode(/* verbose= */ false);
             try {
                 const decodedText = await qrScanner.scanFile(file, /* showImage= */ false);
