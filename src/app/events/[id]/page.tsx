@@ -231,7 +231,7 @@ export default function PublicEventDetailPage() {
   return (
     <>
       <div className="min-h-screen bg-gray-50">
-        <Button asChild variant="ghost" className="absolute top-4 left-4 z-10 bg-background/50 hover:bg-background">
+        <Button asChild variant="ghost" className="absolute top-4 left-4 z-10 bg-background/50 hover:bg-accent hover:text-accent-foreground">
             <Link href="/">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Home
@@ -384,6 +384,7 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
+
 
 
 
