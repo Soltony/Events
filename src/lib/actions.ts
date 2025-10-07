@@ -120,7 +120,6 @@ export async function getEventById(id: number) {
         where: { id },
         include: {
             ticketTypes: true,
-            organizer: true,
         },
     });
     return serialize(event);

@@ -33,6 +33,7 @@ import { useAuth } from '@/context/auth-context';
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
+  organizerName: z.string().optional(),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   location: z.string().min(3, { message: 'Location is required.' }),
   hint: z.string().optional(),
@@ -75,6 +76,7 @@ export default function CreateEventPage() {
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
       name: '',
+      organizerName: '',
       description: '',
       location: '',
       hint: '',
@@ -176,6 +178,22 @@ export default function CreateEventPage() {
                       </FormControl>
                       <FormDescription>
                         This is the public name of your event.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="organizerName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Organizer Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Acme Inc. or John Doe" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Optional: The name that will be publicly displayed as the event organizer.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

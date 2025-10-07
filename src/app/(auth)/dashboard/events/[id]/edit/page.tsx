@@ -33,6 +33,7 @@ import { DateTimePicker } from '@/components/datetime-picker';
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
+  organizerName: z.string().optional(),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   location: z.string().min(3, { message: 'Location is required.' }),
   hint: z.string().optional(),
@@ -73,6 +74,7 @@ export default function EditEventPage() {
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
       name: '',
+      organizerName: '',
       description: '',
       location: '',
       hint: '',
@@ -100,6 +102,7 @@ export default function EditEventPage() {
           
           form.reset({
             name: event.name,
+            organizerName: event.organizerName || '',
             description: event.description,
             location: event.location,
             hint: event.hint || '',
@@ -236,6 +239,22 @@ export default function EditEventPage() {
                     <FormControl>
                       <Input placeholder="e.g., Tech Conference 2025" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="organizerName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Organizer Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Acme Inc. or John Doe" {...field} />
+                    </FormControl>
+                     <FormDescription>
+                        Optional: The name that will be publicly displayed as the event organizer.
+                      </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

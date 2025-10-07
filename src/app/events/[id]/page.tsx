@@ -6,7 +6,7 @@ import { getEventById, validatePromoCode } from '@/lib/actions';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone, ArrowLeft, X } from 'lucide-react';
+import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone, ArrowLeft, X, UserCircle } from 'lucide-react';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import type { Event, TicketType, PromoCode } from '@prisma/client';
@@ -35,6 +35,7 @@ import { cn } from '@/lib/utils';
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
     color?: string | null;
+    organizerName?: string | null;
 }
 
 export type SelectedTicket = {
@@ -254,6 +255,12 @@ export default function PublicEventDetailPage() {
                 <div className="bg-card/80 backdrop-blur-sm rounded-lg p-6 shadow-md">
                   <Badge variant="outline" className={`mb-2 w-min whitespace-nowrap ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
                   <h1 className="text-4xl font-bold tracking-tight">{event.name}</h1>
+                   {event.organizerName && (
+                      <div className="flex items-center gap-2 text-lg text-muted-foreground pt-3">
+                        <UserCircle className="h-5 w-5" />
+                        <span>By {event.organizerName}</span>
+                      </div>
+                    )}
                   <div className="text-lg text-muted-foreground space-y-2 pt-4">
                     <div className="flex items-center gap-3">
                       <Calendar className="h-5 w-5" />
@@ -378,4 +385,3 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
-
