@@ -315,7 +315,7 @@ export default function PublicHomePage() {
                       </Card>
                     ))
                 ) : (topSellingEvents.length > 0) ? (
-                    topSellingEvents.map((event) => {
+                    topSellingEvents.slice(0, 4).map((event) => {
                       const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
                       return (
                         <Card key={event.id} className="w-full flex flex-col rounded-xl overflow-hidden border-2 border-primary/20 hover:shadow-lg transition-shadow">
