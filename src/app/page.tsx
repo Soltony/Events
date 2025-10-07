@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AuthStatus } from "@/components/auth-status";
 import EventsCarousel from "@/components/events-carousel";
-import { CardBody, CardContainer, CardItem } from "@/components/ui/3d-card";
+import { cn } from '@/lib/utils';
 
 
 interface EventWithTickets extends Event {
@@ -27,10 +27,18 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     const startDateFormat = 'LLL dd, y, hh:mm a';
     
     if (endDate) {
-      const endDateFormat = format(new Date(endDate), 'LLL dd, y') === format(new Date(startDate), 'LLL dd, y') 
-        ? 'hh:mm a'
-        : startDateFormat;
-      return `${format(new Date(startDate), startDateFormat)} - ${format(new Date(endDate), endDateFormat)}`;
+      const endDay = format(new Date(endDate), 'dd');
+      const startDay = format(new Date(startDate), 'dd');
+      const endMonthYear = format(new Date(endDate), 'LLL, y');
+      const startMonthYear = format(new Date(startDate), 'LLL, y');
+
+      if (startMonthYear !== endMonthYear) {
+         return `${format(new Date(startDate), 'LLL dd, y, hh:mm a')} - ${format(new Date(endDate), 'LLL dd, y, hh:mm a')}`;
+      }
+      
+      if (startDay !== endDay) {
+        return `${format(new Date(startDate), 'LLL dd, hh:mm a')} - ${format(new Date(endDate), 'dd, hh:mm a')}`;
+      }
     }
     return format(new Date(startDate), startDateFormat);
 }
@@ -46,19 +54,28 @@ export default function PublicHomePage() {
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
       case 'Technology':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return 'bg-blue-100 text-blue-800 border-transparent';
       case 'Music':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
+        return 'bg-purple-100 text-purple-800 border-transparent';
       case 'Art':
-        return 'bg-pink-100 text-pink-800 border-pink-200';
+        return 'bg-pink-100 text-pink-800 border-transparent';
       case 'Community':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-green-100 text-green-800 border-transparent';
       case 'Business':
-          return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+          return 'bg-indigo-100 text-indigo-800 border-transparent';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-gray-100 text-gray-800 border-transparent';
     }
   }
+  
+  const getContentGradient = (color?: string | null) => {
+    const defaultColor = '#FDE047'; // yellow
+    const finalColor = color || defaultColor;
+    return {
+      background: `linear-gradient(to top, ${finalColor}, ${finalColor}40)`
+    }
+  }
+
 
   useEffect(() => {
     async function fetchData() {
@@ -183,54 +200,50 @@ export default function PublicHomePage() {
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {loading ? (
                     [...Array(8)].map((_, i) => (
-                    <Card key={i} className="overflow-hidden">
-                        <Skeleton className="w-full aspect-square" />
-                        <CardContent className="p-4 space-y-2">
-                          <Skeleton className="h-5 w-3/4" />
-                          <Skeleton className="h-4 w-1/2" />
-                        </CardContent>
-                    </Card>
+                      <Card key={i} className="overflow-hidden">
+                          <Skeleton className="w-full h-40" />
+                          <CardContent className="p-4 space-y-2">
+                            <Skeleton className="h-5 w-20" />
+                            <Skeleton className="h-7 w-3/4" />
+                            <Skeleton className="h-5 w-1/2" />
+                          </CardContent>
+                          <CardFooter className="p-4">
+                            <Skeleton className="h-10 w-full rounded-full" />
+                          </CardFooter>
+                      </Card>
                     ))
                 ) : (otherEvents.length > 0) ? (
                     otherEvents.map((event) => {
-                      const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-                      const gradientStyle = event.color
-                        ? { background: `linear-gradient(to top, ${event.color}BF, transparent)` }
-                        : { background: `linear-gradient(to top, #f6b313BF, transparent)` };
-
                       return (
-                        <CardContainer key={event.id} className="w-full">
-                          <CardBody className="bg-gray-50 relative group/card dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-full h-full rounded-xl p-0 border flex flex-col aspect-square">
-                              <CardItem translateZ="50" className="w-full h-1/2">
-                                <Link href={`/events/${event.id}`}>
-                                    <div className="relative w-full h-full rounded-t-xl overflow-hidden">
-                                        <Image
-                                            src={imageUrl}
-                                            fill
-                                            className="object-cover"
-                                            alt={event.name}
-                                            data-ai-hint={event.hint ?? 'event'}
-                                            onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}
-                                        />
-                                        <div className="absolute inset-0" style={gradientStyle}></div>
-                                    </div>
-                                </Link>
-                              </CardItem>
-                              <div className="p-4 flex flex-col flex-grow bg-white rounded-b-xl justify-between">
-                                <CardItem translateZ="60" as="div" className="flex-grow">
-                                  <h3 className="font-semibold text-lg group-hover/card:text-primary">{event.name}</h3>
-                                  <p className="text-sm text-muted-foreground mt-1">{format(new Date(event.startDate), 'LLL dd, y')}</p>
-                                </CardItem>
-                                <CardItem translateZ="40" as="div" className="mt-4 w-full">
-                                  <Button asChild className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
-                                    <Link href={`/events/${event.id}`}>
-                                      <Ticket className="mr-2 h-4 w-4" /> Buy Ticket
-                                    </Link>
-                                  </Button>
-                                </CardItem>
+                        <Card key={event.id} className="w-full flex flex-col rounded-xl overflow-hidden border-2 border-primary/20 hover:shadow-lg transition-shadow">
+                          <div className="bg-white p-4 flex items-center justify-center">
+                            <Image
+                                src={DEFAULT_IMAGE_PLACEHOLDER}
+                                width={180}
+                                height={50}
+                                className="object-contain"
+                                alt="Nibtera Tickets"
+                                data-ai-hint="logo nibtera"
+                            />
+                          </div>
+                          <div 
+                              className="p-4 flex flex-col flex-grow justify-between rounded-t-xl"
+                              style={getContentGradient(event.color)}
+                          >
+                              <div className="flex-grow">
+                                  <Badge variant="outline" className={cn("text-xs mb-2", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
+                                  <h3 className="font-bold text-lg text-accent-foreground">{event.name}</h3>
+                                  <p className="text-xs text-accent-foreground/80 mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
                               </div>
-                          </CardBody>
-                        </CardContainer>
+                              <div className="mt-4">
+                                  <Button asChild className="w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
+                                      <Link href={`/events/${event.id}`}>
+                                          Buy Ticket
+                                      </Link>
+                                  </Button>
+                              </div>
+                          </div>
+                        </Card>
                       )
                     })
                 ) : (
@@ -279,3 +292,4 @@ const Footer = () => (
       </div>
     </footer>
 )
+
