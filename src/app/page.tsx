@@ -136,25 +136,36 @@ export default function PublicHomePage() {
     return ['All', ...Array.from(allCategories)];
   }, [events]);
 
-  const { upcomingEvents, otherEvents } = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const filteredEvents = events.filter(event => {
+  const filteredEvents = useMemo(() => {
+    return events.filter(event => {
         const matchesCategory = selectedCategory === 'All' || event.category === selectedCategory;
         const matchesSearch = !searchQuery || 
           event.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
           event.description.toLowerCase().includes(searchQuery.toLowerCase());
         return matchesCategory && matchesSearch;
       });
+  }, [events, searchQuery, selectedCategory]);
 
+  const { upcomingEvents, topSellingEvents } = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
     const upcoming = filteredEvents.filter(event => new Date(event.startDate) >= today);
+    
+    const topSelling = [...filteredEvents].sort((a, b) => {
+        const salesA = a.ticketTypes.reduce((sum, t) => sum + t.sold, 0);
+        const salesB = b.ticketTypes.reduce((sum, t) => sum + t.sold, 0);
+        if (salesB !== salesA) {
+            return salesB - salesA;
+        }
+        return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+    });
 
     return { 
         upcomingEvents: upcoming,
-        otherEvents: filteredEvents
+        topSellingEvents: topSelling,
     };
-  }, [events, searchQuery, selectedCategory]);
+  }, [filteredEvents]);
   
   const gradientStyle = { background: `linear-gradient(to right, #fefce8, #fde047)` };
 
@@ -232,8 +243,8 @@ export default function PublicHomePage() {
                           </CardFooter>
                       </Card>
                     ))
-                ) : (otherEvents.length > 0) ? (
-                    otherEvents.map((event) => {
+                ) : (upcomingEvents.length > 0) ? (
+                    upcomingEvents.map((event) => {
                       const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
                       return (
                         <Card key={event.id} className="w-full flex flex-col rounded-xl overflow-hidden border-2 border-primary/20 hover:shadow-lg transition-shadow">
@@ -282,6 +293,78 @@ export default function PublicHomePage() {
                 </div>
             </div>
         </section>
+
+        <section className="py-12">
+            <div className="container mx-auto px-4 lg:px-6">
+                <h2 className="text-2xl font-bold tracking-tight mb-6">
+                    Top Selling Events
+                </h2>
+                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {loading ? (
+                    [...Array(4)].map((_, i) => (
+                      <Card key={i} className="overflow-hidden">
+                          <Skeleton className="w-full h-40" />
+                          <CardContent className="p-4 space-y-2">
+                            <Skeleton className="h-5 w-20" />
+                            <Skeleton className="h-7 w-3/4" />
+                            <Skeleton className="h-5 w-1/2" />
+                          </CardContent>
+                          <CardFooter className="p-4">
+                            <Skeleton className="h-10 w-full rounded-full" />
+                          </CardFooter>
+                      </Card>
+                    ))
+                ) : (topSellingEvents.length > 0) ? (
+                    topSellingEvents.map((event) => {
+                      const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
+                      return (
+                        <Card key={event.id} className="w-full flex flex-col rounded-xl overflow-hidden border-2 border-primary/20 hover:shadow-lg transition-shadow">
+                          <div className="relative w-full aspect-video bg-muted">
+                            <Image
+                                src={imageUrl}
+                                alt={event.name}
+                                fill
+                                className="object-cover"
+                                data-ai-hint={event.hint ?? 'event'}
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = DEFAULT_IMAGE_PLACEHOLDER;
+                                  target.srcset = '';
+                                }}
+                            />
+                          </div>
+                          <div 
+                              className="p-4 flex flex-col flex-grow justify-between"
+                              style={getContentGradient(event.color)}
+                          >
+                              <div className="flex-grow">
+                                  <Badge variant="outline" className={cn("text-xs mb-2", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
+                                  <h3 className="font-bold text-lg text-accent-foreground">{event.name}</h3>
+                                  <p className="text-xs text-accent-foreground/80 mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
+                              </div>
+                              <div className="mt-4">
+                                  <Button asChild className="w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
+                                      <Link href={`/events/${event.id}`}>
+                                          Buy Ticket
+                                      </Link>
+                                  </Button>
+                              </div>
+                          </div>
+                        </Card>
+                      )
+                    })
+                ) : (
+                    <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4 flex items-center justify-center p-8 text-center bg-gray-100 rounded-lg">
+                    <div>
+                        <h3 className="text-xl font-semibold tracking-tight">No Top Selling Events Found</h3>
+                        <p className="text-muted-foreground mt-1">There are no events with ticket sales yet.</p>
+                    </div>
+                    </div>
+                )}
+                </div>
+            </div>
+        </section>
+
       </main>
       <Footer />
     </div>
@@ -309,7 +392,7 @@ const Footer = () => (
               <Link href="https://www.youtube.com/channel/UCn_-tUsAPEKdzm_b2BOCOdA" target="_blank" rel="noopener noreferrer" aria-label="Youtube" className="text-accent hover:text-primary transition-colors">
                 <Youtube className="h-5 w-5" />
               </Link>
-              <Link href="https.t.me/nibinternationalbanksc" target="_blank" rel="noopener noreferrer" aria-label="Telegram" className="text-accent hover:text-primary transition-colors">
+              <Link href="https://t.me/nibinternationalbanksc" target="_blank" rel="noopener noreferrer" aria-label="Telegram" className="text-accent hover:text-primary transition-colors">
                 <Send className="h-5 w-5" />
               </Link>
             </div>
@@ -317,3 +400,5 @@ const Footer = () => (
       </div>
     </footer>
 )
+
+    
