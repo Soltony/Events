@@ -58,13 +58,6 @@ export default function EventsCarousel({ events }: { events: EventWithTickets[] 
                             priority={events.indexOf(event) === 0}
                              onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}
                         />
-                        <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-center text-white p-4">
-                            <h2 className="text-4xl md:text-6xl font-bold tracking-tight">TICKETBOX EVENTS & TICKETS</h2>
-                            <p className="mt-4 text-lg md:text-xl max-w-2xl">From music festivals to tech conferences, find your next experience with us. Secure and simple ticketing for every event.</p>
-                            <Button asChild className="mt-8 bg-primary hover:bg-primary/90 text-primary-foreground">
-                                <Link href={`/events/${event.id}`}>Read More</Link>
-                            </Button>
-                        </div>
                     </div>
                 </CarouselItem>
             )

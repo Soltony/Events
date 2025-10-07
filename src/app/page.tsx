@@ -161,7 +161,7 @@ export default function PublicHomePage() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
        <header className="sticky top-0 z-50" style={gradientStyle}>
-        <nav className="container mx-auto px-4 lg:px-6 py-4 flex justify-between items-center">
+        <nav className="container mx-auto px-4 lg:px-6 py-2.5 flex justify-between items-center">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Image
                 src="/image/nibtickets.jpg"
@@ -174,25 +174,6 @@ export default function PublicHomePage() {
           </Link>
           
           <div className="hidden md:flex items-center gap-4">
-            <div className="relative w-full max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search events..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-white rounded-full"
-              />
-            </div>
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-[180px] bg-white rounded-full">
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map(category => (
-                  <SelectItem key={category} value={category}>{category}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Button asChild variant="outline" className="bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground rounded-full">
               <Link href="/tickets">
                 <Ticket className="mr-2 h-4 w-4" /> My Tickets
@@ -210,6 +191,19 @@ export default function PublicHomePage() {
       <main className="flex-grow">
         <section className="relative w-full">
             <EventsCarousel events={upcomingEvents} />
+            <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-center text-white p-4">
+                <h2 className="text-4xl md:text-6xl font-bold tracking-tight">TICKETBOX EVENTS & TICKETS</h2>
+                <p className="mt-4 text-lg md:text-xl max-w-2xl">From music festivals to tech conferences, find your next experience with us. Secure and simple ticketing for every event.</p>
+                <div className="relative w-full max-w-2xl mt-8">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input 
+                    placeholder="Search events, artists, or venues..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-12 pr-4 py-6 text-lg bg-white/90 text-black placeholder:text-muted-foreground rounded-full focus:bg-white"
+                  />
+                </div>
+            </div>
         </section>
 
         <section className="py-12 bg-white">
@@ -315,7 +309,7 @@ const Footer = () => (
               <Link href="https://www.youtube.com/channel/UCn_-tUsAPEKdzm_b2BOCOdA" target="_blank" rel="noopener noreferrer" aria-label="Youtube" className="text-accent hover:text-primary transition-colors">
                 <Youtube className="h-5 w-5" />
               </Link>
-              <Link href="https://t.me/nibinternationalbanksc" target="_blank" rel="noopener noreferrer" aria-label="Telegram" className="text-accent hover:text-primary transition-colors">
+              <Link href="https.t.me/nibinternationalbanksc" target="_blank" rel="noopener noreferrer" aria-label="Telegram" className="text-accent hover:text-primary transition-colors">
                 <Send className="h-5 w-5" />
               </Link>
             </div>
@@ -323,7 +317,3 @@ const Footer = () => (
       </div>
     </footer>
 )
-
-
-
-    
