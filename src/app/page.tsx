@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowUpRight, Search, Ticket } from 'lucide-react';
+import { ArrowUpRight, Search, Ticket, CheckCircle, ShoppingCart, CreditCard, Phone, Facebook, Twitter, Instagram } from 'lucide-react';
 import { getPublicEvents } from '@/lib/actions';
 import { format } from 'date-fns';
 import type { Event, TicketType } from '@prisma/client';
@@ -101,122 +101,169 @@ export default function PublicHomePage() {
   }, [events, searchQuery, selectedCategory]);
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-yellow-100 via-yellow-200 to-yellow-300" />
-        <div className="relative container mx-auto px-4 lg:px-6 py-3 space-y-2">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-3 w-full text-[#3b2900]">
-            <div className="flex items-center gap-3">
-              <Image src="/image/nibtickets.jpg" alt="NibTera Tickets Logo" width={200} height={50} data-ai-hint="logo nibtera" />
+    <div className="flex flex-col min-h-screen bg-gray-50">
+       <header className="sticky top-0 z-50">
+        <div className="bg-gray-800 text-white">
+          <div className="container mx-auto px-4 lg:px-6 py-2 flex justify-between items-center text-sm">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Phone className="h-4 w-4" />
+                <span>+420 123 456 789</span>
+              </div>
             </div>
-            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-              <div className="relative flex-1 md:flex-initial w-full sm:w-auto md:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[#6b4e16]" />
-                <Input
-                  placeholder="Search events..."
-                  className="pl-10 rounded-full bg-white/95 border-[#e8c15a] focus-visible:ring-2 focus-visible:ring-[#b97a0b] focus-visible:border-[#b97a0b] text-black placeholder:text-black/60"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-full sm:w-44 rounded-full bg-white/95 border-[#e8c15a] text-black">
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button asChild className="w-full sm:w-auto rounded-full bg-[#7a4b22] hover:bg-[#6b3f1d] text-white shadow">
-                <Link href="/tickets">
-                  <Ticket className="mr-2 h-4 w-4" />
-                  My Tickets
-                </Link>
-              </Button>
-              <div className="w-full sm:w-auto">
-                <AuthStatus />
-              </div>
+            <div className="flex items-center gap-4">
+              <Link href="#" className="hover:text-primary"><Facebook className="h-4 w-4" /></Link>
+              <Link href="#" className="hover:text-primary"><Twitter className="h-4 w-4" /></Link>
+              <Link href="#" className="hover:text-primary"><Instagram className="h-4 w-4" /></Link>
             </div>
           </div>
         </div>
-      </div>
-      <div className="flex-grow">
-        <div className="container mx-auto px-4 lg:px-6 mt-3 text-center">
-          <h2 className="text-3xl font-bold tracking-tight">Upcoming Events</h2>
-          <p className="text-muted-foreground mt-1">Check out these exciting upcoming events!</p>
-        </div>
-        <EventsCarousel events={upcomingEvents} />
-        <div className="grid gap-4 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 p-4 lg:p-6 mt-8">
-          {loading ? (
-            [...Array(10)].map((_, i) => (
-              <Card key={i}>
-                <CardHeader className="p-0"><Skeleton className="w-full aspect-video rounded-t-lg" /></CardHeader>
-                <CardContent className="p-3 space-y-1"><Skeleton className="h-4 w-16" /><Skeleton className="h-5 w-3/4" /><Skeleton className="h-4 w-1/2" /></CardContent>
-                <CardFooter className="p-3 pt-0"><Skeleton className="h-9 w-full" /></CardFooter>
-              </Card>
-            ))
-          ) : (otherEvents.length > 0) ? (
-            otherEvents.map((event) => {
-              const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-              const gradientStyle = { background: `linear-gradient(to top, ${event.color || '#ffc72e'}, transparent)` };
+        <nav className="bg-white shadow-md">
+          <div className="container mx-auto px-4 lg:px-6 py-4 flex justify-between items-center">
+             <Link href="/" className="flex items-center gap-2 font-semibold">
+                <Image
+                    src="/image/nibtickets.jpg"
+                    alt="Nibkera Tickets Logo"
+                    width={150}
+                    height={40}
+                    className="object-contain"
+                    data-ai-hint="logo nibtera"
+                />
+            </Link>
+            <div className="hidden md:flex items-center gap-6 text-sm font-medium">
+              <Link href="#" className="text-foreground hover:text-primary transition-colors">HOME</Link>
+              <Link href="#" className="text-muted-foreground hover:text-primary transition-colors">EVENTS</Link>
+              <Link href="#" className="text-muted-foreground hover:text-primary transition-colors">SHOP</Link>
+              <Link href="#" className="text-muted-foreground hover:text-primary transition-colors">NEWS</Link>
+              <Link href="#" className="text-muted-foreground hover:text-primary transition-colors">FEATURES</Link>
+              <Link href="/dashboard/events/new" className="text-muted-foreground hover:text-primary transition-colors">CREATE EVENT</Link>
+            </div>
+             <div className="flex items-center gap-2">
+                <AuthStatus />
+            </div>
+          </div>
+        </nav>
+      </header>
 
-              return (
-                <Link href={`/events/${event.id}`} key={event.id} className="group h-full">
-                  <CardContainer containerClassName="py-0 h-full">
-                    <CardBody className="bg-white relative group/card w-auto h-full rounded-xl p-4 border flex flex-col">
-                      <CardItem translateZ="100" className="w-full relative">
-                        <Image
-                          src={imageUrl}
-                          height="1000"
-                          width="1000"
-                          className="h-48 w-full object-cover rounded-xl group-hover/card:shadow-xl"
-                          alt={event.name}
-                          data-ai-hint={event.hint ?? 'event'}
-                          onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}
-                        />
-                      </CardItem>
-                      <div
-                        className="flex-1 flex flex-col justify-between rounded-b-xl"
-                        style={gradientStyle}
-                      >
-                        <CardItem
-                          as="div"
-                          translateZ="50"
-                          className="p-3 flex-1 space-y-1 bg-transparent text-black"
-                        >
-                          <Badge variant="outline" className={`text-xs ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
-                          <h3 className="text-base font-bold leading-tight text-black">{event.name}</h3>
-                          <p className="text-xs text-black/90 min-h-[2.5rem]">{formatEventDate(event.startDate, event.endDate)}</p>
-                        </CardItem>
-                        <div className="flex justify-between items-center mt-auto px-3 pb-3">
-                          <CardItem
-                            translateZ={20}
-                            as="button"
-                            className="w-full rounded-full bg-accent hover:bg-accent/90 text-accent-foreground p-2 text-xs font-bold"
-                          >
-                            Buy Ticket
-                          </CardItem>
+      <main className="flex-grow">
+        <section className="relative w-full">
+            <EventsCarousel events={upcomingEvents} />
+        </section>
+
+        <section className="py-12 bg-white">
+            <div className="container mx-auto px-4 lg:px-6">
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                    <div className="flex flex-col items-center">
+                        <CheckCircle className="h-10 w-10 text-primary mb-3" />
+                        <h3 className="text-lg font-semibold">CHOOSE EVENTS AND TICKETS</h3>
+                    </div>
+                    <div className="flex flex-col items-center">
+                        <ShoppingCart className="h-10 w-10 text-primary mb-3" />
+                        <h3 className="text-lg font-semibold">BUY DIRECTLY FROM ORGANIZERS</h3>
+                    </div>
+                    <div className="flex flex-col items-center">
+                        <CreditCard className="h-10 w-10 text-primary mb-3" />
+                        <h3 className="text-lg font-semibold">RECEIVE TICKETS</h3>
+                    </div>
+                 </div>
+            </div>
+        </section>
+
+        <section className="py-12">
+            <div className="container mx-auto px-4 lg:px-6">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                        <Ticket className="h-6 w-6 text-primary"/>
+                        Upcoming Events
+                    </h2>
+                     <div className="flex items-center gap-2">
+                        <div className="relative w-48">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                            placeholder="Search events..."
+                            className="pl-9 rounded-md bg-white border-border"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            />
                         </div>
-                      </div>
-                    </CardBody>
-                  </CardContainer>
-                </Link>
-              )
-            })
-          ) : (
-            <Card className="sm:col-span-2 lg:col-span-3 xl:col-span-5 flex items-center justify-center p-8 text-center bg-card/80">
-              <div>
-                <h3 className="text-2xl font-semibold tracking-tight">No Events Found</h3>
-                <p className="text-muted-foreground mt-2 mb-6">Try adjusting your search or filter criteria.</p>
-              </div>
-            </Card>
-          )}
-        </div>
-      </div>
+                        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                            <SelectTrigger className="w-40 bg-white border-border">
+                            <SelectValue placeholder="Category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                            {categories.map((category) => (
+                                <SelectItem key={category} value={category}>
+                                {category}
+                                </SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {loading ? (
+                    [...Array(8)].map((_, i) => (
+                    <Card key={i} className="overflow-hidden">
+                        <Skeleton className="w-full aspect-[4/3]" />
+                        <CardContent className="p-4 space-y-2">
+                        <Skeleton className="h-5 w-3/4" />
+                        <Skeleton className="h-4 w-1/2" />
+                        </CardContent>
+                    </Card>
+                    ))
+                ) : (otherEvents.length > 0) ? (
+                    otherEvents.map((event) => {
+                    const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
+                    return (
+                        <Card key={event.id} className="overflow-hidden group transition-shadow hover:shadow-xl">
+                            <Link href={`/events/${event.id}`}>
+                                <div className="aspect-[4/3] relative">
+                                    <Image
+                                        src={imageUrl}
+                                        fill
+                                        className="object-cover"
+                                        alt={event.name}
+                                        data-ai-hint={event.hint ?? 'event'}
+                                        onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}
+                                    />
+                                </div>
+                                <CardContent className="p-4">
+                                     <h3 className="font-semibold text-lg truncate group-hover:text-primary">{event.name}</h3>
+                                     <p className="text-sm text-muted-foreground">{format(new Date(event.startDate), 'LLL dd, y')}</p>
+                                     <p className="text-lg font-bold text-right mt-2 text-primary">Free</p>
+                                </CardContent>
+                            </Link>
+                        </Card>
+                    )
+                    })
+                ) : (
+                    <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4 flex items-center justify-center p-8 text-center bg-gray-100 rounded-lg">
+                    <div>
+                        <h3 className="text-xl font-semibold tracking-tight">No Events Found</h3>
+                        <p className="text-muted-foreground mt-1">Try adjusting your search or filter criteria.</p>
+                    </div>
+                    </div>
+                )}
+                </div>
+            </div>
+        </section>
+      </main>
+      <Footer />
     </div>
   );
 }
+
+
+const Footer = () => (
+    <footer className="bg-gray-800 text-white py-8">
+      <div className="container mx-auto px-4 lg:px-6">
+         <div className="flex flex-col items-center justify-center gap-4">
+          <p className="text-sm text-center text-white/80">
+            &copy; {new Date().getFullYear()} NibTera Tickets. All rights reserved.
+          </p>
+        </div>
+      </div>
+    </footer>
+)
+

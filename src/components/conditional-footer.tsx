@@ -1,12 +1,10 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { Footer } from '@/components/footer';
 
 export function ConditionalFooter() {
   const pathname = usePathname();
-  if (pathname !== '/') return null;
-  return <Footer />;
+  // We no longer need a conditional footer, as the new design has a footer on the main page.
+  // Returning null effectively disables this component.
+  return null;
 }
-
-
