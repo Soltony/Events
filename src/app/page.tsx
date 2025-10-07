@@ -172,7 +172,7 @@ export default function PublicHomePage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-       <header className="sticky top-0 z-50" style={gradientStyle}>
+       <header className="fixed top-0 w-full z-50" style={gradientStyle}>
         <nav className="container mx-auto px-4 lg:px-6 py-2 flex justify-between items-center">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Image
@@ -201,7 +201,7 @@ export default function PublicHomePage() {
         </nav>
       </header>
 
-      <main className="flex-grow">
+      <main className="flex-grow pt-[64px]">
         <section className="relative w-full">
             <EventsCarousel events={upcomingEvents} />
             <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-center text-white p-4">
@@ -402,5 +402,7 @@ const Footer = () => (
       </div>
     </footer>
 )
+
+    
 
     
