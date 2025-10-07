@@ -48,6 +48,7 @@ const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 const CategoryFilter = ({ categories, selectedCategory, onSelectCategory }: { categories: string[], selectedCategory: string, onSelectCategory: (category: string) => void }) => {
     
     const categoryIcons: { [key: string]: React.ReactNode } = {
+        'All': <Ticket />,
         'Technology': <Presentation />,
         'Music': <Mic />,
         'Art': <Drama />,
@@ -58,7 +59,7 @@ const CategoryFilter = ({ categories, selectedCategory, onSelectCategory }: { ca
 
     return (
         <div className="relative">
-            <div className="flex space-x-4 overflow-x-auto pb-4 -mx-4 px-4">
+            <div className="flex justify-around items-center w-full">
                 {categories.map((category) => {
                      const Icon = categoryIcons[category] || <Ticket />;
                     return (
