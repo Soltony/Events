@@ -199,7 +199,7 @@ export default function PublicHomePage() {
 
                       return (
                         <CardContainer key={event.id} className="w-full">
-                          <CardBody className="bg-gray-50 relative group/card dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-auto h-auto rounded-xl p-0 border flex flex-col">
+                          <CardBody className="bg-gray-50 relative group/card dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-full h-full rounded-xl p-0 border flex flex-col">
                               <CardItem translateZ="50" className="w-full">
                                 <Link href={`/events/${event.id}`}>
                                     <div className="aspect-[4/3] relative rounded-t-xl overflow-hidden">
@@ -217,7 +217,7 @@ export default function PublicHomePage() {
                               </CardItem>
                               <div className="p-4 flex flex-col flex-grow bg-white rounded-b-xl">
                                 <CardItem translateZ="60" as="div" className="flex-grow">
-                                  <h3 className="font-semibold text-lg truncate group-hover/card:text-primary">{event.name}</h3>
+                                  <h3 className="font-semibold text-lg group-hover/card:text-primary">{event.name}</h3>
                                   <p className="text-sm text-muted-foreground mt-1">{format(new Date(event.startDate), 'LLL dd, y')}</p>
                                 </CardItem>
                                 <CardItem translateZ="40" as="div" className="mt-4">
