@@ -225,8 +225,8 @@ export default function PublicEventDetailPage() {
   
   const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
   const gradientStyle = event.color
-    ? { backgroundColor: event.color }
-    : { backgroundColor: '#864b20' };
+    ? { background: `linear-gradient(to bottom, ${event.color}40, ${event.color})` }
+    : { background: `linear-gradient(to bottom, #864b2040, #864b20)` };
 
   return (
     <>
@@ -384,6 +384,7 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
+
 
 
 
