@@ -6,11 +6,11 @@ import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowUpRight, Search, Ticket, CheckCircle, ShoppingCart, CreditCard, Facebook, Linkedin, Instagram, Youtube, Send } from 'lucide-react';
+import { ArrowUpRight, Search, Ticket, CheckCircle, ShoppingCart, CreditCard, Facebook, Linkedin, Instagram, Youtube, Send, Mic, Drama, MessageSquareHeart, Gamepad2, Presentation, Utensils } from 'lucide-react';
 import { getPublicEvents } from '@/lib/actions';
 import { format } from 'date-fns';
 import type { Event, TicketType } from '@prisma/client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -44,6 +44,45 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 }
 
 const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
+
+const CategoryFilter = ({ categories, selectedCategory, onSelectCategory }: { categories: string[], selectedCategory: string, onSelectCategory: (category: string) => void }) => {
+    
+    const categoryIcons: { [key: string]: React.ReactNode } = {
+        'Technology': <Presentation />,
+        'Music': <Mic />,
+        'Art': <Drama />,
+        'Community': <MessageSquareHeart />,
+        'Business': <Gamepad2 />,
+        'Food & Drink': <Utensils />
+    };
+
+    return (
+        <div className="relative">
+            <div className="flex space-x-4 overflow-x-auto pb-4 -mx-4 px-4">
+                {categories.map((category) => {
+                     const Icon = categoryIcons[category] || <Ticket />;
+                    return (
+                        <div key={category} className="flex-shrink-0 text-center">
+                            <button
+                                onClick={() => onSelectCategory(category)}
+                                className={cn(
+                                    "w-20 h-20 rounded-full border-2 flex items-center justify-center transition-all duration-300",
+                                    selectedCategory === category
+                                        ? "bg-primary/20 border-primary"
+                                        : "bg-white border-gray-200 hover:border-primary/50"
+                                )}
+                            >
+                                {Icon}
+                            </button>
+                            <p className="mt-2 text-sm font-medium">{category}</p>
+                        </div>
+                    )
+                })}
+            </div>
+        </div>
+    );
+};
+
 
 export default function PublicHomePage() {
   const [events, setEvents] = useState<EventWithTickets[]>([]);
@@ -175,20 +214,7 @@ export default function PublicHomePage() {
 
         <section className="py-12 bg-white">
             <div className="container mx-auto px-4 lg:px-6">
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-                    <div className="flex flex-col items-center">
-                        <CheckCircle className="h-10 w-10 text-primary mb-3" />
-                        <h3 className="text-lg font-semibold">CHOOSE EVENTS AND TICKETS</h3>
-                    </div>
-                    <div className="flex flex-col items-center">
-                        <ShoppingCart className="h-10 w-10 text-primary mb-3" />
-                        <h3 className="text-lg font-semibold">BUY DIRECTLY FROM ORGANIZERS</h3>
-                    </div>
-                    <div className="flex flex-col items-center">
-                        <CreditCard className="h-10 w-10 text-primary mb-3" />
-                        <h3 className="text-lg font-semibold">RECEIVE TICKETS</h3>
-                    </div>
-                 </div>
+                 <CategoryFilter categories={categories} selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />
             </div>
         </section>
 
