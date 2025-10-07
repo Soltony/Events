@@ -49,12 +49,7 @@ export default function CartSheet({
   handleApplyPromoCode,
   removePromoCode,
   updateTicketQuantity,
-  eventColor,
 }: CartSheetProps) {
-
-  const gradientStyle = eventColor
-    ? { backgroundColor: eventColor }
-    : { backgroundColor: '#864b20' };
 
   return (
     <>
@@ -67,12 +62,11 @@ export default function CartSheet({
             </Button>
         </SheetTrigger>
         <SheetContent 
-          className="flex flex-col text-card-foreground"
-          style={gradientStyle}
+          className="flex flex-col bg-card text-card-foreground"
         >
             <SheetHeader className="text-left">
                 <SheetTitle className="text-card-foreground">Your Cart</SheetTitle>
-                <SheetDescription className="text-muted-foreground">
+                <SheetDescription>
                     Review your order and proceed to checkout.
                 </SheetDescription>
             </SheetHeader>
@@ -81,7 +75,7 @@ export default function CartSheet({
                 {Object.values(selectedTickets).map(ticket => {
                     const remaining = ticket.total - ticket.sold;
                     return (
-                        <div key={ticket.id} className="flex items-center gap-4 p-3 rounded-lg bg-card/80 backdrop-blur-sm">
+                        <div key={ticket.id} className="flex items-center gap-4 p-3 rounded-lg bg-secondary">
                             <div className="flex-1">
                                 <p className="font-semibold">{ticket.name}</p>
                                 <p className="text-sm text-accent font-bold">ETB {ticket.price.toFixed(2)}</p>
@@ -100,19 +94,19 @@ export default function CartSheet({
                 })}
                 </div>
             </ScrollArea>
-            <SheetFooter className="mt-auto flex flex-col gap-4 !space-x-0 border-t border-card-foreground/20 pt-4">
+            <SheetFooter className="mt-auto flex flex-col gap-4 !space-x-0 border-t border-border pt-4">
                  <div className="space-y-2">
                     <div className="flex justify-between">
                         <span>Subtotal</span>
                         <span className="font-semibold">ETB {subtotal.toFixed(2)}</span>
                     </div>
                     {appliedPromo && (
-                        <div className="flex justify-between text-green-300">
+                        <div className="flex justify-between text-green-600 dark:text-green-400">
                             <span>Discount ({appliedPromo.code})</span>
                             <span className="font-semibold">- ETB {discount.toFixed(2)}</span>
                         </div>
                     )}
-                    <div className="border-t border-card-foreground/20"></div>
+                    <div className="border-t border-border"></div>
                     <div className="flex justify-between text-xl font-bold">
                         <span>Total</span>
                         <span>ETB {total.toFixed(2)}</span>
@@ -124,7 +118,7 @@ export default function CartSheet({
                         placeholder="Promo Code" 
                         value={promoCode}
                         onChange={e => setPromoCode(e.target.value)}
-                        className="flex-grow bg-card/80 border-card-foreground/30 placeholder:text-muted-foreground"
+                        className="flex-grow placeholder:text-muted-foreground"
                         disabled={!!appliedPromo}
                     />
                     {appliedPromo ? (
