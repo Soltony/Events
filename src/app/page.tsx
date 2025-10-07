@@ -214,20 +214,25 @@ export default function PublicHomePage() {
                     ))
                 ) : (otherEvents.length > 0) ? (
                     otherEvents.map((event) => {
+                      const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
                       return (
                         <Card key={event.id} className="w-full flex flex-col rounded-xl overflow-hidden border-2 border-primary/20 hover:shadow-lg transition-shadow">
-                          <div className="bg-white p-4 flex items-center justify-center">
+                          <div className="relative w-full aspect-[4/3] bg-muted">
                             <Image
-                                src={DEFAULT_IMAGE_PLACEHOLDER}
-                                width={180}
-                                height={50}
-                                className="object-contain"
-                                alt="Nibtera Tickets"
-                                data-ai-hint="logo nibtera"
+                                src={imageUrl}
+                                alt={event.name}
+                                fill
+                                className="object-cover"
+                                data-ai-hint={event.hint ?? 'event'}
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = DEFAULT_IMAGE_PLACEHOLDER;
+                                  target.srcset = '';
+                                }}
                             />
                           </div>
                           <div 
-                              className="p-4 flex flex-col flex-grow justify-between rounded-t-xl"
+                              className="p-4 flex flex-col flex-grow justify-between"
                               style={getContentGradient(event.color)}
                           >
                               <div className="flex-grow">
@@ -293,3 +298,6 @@ const Footer = () => (
     </footer>
 )
 
+
+
+    
