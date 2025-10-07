@@ -252,9 +252,9 @@ export default function PublicEventDetailPage() {
                     <Image src={imageUrl} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
                 </div>
 
-                <div className="bg-card/80 backdrop-blur-sm rounded-lg p-6 shadow-md">
+                <div className="bg-transparent rounded-lg p-0">
                   <Badge variant="outline" className={`mb-2 w-min whitespace-nowrap ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
-                  <h1 className="text-4xl font-bold tracking-tight">{event.name}</h1>
+                  <h1 className="text-4xl font-bold tracking-tight text-card-foreground">{event.name}</h1>
                    {event.organizerName && (
                       <div className="flex items-center gap-2 text-lg text-muted-foreground pt-3">
                         <UserCircle className="h-5 w-5" />
@@ -279,22 +279,22 @@ export default function PublicEventDetailPage() {
                   </div>
                 </div>
 
-                <div className="bg-card/80 backdrop-blur-sm rounded-lg p-6 shadow-md">
-                  <h3 className="text-2xl font-semibold mb-4">About this Event</h3>
+                <div className="bg-transparent rounded-lg p-0">
+                  <h3 className="text-2xl font-semibold mb-4 text-card-foreground">About this Event</h3>
                   <p className="text-base text-muted-foreground whitespace-pre-wrap leading-relaxed">{event.description}</p>
                 </div>
             </div>
 
             <div className="space-y-8">
-              <div className="bg-card/80 backdrop-blur-sm rounded-lg p-6 shadow-md">
-                <h3 className="text-2xl font-semibold mb-4">Tickets</h3>
+              <div className="bg-transparent rounded-lg p-0">
+                <h3 className="text-2xl font-semibold mb-4 text-card-foreground">Tickets</h3>
                 <div className="space-y-4">
                   {event.ticketTypes.length > 0 ? (
                     event.ticketTypes.map(ticket => {
                       const selectedQuantity = selectedTickets[ticket.id]?.quantity || 0;
                       const remaining = ticket.total - ticket.sold;
                       return (
-                        <div key={ticket.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-lg border bg-secondary/50">
+                        <div key={ticket.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-lg border bg-card/80 backdrop-blur-sm shadow-md">
                           <div className="mb-3 sm:mb-0">
                             <h4 className="font-semibold text-lg">{ticket.name}</h4>
                             <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">ETB {Number(ticket.price).toFixed(2)}</p>
