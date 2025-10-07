@@ -182,8 +182,8 @@ export default function PublicHomePage() {
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {loading ? (
                     [...Array(8)].map((_, i) => (
-                    <Card key={i} className="overflow-hidden">
-                        <Skeleton className="w-full aspect-[4/3]" />
+                    <Card key={i} className="overflow-hidden aspect-square">
+                        <Skeleton className="w-full h-1/2" />
                         <CardContent className="p-4 space-y-2">
                         <Skeleton className="h-5 w-3/4" />
                         <Skeleton className="h-4 w-1/2" />
@@ -198,11 +198,11 @@ export default function PublicHomePage() {
                         : { background: `linear-gradient(to top, #f6b313BF, transparent)` };
 
                       return (
-                        <CardContainer key={event.id} className="w-full">
+                        <CardContainer key={event.id} className="w-full aspect-square">
                           <CardBody className="bg-gray-50 relative group/card dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-full h-full rounded-xl p-0 border flex flex-col">
-                              <CardItem translateZ="50" className="w-full">
+                              <CardItem translateZ="50" className="w-full h-1/2">
                                 <Link href={`/events/${event.id}`}>
-                                    <div className="aspect-[4/3] relative rounded-t-xl overflow-hidden">
+                                    <div className="relative w-full h-full rounded-t-xl overflow-hidden">
                                         <Image
                                             src={imageUrl}
                                             fill
@@ -215,12 +215,12 @@ export default function PublicHomePage() {
                                     </div>
                                 </Link>
                               </CardItem>
-                              <div className="p-4 flex flex-col flex-grow bg-white rounded-b-xl">
+                              <div className="p-4 flex flex-col flex-grow bg-white rounded-b-xl justify-between">
                                 <CardItem translateZ="60" as="div" className="flex-grow">
                                   <h3 className="font-semibold text-lg group-hover/card:text-primary">{event.name}</h3>
                                   <p className="text-sm text-muted-foreground mt-1">{format(new Date(event.startDate), 'LLL dd, y')}</p>
                                 </CardItem>
-                                <CardItem translateZ="40" as="div" className="mt-4">
+                                <CardItem translateZ="40" as="div" className="mt-4 w-full">
                                   <Button asChild className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
                                     <Link href={`/events/${event.id}`}>
                                       <Ticket className="mr-2 h-4 w-4" /> Buy Ticket
@@ -261,4 +261,3 @@ const Footer = () => (
       </div>
     </footer>
 )
-
