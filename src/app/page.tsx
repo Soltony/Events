@@ -100,53 +100,54 @@ export default function PublicHomePage() {
     };
   }, [events, searchQuery, selectedCategory]);
   
-  const gradientStyle = { background: `linear-gradient(to right, #fefce8, #fef9c3)` };
+  const gradientStyle = { background: `linear-gradient(to right, #fefce8, #fde047)` };
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
        <header className="sticky top-0 z-50" style={gradientStyle}>
         <nav className="container mx-auto px-4 lg:px-6 py-4 flex justify-between items-center">
-            <Link href="/" className="flex items-center gap-2 font-semibold">
-                <Image
-                    src="/image/nibtickets.jpg"
-                    alt="Nibkera Tickets Logo"
-                    width={150}
-                    height={40}
-                    className="object-contain"
-                    data-ai-hint="logo nibtera"
-                />
-            </Link>
-            
-            <div className="hidden md:flex flex-1 justify-center items-center gap-4">
-                <div className="relative w-full max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                        placeholder="Search events..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 bg-white rounded-full"
-                    />
-                </div>
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                    <SelectTrigger className="w-[180px] bg-white rounded-full">
-                        <SelectValue placeholder="All Categories" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {categories.map(category => (
-                            <SelectItem key={category} value={category}>{category}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+          <Link href="/" className="flex items-center gap-2 font-semibold">
+            <Image
+                src="/image/nibtickets.jpg"
+                alt="Nibkera Tickets Logo"
+                width={150}
+                height={40}
+                className="object-contain"
+                data-ai-hint="logo nibtera"
+            />
+          </Link>
+          
+          <div className="hidden md:flex items-center gap-4">
+            <div className="relative w-full max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search events..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-white rounded-full"
+              />
             </div>
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-[180px] bg-white rounded-full">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map(category => (
+                  <SelectItem key={category} value={category}>{category}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button asChild variant="outline" className="bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground rounded-full">
+              <Link href="/tickets">
+                <Ticket className="mr-2 h-4 w-4" /> My Tickets
+              </Link>
+            </Button>
+            <AuthStatus />
+          </div>
 
-            <div className="flex items-center gap-2">
-                <Button asChild variant="outline" className="bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground rounded-full">
-                  <Link href="/tickets">
-                    <Ticket className="mr-2 h-4 w-4" /> My Tickets
-                  </Link>
-                </Button>
-                <AuthStatus />
-            </div>
+          <div className="md:hidden flex items-center gap-2">
+            <AuthStatus />
+          </div>
         </nav>
       </header>
 
@@ -182,11 +183,11 @@ export default function PublicHomePage() {
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {loading ? (
                     [...Array(8)].map((_, i) => (
-                    <Card key={i} className="overflow-hidden aspect-square">
-                        <Skeleton className="w-full h-1/2" />
+                    <Card key={i} className="overflow-hidden">
+                        <Skeleton className="w-full aspect-square" />
                         <CardContent className="p-4 space-y-2">
-                        <Skeleton className="h-5 w-3/4" />
-                        <Skeleton className="h-4 w-1/2" />
+                          <Skeleton className="h-5 w-3/4" />
+                          <Skeleton className="h-4 w-1/2" />
                         </CardContent>
                     </Card>
                     ))
@@ -198,8 +199,8 @@ export default function PublicHomePage() {
                         : { background: `linear-gradient(to top, #f6b313BF, transparent)` };
 
                       return (
-                        <CardContainer key={event.id} className="w-full aspect-square">
-                          <CardBody className="bg-gray-50 relative group/card dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-full h-full rounded-xl p-0 border flex flex-col">
+                        <CardContainer key={event.id} className="w-full">
+                          <CardBody className="bg-gray-50 relative group/card dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-full h-full rounded-xl p-0 border flex flex-col aspect-square">
                               <CardItem translateZ="50" className="w-full h-1/2">
                                 <Link href={`/events/${event.id}`}>
                                     <div className="relative w-full h-full rounded-t-xl overflow-hidden">
