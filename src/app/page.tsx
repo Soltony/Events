@@ -172,7 +172,7 @@ export default function PublicHomePage() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
        <header className="sticky top-0 z-50" style={gradientStyle}>
-        <nav className="container mx-auto px-4 lg:px-6 py-2.5 flex justify-between items-center">
+        <nav className="container mx-auto px-4 lg:px-6 py-2 flex justify-between items-center">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Image
                 src="/image/nibtickets.jpg"
@@ -185,9 +185,10 @@ export default function PublicHomePage() {
           </Link>
           
           <div className="hidden md:flex items-center gap-4">
-            <Button asChild variant="outline" className="bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground rounded-full">
+            <Button asChild variant="outline" size="icon" className="bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground rounded-full">
               <Link href="/tickets">
-                <Ticket className="mr-2 h-4 w-4" /> My Tickets
+                <Ticket className="h-4 w-4" />
+                <span className="sr-only">My Tickets</span>
               </Link>
             </Button>
             <AuthStatus />
