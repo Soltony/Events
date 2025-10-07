@@ -174,13 +174,13 @@ export default function PublicHomePage() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
        <header className="fixed top-0 w-full z-50" style={gradientStyle}>
-        <nav className="container mx-auto px-4 lg:px-6 py-1 flex justify-between items-center">
+        <nav className="container mx-auto px-4 lg:px-6 py-0 flex justify-between items-center h-14">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Image
                 src="/image/nibtickets.jpg"
                 alt="Nibkera Tickets Logo"
                 width={120}
-                height={32}
+                height={28}
                 className="object-contain"
                 data-ai-hint="logo nibtera"
             />
@@ -202,7 +202,7 @@ export default function PublicHomePage() {
         </nav>
       </header>
 
-      <main className="flex-grow pt-[48px]">
+      <main className="flex-grow pt-[56px]">
         <section className="relative w-full">
             <EventsCarousel events={upcomingEvents} />
             <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-center text-white p-4">
@@ -407,3 +407,4 @@ const Footer = () => (
     
 
     
+
