@@ -62,7 +62,7 @@ export default function CartSheet({
             </Button>
         </SheetTrigger>
         <SheetContent 
-          className="flex flex-col bg-card text-card-foreground"
+          className="flex flex-col bg-card text-card-foreground sm:max-w-md"
         >
             <SheetHeader className="text-left">
                 <SheetTitle className="text-card-foreground">Your Cart</SheetTitle>
