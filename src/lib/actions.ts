@@ -154,7 +154,7 @@ export async function getEventDetails(id: number) {
 }
 
 export async function addEvent(data: any) {
-    const { tickets, startDate, endDate, otherCategory, ...eventData } = data;
+    const { tickets, startDate, endDate, otherCategory, location, ...eventData } = data;
     const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
@@ -188,6 +188,7 @@ export async function addEvent(data: any) {
     const newEvent = await prisma.event.create({
         data: {
             ...eventData,
+            location: location,
             organizerId: user.id,
             nibBankAccount: nibBankAccount,
             category: finalCategory,
@@ -214,7 +215,7 @@ export async function addEvent(data: any) {
 }
 
 export async function updateEvent(id: number, data: any) {
-    const { startDate, endDate, otherCategory, ...eventData } = data;
+    const { startDate, endDate, otherCategory, location, ...eventData } = data;
     const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
@@ -224,6 +225,8 @@ export async function updateEvent(id: number, data: any) {
 
     const eventDataForUpdate = { ...eventData };
     delete eventDataForUpdate.otherCategory;
+    delete eventDataForUpdate.locations;
+
 
     const eventToUpdate = await prisma.event.findUnique({ where: { id }});
     if (!eventToUpdate) throw new Error("Event not found");
@@ -236,6 +239,7 @@ export async function updateEvent(id: number, data: any) {
         where: { id },
         data: {
             ...eventDataForUpdate,
+            location: location,
             category: finalCategory,
             startDate: startDate,
             endDate: endDate,

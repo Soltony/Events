@@ -2,10 +2,10 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter, useParams } from 'next/navigation';
-import { UploadCloud, Loader2, ArrowLeft } from 'lucide-react';
+import { UploadCloud, Loader2, ArrowLeft, PlusCircle, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -35,7 +35,9 @@ const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
   organizerName: z.string().optional(),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
-  location: z.string().min(3, { message: 'Location is required.' }),
+  locations: z.array(z.object({
+    value: z.string().min(3, { message: "Location can't be empty."}),
+  })).min(1, { message: 'You must have at least one location.'}),
   hint: z.string().optional(),
   startDate: z.date({
     required_error: 'A start date and time for the event is required.',
@@ -76,13 +78,18 @@ export default function EditEventPage() {
       name: '',
       organizerName: '',
       description: '',
-      location: '',
+      locations: [{ value: '' }],
       hint: '',
       category: '',
       otherCategory: '',
       image: '',
       color: '#864b20',
     },
+  });
+
+  const { fields: locationFields, append: appendLocation, remove: removeLocation } = useFieldArray({
+    control: form.control,
+    name: "locations"
   });
 
   const watchedCategory = form.watch('category');
@@ -104,7 +111,7 @@ export default function EditEventPage() {
             name: event.name,
             organizerName: event.organizerName || '',
             description: event.description,
-            location: event.location,
+            locations: event.location.split(',').map(l => ({ value: l.trim() })),
             hint: event.hint || '',
             category: isOtherCategory ? 'Other' : event.category,
             otherCategory: isOtherCategory ? event.category : '',
@@ -137,6 +144,7 @@ export default function EditEventPage() {
         const finalData = {
             ...data,
             category: data.category === 'Other' ? data.otherCategory : data.category,
+            location: data.locations.map(l => l.value).join(', '),
         };
 
         await updateEvent(eventId, finalData);
@@ -349,25 +357,50 @@ export default function EditEventPage() {
                   />
               </div>
 
-              <FormField
-                control={form.control}
-                name="location"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Location</FormLabel>
-                    <FormControl>
-                      <LocationInput
-                        value={field.value}
-                        onChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Start typing to search for a location in Ethiopia.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+               <div className="space-y-4">
+                  <FormLabel>Locations</FormLabel>
+                  <FormDescription>Add one or more locations for your event.</FormDescription>
+                  <FormMessage>{form.formState.errors.locations?.message}</FormMessage>
+
+                  {locationFields.map((field, index) => (
+                      <div key={field.id} className="flex items-center gap-2">
+                          <FormField
+                              control={form.control}
+                              name={`locations.${index}.value`}
+                              render={({ field }) => (
+                                  <FormItem className="flex-grow">
+                                      <FormControl>
+                                          <LocationInput
+                                              value={field.value}
+                                              onChange={field.onChange}
+                                          />
+                                      </FormControl>
+                                      <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
+                          <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => removeLocation(index)}
+                              disabled={locationFields.length <= 1}
+                          >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Remove location</span>
+                          </Button>
+                      </div>
+                  ))}
+                  <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => appendLocation({ value: '' })}
+                  >
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Add Location
+                  </Button>
+                </div>
+
 
               <FormField
                 control={form.control}
@@ -383,7 +416,7 @@ export default function EditEventPage() {
                       />
                     </FormControl>
                      <FormDescription>
-                      Optional: Provide more detailed location info like landmarks, building names, or floor numbers.
+                      Optional: Provide more detailed location info like landmarks, building names, or floor numbers. This applies to all locations.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

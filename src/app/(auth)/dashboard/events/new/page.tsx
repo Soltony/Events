@@ -35,7 +35,9 @@ const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
   organizerName: z.string().optional(),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
-  location: z.string().min(3, { message: 'Location is required.' }),
+  locations: z.array(z.object({
+    value: z.string().min(3, { message: "Location can't be empty."}),
+  })).min(1, { message: 'You must have at least one location.'}),
   hint: z.string().optional(),
   startDate: z.date({
     required_error: 'A start date and time for the event is required.',
@@ -78,7 +80,7 @@ export default function CreateEventPage() {
       name: '',
       organizerName: '',
       description: '',
-      location: '',
+      locations: [{ value: '' }],
       hint: '',
       category: '',
       otherCategory: '',
@@ -95,12 +97,18 @@ export default function CreateEventPage() {
     name: "tickets"
   });
 
+  const { fields: locationFields, append: appendLocation, remove: removeLocation } = useFieldArray({
+    control: form.control,
+    name: "locations"
+  });
+
   async function onSubmit(data: EventFormValues) {
     setIsSubmitting(true);
     try {
         const finalData = {
             ...data,
             category: data.category === 'Other' ? data.otherCategory : data.category,
+            location: data.locations.map(l => l.value).join(', '),
         };
         const newEvent = await addEvent(finalData);
         
@@ -302,25 +310,50 @@ export default function CreateEventPage() {
                     />
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="location"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Location</FormLabel>
-                      <FormControl>
-                        <LocationInput
-                          value={field.value}
-                          onChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Start typing to search for a location in Ethiopia.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="space-y-4">
+                  <FormLabel>Locations</FormLabel>
+                  <FormDescription>Add one or more locations for your event. Start typing to search for a location in Ethiopia.</FormDescription>
+                  <FormMessage>{form.formState.errors.locations?.message}</FormMessage>
+
+                  {locationFields.map((field, index) => (
+                      <div key={field.id} className="flex items-center gap-2">
+                          <FormField
+                              control={form.control}
+                              name={`locations.${index}.value`}
+                              render={({ field }) => (
+                                  <FormItem className="flex-grow">
+                                      <FormControl>
+                                          <LocationInput
+                                              value={field.value}
+                                              onChange={field.onChange}
+                                          />
+                                      </FormControl>
+                                      <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
+                          <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => removeLocation(index)}
+                              disabled={locationFields.length <= 1}
+                          >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Remove location</span>
+                          </Button>
+                      </div>
+                  ))}
+                  <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => appendLocation({ value: '' })}
+                  >
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Add Location
+                  </Button>
+                </div>
+
 
                 <FormField
                   control={form.control}
@@ -336,7 +369,7 @@ export default function CreateEventPage() {
                         />
                       </FormControl>
                       <FormDescription>
-                        Optional: Provide more detailed location info like landmarks, building names, or floor numbers.
+                        Optional: Provide more detailed location info like landmarks, building names, or floor numbers. This applies to all locations.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
