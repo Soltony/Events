@@ -103,21 +103,6 @@ export default function PublicHomePage() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
        <header className="sticky top-0 z-50">
-        <div className="bg-gray-800 text-white">
-          <div className="container mx-auto px-4 lg:px-6 py-2 flex justify-between items-center text-sm">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4" />
-                <span>+420 123 456 789</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <Link href="#" className="hover:text-primary"><Facebook className="h-4 w-4" /></Link>
-              <Link href="#" className="hover:text-primary"><Twitter className="h-4 w-4" /></Link>
-              <Link href="#" className="hover:text-primary"><Instagram className="h-4 w-4" /></Link>
-            </div>
-          </div>
-        </div>
         <nav className="bg-white shadow-md">
           <div className="container mx-auto px-4 lg:px-6 py-4 flex justify-between items-center">
              <Link href="/" className="flex items-center gap-2 font-semibold">
@@ -266,4 +251,3 @@ const Footer = () => (
       </div>
     </footer>
 )
-
