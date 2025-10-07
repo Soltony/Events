@@ -85,7 +85,6 @@ export default function ScanQrPage() {
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            // Initialize Html5Qrcode without a DOM element for file scanning
             const qrScanner = new Html5Qrcode(/* verbose= */ false);
             try {
                 const decodedText = await qrScanner.scanFile(file, /* showImage= */ false);
