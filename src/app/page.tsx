@@ -217,7 +217,7 @@ export default function PublicHomePage() {
                       const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
                       return (
                         <Card key={event.id} className="w-full flex flex-col rounded-xl overflow-hidden border-2 border-primary/20 hover:shadow-lg transition-shadow">
-                          <div className="relative w-full aspect-[4/3] bg-muted">
+                          <div className="relative w-full aspect-video bg-muted">
                             <Image
                                 src={imageUrl}
                                 alt={event.name}
