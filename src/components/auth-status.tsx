@@ -20,7 +20,7 @@ export function AuthStatus() {
   }
   
   if (isLoading) {
-    return <Skeleton className="h-10 w-32 rounded-full" />;
+    return <Skeleton className="h-10 w-10 rounded-full" />;
   }
 
   if (isAuthenticated) {
@@ -32,11 +32,5 @@ export function AuthStatus() {
     )
   }
 
-  return (
-    <div className="flex items-center gap-2">
-        <Button asChild className="rounded-full">
-          <Link href="/login">Organizer Login</Link>
-        </Button>
-    </div>
-  );
+  return null;
 }
