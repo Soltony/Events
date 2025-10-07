@@ -161,29 +161,6 @@ export default function PublicHomePage() {
                         <Ticket className="h-6 w-6 text-primary"/>
                         Upcoming Events
                     </h2>
-                     <div className="flex items-center gap-2">
-                        <div className="relative w-48">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                            placeholder="Search events..."
-                            className="pl-9 rounded-md bg-white border-border"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
-                        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                            <SelectTrigger className="w-40 bg-white border-border">
-                            <SelectValue placeholder="Category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                            {categories.map((category) => (
-                                <SelectItem key={category} value={category}>
-                                {category}
-                                </SelectItem>
-                            ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
                 </div>
 
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
