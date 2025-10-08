@@ -207,7 +207,7 @@ export default function PublicHomePage() {
         <section className="relative w-full">
             <EventsCarousel events={upcomingEvents} />
             <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-center text-white p-4">
-                <h2 className="text-4xl md:text-6xl font-bold tracking-tight">TICKETBOX EVENTS & TICKETS</h2>
+                <h2 className="text-4xl md:text-6xl font-bold tracking-tight">UPCOMING EVENTS AND TICKET</h2>
                 <p className="mt-4 text-lg md:text-xl max-w-2xl">From music festivals to tech conferences, find your next experience with us. Secure and simple ticketing for every event.</p>
                 <div className="relative w-full max-w-2xl mt-8">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
