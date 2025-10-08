@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -154,7 +155,7 @@ export async function getEventDetails(id: number) {
 }
 
 export async function addEvent(data: any) {
-    const { tickets, startDate, endDate, otherCategory, location, ...eventData } = data;
+    const { tickets, startDate, endDate, otherCategory, location, organizerName, ...eventData } = data;
     const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
@@ -188,6 +189,7 @@ export async function addEvent(data: any) {
     const newEvent = await prisma.event.create({
         data: {
             ...eventData,
+            organizerName: organizerName,
             location: location,
             organizerId: user.id,
             nibBankAccount: nibBankAccount,
@@ -215,7 +217,7 @@ export async function addEvent(data: any) {
 }
 
 export async function updateEvent(id: number, data: any) {
-    const { startDate, endDate, otherCategory, location, ...eventData } = data;
+    const { startDate, endDate, otherCategory, location, organizerName, ...eventData } = data;
     const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
@@ -239,6 +241,7 @@ export async function updateEvent(id: number, data: any) {
         where: { id },
         data: {
             ...eventDataForUpdate,
+            organizerName: organizerName,
             location: location,
             category: finalCategory,
             startDate: startDate,
@@ -340,10 +343,23 @@ export async function deleteTicketType(ticketTypeId: number) {
 }
 
 
-export async function addPromoCode(eventId: number, data: { code: string; type: PromoCodeType; value: number; maxUses: number; }) {
+export async function addPromoCode(eventId: number, data: any, allTicketTypes?: TicketType[]) {
+    let finalCode = data.code;
+    if (data.restrictionType === 'TICKET' && data.ticketTypeId && allTicketTypes) {
+        const ticketType = allTicketTypes.find(t => t.id === parseInt(data.ticketTypeId, 10));
+        if (ticketType) {
+            finalCode = `TICKET:${ticketType.name}:${data.code}`;
+        }
+    } else if (data.restrictionType === 'LOCATION' && data.location) {
+        finalCode = `LOCATION:${data.location}:${data.code}`;
+    }
+
     const newPromoCode = await prisma.promoCode.create({
         data: {
-            ...data,
+            code: finalCode,
+            type: data.type,
+            value: data.value,
+            maxUses: data.maxUses,
             eventId: eventId,
         }
     });
@@ -351,10 +367,25 @@ export async function addPromoCode(eventId: number, data: { code: string; type: 
     return serialize(newPromoCode);
 }
 
-export async function updatePromoCode(promoCodeId: number, data: Partial<PromoCode>) {
+export async function updatePromoCode(promoCodeId: number, data: any, allTicketTypes?: TicketType[]) {
+  let finalCode = data.code;
+    if (data.restrictionType === 'TICKET' && data.ticketTypeId && allTicketTypes) {
+        const ticketType = allTicketTypes.find(t => t.id === parseInt(data.ticketTypeId, 10));
+        if (ticketType) {
+            finalCode = `TICKET:${ticketType.name}:${data.code}`;
+        }
+    } else if (data.restrictionType === 'LOCATION' && data.location) {
+        finalCode = `LOCATION:${data.location}:${data.code}`;
+    }
+
   const updatedPromoCode = await prisma.promoCode.update({
     where: { id: promoCodeId },
-    data: data,
+    data: {
+        code: finalCode,
+        type: data.type,
+        value: data.value,
+        maxUses: data.maxUses,
+    },
   });
   revalidatePath(`/dashboard/events/${updatedPromoCode.eventId}`);
   return serialize(updatedPromoCode);
@@ -926,18 +957,45 @@ export async function getTicketsByUserId(userId: string | null, localTicketIds: 
     return serialize(tickets);
 }
 
-export async function validatePromoCode(promoCode: string, eventId: number): Promise<PromoCode | null> {
-    const promo = await prisma.promoCode.findFirst({
+export async function validatePromoCode(code: string, eventId: number, location?: string | null, ticketTypesInCart?: { id: number; name: string }[]): Promise<PromoCode | null> {
+    const promos = await prisma.promoCode.findMany({
         where: {
-            code: promoCode,
             eventId: eventId,
             uses: {
                 lt: prisma.promoCode.fields.maxUses
             }
         }
     });
-    return serialize(promo);
+
+    for (const promo of promos) {
+        // No restrictions, just match the code
+        if (promo.code === code) return serialize(promo);
+
+        // Check for structured codes
+        if (promo.code.includes(':')) {
+            const parts = promo.code.split(':');
+            const type = parts[0];
+            const value = parts[1];
+            const actualCode = parts[2];
+
+            if (actualCode === code) {
+                if (type === 'TICKET' && ticketTypesInCart) {
+                    if (ticketTypesInCart.some(t => t.name === value)) {
+                        return serialize(promo);
+                    }
+                }
+                if (type === 'LOCATION' && location) {
+                    if (location === value) {
+                        return serialize(promo);
+                    }
+                }
+            }
+        }
+    }
+
+    return null;
 }
+
 
 export async function checkInAttendee(attendeeId: number) {
     'use server';
@@ -970,3 +1028,4 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+

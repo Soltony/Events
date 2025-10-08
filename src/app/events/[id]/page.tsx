@@ -6,7 +6,7 @@ import { getEventById, validatePromoCode } from '@/lib/actions';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone, ArrowLeft, X, UserCircle } from 'lucide-react';
+import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone, ArrowLeft, X, UserCircle, GripVertical } from 'lucide-react';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import type { Event, TicketType, PromoCode } from '@prisma/client';
@@ -27,7 +27,6 @@ import { AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDes
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
-    color?: string | null;
     organizerName?: string | null;
 }
 
@@ -62,6 +61,7 @@ export default function PublicEventDetailPage() {
   const [event, setEvent] = useState<EventWithTickets | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTickets, setSelectedTickets] = useState<Record<number, SelectedTicket>>({});
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
   const [discount, setDiscount] = useState(0);
@@ -82,6 +82,10 @@ export default function PublicEventDetailPage() {
             notFound();
         }
         setEvent(eventData);
+        // Set default selected location
+        if (eventData && eventData.location) {
+            setSelectedLocation(eventData.location.split(',')[0].trim());
+        }
         setLoading(false);
     }
     fetchEvent();
@@ -136,13 +140,13 @@ export default function PublicEventDetailPage() {
     if (!promoCode) return;
     setIsPromoLoading(true);
     try {
-        const result = await validatePromoCode(promoCode, eventId);
+        const result = await validatePromoCode(promoCode, eventId, selectedLocation);
         if (result) {
             setAppliedPromo(result);
             toast({ title: "Success", description: "Promo code applied!" });
         } else {
             setAppliedPromo(null);
-            toast({ variant: 'destructive', title: "Error", description: "Invalid or expired promo code." });
+            toast({ variant: 'destructive', title: "Error", description: "Invalid or expired promo code for the selected ticket type or location." });
         }
     } catch (e) {
         setAppliedPromo(null);
@@ -192,7 +196,7 @@ export default function PublicEventDetailPage() {
   if (loading || !event) {
     return (
       <div className="container mx-auto max-w-5xl py-8 px-4">
-         <Button asChild variant="ghost" className="absolute top-4 left-4 z-10 bg-background/50 hover:bg-background">
+         <Button asChild variant="ghost" className="absolute top-4 left-4 z-10 bg-background/50 hover:bg-accent hover:text-accent-foreground">
             <Link href="/">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Home
@@ -224,9 +228,7 @@ export default function PublicEventDetailPage() {
   }
   
   const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-  const gradientStyle = event.color
-    ? { background: `linear-gradient(to bottom, ${event.color}40, ${event.color})` }
-    : { background: `linear-gradient(to bottom, #864b2040, #864b20)` };
+  const eventLocations = event.location.split(',').map(l => l.trim());
 
   return (
     <>
@@ -241,12 +243,11 @@ export default function PublicEventDetailPage() {
           className="container mx-auto max-w-5xl py-8 px-4 mt-12"
         >
             <div 
-                className="p-4 sm:p-8 rounded-xl"
-                style={gradientStyle}
+                className="p-4 sm:p-8 rounded-xl bg-card text-card-foreground"
             >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <div className="md:col-span-2 space-y-8">
-                        <div className="w-full aspect-[4/3] relative rounded-lg overflow-hidden shadow-lg">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
+                    <div className="md:col-span-3 space-y-8">
+                        <div className="w-full aspect-video relative rounded-lg overflow-hidden shadow-lg">
                             <Image src={imageUrl} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
                         </div>
 
@@ -264,9 +265,30 @@ export default function PublicEventDetailPage() {
                                     <Calendar className="h-5 w-5" />
                                     <span>{formatEventDate(event.startDate, event.endDate)}</span>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <MapPin className="h-5 w-5" />
-                                    <span>{event.location}</span>
+                                <div className="flex items-start gap-3">
+                                    <MapPin className="h-5 w-5 mt-1 flex-shrink-0" />
+                                    <div>
+                                    {eventLocations.length > 1 ? (
+                                        <div className="space-y-1">
+                                            {eventLocations.map(loc => (
+                                                <div key={loc} className="flex items-center gap-2">
+                                                     <input 
+                                                        type="radio" 
+                                                        id={`loc-${loc}`} 
+                                                        name="location" 
+                                                        value={loc} 
+                                                        checked={selectedLocation === loc} 
+                                                        onChange={(e) => setSelectedLocation(e.target.value)} 
+                                                        className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
+                                                    />
+                                                    <label htmlFor={`loc-${loc}`}>{loc}</label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <span>{event.location}</span>
+                                    )}
+                                    </div>
                                 </div>
                                 {event.hint && (
                                     <div className="flex items-start gap-3 text-base">
@@ -283,7 +305,7 @@ export default function PublicEventDetailPage() {
                         </div>
                     </div>
 
-                    <div className="space-y-8">
+                    <div className="md:col-span-2 space-y-8">
                         <div className="rounded-lg p-0">
                             <h3 className="text-2xl font-semibold mb-4 text-card-foreground">Tickets</h3>
                             <div className="space-y-4">
@@ -292,7 +314,7 @@ export default function PublicEventDetailPage() {
                                     const selectedQuantity = selectedTickets[ticket.id]?.quantity || 0;
                                     const remaining = ticket.total - ticket.sold;
                                     return (
-                                    <div key={ticket.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-lg border bg-card/80 backdrop-blur-sm shadow-md">
+                                    <div key={ticket.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md">
                                         <div className="mb-3 sm:mb-0">
                                         <h4 className="font-semibold text-lg">{ticket.name}</h4>
                                         <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">ETB {Number(ticket.price).toFixed(2)}</p>
@@ -323,7 +345,6 @@ export default function PublicEventDetailPage() {
       
       {totalItems > 0 &&
         <CartSheet
-          eventColor={event.color}
           selectedTickets={selectedTickets}
           subtotal={subtotal}
           discount={discount}
@@ -384,6 +405,7 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
+
 
 
 

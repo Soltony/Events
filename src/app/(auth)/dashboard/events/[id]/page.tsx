@@ -80,6 +80,7 @@ interface EventDetails extends Event {
     ticketTypes: TicketType[];
     attendees: (Attendee & { ticketType: TicketType })[];
     promoCodes: PromoCode[];
+    organizerName?: string | null;
 }
 
 const addTicketTypeSchema = z.object({
@@ -91,6 +92,9 @@ const addTicketTypeSchema = z.object({
 type AddTicketTypeFormValues = z.infer<typeof addTicketTypeSchema>;
 
 const addPromoCodeSchema = z.object({
+  restrictionType: z.enum(['NONE', 'TICKET', 'LOCATION']).default('NONE'),
+  ticketTypeId: z.string().optional(),
+  location: z.string().optional(),
   code: z.string().min(3, { message: "Promo code must be at least 3 characters." }).max(20, { message: "Promo code cannot exceed 20 characters."}),
   type: z.enum(['PERCENTAGE', 'FIXED']),
   value: z.coerce.number().min(0, { message: "Value must be a positive number." }),
@@ -183,12 +187,15 @@ export default function EventDetailPage() {
   const promoCodeForm = useForm<AddPromoCodeFormValues>({
     resolver: zodResolver(addPromoCodeSchema),
     defaultValues: {
+      restrictionType: 'NONE',
       code: '',
       type: 'PERCENTAGE',
       value: 10,
       maxUses: 100,
     },
   });
+  
+  const watchedRestrictionType = promoCodeForm.watch('restrictionType');
 
   useEffect(() => {
     if (ticketToEdit) {
@@ -202,14 +209,38 @@ export default function EventDetailPage() {
 
   useEffect(() => {
     if (promoToEdit) {
-      promoCodeForm.reset({
-        code: promoToEdit.code,
-        type: promoToEdit.type,
-        value: Number(promoToEdit.value),
-        maxUses: promoToEdit.maxUses,
-      });
+        let restrictionType: 'NONE' | 'TICKET' | 'LOCATION' = 'NONE';
+        let ticketTypeId = '';
+        let location = '';
+        let actualCode = promoToEdit.code;
+
+        if (promoToEdit.code.startsWith('TICKET:')) {
+            restrictionType = 'TICKET';
+            const parts = promoToEdit.code.split(':');
+            const ticketTypeName = parts[1];
+            actualCode = parts[2];
+            const foundTicket = event?.ticketTypes.find(t => t.name === ticketTypeName);
+            if (foundTicket) {
+                ticketTypeId = foundTicket.id.toString();
+            }
+        } else if (promoToEdit.code.startsWith('LOCATION:')) {
+            restrictionType = 'LOCATION';
+            const parts = promoToEdit.code.split(':');
+            location = parts[1];
+            actualCode = parts[2];
+        }
+
+        promoCodeForm.reset({
+            restrictionType,
+            ticketTypeId,
+            location,
+            code: actualCode,
+            type: promoToEdit.type,
+            value: Number(promoToEdit.value),
+            maxUses: promoToEdit.maxUses,
+        });
     }
-  }, [promoToEdit, promoCodeForm]);
+  }, [promoToEdit, promoCodeForm, event?.ticketTypes]);
 
 
   const onAddTicketTypeSubmit = async (data: AddTicketTypeFormValues) => {
@@ -244,7 +275,7 @@ export default function EventDetailPage() {
   
   const onAddPromoCodeSubmit = async (data: AddPromoCodeFormValues) => {
     try {
-      await addPromoCode(eventId, data);
+      await addPromoCode(eventId, data, event?.ticketTypes);
        toast({
         title: 'Promo Code Created',
         description: `Successfully created the "${data.code}" promo code.`,
@@ -261,7 +292,7 @@ export default function EventDetailPage() {
   const onEditPromoCodeSubmit = async (data: AddPromoCodeFormValues) => {
     if (!promoToEdit) return;
     try {
-      await updatePromoCode(promoToEdit.id, data);
+      await updatePromoCode(promoToEdit.id, data, event?.ticketTypes);
       toast({ title: 'Promo Code Updated' });
       await fetchEvent();
       setIsEditPromoCodeOpen(false);
@@ -448,6 +479,18 @@ export default function EventDetailPage() {
   const eventDate = event.endDate 
     ? `${format(new Date(event.startDate), 'LLL dd, y, hh:mm a')} - ${format(new Date(event.endDate), 'LLL dd, y, hh:mm a')}`
     : format(new Date(event.startDate), 'LLL dd, y, hh:mm a');
+
+    const parsePromoCode = (code: string) => {
+        if (code.startsWith('TICKET:') || code.startsWith('LOCATION:')) {
+            const parts = code.split(':');
+            return {
+                type: parts[0],
+                value: parts[1],
+                code: parts[2],
+            };
+        }
+        return { type: 'NONE', value: null, code: code };
+    };
 
   return (
     <>
@@ -693,6 +736,48 @@ export default function EventDetailPage() {
                             </DialogHeader>
                             <Form {...promoCodeForm}>
                                 <form onSubmit={promoCodeForm.handleSubmit(onAddPromoCodeSubmit)} className="space-y-4">
+                                     <FormField control={promoCodeForm.control} name="restrictionType" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Restriction</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl><SelectTrigger><SelectValue placeholder="No Restriction" /></SelectTrigger></FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="NONE">No Restriction</SelectItem>
+                                                    <SelectItem value="TICKET">Specific Ticket Type</SelectItem>
+                                                    <SelectItem value="LOCATION">Specific Location</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}/>
+                                    {watchedRestrictionType === 'TICKET' && (
+                                        <FormField control={promoCodeForm.control} name="ticketTypeId" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Ticket Type</FormLabel>
+                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a ticket type" /></SelectTrigger></FormControl>
+                                                    <SelectContent>
+                                                        {event?.ticketTypes.map(t => <SelectItem key={t.id} value={t.id.toString()}>{t.name}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}/>
+                                    )}
+                                    {watchedRestrictionType === 'LOCATION' && (
+                                        <FormField control={promoCodeForm.control} name="location" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Location</FormLabel>
+                                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a location" /></SelectTrigger></FormControl>
+                                                    <SelectContent>
+                                                        {event?.location.split(',').map(l => l.trim()).map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}/>
+                                    )}
                                     <FormField control={promoCodeForm.control} name="code" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Code</FormLabel>
@@ -746,6 +831,7 @@ export default function EventDetailPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Code</TableHead>
+                                    <TableHead>Restriction</TableHead>
                                     <TableHead>Type</TableHead>
                                     <TableHead>Value</TableHead>
                                     <TableHead>Usage</TableHead>
@@ -753,9 +839,18 @@ export default function EventDetailPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {event.promoCodes.map((code) => (
+                                {event.promoCodes.map((code) => {
+                                    const parsed = parsePromoCode(code.code);
+                                    return (
                                     <TableRow key={code.id}>
-                                        <TableCell className="font-mono">{code.code}</TableCell>
+                                        <TableCell className="font-mono">{parsed.code}</TableCell>
+                                        <TableCell>
+                                            {parsed.type !== 'NONE' ? (
+                                                <Badge variant="secondary" className="capitalize">{parsed.type.toLowerCase()}: {parsed.value}</Badge>
+                                            ) : (
+                                                <Badge variant="outline">None</Badge>
+                                            )}
+                                        </TableCell>
                                         <TableCell className="capitalize">{code.type.toLowerCase()}</TableCell>
                                         <TableCell>
                                             {code.type === 'PERCENTAGE' ? `${code.value}% off` : `ETB ${Number(code.value).toFixed(2)} off`}
@@ -772,7 +867,7 @@ export default function EventDetailPage() {
                                             </div>
                                         </TableCell>
                                     </TableRow>
-                                ))}
+                                )})}
                             </TableBody>
                         </Table>
                     </ScrollArea>
@@ -822,6 +917,48 @@ export default function EventDetailPage() {
             </DialogHeader>
             <Form {...promoCodeForm}>
                 <form onSubmit={promoCodeForm.handleSubmit(onEditPromoCodeSubmit)} className="space-y-4">
+                    <FormField control={promoCodeForm.control} name="restrictionType" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Restriction</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    <SelectItem value="NONE">No Restriction</SelectItem>
+                                    <SelectItem value="TICKET">Specific Ticket Type</SelectItem>
+                                    <SelectItem value="LOCATION">Specific Location</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}/>
+                    {watchedRestrictionType === 'TICKET' && (
+                        <FormField control={promoCodeForm.control} name="ticketTypeId" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Ticket Type</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a ticket type" /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        {event?.ticketTypes.map(t => <SelectItem key={t.id} value={t.id.toString()}>{t.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}/>
+                    )}
+                    {watchedRestrictionType === 'LOCATION' && (
+                        <FormField control={promoCodeForm.control} name="location" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Location</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a location" /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        {event?.location.split(',').map(l => l.trim()).map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}/>
+                    )}
                     <FormField control={promoCodeForm.control} name="code" render={({ field }) => (
                         <FormItem><FormLabel>Code</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )}/>
@@ -904,3 +1041,4 @@ export default function EventDetailPage() {
     </>
   );
 }
+
