@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -50,6 +51,7 @@ const eventFormSchema = z.object({
     name: z.string().min(1, { message: "Ticket name can't be empty."}),
     price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
     total: z.coerce.number().int().min(1, { message: 'Capacity must be at least 1.' }),
+    description: z.string().optional(),
   })).min(1, { message: 'You must have at least one ticket tier.'}),
 }).refine(data => {
     if (data.category === 'Other') {
@@ -84,7 +86,7 @@ export default function CreateEventPage() {
       category: '',
       otherCategory: '',
       image: '',
-      tickets: [{ name: 'General Admission', price: 25, total: 100 }],
+      tickets: [{ name: 'General Admission', price: 25, total: 100, description: 'Standard entry to the event.' }],
     },
   });
 
@@ -443,7 +445,7 @@ export default function CreateEventPage() {
                   </div>
 
                   {ticketFields.map((field, index) => (
-                    <Card key={field.id} className="p-4">
+                    <Card key={field.id} className="p-4 space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_120px_auto] gap-4 items-start">
                         <FormField
                           control={form.control}
@@ -484,7 +486,7 @@ export default function CreateEventPage() {
                             </FormItem>
                           )}
                         />
-                        <div className={`flex items-end h-full ${index !== 0 ? "pt-8" : ""}`}>
+                        <div className={`flex items-end h-full ${index !== 0 ? "md:pt-8" : ""}`}>
                           <Button
                               type="button"
                               variant="outline"
@@ -497,12 +499,25 @@ export default function CreateEventPage() {
                           </Button>
                         </div>
                       </div>
+                      <FormField
+                          control={form.control}
+                          name={`tickets.${index}.description`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="sr-only">Description</FormLabel>
+                              <FormControl>
+                                <Textarea {...field} placeholder="Describe what this ticket includes (e.g., front row seats, free drink)." className="resize-none" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                     </Card>
                   ))}
                   <Button
                       type="button"
                       variant="outline"
-                      onClick={() => appendTicket({ name: '', price: 0, total: 50 })}
+                      onClick={() => appendTicket({ name: '', price: 0, total: 50, description: '' })}
                       >
                       <PlusCircle className="mr-2 h-4 w-4" />
                       Add Ticket Tier

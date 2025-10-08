@@ -87,6 +87,7 @@ const addTicketTypeSchema = z.object({
   name: z.string().min(1, { message: "Ticket name is required." }),
   price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
   total: z.coerce.number().int().min(1, { message: 'Quantity must be at least 1.' }),
+  description: z.string().optional(),
 });
 
 type AddTicketTypeFormValues = z.infer<typeof addTicketTypeSchema>;
@@ -181,6 +182,7 @@ export default function EventDetailPage() {
       name: '',
       price: 0,
       total: 100,
+      description: '',
     },
   });
   
@@ -203,6 +205,7 @@ export default function EventDetailPage() {
         name: ticketToEdit.name,
         price: Number(ticketToEdit.price),
         total: ticketToEdit.total,
+        description: ticketToEdit.description || '',
       });
     }
   }, [ticketToEdit, ticketForm]);
@@ -661,6 +664,9 @@ export default function EventDetailPage() {
                              <FormField control={ticketForm.control} name="name" render={({ field }) => (
                                 <FormItem><FormLabel>Ticket Name</FormLabel><FormControl><Input placeholder="e.g. General Admission" {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
+                            <FormField control={ticketForm.control} name="description" render={({ field }) => (
+                               <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="e.g. Includes access to all stages and food trucks." className="resize-none" {...field} /></FormControl><FormMessage /></FormItem>
+                           )}/>
                             <div className="grid grid-cols-2 gap-4">
                                <FormField control={ticketForm.control} name="price" render={({ field }) => (
                                   <FormItem><FormLabel>Price (ETB)</FormLabel><FormControl><Input type="number" placeholder="500" {...field} /></FormControl><FormMessage /></FormItem>
@@ -889,6 +895,9 @@ export default function EventDetailPage() {
              <FormField control={ticketForm.control} name="name" render={({ field }) => (
                 <FormItem><FormLabel>Ticket Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
             )}/>
+            <FormField control={ticketForm.control} name="description" render={({ field }) => (
+               <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="e.g. Includes access to all stages and food trucks." className="resize-none" {...field} /></FormControl><FormMessage /></FormItem>
+           )}/>
             <div className="grid grid-cols-2 gap-4">
                <FormField control={ticketForm.control} name="price" render={({ field }) => (
                   <FormItem><FormLabel>Price (ETB)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
@@ -1041,4 +1050,5 @@ export default function EventDetailPage() {
     </>
   );
 }
+
 

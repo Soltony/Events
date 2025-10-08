@@ -36,6 +36,7 @@ export type SelectedTicket = {
   quantity: number;
   total: number;
   sold: number;
+  description?: string | null;
 }
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
@@ -314,21 +315,24 @@ export default function PublicEventDetailPage() {
                                     const selectedQuantity = selectedTickets[ticket.id]?.quantity || 0;
                                     const remaining = ticket.total - ticket.sold;
                                     return (
-                                    <div key={ticket.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md">
-                                        <div className="mb-3 sm:mb-0">
-                                        <h4 className="font-semibold text-lg">{ticket.name}</h4>
-                                        <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">ETB {Number(ticket.price).toFixed(2)}</p>
-                                        <p className="text-sm text-muted-foreground">{remaining > 0 ? `${remaining} remaining` : 'Sold Out'}</p>
+                                    <div key={ticket.id} className="flex flex-col gap-2 p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md">
+                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                                            <div className="mb-3 sm:mb-0">
+                                            <h4 className="font-semibold text-lg">{ticket.name}</h4>
+                                            <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">ETB {Number(ticket.price).toFixed(2)}</p>
+                                            <p className="text-sm text-muted-foreground">{remaining > 0 ? `${remaining} remaining` : 'Sold Out'}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                            <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.max(0, selectedQuantity - 1))} disabled={selectedQuantity === 0}>
+                                                <MinusCircle className="h-4 w-4" />
+                                            </Button>
+                                            <span className="w-10 text-center font-bold">{selectedQuantity}</span>
+                                            <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))} disabled={remaining === 0 || selectedQuantity >= remaining}>
+                                                <PlusCircle className="h-4 w-4" />
+                                            </Button>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                        <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.max(0, selectedQuantity - 1))} disabled={selectedQuantity === 0}>
-                                            <MinusCircle className="h-4 w-4" />
-                                        </Button>
-                                        <span className="w-10 text-center font-bold">{selectedQuantity}</span>
-                                        <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))} disabled={remaining === 0 || selectedQuantity >= remaining}>
-                                            <PlusCircle className="h-4 w-4" />
-                                        </Button>
-                                        </div>
+                                         {ticket.description && <p className="text-sm text-muted-foreground pt-2 border-t">{ticket.description}</p>}
                                     </div>
                                     )
                                 })
