@@ -3,6 +3,7 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { CardContainer, CardBody, CardItem } from "@/components/ui/3d-card";
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -250,39 +251,45 @@ export default function PublicHomePage() {
                     upcomingEvents.map((event) => {
                       const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
                       return (
-                        <Card key={event.id} className="w-full flex flex-col rounded-xl overflow-hidden border-2 border-primary/20 hover:shadow-lg transition-shadow">
-                          <div className="relative w-full aspect-video bg-muted">
-                            <Image
-                                src={imageUrl}
-                                alt={event.name}
-                                fill
-                                className="object-cover"
-                                data-ai-hint={event.hint ?? 'event'}
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src = DEFAULT_IMAGE_PLACEHOLDER;
-                                  target.srcset = '';
-                                }}
-                            />
-                          </div>
-                          <div 
-                              className="p-4 flex flex-col flex-grow justify-between"
-                              style={getContentGradient(event.color)}
-                          >
-                              <div className="flex-grow">
-                                  <Badge variant="outline" className={cn("text-xs mb-2", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
-                                  <h3 className="font-bold text-lg text-black">{event.name}</h3>
-                                  <p className="text-xs text-black/80 mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
-                              </div>
-                              <div className="mt-4">
-                                  <Button asChild className="w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
-                                      <Link href={`/events/${event.id}`}>
-                                          Buy Ticket
-                                      </Link>
-                                  </Button>
-                              </div>
-                          </div>
-                        </Card>
+                        <CardContainer key={event.id} className="inter-var">
+                          <CardBody className="bg-white relative group/card w-auto h-auto rounded-xl p-0 border border-black/[0.1]">
+                            <CardItem translateZ="50" className="w-full">
+                               <div className="relative w-full aspect-video bg-muted rounded-t-xl overflow-hidden">
+                                <Image
+                                    src={imageUrl}
+                                    alt={event.name}
+                                    fill
+                                    className="object-cover"
+                                    data-ai-hint={event.hint ?? 'event'}
+                                    onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.src = DEFAULT_IMAGE_PLACEHOLDER;
+                                    target.srcset = '';
+                                    }}
+                                />
+                                </div>
+                            </CardItem>
+                            <div 
+                                className="p-4 flex flex-col flex-grow justify-between rounded-b-xl"
+                                style={getContentGradient(event.color)}
+                            >
+                                <div className="flex-grow">
+                                  <CardItem as="div" translateZ="40">
+                                    <Badge variant="outline" className={cn("text-xs mb-2", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
+                                    <h3 className="font-bold text-lg text-black">{event.name}</h3>
+                                    <p className="text-xs text-black/80 mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
+                                  </CardItem>
+                                </div>
+                                <CardItem translateZ="30" className="mt-4">
+                                    <Button asChild className="w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
+                                        <Link href={`/events/${event.id}`}>
+                                            Buy Ticket
+                                        </Link>
+                                    </Button>
+                                </CardItem>
+                            </div>
+                          </CardBody>
+                        </CardContainer>
                       )
                     })
                 ) : (
@@ -321,39 +328,45 @@ export default function PublicHomePage() {
                     topSellingEvents.slice(0, 4).map((event) => {
                       const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
                       return (
-                        <Card key={event.id} className="w-full flex flex-col rounded-xl overflow-hidden border-2 border-primary/20 hover:shadow-lg transition-shadow">
-                          <div className="relative w-full aspect-video bg-muted">
-                            <Image
-                                src={imageUrl}
-                                alt={event.name}
-                                fill
-                                className="object-cover"
-                                data-ai-hint={event.hint ?? 'event'}
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src = DEFAULT_IMAGE_PLACEHOLDER;
-                                  target.srcset = '';
-                                }}
-                            />
-                          </div>
-                          <div 
-                              className="p-4 flex flex-col flex-grow justify-between"
-                              style={getContentGradient(event.color)}
-                          >
-                              <div className="flex-grow">
-                                  <Badge variant="outline" className={cn("text-xs mb-2", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
-                                  <h3 className="font-bold text-lg text-black">{event.name}</h3>
-                                  <p className="text-xs text-black/80 mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
-                              </div>
-                              <div className="mt-4">
-                                  <Button asChild className="w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
-                                      <Link href={`/events/${event.id}`}>
-                                          Buy Ticket
-                                      </Link>
-                                  </Button>
-                              </div>
-                          </div>
-                        </Card>
+                         <CardContainer key={event.id} className="inter-var">
+                          <CardBody className="bg-white relative group/card w-auto h-auto rounded-xl p-0 border border-black/[0.1]">
+                            <CardItem translateZ="50" className="w-full">
+                               <div className="relative w-full aspect-video bg-muted rounded-t-xl overflow-hidden">
+                                <Image
+                                    src={imageUrl}
+                                    alt={event.name}
+                                    fill
+                                    className="object-cover"
+                                    data-ai-hint={event.hint ?? 'event'}
+                                    onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.src = DEFAULT_IMAGE_PLACEHOLDER;
+                                    target.srcset = '';
+                                    }}
+                                />
+                                </div>
+                            </CardItem>
+                            <div 
+                                className="p-4 flex flex-col flex-grow justify-between rounded-b-xl"
+                                style={getContentGradient(event.color)}
+                            >
+                                <div className="flex-grow">
+                                   <CardItem as="div" translateZ="40">
+                                    <Badge variant="outline" className={cn("text-xs mb-2", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
+                                    <h3 className="font-bold text-lg text-black">{event.name}</h3>
+                                    <p className="text-xs text-black/80 mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
+                                  </CardItem>
+                                </div>
+                                 <CardItem translateZ="30" className="mt-4">
+                                    <Button asChild className="w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
+                                        <Link href={`/events/${event.id}`}>
+                                            Buy Ticket
+                                        </Link>
+                                    </Button>
+                                </CardItem>
+                            </div>
+                          </CardBody>
+                        </CardContainer>
                       )
                     })
                 ) : (
@@ -407,6 +420,7 @@ const Footer = () => (
     
 
     
+
 
 
 
