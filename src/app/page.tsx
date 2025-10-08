@@ -50,22 +50,22 @@ const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 const CategoryFilter = ({ categories, selectedCategory, onSelectCategory }: { categories: string[], selectedCategory: string, onSelectCategory: (category: string) => void }) => {
     
     const categoryIcons: { [key: string]: React.ReactNode } = {
-        'All': <Ticket />,
-        'Technology': <Presentation />,
-        'Music': <Mic />,
-        'Art': <Drama />,
-        'Community': <MessageSquareHeart />,
-        'Business': <Gamepad2 />,
-        'Food & Drink': <Utensils />
+        'All': <Ticket className="h-6 w-6" />,
+        'Technology': <Presentation className="h-6 w-6" />,
+        'Music': <Mic className="h-6 w-6" />,
+        'Art': <Drama className="h-6 w-6" />,
+        'Community': <MessageSquareHeart className="h-6 w-6" />,
+        'Business': <Gamepad2 className="h-6 w-6" />,
+        'Food & Drink': <Utensils className="h-6 w-6" />
     };
 
     return (
         <div className="relative">
             <div className="flex justify-around items-center w-full">
                 {categories.map((category) => {
-                     const Icon = categoryIcons[category] || <Ticket />;
+                     const Icon = categoryIcons[category] || <Ticket className="h-6 w-6" />;
                     return (
-                        <div key={category} className="flex-shrink-0 text-center">
+                        <div key={category} className="flex flex-col items-center gap-2">
                             <button
                                 onClick={() => onSelectCategory(category)}
                                 className={cn(
@@ -96,17 +96,17 @@ export default function PublicHomePage() {
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
       case 'Technology':
-        return 'bg-blue-100 text-blue-800 border-transparent text-black';
+        return 'bg-blue-100 border-transparent text-black';
       case 'Music':
-        return 'bg-purple-100 text-purple-800 border-transparent text-black';
+        return 'bg-purple-100 border-transparent text-black';
       case 'Art':
-        return 'bg-pink-100 text-pink-800 border-transparent text-black';
+        return 'bg-pink-100 border-transparent text-black';
       case 'Community':
-        return 'bg-green-100 text-green-800 border-transparent text-black';
+        return 'bg-green-100 border-transparent text-black';
       case 'Business':
-          return 'bg-indigo-100 text-indigo-800 border-transparent text-black';
+          return 'bg-indigo-100 border-transparent text-black';
       default:
-        return 'bg-gray-100 text-gray-800 border-transparent text-black';
+        return 'bg-gray-100 border-transparent text-black';
     }
   }
   
@@ -420,6 +420,7 @@ const Footer = () => (
     
 
     
+
 
 
 
