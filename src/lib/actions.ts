@@ -155,7 +155,7 @@ export async function getEventDetails(id: number) {
 }
 
 export async function addEvent(data: any) {
-    const { tickets, startDate, endDate, otherCategory, location, organizerName, ...eventData } = data;
+    const { tickets, startDate, endDate, otherCategory, locations, ...eventData } = data;
     const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
@@ -186,11 +186,12 @@ export async function addEvent(data: any) {
         eventData.image = '/image/nibtickets.jpg';
     }
     
+    const locationString = locations.map((l: { value: string }) => l.value).join(', ');
+
     const newEvent = await prisma.event.create({
         data: {
             ...eventData,
-            organizerName: organizerName,
-            location: location,
+            location: locationString,
             organizerId: user.id,
             nibBankAccount: nibBankAccount,
             category: finalCategory,
@@ -217,7 +218,7 @@ export async function addEvent(data: any) {
 }
 
 export async function updateEvent(id: number, data: any) {
-    const { startDate, endDate, otherCategory, location, organizerName, ...eventData } = data;
+    const { startDate, endDate, otherCategory, locations, ...eventData } = data;
     const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
@@ -227,8 +228,8 @@ export async function updateEvent(id: number, data: any) {
 
     const eventDataForUpdate = { ...eventData };
     delete eventDataForUpdate.otherCategory;
-    delete eventDataForUpdate.locations;
 
+    const locationString = locations.map((l: { value: string }) => l.value).join(', ');
 
     const eventToUpdate = await prisma.event.findUnique({ where: { id }});
     if (!eventToUpdate) throw new Error("Event not found");
@@ -241,8 +242,7 @@ export async function updateEvent(id: number, data: any) {
         where: { id },
         data: {
             ...eventDataForUpdate,
-            organizerName: organizerName,
-            location: location,
+            location: locationString,
             category: finalCategory,
             startDate: startDate,
             endDate: endDate,
@@ -1028,4 +1028,3 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
-

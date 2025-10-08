@@ -27,7 +27,6 @@ import { AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDes
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
-    organizerName?: string | null;
 }
 
 export type SelectedTicket = {
@@ -229,6 +228,7 @@ export default function PublicEventDetailPage() {
   
   const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
   const eventLocations = event.location.split(',').map(l => l.trim());
+  const organizerName = event.color; // Using color field for organizer name
 
   return (
     <>
@@ -254,10 +254,10 @@ export default function PublicEventDetailPage() {
                         <div className="rounded-lg p-0">
                             <Badge variant="outline" className={`mb-2 w-min whitespace-nowrap ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
                             <h1 className="text-4xl font-bold tracking-tight text-card-foreground">{event.name}</h1>
-                            {event.organizerName && (
+                            {organizerName && (
                                 <div className="flex items-center gap-2 text-lg text-muted-foreground pt-3">
                                 <UserCircle className="h-5 w-5" />
-                                <span>By {event.organizerName}</span>
+                                <span>By {organizerName}</span>
                                 </div>
                             )}
                             <div className="text-lg text-muted-foreground space-y-2 pt-4">
@@ -405,9 +405,3 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
-
-
-
-
-
-

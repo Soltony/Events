@@ -33,7 +33,7 @@ import { DateTimePicker } from '@/components/datetime-picker';
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
-  organizerName: z.string().optional(),
+  color: z.string().optional(), // organizer name
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   locations: z.array(z.object({
     value: z.string().min(3, { message: "Location can't be empty."}),
@@ -46,7 +46,6 @@ const eventFormSchema = z.object({
   category: z.string({ required_error: 'Please select a category.' }),
   otherCategory: z.string().optional(),
   image: z.string().optional(),
-  color: z.string().optional(),
 }).refine(data => {
     if (data.category === 'Other') {
         return !!data.otherCategory && data.otherCategory.length > 0;
@@ -76,14 +75,13 @@ export default function EditEventPage() {
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
       name: '',
-      organizerName: '',
+      color: '', // organizer name
       description: '',
       locations: [{ value: '' }],
       hint: '',
       category: '',
       otherCategory: '',
       image: '',
-      color: '#864b20',
     },
   });
 
@@ -109,16 +107,15 @@ export default function EditEventPage() {
           
           form.reset({
             name: event.name,
-            organizerName: event.organizerName || '',
+            color: event.color || '', // organizer name
             description: event.description,
-            locations: event.location.split(',').map(l => ({ value: l.trim() })),
+            locations: event.location ? event.location.split(',').map(l => ({ value: l.trim() })) : [{ value: '' }],
             hint: event.hint || '',
             category: isOtherCategory ? 'Other' : event.category,
             otherCategory: isOtherCategory ? event.category : '',
             startDate: new Date(event.startDate),
             endDate: event.endDate ? new Date(event.endDate) : undefined,
             image: event.image || '',
-            color: event.color || '#864b20',
           });
           if (event.image) {
             setPreviewImage(event.image);
@@ -144,7 +141,6 @@ export default function EditEventPage() {
         const finalData = {
             ...data,
             category: data.category === 'Other' ? data.otherCategory : data.category,
-            location: data.locations.map(l => l.value).join(', '),
         };
 
         await updateEvent(eventId, finalData);
@@ -253,7 +249,7 @@ export default function EditEventPage() {
               />
               <FormField
                 control={form.control}
-                name="organizerName"
+                name="color" // organizer name
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Organizer Name</FormLabel>
@@ -428,10 +424,10 @@ export default function EditEventPage() {
               <div className="space-y-4">
                 <div>
                   <FormLabel>Event Visuals</FormLabel>
-                  <FormDescription>Update the image and theme color for your event.</FormDescription>
+                  <FormDescription>Update the image for your event.</FormDescription>
                    <FormMessage className="pt-2">{form.formState.errors.image?.message}</FormMessage>
                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                 <div className="grid grid-cols-1 items-center">
                     <div className="w-full max-w-sm">
                        <FormField
                           control={form.control}
@@ -479,23 +475,6 @@ export default function EditEventPage() {
                           )}
                         />
                     </div>
-                     <FormField
-                        control={form.control}
-                        name="color"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Theme Color</FormLabel>
-                            <FormControl>
-                               <div className="relative flex items-center">
-                                  <Input type="color" {...field} className="w-24 p-1" />
-                                  <span className="ml-4 text-muted-foreground">{field.value}</span>
-                               </div>
-                            </FormControl>
-                            <FormDescription>Used for gradients on your event card.</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
                 </div>
               </div>
 

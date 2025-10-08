@@ -75,25 +75,19 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolea
         );
     }
     
-    const gradientStyle = event.color
-      ? { background: `linear-gradient(to bottom, ${event.color}, transparent)` }
-      : { background: `linear-gradient(to bottom, #000000, transparent)` };
-
     return (
-        <Card className="flex flex-col hover:shadow-lg transition-shadow duration-300 relative overflow-hidden">
-          <div className="absolute inset-0" style={gradientStyle} />
+        <Card className="flex flex-col hover:shadow-lg transition-shadow duration-300 relative overflow-hidden group">
           <div className="relative z-10 flex flex-col h-full">
             {isAdmin && event.status && statusBadge(event.status)}
-            <CardHeader className="p-0 relative aspect-[3/2] bg-transparent">
+            <CardHeader className="p-0 relative aspect-[16/9]">
                 <Image src={imageUrl} alt={event.name} fill className="rounded-t-lg object-cover" data-ai-hint={event.hint ?? 'event'} />
-                <div className="absolute inset-0 bg-transparent"></div>
             </CardHeader>
-            <CardContent className="p-4 flex-1 space-y-2 bg-transparent text-black">
+            <CardContent className="p-4 flex-1 space-y-2 bg-card">
                 <Badge variant="outline" className={cn("text-xs", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
                 <CardTitle className="text-lg leading-tight">{event.name}</CardTitle>
                 <div className="space-y-1 pt-1">
-                <CardDescription className="text-xs text-black/90">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
-                <CardDescription className="flex items-center gap-1.5 pt-1 text-xs text-black/90">
+                <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
+                <CardDescription className="flex items-center gap-1.5 pt-1 text-xs">
                     <MapPin className="h-3 w-3" />
                     {event.location}
                 </CardDescription>
@@ -104,7 +98,7 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolea
                 )}
                 </div>
             </CardContent>
-            <CardFooter className="p-2 border-t flex justify-end gap-1 bg-transparent rounded-b-lg border-black/20">
+            <CardFooter className="p-2 border-t flex justify-end gap-1 bg-card rounded-b-lg">
                 {event.status === 'PENDING' && isAdmin ? (
                     <Button asChild className="w-full">
                         <Link href={`/dashboard/events/${event.id}`}>
@@ -113,7 +107,7 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolea
                     </Button>
                 ) : (
                     <>
-                        <Button asChild variant="ghost" size="icon" className="text-black hover:text-black hover:bg-black/10">
+                        <Button asChild variant="ghost" size="icon">
                             <Link href={`/dashboard/events/${event.id}/edit`} aria-label="Edit Event">
                                 <Pencil className="h-4 w-4" />
                             </Link>
@@ -121,13 +115,13 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolea
                         <Button 
                             variant="ghost" 
                             size="icon"
-                            className="text-red-600 hover:text-red-600 hover:bg-red-500/20"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
                             onClick={() => onDelete(event)}
                             aria-label="Delete Event"
                         >
                             <Trash2 className="h-4 w-4" />
                         </Button>
-                        <Button asChild size="icon" className="ml-auto bg-black/90 text-white hover:bg-black">
+                        <Button asChild size="icon" className="ml-auto">
                             <Link href={`/dashboard/events/${event.id}`} aria-label="Manage Event">
                                 <ArrowUpRight className="h-4 w-4" />
                             </Link>
@@ -147,7 +141,7 @@ const EventGrid = ({ events, isLoading, isAdmin, onDelete }: { events: Event[], 
             <div className="grid gap-4 md:gap-8 md:grid-cols-2 lg:grid-cols-4">
                 {[...Array(4)].map((_, i) => (
                     <Card key={i}>
-                        <CardHeader className="p-0"><Skeleton className="w-full aspect-[3/2] rounded-t-lg" /></CardHeader>
+                        <CardHeader className="p-0"><Skeleton className="w-full aspect-[16/9] rounded-t-lg" /></CardHeader>
                         <CardContent className="p-4 space-y-2">
                         <Skeleton className="h-5 w-20" />
                         <Skeleton className="h-7 w-3/4" />
