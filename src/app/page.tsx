@@ -251,8 +251,8 @@ export default function PublicHomePage() {
                     upcomingEvents.map((event) => {
                       const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
                       return (
-                        <CardContainer key={event.id} className="inter-var">
-                          <CardBody className="bg-white relative group/card w-auto h-auto rounded-xl p-0 border border-black/[0.1]">
+                        <CardContainer key={event.id} className="inter-var h-full">
+                          <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col">
                             <CardItem translateZ="50" className="w-full">
                                <div className="relative w-full aspect-video bg-muted rounded-t-xl overflow-hidden">
                                 <Image
@@ -328,8 +328,8 @@ export default function PublicHomePage() {
                     topSellingEvents.slice(0, 4).map((event) => {
                       const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
                       return (
-                         <CardContainer key={event.id} className="inter-var">
-                          <CardBody className="bg-white relative group/card w-auto h-auto rounded-xl p-0 border border-black/[0.1]">
+                         <CardContainer key={event.id} className="inter-var h-full">
+                          <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col">
                             <CardItem translateZ="50" className="w-full">
                                <div className="relative w-full aspect-video bg-muted rounded-t-xl overflow-hidden">
                                 <Image
@@ -420,6 +420,7 @@ const Footer = () => (
     
 
     
+
 
 
 
