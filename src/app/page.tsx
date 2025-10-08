@@ -271,8 +271,8 @@ export default function PublicHomePage() {
                           >
                               <div className="flex-grow">
                                   <Badge variant="outline" className={cn("text-xs mb-2", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
-                                  <h3 className="font-bold text-lg text-accent-foreground">{event.name}</h3>
-                                  <p className="text-xs text-accent-foreground/80 mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
+                                  <h3 className="font-bold text-lg text-black">{event.name}</h3>
+                                  <p className="text-xs text-black/80 mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
                               </div>
                               <div className="mt-4">
                                   <Button asChild className="w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
@@ -342,8 +342,8 @@ export default function PublicHomePage() {
                           >
                               <div className="flex-grow">
                                   <Badge variant="outline" className={cn("text-xs mb-2", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
-                                  <h3 className="font-bold text-lg text-accent-foreground">{event.name}</h3>
-                                  <p className="text-xs text-accent-foreground/80 mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
+                                  <h3 className="font-bold text-lg text-black">{event.name}</h3>
+                                  <p className="text-xs text-black/80 mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
                               </div>
                               <div className="mt-4">
                                   <Button asChild className="w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
@@ -407,6 +407,7 @@ const Footer = () => (
     
 
     
+
 
 
 
