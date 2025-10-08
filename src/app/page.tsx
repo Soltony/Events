@@ -96,17 +96,17 @@ export default function PublicHomePage() {
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
       case 'Technology':
-        return 'bg-blue-100 text-blue-800 border-transparent';
+        return 'bg-blue-100 text-blue-800 border-transparent text-black';
       case 'Music':
-        return 'bg-purple-100 text-purple-800 border-transparent';
+        return 'bg-purple-100 text-purple-800 border-transparent text-black';
       case 'Art':
-        return 'bg-pink-100 text-pink-800 border-transparent';
+        return 'bg-pink-100 text-pink-800 border-transparent text-black';
       case 'Community':
-        return 'bg-green-100 text-green-800 border-transparent';
+        return 'bg-green-100 text-green-800 border-transparent text-black';
       case 'Business':
-          return 'bg-indigo-100 text-indigo-800 border-transparent';
+          return 'bg-indigo-100 text-indigo-800 border-transparent text-black';
       default:
-        return 'bg-gray-100 text-gray-800 border-transparent';
+        return 'bg-gray-100 text-gray-800 border-transparent text-black';
     }
   }
   
@@ -277,7 +277,7 @@ export default function PublicHomePage() {
                                   <CardItem as="div" translateZ="40">
                                     <Badge variant="outline" className={cn("text-xs mb-2", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
                                     <h3 className="font-bold text-lg text-black">{event.name}</h3>
-                                    <p className="text-xs text-black/80 mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
+                                    <p className="text-xs text-black mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
                                   </CardItem>
                                 </div>
                                 <CardItem translateZ="30" className="mt-4">
@@ -354,7 +354,7 @@ export default function PublicHomePage() {
                                    <CardItem as="div" translateZ="40">
                                     <Badge variant="outline" className={cn("text-xs mb-2", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
                                     <h3 className="font-bold text-lg text-black">{event.name}</h3>
-                                    <p className="text-xs text-black/80 mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
+                                    <p className="text-xs text-black mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
                                   </CardItem>
                                 </div>
                                  <CardItem translateZ="30" className="mt-4">
@@ -420,6 +420,7 @@ const Footer = () => (
     
 
     
+
 
 
 

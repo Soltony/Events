@@ -67,10 +67,10 @@ model Event {
 model TicketType {
   id          Int        @id @default(autoincrement())
   name        String
-  description String?
   price       Decimal    @db.Decimal(10, 2)
   total       Int
   sold        Int        @default(0)
+  description String?
   eventId     Int
   event       Event      @relation(fields: [eventId], references: [id])
   attendees   Attendee[]
