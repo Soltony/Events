@@ -169,11 +169,11 @@ export default function PublicHomePage() {
     };
   }, [filteredEvents]);
   
-  const gradientStyle = { background: `linear-gradient(to right, #fefce8, #fde047)` };
+  const navbarStyle = { background: '#fefce5' };
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-       <header className="fixed top-0 w-full z-50" style={gradientStyle}>
+       <header className="fixed top-0 w-full z-50" style={navbarStyle}>
         <nav className="container mx-auto px-4 lg:px-6 py-0 flex justify-between items-center h-14">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Image
@@ -407,5 +407,6 @@ const Footer = () => (
     
 
     
+
 
 
