@@ -317,10 +317,9 @@ export default function PublicHomePage() {
                     upcomingEvents.map((event) => {
                       const imageSources = Array.isArray(event.image) ? event.image : (event.image ? [event.image] : [DEFAULT_IMAGE_PLACEHOLDER]);
                       return (
-                        <CardContainer key={event.id} className="inter-var w-full h-[360px]">
+                        <CardContainer key={event.id} className="inter-var w-full h-[420px]">
                           <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col justify-between">
                             <CardItem translateZ="50" className="w-full">
-<<<<<<< HEAD
                                <div className="relative w-full h-[200px] bg-muted rounded-t-xl overflow-hidden">
                                 {imageSources.length > 1 ? (
                                   <Carousel className="w-full h-full">
@@ -337,22 +336,7 @@ export default function PublicHomePage() {
                                 ) : (
                                   <Image src={imageSources[0]} alt={event.name} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
                                 )}
-=======
-                               <div className="relative w-full h-[160px] bg-muted rounded-t-xl overflow-hidden">
-                                <Image
-                                    src={imageUrl}
-                                    alt={event.name}
-                                    fill
-                                    className="object-cover"
-                                    data-ai-hint={event.hint ?? 'event'}
-                                    onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.src = DEFAULT_IMAGE_PLACEHOLDER;
-                                    target.srcset = '';
-                                    }}
-                                />
->>>>>>> 80308b7b8566af9e3e47e2efb2a798d85850ccaa
-                                </div>
+                               </div>
                             </CardItem>
                             <div className="p-4 flex flex-col flex-grow justify-between rounded-b-xl" style={getContentGradient()}>
                                 <div className="h-28">
@@ -410,10 +394,9 @@ export default function PublicHomePage() {
                     topSellingEvents.slice(0, 4).map((event) => {
                       const imageSources = Array.isArray(event.image) ? event.image : (event.image ? [event.image] : [DEFAULT_IMAGE_PLACEHOLDER]);
                       return (
-                         <CardContainer key={event.id} className="inter-var w-full h-[360px]">
+                         <CardContainer key={event.id} className="inter-var w-full h-[420px]">
                           <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col justify-between">
                             <CardItem translateZ="50" className="w-full">
-<<<<<<< HEAD
                                <div className="relative w-full h-[200px] bg-muted rounded-t-xl overflow-hidden">
                                 {imageSources.length > 1 ? (
                                   <Carousel className="w-full h-full">
@@ -430,22 +413,7 @@ export default function PublicHomePage() {
                                 ) : (
                                   <Image src={imageSources[0]} alt={event.name} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
                                 )}
-=======
-                               <div className="relative w-full h-[160px] bg-muted rounded-t-xl overflow-hidden">
-                                <Image
-                                    src={imageUrl}
-                                    alt={event.name}
-                                    fill
-                                    className="object-cover"
-                                    data-ai-hint={event.hint ?? 'event'}
-                                    onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.src = DEFAULT_IMAGE_PLACEHOLDER;
-                                    target.srcset = '';
-                                    }}
-                                />
->>>>>>> 80308b7b8566af9e3e47e2efb2a798d85850ccaa
-                                </div>
+                               </div>
                             </CardItem>
                             <div className="p-4 flex flex-col flex-grow justify-between rounded-b-xl" style={getContentGradient()}>
                                 <div className="h-28">
