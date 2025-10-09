@@ -120,7 +120,7 @@ export default function MyTicketsPage() {
         ) : tickets.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {tickets.map((ticket) => {
-                     const imageSources = Array.isArray(ticket.event.image) ? ticket.event.image : (ticket.event.image ? [ticket.event.image] : [DEFAULT_IMAGE_PLACEHOLDER]);
+                     const imageSources = Array.isArray(ticket.event.image) && ticket.event.image.length > 0 ? ticket.event.image : [DEFAULT_IMAGE_PLACEHOLDER];
                     return (
                         <Card key={ticket.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
                              <CardHeader className="p-0 relative aspect-video">

@@ -47,7 +47,7 @@ export default function EventsCarousel({ events }: { events: EventWithTickets[] 
     >
     <CarouselContent>
         {events.map((event) => {
-            const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
+            const imageUrl = Array.isArray(event.image) && event.image.length > 0 ? event.image[0] : DEFAULT_IMAGE_PLACEHOLDER;
             return (
                 <CarouselItem key={event.id}>
                     <div className="relative w-full aspect-video">

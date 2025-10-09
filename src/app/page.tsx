@@ -277,7 +277,7 @@ export default function PublicHomePage() {
                                 onClick={() => setIsSearchFocused(false)}
                               >
                                 <Image 
-                                    src={Array.isArray(event.image) ? event.image[0] : event.image || DEFAULT_IMAGE_PLACEHOLDER}
+                                    src={Array.isArray(event.image) && event.image.length > 0 ? event.image[0] : DEFAULT_IMAGE_PLACEHOLDER}
                                     alt={event.name} 
                                     width={40} 
                                     height={40} 

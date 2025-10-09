@@ -62,7 +62,7 @@ const getCategoryBadgeClass = (category: string) => {
 }
 
 const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolean, onDelete: (e: Event) => void }) => {
-    const imageSources = Array.isArray(event.image) ? event.image : (event.image ? [event.image] : ['/image/nibtickets.jpg']);
+    const imageSources = Array.isArray(event.image) && event.image.length > 0 ? event.image : ['/image/nibtickets.jpg'];
     
     const statusBadge = (status: string) => {
         return (
