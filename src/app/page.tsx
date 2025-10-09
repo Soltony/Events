@@ -329,7 +329,7 @@ export default function PublicHomePage() {
                                     <p className="text-xs text-black mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
                                   </CardItem>
                                 </div>
-                                <CardItem translateZ="30" className="mt-4">
+                                <CardItem translateZ="30" className="mt-auto pt-4">
                                     <Button asChild className="w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
                                         <Link href={`/events/${event.id}`}>
                                             Buy Ticket
@@ -406,7 +406,7 @@ export default function PublicHomePage() {
                                     <p className="text-xs text-black mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
                                   </CardItem>
                                 </div>
-                                 <CardItem translateZ="30" className="mt-4">
+                                 <CardItem translateZ="30" className="mt-auto pt-4">
                                     <Button asChild className="w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
                                         <Link href={`/events/${event.id}`}>
                                             Buy Ticket
@@ -465,23 +465,3 @@ const Footer = () => (
       </div>
     </footer>
 )
-
-    
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
