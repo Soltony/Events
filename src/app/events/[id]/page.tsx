@@ -23,6 +23,7 @@ import Link from 'next/link';
 import CartSheet from '@/components/cart-sheet';
 import { cn } from '@/lib/utils';
 import { AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 interface EventWithTickets extends Event {
@@ -120,6 +121,13 @@ export default function PublicEventDetailPage() {
     }
   }
 
+  const getTicketPrice = (ticket: TicketType): number => {
+    if (selectedLocation && ticket.locationPrices && ticket.locationPrices[selectedLocation]) {
+        return ticket.locationPrices[selectedLocation];
+    }
+    return Number(ticket.basePrice);
+  };
+
   const updateTicketQuantity = (ticketType: TicketType | SelectedTicket, quantity: number) => {
     const price = getTicketPrice(ticketType as TicketType);
     setSelectedTickets(prev => {
@@ -192,13 +200,6 @@ export default function PublicEventDetailPage() {
         });
         setIsPurchaseModalOpen(false);
     });
-  };
-
-  const getTicketPrice = (ticket: TicketType): number => {
-    if (selectedLocation && ticket.locationPrices && ticket.locationPrices[selectedLocation]) {
-        return ticket.locationPrices[selectedLocation];
-    }
-    return Number(ticket.basePrice);
   };
   
   if (loading || !event) {
@@ -274,31 +275,12 @@ export default function PublicEventDetailPage() {
                                     <Calendar className="h-5 w-5" />
                                     <span>{formatEventDate(event.startDate, event.endDate)}</span>
                                 </div>
-                                <div className="flex items-start gap-3">
-                                    <MapPin className="h-5 w-5 mt-1 flex-shrink-0" />
-                                    <div>
-                                    {eventLocations.length > 1 ? (
-                                        <div className="space-y-1">
-                                            {eventLocations.map(loc => (
-                                                <div key={loc} className="flex items-center gap-2">
-                                                     <input 
-                                                        type="radio" 
-                                                        id={`loc-${loc}`} 
-                                                        name="location" 
-                                                        value={loc} 
-                                                        checked={selectedLocation === loc} 
-                                                        onChange={(e) => setSelectedLocation(e.target.value)} 
-                                                        className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
-                                                    />
-                                                    <label htmlFor={`loc-${loc}`}>{loc}</label>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
+                                {eventLocations.length <= 1 && (
+                                    <div className="flex items-start gap-3">
+                                        <MapPin className="h-5 w-5 mt-1 flex-shrink-0" />
                                         <span>{event.location}</span>
-                                    )}
                                     </div>
-                                </div>
+                                )}
                                 {event.hint && (
                                     <div className="flex items-start gap-3 text-base">
                                     <Info className="h-5 w-5 mt-1 flex-shrink-0" />
@@ -316,6 +298,24 @@ export default function PublicEventDetailPage() {
 
                     <div className="md:col-span-2 space-y-8">
                         <div className="rounded-lg p-0">
+                             {eventLocations.length > 1 && (
+                                <div className="mb-6">
+                                    <Label htmlFor="location-select" className="text-lg font-semibold mb-2 block">Location</Label>
+                                    <Select
+                                        value={selectedLocation || ''}
+                                        onValueChange={(value) => setSelectedLocation(value)}
+                                    >
+                                        <SelectTrigger id="location-select">
+                                            <SelectValue placeholder="Select a location" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {eventLocations.map(loc => (
+                                                <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
                             <h3 className="text-2xl font-semibold mb-4 text-card-foreground">Tickets</h3>
                             <div className="space-y-4">
                                 {event.ticketTypes.length > 0 ? (
