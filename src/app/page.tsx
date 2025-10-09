@@ -49,13 +49,13 @@ const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 const CategoryFilter = ({ categories, selectedCategory, onSelectCategory }: { categories: string[], selectedCategory: string, onSelectCategory: (category: string) => void }) => {
     
     const categoryIcons: { [key: string]: React.ReactNode } = {
-        'All': <Ticket className="h-5 w-5 text-yellow-500" />,
-        'Technology': <Presentation className="h-5 w-5 text-blue-500" />,
-        'Music': <Mic className="h-5 w-5 text-purple-500" />,
-        'Art': <Drama className="h-5 w-5 text-pink-500" />,
-        'Community': <MessageSquareHeart className="h-5 w-5 text-green-500" />,
-        'Business': <Gamepad2 className="h-5 w-5 text-indigo-500" />,
-        'Food & Drink': <Utensils className="h-5 w-5 text-orange-500" />
+        'All': <Ticket className="h-5 w-5" style={{ color: '#f59e0b' }} />,
+        'Technology': <Presentation className="h-5 w-5" style={{ color: '#3b82f6' }} />,
+        'Music': <Mic className="h-5 w-5" style={{ color: '#8b5cf6' }} />,
+        'Art': <Drama className="h-5 w-5" style={{ color: '#ec4899' }} />,
+        'Community': <MessageSquareHeart className="h-5 w-5" style={{ color: '#22c55e' }} />,
+        'Business': <Gamepad2 className="h-5 w-5" style={{ color: '#6366f1' }} />,
+        'Food & Drink': <Utensils className="h-5 w-5" style={{ color: '#f97316' }} />
     };
 
     return (
@@ -112,11 +112,10 @@ export default function PublicHomePage() {
     }
   }
   
-  const getContentGradient = (color?: string | null) => {
-    const defaultColor = '#FDE047'; // yellow
-    const finalColor = color || defaultColor;
+  const getContentGradient = () => {
+    const yellowColor = '#FDE047'; // yellow
     return {
-      background: `linear-gradient(to top, ${finalColor}, ${finalColor}40)`
+      background: `linear-gradient(to top, ${yellowColor}, ${yellowColor}40)`
     }
   }
 
@@ -321,7 +320,7 @@ export default function PublicHomePage() {
                             </CardItem>
                             <div 
                                 className="p-4 flex flex-col flex-grow justify-between rounded-b-xl"
-                                style={getContentGradient(event.color)}
+                                style={getContentGradient()}
                             >
                                 <div className="flex-grow">
                                   <CardItem as="div" translateZ="40">
@@ -398,7 +397,7 @@ export default function PublicHomePage() {
                             </CardItem>
                             <div 
                                 className="p-4 flex flex-col flex-grow justify-between rounded-b-xl"
-                                style={getContentGradient(event.color)}
+                                style={getContentGradient()}
                             >
                                 <div className="flex-grow">
                                    <CardItem as="div" translateZ="40">
@@ -483,3 +482,6 @@ const Footer = () => (
 
 
 
+
+
+    
