@@ -82,20 +82,11 @@ export default function PublicEventDetailPage() {
         if (!eventData) {
             notFound();
         }
-        
-        const singleLocationString = eventData?.location.split('||').map(l => l.trim()).join(', ');
-        
-        if (eventData && singleLocationString) {
-             const updatedEventData = {
-                ...eventData,
-                location: singleLocationString,
-            };
-            setEvent(updatedEventData as EventWithTickets);
-            if (updatedEventData.location.split('||').length === 1) {
-                setSelectedLocation(updatedEventData.location);
-            } else {
-                setSelectedLocation(updatedEventData.location.split('||')[0].trim());
-            }
+        setEvent(eventData as EventWithTickets);
+        if (eventData?.location && !eventData.location.includes('||')) {
+            setSelectedLocation(eventData.location);
+        } else if (eventData?.location) {
+             setSelectedLocation(eventData.location.split('||')[0].trim());
         }
         setLoading(false);
     }

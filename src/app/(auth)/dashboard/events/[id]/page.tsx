@@ -203,7 +203,7 @@ export default function EventDetailPage() {
     if (ticketToEdit) {
       ticketForm.reset({
         name: ticketToEdit.name,
-        price: Number(ticketToEdit.price),
+        price: Number(ticketToEdit.basePrice),
         total: ticketToEdit.total,
         description: ticketToEdit.description || '',
       });
@@ -476,7 +476,7 @@ export default function EventDetailPage() {
 
   const totalSold = event.ticketTypes.reduce((sum, t) => sum + t.sold, 0);
   const totalCapacity = event.ticketTypes.reduce((sum, t) => sum + t.total, 0);
-  const totalRevenue = event.ticketTypes.reduce((sum, t) => sum + (t.sold * Number(t.price)), 0);
+  const totalRevenue = event.ticketTypes.reduce((sum, t) => sum + (t.sold * Number(t.basePrice)), 0);
   const selloutPercentage = totalCapacity > 0 ? (totalSold / totalCapacity) * 100 : 0;
   
   const eventDate = event.endDate 
@@ -702,9 +702,9 @@ export default function EventDetailPage() {
                                 {event.ticketTypes.map((ticket) => (
                                     <TableRow key={ticket.id}>
                                         <TableCell className="font-medium">{ticket.name}</TableCell>
-                                        <TableCell>ETB {Number(ticket.price).toFixed(2)}</TableCell>
+                                        <TableCell>ETB {Number(ticket.basePrice).toFixed(2)}</TableCell>
                                         <TableCell>{ticket.sold} / {ticket.total}</TableCell>
-                                        <TableCell>ETB {(ticket.sold * Number(ticket.price)).toLocaleString()}</TableCell>
+                                        <TableCell>ETB {(ticket.sold * Number(ticket.basePrice)).toLocaleString()}</TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-2">
                                                 <Button variant="ghost" size="icon" onClick={() => { setTicketToEdit(ticket); setIsEditTicketTypeOpen(true); }}>
