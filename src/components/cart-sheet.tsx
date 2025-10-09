@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import {
@@ -55,11 +56,14 @@ export default function CartSheet({
     <>
     <Sheet>
         <SheetTrigger asChild>
-            <Button className="fixed bottom-6 right-6 rounded-full h-16 w-16 shadow-lg z-50 bg-accent text-accent-foreground hover:bg-accent/90">
-                <ShoppingCart className="h-6 w-6" />
-                <Badge variant="secondary" className="absolute -top-1 -right-1 h-6 w-6 justify-center rounded-full bg-primary text-primary-foreground">{totalItems}</Badge>
-                <span className="sr-only">Open Cart</span>
-            </Button>
+            <div className="flex items-center justify-between border-t pt-4">
+                <span className="text-lg font-semibold">Total: ETB {total.toFixed(2)}</span>
+                <Button className="rounded-full shadow-lg z-50 bg-accent text-accent-foreground hover:bg-accent/90">
+                    <ShoppingCart className="h-5 w-5 mr-2" />
+                    View Cart
+                    <Badge variant="secondary" className="ml-2 h-6 w-6 justify-center rounded-full bg-primary text-primary-foreground">{totalItems}</Badge>
+                </Button>
+            </div>
         </SheetTrigger>
         <SheetContent 
           className="flex flex-col bg-card text-card-foreground sm:max-w-md"

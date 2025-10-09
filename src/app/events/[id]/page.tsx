@@ -85,7 +85,8 @@ export default function PublicEventDetailPage() {
         setEvent(eventData as EventWithTickets);
         // Set default selected location
         if (eventData && eventData.location) {
-            setSelectedLocation(eventData.location);
+            const firstLocation = eventData.location.split(',')[0].trim();
+            setSelectedLocation(firstLocation);
         }
         setLoading(false);
     }
@@ -237,7 +238,7 @@ export default function PublicEventDetailPage() {
   }
   
   const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-  const eventLocations = event.location.split(',').length > 1 && event.location.includes(';') ? event.location.split(';').map(l => l.trim()) : [event.location];
+  const eventLocations = event.location.split(',').length > 1 ? event.location.split(',').map(l => l.trim()) : [];
   const organizerName = event.color; // Using color field for organizer name
 
   return (
@@ -298,7 +299,7 @@ export default function PublicEventDetailPage() {
 
                     <div className="md:col-span-2 space-y-8">
                         <div className="rounded-lg p-0">
-                             {eventLocations.length > 1 && (
+                             {eventLocations.length > 0 && (
                                 <div className="mb-6">
                                     <Label htmlFor="location-select" className="text-lg font-semibold mb-2 block">Location</Label>
                                     <Select
@@ -351,37 +352,39 @@ export default function PublicEventDetailPage() {
                                 )}
                             </div>
                         </div>
+
+                         {totalItems > 0 &&
+                            <div className="mt-8">
+                                <CartSheet
+                                selectedTickets={selectedTickets}
+                                subtotal={subtotal}
+                                discount={discount}
+                                total={total}
+                                totalItems={totalItems}
+                                promoCode={promoCode}
+                                setPromoCode={setPromoCode}
+                                appliedPromo={appliedPromo}
+                                isPromoLoading={isPromoLoading}
+                                handleApplyPromoCode={handleApplyPromoCode}
+                                removePromoCode={removePromoCode}
+                                updateTicketQuantity={updateTicketQuantity}
+                                >
+                                <Button
+                                    onClick={() => setIsPurchaseModalOpen(true)}
+                                    className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+                                    size="lg"
+                                >
+                                    <ShoppingCart className="mr-2 h-4 w-4" />
+                                    Purchase Tickets
+                                </Button>
+                                </CartSheet>
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
         </div>
       </div>
-      
-      {totalItems > 0 &&
-        <CartSheet
-          selectedTickets={selectedTickets}
-          subtotal={subtotal}
-          discount={discount}
-          total={total}
-          totalItems={totalItems}
-          promoCode={promoCode}
-          setPromoCode={setPromoCode}
-          appliedPromo={appliedPromo}
-          isPromoLoading={isPromoLoading}
-          handleApplyPromoCode={handleApplyPromoCode}
-          removePromoCode={removePromoCode}
-          updateTicketQuantity={updateTicketQuantity}
-        >
-          <Button
-              onClick={() => setIsPurchaseModalOpen(true)}
-              className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
-              size="lg"
-          >
-              <ShoppingCart className="mr-2 h-4 w-4" />
-              Purchase Tickets
-          </Button>
-        </CartSheet>
-      }
 
       <AlertDialog open={isPurchaseModalOpen} onOpenChange={setIsPurchaseModalOpen}>
         <AlertDialogContent>
