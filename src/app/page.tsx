@@ -91,6 +91,9 @@ export default function PublicHomePage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
 
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
@@ -132,11 +135,31 @@ export default function PublicHomePage() {
     }
     fetchData();
   }, []);
+  
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
 
   const categories = useMemo(() => {
     const allCategories = new Set(events.map(event => event.category));
     return ['All', ...Array.from(allCategories)];
   }, [events]);
+
+  const searchSuggestions = useMemo(() => {
+    if (!searchQuery) return [];
+    return events.filter(event => 
+      event.name.toLowerCase().includes(searchQuery.toLowerCase())
+    ).slice(0, 5);
+  }, [events, searchQuery]);
 
   const filteredEvents = useMemo(() => {
     return events.filter(event => {
@@ -208,14 +231,42 @@ export default function PublicHomePage() {
             <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-center text-white p-4">
                 <h2 className="text-4xl md:text-6xl font-bold tracking-tight">UPCOMING EVENTS AND TICKET</h2>
                 <p className="mt-4 text-lg md:text-xl max-w-2xl">From music festivals to tech conferences, find your next experience with us. Secure and simple ticketing for every event.</p>
-                <div className="relative w-full max-w-2xl mt-8">
+                <div ref={searchRef} className="relative w-full max-w-2xl mt-8">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input 
                     placeholder="Search events, artists, or venues..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => setIsSearchFocused(true)}
                     className="pl-12 pr-4 py-6 text-lg bg-white/90 text-black placeholder:text-muted-foreground rounded-full focus:bg-white"
                   />
+                  {isSearchFocused && searchSuggestions.length > 0 && (
+                      <div className="absolute top-full mt-2 w-full bg-white rounded-lg shadow-lg overflow-hidden z-10">
+                        <ul>
+                          {searchSuggestions.map(event => (
+                            <li key={event.id}>
+                              <Link 
+                                href={`/events/${event.id}`} 
+                                className="flex items-center gap-4 p-3 hover:bg-gray-100"
+                                onClick={() => setIsSearchFocused(false)}
+                              >
+                                <Image 
+                                    src={event.image || DEFAULT_IMAGE_PLACEHOLDER} 
+                                    alt={event.name} 
+                                    width={40} 
+                                    height={40} 
+                                    className="object-cover rounded-md"
+                                />
+                                <div>
+                                    <p className="font-semibold text-black">{event.name}</p>
+                                    <p className="text-sm text-gray-500">{event.location}</p>
+                                </div>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                  )}
                 </div>
             </div>
         </section>
@@ -419,6 +470,7 @@ const Footer = () => (
     
 
     
+
 
 
 
