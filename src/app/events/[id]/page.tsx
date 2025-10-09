@@ -129,15 +129,23 @@ export default function PublicEventDetailPage() {
     }
   }
 
-  const getTicketPrice = (ticket: TicketType): number => {
-    if (selectedLocation && ticket.locationPrices && ticket.locationPrices[selectedLocation]) {
-        return ticket.locationPrices[selectedLocation];
+  const getTicketPrice = (ticket: EventWithTickets['ticketTypes'][number]): number => {
+    // Try exact match first
+    if (selectedLocation && ticket.locationPrices) {
+        const direct = (ticket.locationPrices as Record<string, number | string | null>)[selectedLocation];
+        if (direct != null) return Number(direct);
+        // Fallback: match by trimmed key (handles inconsistent whitespace)
+        const keys = Object.keys(ticket.locationPrices);
+        const matchKey = keys.find(k => k.trim() === selectedLocation.trim());
+        if (matchKey && ticket.locationPrices[matchKey] != null) {
+            return Number(ticket.locationPrices[matchKey]);
+        }
     }
     return Number(ticket.basePrice);
   };
 
-  const updateTicketQuantity = (ticketType: TicketType | SelectedTicket, quantity: number) => {
-    const price = getTicketPrice(ticketType as TicketType);
+  const updateTicketQuantity = (ticketType: EventWithTickets['ticketTypes'][number] | SelectedTicket, quantity: number) => {
+    const price = getTicketPrice(ticketType as EventWithTickets['ticketTypes'][number]);
     setSelectedTickets(prev => {
       const newSelected = { ...prev };
       if (quantity > 0) {
@@ -178,6 +186,24 @@ export default function PublicEventDetailPage() {
     setPromoCode('');
   }
   
+  // Recalculate prices for already selected tickets whenever location changes
+  useEffect(() => {
+    if (!event) return;
+    setSelectedTickets(prev => {
+      const updated: typeof prev = {};
+      for (const [id, selected] of Object.entries(prev)) {
+        const ticketType = event.ticketTypes.find(t => t.id === Number(id));
+        if (ticketType) {
+          const newPrice = getTicketPrice(ticketType);
+          updated[Number(id)] = { ...selected, price: newPrice } as SelectedTicket;
+        } else {
+          updated[Number(id)] = selected;
+        }
+      }
+      return updated;
+    });
+  }, [selectedLocation, event]);
+
   useEffect(() => {
     if (appliedPromo) {
       if (appliedPromo.type === 'PERCENTAGE') {
@@ -331,9 +357,14 @@ export default function PublicEventDetailPage() {
                                             <SelectValue placeholder="Select a location" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {eventLocations.map(loc => (
-                                                <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                                            ))}
+                                            {eventLocations.map(loc => {
+                                                const tt = event.ticketTypes[0];
+                                                const lp = (tt?.locationPrices || {}) as Record<string, number>;
+                                                const price = lp[loc] != null ? Number(lp[loc]) : Number(tt?.basePrice ?? 0);
+                                                return (
+                                                    <SelectItem key={loc} value={loc}>{loc} — ETB {price.toFixed(2)}</SelectItem>
+                                                );
+                                            })}
                                         </SelectContent>
                                     </Select>
                                 </div>

@@ -51,35 +51,45 @@ const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 const CategoryFilter = ({ categories, selectedCategory, onSelectCategory }: { categories: string[], selectedCategory: string, onSelectCategory: (category: string) => void }) => {
     
     const categoryIcons: { [key: string]: React.ReactNode } = {
-        'All': <Ticket className="h-5 w-5" style={{ color: '#f59e0b' }} />,
-        'Technology': <Presentation className="h-5 w-5" style={{ color: '#3b82f6' }} />,
-        'Music': <Mic className="h-5 w-5" style={{ color: '#8b5cf6' }} />,
-        'Art': <Drama className="h-5 w-5" style={{ color: '#ec4899' }} />,
-        'Community': <MessageSquareHeart className="h-5 w-5" style={{ color: '#22c55e' }} />,
-        'Business': <Gamepad2 className="h-5 w-5" style={{ color: '#6366f1' }} />,
-        'Food & Drink': <Utensils className="h-5 w-5" style={{ color: '#f97316' }} />
+        'All': <Ticket className="h-4 w-4" style={{ color: '#f59e0b' }} />,
+        'Technology': <Presentation className="h-4 w-4" style={{ color: '#3b82f6' }} />,
+        'Music': <Mic className="h-4 w-4" style={{ color: '#8b5cf6' }} />,
+        'Art': <Drama className="h-4 w-4" style={{ color: '#ec4899' }} />,
+        'Community': <MessageSquareHeart className="h-4 w-4" style={{ color: '#22c55e' }} />,
+        'Business': <Gamepad2 className="h-4 w-4" style={{ color: '#6366f1' }} />,
+        'Food & Drink': <Utensils className="h-4 w-4" style={{ color: '#f97316' }} />,
+        'Food': <Utensils className="h-4 w-4" style={{ color: '#f97316' }} />,
+        'Other': <Ticket className="h-4 w-4" style={{ color: '#f59e0b' }} />
     };
 
     return (
         <div className="relative">
-            <div className="flex justify-around items-center w-full">
+            <div className="flex flex-wrap items-center justify-center gap-6">
                 {categories.map((category) => {
-                     const Icon = categoryIcons[category] || <Ticket className="h-5 w-5" />;
+                    const Icon = categoryIcons[category] || <Ticket className="h-4 w-4" style={{ color: '#f59e0b' }} />;
                     return (
-                        <div key={category} className="flex flex-col items-center gap-1">
-                            <button
-                                onClick={() => onSelectCategory(category)}
-                                className={cn(
-                                    "w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all duration-300",
-                                    selectedCategory === category
-                                        ? "bg-primary/20 border-primary"
-                                        : "bg-white border-gray-200 hover:border-primary/50"
-                                )}
-                            >
-                                {Icon}
-                            </button>
-                            <p className="mt-2 text-sm font-medium">{category}</p>
-                        </div>
+                        <TooltipProvider key={category}>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={() => onSelectCategory(category)}
+                                        className={cn(
+                                            "w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-300",
+                                            selectedCategory === category
+                                                ? "bg-primary/20 border-primary"
+                                                : "bg-white border-gray-200 hover:border-primary/50"
+                                        )}
+                                        aria-label={category}
+                                    >
+                                        {Icon}
+                                        <span className="sr-only">{category}</span>
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <span>{category}</span>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     )
                 })}
             </div>
@@ -284,16 +294,14 @@ export default function PublicHomePage() {
                       </div>
                   )}
                 </div>
+                <div className="mt-6">
+                  <CategoryFilter categories={categories} selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />
+                </div>
             </div>
         </section>
 
-        <section className="py-12 bg-white">
-            <div className="container mx-auto px-4 lg:px-6">
-                 <CategoryFilter categories={categories} selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />
-            </div>
-        </section>
 
-        <section className="py-12">
+        <section className="pt-6 pb-12">
             <div className="container mx-auto px-4 lg:px-6">
                 <h2 className="text-2xl font-bold tracking-tight mb-6">
                     Upcoming Events
