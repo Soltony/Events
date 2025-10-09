@@ -31,6 +31,9 @@ import { Separator } from '@/components/ui/separator';
 import LocationInput from '@/components/location-input';
 import { DateTimePicker } from '@/components/datetime-picker';
 import { useAuth } from '@/context/auth-context';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+const locationPriceSchema = z.record(z.coerce.number().min(0, { message: 'Price must be positive.' }).optional());
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
@@ -49,9 +52,10 @@ const eventFormSchema = z.object({
   image: z.string().optional(),
   tickets: z.array(z.object({
     name: z.string().min(1, { message: "Ticket name can't be empty."}),
-    price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
-    total: z.coerce.number().int().min(1, { message: 'Capacity must be at least 1.' }),
     description: z.string().optional(),
+    basePrice: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
+    locationPrices: locationPriceSchema.optional(),
+    total: z.coerce.number().int().min(1, { message: 'Capacity must be at least 1.' }),
   })).min(1, { message: 'You must have at least one ticket tier.'}),
 }).refine(data => {
     if (data.category === 'Other') {
@@ -86,11 +90,12 @@ export default function CreateEventPage() {
       category: '',
       otherCategory: '',
       image: '',
-      tickets: [{ name: 'General Admission', price: 25, total: 100, description: 'Standard entry to the event.' }],
+      tickets: [{ name: 'General Admission', description: 'Standard entry to the event.', basePrice: 25, locationPrices: {}, total: 100 }],
     },
   });
 
   const watchedCategory = form.watch('category');
+  const watchedLocations = form.watch('locations');
 
   const { fields: ticketFields, append: appendTicket, remove: removeTicket } = useFieldArray({
     control: form.control,
@@ -165,7 +170,7 @@ export default function CreateEventPage() {
 
   return (
     <div className="flex flex-1 justify-center p-4">
-      <div className="w-full max-w-3xl">
+      <div className="w-full max-w-4xl">
         <Card>
           <CardHeader>
             <CardTitle>Create New Event</CardTitle>
@@ -438,73 +443,45 @@ export default function CreateEventPage() {
                 <Separator />
 
                 <div className="space-y-6">
-                  <div>
-                      <FormLabel>Ticket Tiers</FormLabel>
-                      <FormDescription>Create one or more ticket types for your event.</FormDescription>
-                      <FormMessage>{form.formState.errors.tickets?.message}</FormMessage>
-                  </div>
+                    <div>
+                        <FormLabel>Ticket Tiers</FormLabel>
+                        <FormDescription>Create one or more ticket types for your event.</FormDescription>
+                        <FormMessage>{form.formState.errors.tickets?.message}</FormMessage>
+                    </div>
 
-                  {ticketFields.map((field, index) => (
+                    {ticketFields.map((field, index) => (
                     <Card key={field.id} className="p-4 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_120px_auto] gap-4 items-start">
+                        <div className="flex justify-between items-start">
                         <FormField
-                          control={form.control}
-                          name={`tickets.${index}.name`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className={index !== 0 ? "sr-only" : ""}>Ticket Name</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="e.g., VIP Pass" />
-                              </FormControl>
-                              <FormMessage />
+                            control={form.control}
+                            name={`tickets.${index}.name`}
+                            render={({ field }) => (
+                            <FormItem className="flex-grow pr-4">
+                                <FormLabel>Ticket Name</FormLabel>
+                                <FormControl><Input {...field} placeholder="e.g., VIP Pass" /></FormControl>
+                                <FormMessage />
                             </FormItem>
-                          )}
+                            )}
                         />
-                        <FormField
-                          control={form.control}
-                          name={`tickets.${index}.price`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className={index !== 0 ? "sr-only" : ""}>Price</FormLabel>
-                              <FormControl>
-                                <Input type="number" {...field} placeholder="e.g., 50" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`tickets.${index}.total`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className={index !== 0 ? "sr-only" : ""}>Quantity</FormLabel>
-                              <FormControl>
-                                <Input type="number" {...field} placeholder="e.g., 100"/>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <div className={`flex items-end h-full ${index !== 0 ? "md:pt-8" : ""}`}>
-                          <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              onClick={() => removeTicket(index)}
-                              disabled={ticketFields.length <= 1}
-                          >
-                              <Trash2 className="h-4 w-4" />
-                              <span className="sr-only">Remove tier</span>
-                          </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => removeTicket(index)}
+                            disabled={ticketFields.length <= 1}
+                            className="mt-8"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Remove tier</span>
+                        </Button>
                         </div>
-                      </div>
-                      <FormField
+                        
+                         <FormField
                           control={form.control}
                           name={`tickets.${index}.description`}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="sr-only">Description</FormLabel>
+                              <FormLabel>Description</FormLabel>
                               <FormControl>
                                 <Textarea {...field} placeholder="Describe what this ticket includes (e.g., front row seats, free drink)." className="resize-none" />
                               </FormControl>
@@ -512,16 +489,76 @@ export default function CreateEventPage() {
                             </FormItem>
                           )}
                         />
+
+                        <div className="grid grid-cols-2 gap-4 items-end">
+                            <FormField
+                                control={form.control}
+                                name={`tickets.${index}.basePrice`}
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Base Price</FormLabel>
+                                    <FormControl><Input type="number" {...field} placeholder="e.g., 50" /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name={`tickets.${index}.total`}
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Quantity</FormLabel>
+                                    <FormControl><Input type="number" {...field} placeholder="e.g., 100" /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                        </div>
+                        
+                        {watchedLocations && watchedLocations.length > 1 && watchedLocations.every(l => l.value) && (
+                            <div className="pt-4">
+                                <h4 className="font-medium text-sm mb-2">Location-Specific Prices (Optional)</h4>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Location</TableHead>
+                                            <TableHead>Price</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {watchedLocations.map((location) => (
+                                            <TableRow key={location.value}>
+                                                <TableCell>{location.value}</TableCell>
+                                                <TableCell>
+                                                     <FormField
+                                                        control={form.control}
+                                                        name={`tickets.${index}.locationPrices.${location.value}`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormControl>
+                                                                    <Input type="number" {...field} placeholder={`Default: ${form.getValues(`tickets.${index}.basePrice`)}`} />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        )}
                     </Card>
-                  ))}
-                  <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => appendTicket({ name: '', price: 0, total: 50, description: '' })}
-                      >
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      Add Ticket Tier
-                  </Button>
+                    ))}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => appendTicket({ name: '', description: '', basePrice: 0, locationPrices: {}, total: 50 })}
+                        >
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add Ticket Tier
+                    </Button>
                 </div>
 
                 <Separator />

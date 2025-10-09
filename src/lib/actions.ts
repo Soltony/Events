@@ -123,6 +123,24 @@ export async function getEventById(id: number) {
             ticketTypes: true,
         },
     });
+
+    if (event) {
+        event.ticketTypes = event.ticketTypes.map(tt => {
+            const ticketType = { ...tt } as any;
+            if (ticketType.locationPrices && typeof ticketType.locationPrices === 'object') {
+                Object.keys(ticketType.locationPrices).forEach(loc => {
+                    if (ticketType.locationPrices[loc] !== null) {
+                        ticketType.locationPrices[loc] = parseFloat(ticketType.locationPrices[loc]);
+                    }
+                });
+            } else {
+                 ticketType.locationPrices = {};
+            }
+            ticketType.basePrice = parseFloat(ticketType.basePrice as any);
+            return ticketType;
+        });
+    }
+
     return serialize(event);
 }
 
@@ -203,11 +221,16 @@ export async function addEvent(data: any) {
     });
 
     if (tickets && tickets.length > 0) {
+        const ticketData = tickets.map((ticket: any) => ({
+            name: ticket.name,
+            description: ticket.description,
+            basePrice: ticket.basePrice,
+            locationPrices: ticket.locationPrices || {},
+            total: ticket.total,
+            eventId: newEvent.id,
+        }));
         await prisma.ticketType.createMany({
-            data: tickets.map((ticket: any) => ({
-                ...ticket,
-                eventId: newEvent.id,
-            })),
+            data: ticketData,
         });
     }
 
@@ -228,6 +251,7 @@ export async function updateEvent(id: number, data: any) {
 
     const eventDataForUpdate = { ...eventData };
     delete eventDataForUpdate.otherCategory;
+    delete eventDataForUpdate.tickets; 
 
     const locationString = locations.map((l: { value: string }) => l.value).join(', ');
 
@@ -309,10 +333,14 @@ export async function deleteEvent(id: number) {
 }
 
 
-export async function addTicketType(eventId: number, data: Omit<TicketType, 'id' | 'eventId' | 'createdAt' | 'updatedAt' | 'sold'>) {
+export async function addTicketType(eventId: number, data: any) {
     const newTicketType = await prisma.ticketType.create({
         data: {
-            ...data,
+            name: data.name,
+            description: data.description,
+            basePrice: data.basePrice,
+            locationPrices: data.locationPrices || {},
+            total: data.total,
             eventId: eventId,
         }
     });
@@ -320,10 +348,16 @@ export async function addTicketType(eventId: number, data: Omit<TicketType, 'id'
     return serialize(newTicketType);
 }
 
-export async function updateTicketType(ticketTypeId: number, data: Partial<Omit<TicketType, 'id' | 'eventId' | 'createdAt' | 'updatedAt' | 'sold'>>) {
+export async function updateTicketType(ticketTypeId: number, data: any) {
   const updatedTicketType = await prisma.ticketType.update({
     where: { id: ticketTypeId },
-    data: data,
+    data: {
+        name: data.name,
+        description: data.description,
+        basePrice: data.basePrice,
+        locationPrices: data.locationPrices || {},
+        total: data.total,
+    },
   });
   revalidatePath(`/dashboard/events/${updatedTicketType.eventId}`);
   return serialize(updatedTicketType);
@@ -426,12 +460,7 @@ export async function getDashboardData() {
     const approvedEvents = await prisma.event.findMany({
         where: approvedWhereClause,
         include: {
-            ticketTypes: {
-                select: {
-                    sold: true,
-                    price: true
-                }
-            }
+            ticketTypes: true
         }
     });
     
@@ -439,7 +468,10 @@ export async function getDashboardData() {
     const pendingEvents = await prisma.event.count({ where: pendingEventsFilter });
     
     const totalRevenue = approvedEvents.reduce((sum, event) => {
-        return sum + event.ticketTypes.reduce((eventSum, tt) => eventSum + (tt.sold * Number(tt.price)), 0)
+        return sum + event.ticketTypes.reduce((eventSum, tt) => {
+            const price = tt.basePrice ? Number(tt.basePrice) : 0;
+            return eventSum + (tt.sold * price);
+        }, 0);
     }, 0);
 
     const totalTicketsSold = approvedEvents.reduce((sum, event) => {
@@ -494,10 +526,10 @@ export async function getReportsData(dateRange?: DateRange) {
         orderBy: { startDate: 'asc' }
     });
 
-    const ticketTypes = events.flatMap(e => e.ticketTypes.map(tt => ({ ...tt, event: { name: e.name } })));
+    const ticketTypes = events.flatMap(e => e.ticketTypes.map(tt => ({ ...tt, event: { name: e.name }, price: tt.basePrice })));
     
     const dailySalesData = events.map(event => {
-        const revenue = event.ticketTypes.reduce((sum, t) => sum + (t.sold * Number(t.price)), 0);
+        const revenue = event.ticketTypes.reduce((sum, t) => sum + (t.sold * Number(t.basePrice)), 0);
         return {
             date: event.startDate,
             eventName: event.name,

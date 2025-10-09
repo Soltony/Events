@@ -26,7 +26,7 @@ import { AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDes
 
 
 interface EventWithTickets extends Event {
-    ticketTypes: TicketType[];
+    ticketTypes: (TicketType & { locationPrices: Record<string, number> | null; basePrice: number })[];
 }
 
 export type SelectedTicket = {
@@ -81,7 +81,7 @@ export default function PublicEventDetailPage() {
         if (!eventData) {
             notFound();
         }
-        setEvent(eventData);
+        setEvent(eventData as EventWithTickets);
         // Set default selected location
         if (eventData && eventData.location) {
             setSelectedLocation(eventData.location.split(',')[0].trim());
@@ -121,12 +121,13 @@ export default function PublicEventDetailPage() {
   }
 
   const updateTicketQuantity = (ticketType: TicketType | SelectedTicket, quantity: number) => {
+    const price = getTicketPrice(ticketType as TicketType);
     setSelectedTickets(prev => {
       const newSelected = { ...prev };
       if (quantity > 0) {
         newSelected[ticketType.id] = {
           ...ticketType,
-          price: Number(ticketType.price),
+          price: price,
           quantity: quantity,
         };
       } else {
@@ -191,6 +192,13 @@ export default function PublicEventDetailPage() {
         });
         setIsPurchaseModalOpen(false);
     });
+  };
+
+  const getTicketPrice = (ticket: TicketType): number => {
+    if (selectedLocation && ticket.locationPrices && ticket.locationPrices[selectedLocation]) {
+        return ticket.locationPrices[selectedLocation];
+    }
+    return Number(ticket.basePrice);
   };
   
   if (loading || !event) {
@@ -314,12 +322,14 @@ export default function PublicEventDetailPage() {
                                 event.ticketTypes.map(ticket => {
                                     const selectedQuantity = selectedTickets[ticket.id]?.quantity || 0;
                                     const remaining = ticket.total - ticket.sold;
+                                    const price = getTicketPrice(ticket);
+
                                     return (
                                     <div key={ticket.id} className="flex flex-col gap-2 p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md">
                                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                                             <div className="mb-3 sm:mb-0">
                                             <h4 className="font-semibold text-lg">{ticket.name}</h4>
-                                            <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">ETB {Number(ticket.price).toFixed(2)}</p>
+                                            <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">ETB {price.toFixed(2)}</p>
                                             <p className="text-sm text-muted-foreground">{remaining > 0 ? `${remaining} remaining` : 'Sold Out'}</p>
                                             </div>
                                             <div className="flex items-center gap-2">
