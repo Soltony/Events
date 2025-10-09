@@ -204,7 +204,7 @@ export async function addEvent(data: any) {
         eventData.image = '/image/nibtickets.jpg';
     }
     
-    const locationString = locations.map((l: { value: string }) => l.value).join(', ');
+    const locationString = locations.map((l: { value: string }) => l.value).join('||');
 
     const newEvent = await prisma.event.create({
         data: {
@@ -253,7 +253,7 @@ export async function updateEvent(id: number, data: any) {
     delete eventDataForUpdate.otherCategory;
     delete eventDataForUpdate.tickets; 
 
-    const locationString = locations.map((l: { value: string }) => l.value).join(', ');
+    const locationString = locations.map((l: { value: string }) => l.value).join('||');
 
     const eventToUpdate = await prisma.event.findUnique({ where: { id }});
     if (!eventToUpdate) throw new Error("Event not found");

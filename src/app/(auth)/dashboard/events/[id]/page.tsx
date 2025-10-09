@@ -508,7 +508,7 @@ export default function EventDetailPage() {
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{event.name}</h1>
                     <div className="text-muted-foreground flex flex-col sm:flex-row sm:items-center sm:gap-4 flex-wrap">
                         <span className="text-sm">{eventDate}</span>
-                        <span className="flex items-center gap-1 text-sm"><MapPin className="h-4 w-4" /> {event.location}</span>
+                        <span className="flex items-center gap-1 text-sm"><MapPin className="h-4 w-4" /> {event.location.replace(/\|\|/g, ', ')}</span>
                         {event.hint && <span className="flex items-center gap-1 text-sm"><Info className="h-4 w-4" /> {event.hint}</span>}
                     </div>
                 </div>
@@ -777,7 +777,7 @@ export default function EventDetailPage() {
                                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a location" /></SelectTrigger></FormControl>
                                                     <SelectContent>
-                                                        {event?.location.split(',').map(l => l.trim()).map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}
+                                                        {event?.location.split('||').map(l => l.trim()).map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}
                                                     </SelectContent>
                                                 </Select>
                                                 <FormMessage />
@@ -961,7 +961,7 @@ export default function EventDetailPage() {
                                     <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a location" /></SelectTrigger></FormControl>
                                     <SelectContent>
-                                        {event?.location.split(',').map(l => l.trim()).map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}
+                                        {event?.location.split('||').map(l => l.trim()).map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
@@ -1050,5 +1050,3 @@ export default function EventDetailPage() {
     </>
   );
 }
-
-

@@ -105,12 +105,13 @@ export default function EditEventPage() {
         const event = await getEventById(eventId);
         if (event) {
           const isOtherCategory = event.category && !defaultCategories.includes(event.category);
+          const eventLocations = event.location ? event.location.split('||').map((loc: string) => ({ value: loc.trim() })) : [{ value: '' }];
           
           form.reset({
             name: event.name,
             color: event.color || '', // organizer name
             description: event.description,
-            locations: event.location ? [{ value: event.location }] : [{ value: '' }],
+            locations: eventLocations,
             hint: event.hint || '',
             category: isOtherCategory ? 'Other' : event.category,
             otherCategory: isOtherCategory ? event.category : '',

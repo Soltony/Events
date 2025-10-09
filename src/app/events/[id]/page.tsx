@@ -83,7 +83,7 @@ export default function PublicEventDetailPage() {
             notFound();
         }
         
-        const singleLocationString = eventData?.location.split(',').map(l => l.trim()).join(', ');
+        const singleLocationString = eventData?.location.split('||').map(l => l.trim()).join(', ');
         
         if (eventData && singleLocationString) {
              const updatedEventData = {
@@ -91,10 +91,10 @@ export default function PublicEventDetailPage() {
                 location: singleLocationString,
             };
             setEvent(updatedEventData as EventWithTickets);
-            if (updatedEventData.location.split(',').length === 1) {
+            if (updatedEventData.location.split('||').length === 1) {
                 setSelectedLocation(updatedEventData.location);
             } else {
-                setSelectedLocation(updatedEventData.location.split(',')[0].trim());
+                setSelectedLocation(updatedEventData.location.split('||')[0].trim());
             }
         }
         setLoading(false);
@@ -247,7 +247,7 @@ export default function PublicEventDetailPage() {
   }
   
   const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-  const eventLocations = event.location.split(',').length > 1 ? event.location.split(',').map(l => l.trim()) : [];
+  const eventLocations = event.location.includes('||') ? event.location.split('||').map(l => l.trim()) : [];
   const organizerName = event.color; // Using color field for organizer name
 
   return (
@@ -288,7 +288,7 @@ export default function PublicEventDetailPage() {
                                 {eventLocations.length <= 1 && (
                                     <div className="flex items-start gap-3">
                                         <MapPin className="h-5 w-5 mt-1 flex-shrink-0" />
-                                        <span>{event.location}</span>
+                                        <span>{event.location.replace(/\|\|/g, ', ')}</span>
                                     </div>
                                 )}
                                 {event.hint && (
