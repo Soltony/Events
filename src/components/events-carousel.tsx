@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -28,7 +29,7 @@ export default function EventsCarousel({ events }: { events: EventWithTickets[] 
   
   if (events.length === 0) {
     return (
-        <div className="w-full aspect-[21/9] bg-gray-200 flex items-center justify-center text-muted-foreground">
+        <div className="w-full aspect-video bg-gray-200 flex items-center justify-center text-muted-foreground">
             <p>No upcoming events to display.</p>
         </div>
     );
@@ -49,7 +50,7 @@ export default function EventsCarousel({ events }: { events: EventWithTickets[] 
             const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
             return (
                 <CarouselItem key={event.id}>
-                    <div className="relative w-full aspect-[21/9]">
+                    <div className="relative w-full aspect-video">
                          <Image
                             src={imageUrl}
                             alt={event.name}

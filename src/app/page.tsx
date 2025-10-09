@@ -50,13 +50,13 @@ const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 const CategoryFilter = ({ categories, selectedCategory, onSelectCategory }: { categories: string[], selectedCategory: string, onSelectCategory: (category: string) => void }) => {
     
     const categoryIcons: { [key: string]: React.ReactNode } = {
-        'All': <Ticket className="h-6 w-6" />,
-        'Technology': <Presentation className="h-6 w-6" />,
-        'Music': <Mic className="h-6 w-6" />,
-        'Art': <Drama className="h-6 w-6" />,
-        'Community': <MessageSquareHeart className="h-6 w-6" />,
-        'Business': <Gamepad2 className="h-6 w-6" />,
-        'Food & Drink': <Utensils className="h-6 w-6" />
+        'All': <Ticket className="h-6 w-6 text-yellow-500" />,
+        'Technology': <Presentation className="h-6 w-6 text-blue-500" />,
+        'Music': <Mic className="h-6 w-6 text-purple-500" />,
+        'Art': <Drama className="h-6 w-6 text-pink-500" />,
+        'Community': <MessageSquareHeart className="h-6 w-6 text-green-500" />,
+        'Business': <Gamepad2 className="h-6 w-6 text-indigo-500" />,
+        'Food & Drink': <Utensils className="h-6 w-6 text-orange-500" />
     };
 
     return (
@@ -420,6 +420,7 @@ const Footer = () => (
     
 
     
+
 
 
 
