@@ -281,7 +281,7 @@ export default function PublicHomePage() {
                 <h2 className="text-2xl font-bold tracking-tight mb-6">
                     Upcoming Events
                 </h2>
-                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 items-stretch">
                 {loading ? (
                     [...Array(8)].map((_, i) => (
                       <Card key={i} className="overflow-hidden">
@@ -300,10 +300,10 @@ export default function PublicHomePage() {
                     upcomingEvents.map((event) => {
                       const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
                       return (
-                        <CardContainer key={event.id} className="inter-var h-full">
-                          <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col">
+                        <CardContainer key={event.id} className="inter-var w-full h-[420px]">
+                          <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col justify-between">
                             <CardItem translateZ="50" className="w-full">
-                               <div className="relative w-full aspect-video bg-muted rounded-t-xl overflow-hidden">
+                               <div className="relative w-full h-[200px] bg-muted rounded-t-xl overflow-hidden">
                                 <Image
                                     src={imageUrl}
                                     alt={event.name}
@@ -322,7 +322,7 @@ export default function PublicHomePage() {
                                 className="p-4 flex flex-col flex-grow justify-between rounded-b-xl"
                                 style={getContentGradient()}
                             >
-                                <div className="h-28">
+                                <div>
                                   <CardItem as="div" translateZ="40">
                                     <Badge variant="outline" className={cn("text-xs mb-2", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
                                     <h3 className="font-bold text-lg text-black truncate">{event.name}</h3>
@@ -358,7 +358,7 @@ export default function PublicHomePage() {
                 <h2 className="text-2xl font-bold tracking-tight mb-6">
                     Top Selling Events
                 </h2>
-                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 items-stretch">
                 {loading ? (
                     [...Array(4)].map((_, i) => (
                       <Card key={i} className="overflow-hidden">
@@ -377,10 +377,10 @@ export default function PublicHomePage() {
                     topSellingEvents.slice(0, 4).map((event) => {
                       const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
                       return (
-                         <CardContainer key={event.id} className="inter-var h-full">
-                          <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col">
+                         <CardContainer key={event.id} className="inter-var w-full h-[420px]">
+                          <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col justify-between">
                             <CardItem translateZ="50" className="w-full">
-                               <div className="relative w-full aspect-video bg-muted rounded-t-xl overflow-hidden">
+                               <div className="relative w-full h-[200px] bg-muted rounded-t-xl overflow-hidden">
                                 <Image
                                     src={imageUrl}
                                     alt={event.name}
@@ -399,7 +399,7 @@ export default function PublicHomePage() {
                                 className="p-4 flex flex-col flex-grow justify-between rounded-b-xl"
                                 style={getContentGradient()}
                             >
-                                <div className="h-28">
+                                <div>
                                    <CardItem as="div" translateZ="40">
                                     <Badge variant="outline" className={cn("text-xs mb-2", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
                                     <h3 className="font-bold text-lg text-black truncate">{event.name}</h3>
@@ -465,3 +465,5 @@ const Footer = () => (
       </div>
     </footer>
 )
+
+    
