@@ -173,7 +173,7 @@ export async function getEventDetails(id: number) {
 }
 
 export async function addEvent(data: any) {
-    const { tickets, startDate, endDate, otherCategory, locations, ...eventData } = data;
+    const { tickets, startDate, endDate, otherCategory, locations, images, ...eventData } = data;
     const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
@@ -200,15 +200,12 @@ export async function addEvent(data: any) {
 
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
     
-    if (!eventData.image) {
-        eventData.image = '/image/nibtickets.jpg';
-    }
-    
     const locationString = locations.map((l: { value: string }) => l.value).join('||');
 
     const newEvent = await prisma.event.create({
         data: {
             ...eventData,
+            image: images,
             location: locationString,
             organizerId: user.id,
             nibBankAccount: nibBankAccount,
@@ -241,7 +238,7 @@ export async function addEvent(data: any) {
 }
 
 export async function updateEvent(id: number, data: any) {
-    const { startDate, endDate, otherCategory, locations, ...eventData } = data;
+    const { startDate, endDate, otherCategory, locations, images, ...eventData } = data;
     const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
@@ -266,6 +263,7 @@ export async function updateEvent(id: number, data: any) {
         where: { id },
         data: {
             ...eventDataForUpdate,
+            image: images,
             location: locationString,
             category: finalCategory,
             startDate: startDate,
@@ -526,7 +524,7 @@ export async function getReportsData(dateRange?: DateRange) {
         orderBy: { startDate: 'asc' }
     });
 
-    const ticketTypes = events.flatMap(e => e.ticketTypes.map(tt => ({ ...tt, event: { name: e.name }, price: tt.basePrice })));
+    const ticketTypes = events.flatMap(e => e.ticketTypes.map(tt => ({ ...tt, event: { name: e.name }, basePrice: tt.basePrice })));
     
     const dailySalesData = events.map(event => {
         const revenue = event.ticketTypes.reduce((sum, t) => sum + (t.sold * Number(t.basePrice)), 0);
@@ -555,7 +553,7 @@ export async function getReportsData(dateRange?: DateRange) {
     });
 
     return serialize({
-        productSales: ticketTypes,
+        productSales: ticketTypes.map(p => ({...p, price: p.basePrice, revenue: p.sold * Number(p.basePrice)})),
         dailySales: dailySalesData,
         promoCodes: promoCodeData
     });

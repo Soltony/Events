@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter, useParams } from 'next/navigation';
-import { UploadCloud, Loader2, ArrowLeft, PlusCircle, Trash2 } from 'lucide-react';
+import { UploadCloud, Loader2, ArrowLeft, PlusCircle, Trash2, X } from 'lucide-react';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -46,7 +46,7 @@ const eventFormSchema = z.object({
   endDate: z.date().optional(),
   category: z.string({ required_error: 'Please select a category.' }),
   otherCategory: z.string().optional(),
-  image: z.string().optional(),
+  images: z.array(z.string()).min(1, { message: 'Please upload at least one image.' }),
 }).refine(data => {
     if (data.category === 'Other') {
         return !!data.otherCategory && data.otherCategory.length > 0;
@@ -70,8 +70,7 @@ export default function EditEventPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-
+  
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
@@ -82,9 +81,16 @@ export default function EditEventPage() {
       hint: '',
       category: '',
       otherCategory: '',
-      image: '',
+      images: [],
     },
   });
+
+  const { fields: imageFields, append: appendImage, remove: removeImage } = useFieldArray({
+    control: form.control,
+    name: "images"
+  });
+
+  const watchedImages = form.watch('images');
 
   const { fields: locationFields, append: appendLocation, remove: removeLocation } = useFieldArray({
     control: form.control,
@@ -117,11 +123,8 @@ export default function EditEventPage() {
             otherCategory: isOtherCategory ? event.category : '',
             startDate: new Date(event.startDate),
             endDate: event.endDate ? new Date(event.endDate) : undefined,
-            image: event.image || '',
+            images: Array.isArray(event.image) ? event.image : (event.image ? [event.image] : []),
           });
-          if (event.image) {
-            setPreviewImage(event.image);
-          }
         } else {
             toast({ variant: 'destructive', title: 'Error', description: 'Event not found.' });
             router.push('/dashboard/events');
@@ -143,6 +146,7 @@ export default function EditEventPage() {
         const finalData = {
             ...data,
             category: data.category === 'Other' ? data.otherCategory : data.category,
+            image: data.images, // Pass the array of images
         };
 
         await updateEvent(eventId, finalData);
@@ -164,29 +168,36 @@ export default function EditEventPage() {
   }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
+      const files = e.target.files;
+      if (files) {
         setIsUploading(true);
-        setPreviewImage(URL.createObjectURL(file)); 
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-          try {
-            const response = await axios.post('/api/upload', { file: reader.result });
-            if (response.data.success) {
-              form.setValue('image', response.data.url);
-              setPreviewImage(response.data.url); 
-            } else {
-              toast({ variant: 'destructive', title: 'Upload failed', description: response.data.error });
-              setPreviewImage(form.getValues('image') ?? null); 
-            }
-          } catch (error) {
-            toast({ variant: 'destructive', title: 'Upload failed', description: 'An error occurred.' });
-            setPreviewImage(form.getValues('image') ?? null);
-          } finally {
-            setIsUploading(false);
-          }
-        };
-        reader.readAsDataURL(file);
+        const uploadPromises = Array.from(files).map(file => {
+          return new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+              try {
+                const response = await axios.post('/api/upload', { file: reader.result });
+                if (response.data.success) {
+                  resolve(response.data.url);
+                } else {
+                  reject(response.data.error);
+                }
+              } catch (error) {
+                reject(error);
+              }
+            };
+            reader.readAsDataURL(file);
+          });
+        });
+
+        try {
+          const uploadedUrls = await Promise.all(uploadPromises);
+          uploadedUrls.forEach(url => appendImage(url));
+        } catch (error) {
+           toast({ variant: 'destructive', title: 'Upload failed', description: 'An error occurred during upload.' });
+        } finally {
+           setIsUploading(false);
+        }
       }
     };
 
@@ -426,59 +437,55 @@ export default function EditEventPage() {
               <div className="space-y-4">
                 <div>
                   <FormLabel>Event Visuals</FormLabel>
-                  <FormDescription>Update the image for your event.</FormDescription>
-                   <FormMessage className="pt-2">{form.formState.errors.image?.message}</FormMessage>
+                  <FormDescription>Update the images for your event.</FormDescription>
+                   <FormMessage className="pt-2">{form.formState.errors.images?.message}</FormMessage>
                 </div>
-                 <div className="grid grid-cols-1 items-center">
-                    <div className="w-full max-w-sm">
-                       <FormField
-                          control={form.control}
-                          name="image"
-                          render={({ field }) => (
-                          <FormItem>
-                              <FormControl>
-                                <div className="aspect-video rounded-md relative group bg-muted border-dashed border-2 flex items-center justify-center">
-                                  {isUploading && (
-                                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
-                                          <Loader2 className="h-8 w-8 animate-spin text-white" />
-                                      </div>
-                                  )}
-                                  {previewImage && !isUploading ? (
-                                    <Image
-                                      src={previewImage}
-                                      alt="Event image preview"
-                                      fill
-                                      className="object-cover rounded-md"
-                                      onError={(e) => {
-                                        const target = e.target as HTMLImageElement;
-                                        target.src = DEFAULT_IMAGE_PLACEHOLDER;
-                                        target.srcset = '';
-                                      }}
-                                    />
-                                  ) : null}
-                                  <div className={`absolute inset-0 flex items-center justify-center gap-2 transition-opacity ${previewImage ? 'bg-black/40 opacity-0 group-hover:opacity-100' : 'bg-transparent'} ${isUploading ? 'opacity-0' : ''}`}>
-                                    <label htmlFor="image-upload" className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 px-3 cursor-pointer bg-secondary text-secondary-foreground hover:bg-secondary/80">
-                                      <UploadCloud className="mr-2 h-4 w-4" />
-                                      {previewImage ? 'Change' : 'Upload'}
-                                      <Input
-                                        id="image-upload"
-                                        type="file"
-                                        className="sr-only"
-                                        accept="image/png, image/jpeg, image/gif"
-                                        onChange={handleFileChange}
-                                        disabled={isUploading}
-                                      />
-                                    </label>
-                                  </div>
-                                </div>
-                              </FormControl>
-                               <FormMessage />
-                          </FormItem>
-                          )}
-                        />
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {watchedImages.map((image, index) => (
+                    <div key={index} className="relative aspect-video rounded-md overflow-hidden group">
+                      <Image
+                        src={image}
+                        alt={`Event image ${index + 1}`}
+                        fill
+                        className="object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => removeImage(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Remove image</span>
+                        </Button>
+                      </div>
                     </div>
+                  ))}
+                   <label htmlFor="image-upload" className="aspect-video rounded-md border-dashed border-2 flex items-center justify-center cursor-pointer hover:border-primary hover:text-primary transition-colors text-muted-foreground">
+                    <div className="text-center">
+                      {isUploading ? (
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                      ) : (
+                        <>
+                          <UploadCloud className="h-8 w-8 mx-auto" />
+                          <span className="text-sm mt-2">Upload</span>
+                        </>
+                      )}
+                    </div>
+                    <Input
+                      id="image-upload"
+                      type="file"
+                      multiple
+                      className="sr-only"
+                      accept="image/png, image/jpeg, image/gif"
+                      onChange={handleFileChange}
+                      disabled={isUploading}
+                    />
+                  </label>
                 </div>
               </div>
+
 
               <Separator />
 
