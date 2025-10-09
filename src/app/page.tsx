@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AuthStatus } from "@/components/auth-status";
 import EventsCarousel from "@/components/events-carousel";
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 interface EventWithTickets extends Event {
@@ -209,16 +210,31 @@ export default function PublicHomePage() {
           </Link>
           
           <div className="hidden md:flex items-center gap-4">
-            <Button asChild variant="outline" size="icon" className="bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground rounded-full">
-              <Link href="/tickets">
-                <Ticket className="h-4 w-4" />
-                <span className="sr-only">My Tickets</span>
-              </Link>
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button asChild variant="outline" size="icon" className="bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground rounded-full">
+                    <Link href="/tickets">
+                      <Ticket className="h-4 w-4" />
+                      <span className="sr-only">My Tickets</span>
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>My Tickets</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <AuthStatus />
           </div>
 
           <div className="md:hidden flex items-center gap-2">
+            <Button asChild variant="ghost" className="text-sm px-2 h-8">
+              <Link href="/tickets">
+                <Ticket className="h-4 w-4 mr-1" />
+                My Tickets
+              </Link>
+            </Button>
             <AuthStatus />
           </div>
         </nav>
