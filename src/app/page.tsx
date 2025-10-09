@@ -200,7 +200,7 @@ export default function PublicHomePage() {
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Image
                 src="/image/nibtickets.jpg"
-                alt="Nibkera Tickets Logo"
+                alt="Nibtera Tickets Logo"
                 width={120}
                 height={28}
                 className="object-contain"
@@ -300,10 +300,10 @@ export default function PublicHomePage() {
                     upcomingEvents.map((event) => {
                       const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
                       return (
-                        <CardContainer key={event.id} className="inter-var w-full h-[420px]">
+                        <CardContainer key={event.id} className="inter-var w-full h-[360px]">
                           <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col justify-between">
                             <CardItem translateZ="50" className="w-full">
-                               <div className="relative w-full h-[200px] bg-muted rounded-t-xl overflow-hidden">
+                               <div className="relative w-full h-[160px] bg-muted rounded-t-xl overflow-hidden">
                                 <Image
                                     src={imageUrl}
                                     alt={event.name}
@@ -377,10 +377,10 @@ export default function PublicHomePage() {
                     topSellingEvents.slice(0, 4).map((event) => {
                       const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
                       return (
-                         <CardContainer key={event.id} className="inter-var w-full h-[420px]">
+                         <CardContainer key={event.id} className="inter-var w-full h-[360px]">
                           <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col justify-between">
                             <CardItem translateZ="50" className="w-full">
-                               <div className="relative w-full h-[200px] bg-muted rounded-t-xl overflow-hidden">
+                               <div className="relative w-full h-[160px] bg-muted rounded-t-xl overflow-hidden">
                                 <Image
                                     src={imageUrl}
                                     alt={event.name}
