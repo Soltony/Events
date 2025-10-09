@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -50,26 +49,26 @@ const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 const CategoryFilter = ({ categories, selectedCategory, onSelectCategory }: { categories: string[], selectedCategory: string, onSelectCategory: (category: string) => void }) => {
     
     const categoryIcons: { [key: string]: React.ReactNode } = {
-        'All': <Ticket className="h-6 w-6 text-yellow-500" />,
-        'Technology': <Presentation className="h-6 w-6 text-blue-500" />,
-        'Music': <Mic className="h-6 w-6 text-purple-500" />,
-        'Art': <Drama className="h-6 w-6 text-pink-500" />,
-        'Community': <MessageSquareHeart className="h-6 w-6 text-green-500" />,
-        'Business': <Gamepad2 className="h-6 w-6 text-indigo-500" />,
-        'Food & Drink': <Utensils className="h-6 w-6 text-orange-500" />
+        'All': <Ticket className="h-5 w-5 text-yellow-500" />,
+        'Technology': <Presentation className="h-5 w-5 text-blue-500" />,
+        'Music': <Mic className="h-5 w-5 text-purple-500" />,
+        'Art': <Drama className="h-5 w-5 text-pink-500" />,
+        'Community': <MessageSquareHeart className="h-5 w-5 text-green-500" />,
+        'Business': <Gamepad2 className="h-5 w-5 text-indigo-500" />,
+        'Food & Drink': <Utensils className="h-5 w-5 text-orange-500" />
     };
 
     return (
         <div className="relative">
             <div className="flex justify-around items-center w-full">
                 {categories.map((category) => {
-                     const Icon = categoryIcons[category] || <Ticket className="h-6 w-6" />;
+                     const Icon = categoryIcons[category] || <Ticket className="h-5 w-5" />;
                     return (
-                        <div key={category} className="flex flex-col items-center gap-2">
+                        <div key={category} className="flex flex-col items-center gap-1">
                             <button
                                 onClick={() => onSelectCategory(category)}
                                 className={cn(
-                                    "w-20 h-20 rounded-full border-2 flex items-center justify-center transition-all duration-300",
+                                    "w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all duration-300",
                                     selectedCategory === category
                                         ? "bg-primary/20 border-primary"
                                         : "bg-white border-gray-200 hover:border-primary/50"
@@ -420,6 +419,7 @@ const Footer = () => (
     
 
     
+
 
 
 
