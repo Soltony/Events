@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -29,6 +30,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
     const startDateFormat = 'LLL dd, y, hh:mm a';
@@ -60,7 +62,7 @@ const getCategoryBadgeClass = (category: string) => {
 }
 
 const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolean, onDelete: (e: Event) => void }) => {
-    const imageUrl = event.image || '/image/nibtickets.jpg';
+    const imageSources = Array.isArray(event.image) ? event.image : (event.image ? [event.image] : ['/image/nibtickets.jpg']);
     
     const statusBadge = (status: string) => {
         return (
@@ -80,7 +82,19 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolea
           <div className="relative z-10 flex flex-col h-full">
             {isAdmin && event.status && statusBadge(event.status)}
             <CardHeader className="p-0 relative aspect-[16/9]">
-                <Image src={imageUrl} alt={event.name} fill className="rounded-t-lg object-cover" data-ai-hint={event.hint ?? 'event'} />
+              {imageSources.length > 1 ? (
+                <Carousel className="w-full h-full">
+                  <CarouselContent>
+                    {imageSources.map((src, index) => (
+                      <CarouselItem key={index}>
+                        <Image src={src} alt={`${event.name} image ${index + 1}`} fill className="object-cover rounded-t-lg" />
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                </Carousel>
+              ) : (
+                <Image src={imageSources[0]} alt={event.name} fill className="rounded-t-lg object-cover" data-ai-hint={event.hint ?? 'event'} />
+              )}
             </CardHeader>
             <CardContent className="p-4 flex-1 space-y-2 bg-card">
                 <Badge variant="outline" className={cn("text-xs", getCategoryBadgeClass(event.category))}>{event.category}</Badge>

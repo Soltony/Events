@@ -24,6 +24,7 @@ import CartSheet from '@/components/cart-sheet';
 import { cn } from '@/lib/utils';
 import { AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 
 interface EventWithTickets extends Event {
@@ -237,7 +238,7 @@ export default function PublicEventDetailPage() {
     )
   }
   
-  const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
+  const imageSources = Array.isArray(event.image) ? event.image : (event.image ? [event.image] : [DEFAULT_IMAGE_PLACEHOLDER]);
   const eventLocations = event.location.includes('||') ? event.location.split('||').map(l => l.trim()) : [];
   const organizerName = event.color; // Using color field for organizer name
 
@@ -259,7 +260,21 @@ export default function PublicEventDetailPage() {
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
                     <div className="md:col-span-3 space-y-8">
                         <div className="w-full aspect-video relative rounded-lg overflow-hidden shadow-lg">
-                            <Image src={imageUrl} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
+                           {imageSources.length > 1 ? (
+                              <Carousel className="w-full h-full">
+                                <CarouselContent>
+                                  {imageSources.map((src, index) => (
+                                    <CarouselItem key={index}>
+                                      <Image src={src} alt={`${event.name} image ${index + 1}`} fill className="object-cover" />
+                                    </CarouselItem>
+                                  ))}
+                                </CarouselContent>
+                                <CarouselPrevious className="left-4" />
+                                <CarouselNext className="right-4" />
+                              </Carousel>
+                            ) : (
+                              <Image src={imageSources[0]} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
+                            )}
                         </div>
 
                         <div className="rounded-lg p-0">
