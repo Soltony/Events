@@ -322,10 +322,10 @@ export default function PublicHomePage() {
                                 className="p-4 flex flex-col flex-grow justify-between rounded-b-xl"
                                 style={getContentGradient()}
                             >
-                                <div className="flex-grow">
+                                <div className="h-28">
                                   <CardItem as="div" translateZ="40">
                                     <Badge variant="outline" className={cn("text-xs mb-2", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
-                                    <h3 className="font-bold text-lg text-black">{event.name}</h3>
+                                    <h3 className="font-bold text-lg text-black truncate">{event.name}</h3>
                                     <p className="text-xs text-black mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
                                   </CardItem>
                                 </div>
@@ -399,10 +399,10 @@ export default function PublicHomePage() {
                                 className="p-4 flex flex-col flex-grow justify-between rounded-b-xl"
                                 style={getContentGradient()}
                             >
-                                <div className="flex-grow">
+                                <div className="h-28">
                                    <CardItem as="div" translateZ="40">
                                     <Badge variant="outline" className={cn("text-xs mb-2", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
-                                    <h3 className="font-bold text-lg text-black">{event.name}</h3>
+                                    <h3 className="font-bold text-lg text-black truncate">{event.name}</h3>
                                     <p className="text-xs text-black mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
                                   </CardItem>
                                 </div>
