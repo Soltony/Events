@@ -338,7 +338,7 @@ export async function addTicketType(eventId: number, data: any) {
         data: {
             name: data.name,
             description: data.description,
-            basePrice: data.basePrice,
+            basePrice: data.price,
             locationPrices: data.locationPrices || {},
             total: data.total,
             eventId: eventId,
@@ -354,7 +354,7 @@ export async function updateTicketType(ticketTypeId: number, data: any) {
     data: {
         name: data.name,
         description: data.description,
-        basePrice: data.basePrice,
+        basePrice: data.price,
         locationPrices: data.locationPrices || {},
         total: data.total,
     },
