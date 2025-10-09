@@ -105,6 +105,12 @@ export default function PublicEventDetailPage() {
   const totalItems = useMemo(() => {
       return Object.values(selectedTickets).reduce((acc, ticket) => acc + ticket.quantity, 0);
   }, [selectedTickets]);
+  
+  useEffect(() => {
+    // When location changes, clear the cart to avoid price mismatches
+    setSelectedTickets({});
+  }, [selectedLocation]);
+
 
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
@@ -435,3 +441,4 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
+
