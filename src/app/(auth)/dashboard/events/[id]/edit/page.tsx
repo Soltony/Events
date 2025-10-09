@@ -110,7 +110,7 @@ export default function EditEventPage() {
             name: event.name,
             color: event.color || '', // organizer name
             description: event.description,
-            locations: event.location ? event.location.split(',').map(l => ({ value: l.trim() })) : [{ value: '' }],
+            locations: event.location ? [{ value: event.location }] : [{ value: '' }],
             hint: event.hint || '',
             category: isOtherCategory ? 'Other' : event.category,
             otherCategory: isOtherCategory ? event.category : '',

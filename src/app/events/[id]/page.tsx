@@ -85,7 +85,7 @@ export default function PublicEventDetailPage() {
         setEvent(eventData as EventWithTickets);
         // Set default selected location
         if (eventData && eventData.location) {
-            setSelectedLocation(eventData.location.split(',')[0].trim());
+            setSelectedLocation(eventData.location);
         }
         setLoading(false);
     }
@@ -237,7 +237,7 @@ export default function PublicEventDetailPage() {
   }
   
   const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-  const eventLocations = event.location.split(',').map(l => l.trim());
+  const eventLocations = event.location.split(',').length > 1 && event.location.includes(';') ? event.location.split(';').map(l => l.trim()) : [event.location];
   const organizerName = event.color; // Using color field for organizer name
 
   return (
