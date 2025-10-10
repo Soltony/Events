@@ -135,9 +135,14 @@ export default function PublicEventDetailPage() {
 
   const getTicketPrice = (ticket: TicketType): number => {
     if (selectedLocation && ticket.locationPrices && typeof ticket.locationPrices === 'object') {
-        const prices = ticket.locationPrices as Record<string, number | null>;
-        if (prices[selectedLocation] !== undefined && prices[selectedLocation] !== null) {
-            return Number(prices[selectedLocation]);
+        // 🧩 Normalize key names by trimming whitespace
+        const normalizedPrices = Object.fromEntries(
+        Object.entries(ticket.locationPrices as Record<string, number | null>)
+            .map(([k, v]) => [k.trim(), v])
+        );
+        const key = selectedLocation.trim();
+        if (normalizedPrices[key] !== undefined && normalizedPrices[key] !== null) {
+        return Number(normalizedPrices[key]);
         }
     }
     return Number(ticket.basePrice);
@@ -188,7 +193,7 @@ export default function PublicEventDetailPage() {
   
   // Recalculate prices for already selected tickets whenever location changes
   useEffect(() => {
-    if (!event) return;
+    if (!event || !selectedLocation) return;
     setSelectedTickets(prev => {
       const updated: typeof prev = {};
       for (const [id, selected] of Object.entries(prev)) {
