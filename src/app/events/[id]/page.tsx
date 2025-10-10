@@ -380,7 +380,7 @@ export default function PublicEventDetailPage() {
                                 </div>
                             )}
                             <h3 className="text-2xl font-semibold mb-4 text-card-foreground">Tickets</h3>
-                            <div className="space-y-4">
+                            <div key={selectedLocation || 'default-location'} className="space-y-4">
                                 {event.ticketTypes.length > 0 ? (
                                 event.ticketTypes.map(ticket => {
                                     const selectedQuantity = selectedTickets[ticket.id]?.quantity || 0;
@@ -388,7 +388,7 @@ export default function PublicEventDetailPage() {
                                     const price = getTicketPrice(ticket);
 
                                     return (
-                                    <div key={ticket.id} className="flex flex-col gap-2 p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md">
+                                    <div key={`${ticket.id}-${selectedLocation}`} className="flex flex-col gap-2 p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md">
                                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                                             <div className="mb-3 sm:mb-0">
                                             <h4 className="font-semibold text-lg">{ticket.name}</h4>
