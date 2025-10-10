@@ -24,8 +24,8 @@ export default function AuthLayout({
     <AuthGuard>
       <SidebarProvider>
         <div className="flex min-h-screen w-full bg-background">
-          <Sidebar className="fixed inset-y-0 left-0 z-20 h-full">
-            <SidebarContent className="flex flex-col overflow-y-auto">
+        <Sidebar>
+            <SidebarContent className="flex flex-col">
             <SidebarHeader className="p-4 flex h-16 items-center justify-center border-b border-sidebar-border md:pt-4 pt-8">
             <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
                   <Image
@@ -47,7 +47,7 @@ export default function AuthLayout({
             </SidebarContent>
           </Sidebar>
 
-          <div className="flex flex-col flex-1 overflow-hidden transition-all duration-300 ease-in-out group-data-[sidebar-state=expanded]/sidebar-wrapper:ml-64 group-data-[sidebar-state=collapsed]/sidebar-wrapper:ml-14">
+          <div className="flex flex-col flex-1 overflow-hidden">
             <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 flex-shrink-0">
               <div className="md:hidden">
                 <SidebarTrigger className="text-[#8B5E34]" />
