@@ -182,7 +182,7 @@ export default function CreateEventPage() {
     };
 
   return (
-    <div className="flex flex-1 justify-center p-4">
+    <div className="flex flex-1 items-center justify-center p-4">
       <div className="w-full max-w-4xl">
         <Card>
           <CardHeader>
@@ -429,8 +429,8 @@ export default function CreateEventPage() {
                             <Loader2 className="h-8 w-8 animate-spin" />
                           ) : (
                             <>
-                              <UploadCloud className="h-8 w-8 mx-auto" />
-                              <span className="text-sm mt-2">Upload</span>
+                              <PlusCircle className="h-8 w-8 mx-auto" />
+                              <span className="text-sm mt-2">Add Image</span>
                             </>
                           )}
                         </div>
