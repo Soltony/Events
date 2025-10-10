@@ -59,27 +59,9 @@ export default function DashboardPage() {
     </div>
   )
 
-  if (loading || isAuthLoading || !data) {
-    return (
-        <div className="flex flex-1 flex-col gap-4 md:gap-8">
-            <PageTitle />
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-5 w-24" /><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><Skeleton className="h-7 w-20" /><Skeleton className="h-4 w-32 mt-1" /></CardContent></Card>
-                <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-5 w-24" /><TicketIcon className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><Skeleton className="h-7 w-16" /><Skeleton className="h-4 w-28 mt-1" /></CardContent></Card>
-                <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-5 w-24" /><CalendarIcon className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><Skeleton className="h-7 w-8" /><Skeleton className="h-4 w-36 mt-1" /></CardContent></Card>
-                 {isAdmin && <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-5 w-24" /><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><Skeleton className="h-7 w-8" /><Skeleton className="h-4 w-40 mt-1" /></CardContent></Card>}
-            </div>
-            <Card className="mt-4">
-                <CardHeader><Skeleton className="h-7 w-48 mb-2" /><Skeleton className="h-4 w-80" /></CardHeader>
-                <CardContent><Skeleton className="min-h-[250px] w-full" /></CardContent>
-            </Card>
-        </div>
-    )
-  }
-
-  return (
+  const content = (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
-        <PageTitle />
+      <PageTitle />
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -88,7 +70,7 @@ export default function DashboardPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">ETB {data.totalRevenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">ETB {data?.totalRevenue.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">From all approved events</p>
           </CardContent>
         </Card>
@@ -98,7 +80,7 @@ export default function DashboardPage() {
             <TicketIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+{data.totalTicketsSold.toLocaleString()}</div>
+            <div className="text-2xl font-bold">+{data?.totalTicketsSold.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Across all approved events</p>
           </CardContent>
         </Card>
@@ -108,7 +90,7 @@ export default function DashboardPage() {
             <CalendarIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data.totalEvents}</div>
+            <div className="text-2xl font-bold">{data?.totalEvents}</div>
             <p className="text-xs text-muted-foreground">Managed in the system</p>
           </CardContent>
         </Card>
@@ -119,7 +101,7 @@ export default function DashboardPage() {
                 <Clock className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{data.pendingEvents}</div>
+                <div className="text-2xl font-bold">{data?.pendingEvents}</div>
                 <p className="text-xs text-muted-foreground">Awaiting your approval</p>
               </CardContent>
             </Card>
@@ -132,7 +114,7 @@ export default function DashboardPage() {
             <CardDescription>A summary of tickets sold per approved event.</CardDescription>
         </CardHeader>
         <CardContent>
-            {data.salesData.length > 0 ? (
+            {data?.salesData && data.salesData.length > 0 ? (
                 <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
                     <BarChart accessibilityLayer data={data.salesData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                         <CartesianGrid vertical={false} />
@@ -149,6 +131,36 @@ export default function DashboardPage() {
             )}
         </CardContent>
       </Card>
+    </div>
+  );
+
+  if (loading || isAuthLoading || !data) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <div className="w-full">
+            <div className="flex flex-1 flex-col gap-4 md:gap-8">
+                <PageTitle />
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-5 w-24" /><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><Skeleton className="h-7 w-20" /><Skeleton className="h-4 w-32 mt-1" /></CardContent></Card>
+                    <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-5 w-24" /><TicketIcon className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><Skeleton className="h-7 w-16" /><Skeleton className="h-4 w-28 mt-1" /></CardContent></Card>
+                    <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-5 w-24" /><CalendarIcon className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><Skeleton className="h-7 w-8" /><Skeleton className="h-4 w-36 mt-1" /></CardContent></Card>
+                    {isAdmin && <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-5 w-24" /><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><Skeleton className="h-7 w-8" /><Skeleton className="h-4 w-40 mt-1" /></CardContent></Card>}
+                </div>
+                <Card className="mt-4">
+                    <CardHeader><Skeleton className="h-7 w-48 mb-2" /><Skeleton className="h-4 w-80" /></CardHeader>
+                    <CardContent><Skeleton className="min-h-[250px] w-full" /></CardContent>
+                </Card>
+            </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-1 items-center justify-center">
+        <div className="w-full">
+            {content}
+        </div>
     </div>
   );
 }
