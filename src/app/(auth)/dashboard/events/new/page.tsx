@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, Trash2, Loader2, Replace } from 'lucide-react';
+import { PlusCircle, Trash2, UploadCloud, Loader2, X } from 'lucide-react';
 import Image from 'next/image';
 import { useState } from 'react';
 import axios from 'axios';
@@ -52,7 +52,7 @@ const eventFormSchema = z.object({
   endDate: z.date().optional(),
   category: z.string({ required_error: 'Please select a category.' }),
   otherCategory: z.string().optional(),
-  image: z.string().optional(),
+  images: z.array(z.object({ value: z.string() })).min(1, { message: 'Please upload at least one image.' }),
   tickets: z.array(z.object({
     name: z.string().min(1, { message: "Ticket name can't be empty."}),
     description: z.string().optional(),
@@ -69,6 +69,8 @@ const eventFormSchema = z.object({
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
+
+const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 
 export default function CreateEventPage() {
   const router = useRouter();
@@ -87,12 +89,17 @@ export default function CreateEventPage() {
       hint: '',
       category: '',
       otherCategory: '',
-      image: '',
+      images: [],
       tickets: [{ name: 'General Admission', description: 'Standard entry to the event.', locationConfigs: {} }],
     },
   });
 
-  const watchedImage = form.watch('image');
+  const { fields: imageFields, append: appendImage, remove: removeImage } = useFieldArray({
+    control: form.control,
+    name: "images"
+  });
+
+  const watchedImages = form.watch('images');
   const watchedCategory = form.watch('category');
   const watchedLocations = form.watch('locations');
 
@@ -112,6 +119,7 @@ export default function CreateEventPage() {
         const finalData = {
             ...data,
             category: data.category === 'Other' ? data.otherCategory : data.category,
+            image: data.images.map(img => img.value),
         };
         const newEvent = await addEvent(finalData);
         
@@ -141,32 +149,38 @@ export default function CreateEventPage() {
   }
 
  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
+  const files = e.target.files;
+  if (files) {
         setIsUploading(true);
+        const uploadPromises = Array.from(files).map(file => {
+          return new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = async () => {
           try {
             const response = await axios.post('/api/upload', { file: reader.result });
             if (response.data.success) {
-              form.setValue('image', response.data.url, { shouldValidate: true });
+              resolve(response.data.url);
             } else {
-              toast({ variant: 'destructive', title: 'Upload failed', description: response.data.error });
+              reject(response.data.error);
             }
+          } catch (error) {
+            reject(error);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    try {
+      const uploadedUrls = await Promise.all(uploadPromises);
+      uploadedUrls.forEach(url => appendImage({ value: url }));
           } catch (error) {
              toast({ variant: 'destructive', title: 'Upload failed', description: 'An error occurred during upload.' });
           } finally {
              setIsUploading(false);
-          }
-        };
-        reader.readAsDataURL(file);
-      }
+          }       
     };
   
-    const removeImage = () => {
-        form.setValue('image', '', { shouldValidate: true });
-    }
-
   return (
     <div className="flex flex-1 items-center justify-center p-4">
       <div className="w-full max-w-4xl">
@@ -383,44 +397,34 @@ export default function CreateEventPage() {
 
                 <div className="space-y-4">
                     <div>
-                        <FormLabel>Event Visual</FormLabel>
-                        <FormDescription>Upload an image for your event.</FormDescription>
-                        <FormMessage className="pt-2">{form.formState.errors.image?.message}</FormMessage>
+                    <FormLabel>Event Visuals</FormLabel>
+                    <FormDescription>Upload one or more images for your event.</FormDescription>
+                    <FormMessage className="pt-2">{form.formState.errors.images?.message}</FormMessage>
                     </div>
-                    {watchedImage ? (
-                        <div className="relative aspect-video w-full max-w-sm rounded-md overflow-hidden group">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                      {watchedImages.map((image, index) => (
+                        <div key={index} className="relative aspect-video rounded-md overflow-hidden group">
                         <Image
-                            src={watchedImage}
-                            alt="Event image"
+                            src={image.value}
+                            alt={`Event image ${index + 1}`}
                             fill
                             className="object-cover"
                         />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                            <label htmlFor="image-upload-replace" className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/80 cursor-pointer">
-                                <Replace className="h-4 w-4" />
-                                <span className="sr-only">Replace Image</span>
-                                <Input
-                                    id="image-upload-replace"
-                                    type="file"
-                                    className="sr-only"
-                                    accept="image/png, image/jpeg, image/gif"
-                                    onChange={handleFileChange}
-                                    disabled={isUploading}
-                                />
-                            </label>
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <Button
                             type="button"
                             variant="destructive"
                             size="icon"
-                            onClick={removeImage}
+                            onClick={() => removeImage(index)}
                             >
                             <Trash2 className="h-4 w-4" />
                             <span className="sr-only">Remove image</span>
                             </Button>
                         </div>
                         </div>
-                    ) : (
-                        <label htmlFor="image-upload" className="aspect-video w-full max-w-sm rounded-md border-dashed border-2 flex items-center justify-center cursor-pointer hover:border-primary hover:text-primary transition-colors text-muted-foreground">
+                      ))}
+                      <label htmlFor="image-upload" className="aspect-video rounded-md border-dashed border-2 flex items-center justify-center cursor-pointer hover:border-primary hover:text-primary transition-colors text-muted-foreground">
+                  
                         <div className="text-center">
                             {isUploading ? (
                             <Loader2 className="h-8 w-8 animate-spin" />
@@ -434,14 +438,15 @@ export default function CreateEventPage() {
                         <Input
                             id="image-upload"
                             type="file"
+                            multiple
                             className="sr-only"
                             accept="image/png, image/jpeg, image/gif"
                             onChange={handleFileChange}
                             disabled={isUploading}
                         />
                         </label>
-                    )}
-                </div>
+                        </div>
+                        </div>
 
 
                 <Separator />

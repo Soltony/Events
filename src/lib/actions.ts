@@ -175,7 +175,7 @@ export async function getEventDetails(id: number) {
 }
 
 export async function addEvent(data: any) {
-    const { tickets, startDate, endDate, otherCategory, locations, image, ...eventData } = data;
+    const { tickets, startDate, endDate, otherCategory, locations, images, ...eventData } = data;
     const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
@@ -203,13 +203,12 @@ export async function addEvent(data: any) {
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
     
     const locationString = locations.map((l: { value: string }) => l.value).join('||');
-    
-    const imageArray = image ? [image] : [];
+    const imageStrings = Array.isArray(images) ? images.map((img: { value: string }) => img.value) : [];
 
     const newEvent = await prisma.event.create({
         data: {
             ...eventData,
-            image: imageArray,
+            image: imageStrings,
             location: locationString,
             organizerId: user.id,
             nibBankAccount: nibBankAccount,
@@ -266,7 +265,7 @@ export async function updateEvent(id: number, data: any) {
     delete eventDataForUpdate.tickets; 
 
     const locationString = locations.map((l: { value: string }) => l.value).join('||');
-    const imageStrings = Array.isArray(images) ? images.map((img: any) => (typeof img === 'string' ? img : img.value)) : [];
+    const imageStrings = Array.isArray(images) ? images.map((img: { value: string }) => img.value) : [];
 
     const eventToUpdate = await prisma.event.findUnique({ where: { id }});
     if (!eventToUpdate) throw new Error("Event not found");
