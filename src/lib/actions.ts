@@ -203,11 +203,12 @@ export async function addEvent(data: any) {
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
     
     const locationString = locations.map((l: { value: string }) => l.value).join('||');
+    const imageStrings = images.map((img: { value: string }) => img.value);
 
     const newEvent = await prisma.event.create({
         data: {
             ...eventData,
-            image: images,
+            image: imageStrings,
             location: locationString,
             organizerId: user.id,
             nibBankAccount: nibBankAccount,
