@@ -372,7 +372,11 @@ export default function PublicEventDetailPage() {
                                                 const firstTicket = event.ticketTypes[0];
                                                 let priceForLoc: number | undefined | null;
                                                 if (firstTicket && firstTicket.locationPrices) {
-                                                    priceForLoc = (firstTicket.locationPrices as Record<string, number>)[loc];
+                                                    const normalizedPrices = Object.fromEntries(
+                                                        Object.entries(firstTicket.locationPrices as Record<string, number | null>)
+                                                            .map(([k, v]) => [k.trim(), v])
+                                                    );
+                                                    priceForLoc = normalizedPrices[loc.trim()];
                                                 }
                                                 const price = priceForLoc != null ? priceForLoc : firstTicket?.basePrice;
                                                 
