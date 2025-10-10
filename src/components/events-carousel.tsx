@@ -39,8 +39,8 @@ export default function EventsCarousel({ events }: { events: EventWithTickets[] 
     <Carousel
     plugins={[plugin.current]}
     className="w-full"
-    onMouseEnter={plugin.current.stop}
-    onMouseLeave={plugin.current.play}
+    onMouseEnter={() => plugin.current.stop()}
+    onMouseLeave={() => plugin.current.play()}
     opts={{
         loop: true,
     }}
@@ -64,8 +64,8 @@ export default function EventsCarousel({ events }: { events: EventWithTickets[] 
             )
         })}
     </CarouselContent>
-    <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-black/30 hover:bg-black/50 border-none" />
-    <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-black/30 hover:bg-black/50 border-none" />
+    <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-black/40 hover:bg-black/60 border-none rounded-full h-10 w-10 flex items-center justify-center" aria-label="Previous slide" />
+    <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-black/40 hover:bg-black/60 border-none rounded-full h-10 w-10 flex items-center justify-center" aria-label="Next slide" />
     </Carousel>
   );
 }

@@ -12,24 +12,33 @@ function formatPhoneNumber(phone: string): string {
 
 export async function POST(req: NextRequest) {
     if (req.method !== 'POST') {
-        return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
+        return NextResponse.json({
+            error: 'Method Not Allowed',
+            detail: 'Use HTTP POST to initiate a payment session.'
+        }, { status: 405 });
     }
     try {
         const body = await req.json();
         const { eventId, tickets, promoCode, attendeeDetails, mock } = body;
 
         if (!eventId || !tickets?.length || !attendeeDetails) {
-            return NextResponse.json({ error: 'Missing required payment details.' }, { status: 400 });
+            return NextResponse.json({
+                error: 'Invalid request payload',
+                detail: 'Required fields: eventId, tickets[], attendeeDetails. Make sure at least one ticket is in the cart.'
+            }, { status: 400 });
         }
 
         const event = await prisma.event.findUnique({ where: { id: eventId } });
 
         if (!event?.nibBankAccount && !mock) {
-            return NextResponse.json({ error: 'Event or organizer Nib bank account not found.' }, { status: 404 });
+            return NextResponse.json({
+                error: 'Payout account not configured',
+                detail: 'The event organizer has not configured a NIB bank account; payment cannot be processed yet.'
+            }, { status: 404 });
         }
 
-        const totalAmount = tickets.reduce((sum, t) => sum + t.price * t.quantity, 0);
-        const totalQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0);
+        const totalAmount = (tickets as Array<{ price: number; quantity: number }>).reduce((sum: number, t) => sum + Number(t.price) * Number(t.quantity), 0);
+        const totalQuantity = (tickets as Array<{ quantity: number }>).reduce((sum: number, t) => sum + Number(t.quantity), 0);
         const transactionId = randomBytes(16).toString('hex');
 
         // Create the pending order first without the ArifPay session ID.
@@ -61,14 +70,18 @@ export async function POST(req: NextRequest) {
 
         if (!paymentGatewayUrl || !apiKey || !failureUrl || !callbackUrl || !successUrl) {
             console.error("Payment gateway URL, API key, or callback/redirect URLs are missing.");
-            return NextResponse.json({ error: 'Server configuration error.', pendingOrder }, { status: 500 });
+            return NextResponse.json({
+                error: 'Server configuration error',
+                detail: 'Payment gateway credentials or callback/redirect URLs are missing. Please contact support.',
+                pendingOrder
+            }, { status: 500 });
         }
 
         const paymentGatewayData = {
             phone: formatPhoneNumber(attendeeDetails.phone),
             email: `${formatPhoneNumber(attendeeDetails.phone)}@nibticket.com`,
-            cbs: event.nibBankAccount,
-            items: [{ name: event.name, quantity: totalQuantity, price: totalAmount, description: event.description }],
+            cbs: event!.nibBankAccount!,
+            items: [{ name: event!.name, quantity: totalQuantity, price: totalAmount, description: event!.description }],
         };
   
             console.log(paymentGatewayData);
@@ -91,10 +104,18 @@ export async function POST(req: NextRequest) {
         } catch (networkError: any) {
             if (networkError.name === 'AbortError') {
                  console.error("ArifPay API call timed out:", networkError);
-                 return NextResponse.json({ error: 'Payment gateway is not responding. Please try again later.', pendingOrder }, { status: 504 });
+                 return NextResponse.json({
+                    error: 'Payment gateway timeout',
+                    detail: 'We could not establish a session with ArifPay within 15 seconds. Please try again.',
+                    pendingOrder
+                 }, { status: 504 });
             }
             console.error("Network error while connecting to ArifPay:", networkError);
-            return NextResponse.json({ error: 'Cannot reach ArifPay service. Please try again later.', pendingOrder }, { status: 503 });
+            return NextResponse.json({
+                error: 'Payment gateway unreachable',
+                detail: 'A network error occurred while contacting ArifPay. Check your connection and try again.',
+                pendingOrder
+            }, { status: 503 });
         }
         
         const rawText = await paymentGatewayResponse.text();
@@ -103,12 +124,20 @@ export async function POST(req: NextRequest) {
             paymentGatewayResult = JSON.parse(rawText);
         } catch (parseError) {
             console.error("Failed to parse ArifPay response as JSON:", rawText);
-            return NextResponse.json({ error: 'Invalid response from payment gateway.', pendingOrder }, { status: 502 });
+            return NextResponse.json({
+                error: 'Invalid gateway response',
+                detail: 'ArifPay returned a non‑JSON response. Please try again later.',
+                pendingOrder
+            }, { status: 502 });
         }
 
         if (paymentGatewayResult.ResponseCode !== "0" || !paymentGatewayResult.Data?.URL || !paymentGatewayResult.Data?.NA) {
             console.error('Payment Gateway API Error:', paymentGatewayResult);
-            return NextResponse.json({ error: paymentGatewayResult.ResponseDescription || 'Error communicating with payment gateway.', pendingOrder }, { status: 502 });
+            return NextResponse.json({
+                error: 'Payment session creation failed',
+                detail: paymentGatewayResult.ResponseDescription || 'The gateway did not accept the session request. Please verify organizer payout setup and try again.',
+                pendingOrder
+            }, { status: 502 });
         }
         
         await prisma.pendingOrder.update({
@@ -119,6 +148,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ paymentUrl: paymentGatewayResult.Data.URL, successUrl: finalSuccessUrl, pendingOrder });
     } catch (error: any) {
         console.error('Payment initiation failed:', error);
-        return NextResponse.json({ error: error.message || 'An unexpected error occurred.' }, { status: 500 });
+        return NextResponse.json({
+            error: 'Unexpected server error',
+            detail: error.message || 'An unknown error occurred while initiating the payment.'
+        }, { status: 500 });
     }
 }

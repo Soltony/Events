@@ -7,7 +7,10 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { id } = body as { id?: string };
         if (!id) {
-            return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+            return NextResponse.json({
+                error: 'Invalid request',
+                detail: 'Body must include the ArifPay session ID or our transaction ID as "id".'
+            }, { status: 400 });
         }
 
         const order = await prisma.pendingOrder.findFirst({
@@ -20,7 +23,10 @@ export async function POST(req: NextRequest) {
         });
 
         if (!order) {
-            return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+            return NextResponse.json({
+                error: 'Order not found',
+                detail: 'No pending order matches the provided transaction/session ID.'
+            }, { status: 404 });
         }
 
         if (order.status === 'COMPLETED') {
@@ -70,7 +76,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ message: 'Completed', attendeeId: createdAttendee?.id });
     } catch (e: any) {
         console.error('Complete payment error', e);
-        return NextResponse.json({ error: e.message || 'Server error' }, { status: 500 });
+        return NextResponse.json({
+            error: 'Failed to complete order',
+            detail: e.message || 'An error occurred while issuing ticket(s) and finalizing the order.'
+        }, { status: 500 });
     }
 }
 

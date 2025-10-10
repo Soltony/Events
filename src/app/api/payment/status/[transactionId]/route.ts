@@ -12,7 +12,10 @@ export async function GET(
 
   try {
     if (!id) {
-      return NextResponse.json({ error: 'Transaction ID or Session ID is required.' }, { status: 400 });
+      return NextResponse.json({
+        error: 'Invalid request',
+        detail: 'Provide the transaction ID or session ID in the URL path.'
+      }, { status: 400 });
     }
 
     const order = await prisma.pendingOrder.findFirst({
@@ -25,7 +28,10 @@ export async function GET(
     });
 
     if (!order) {
-      return NextResponse.json({ error: 'Order not found.' }, { status: 404 });
+      return NextResponse.json({
+        error: 'Order not found',
+        detail: 'No order exists for the provided transaction/session ID.'
+      }, { status: 404 });
     }
     
     if (order.status === 'COMPLETED' && order.attendeeId) {
@@ -39,6 +45,9 @@ export async function GET(
 
   } catch (error) {
     console.error(`Failed to get payment status for ${id}:`, error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({
+      error: 'Failed to fetch payment status',
+      detail: 'An unexpected error occurred while checking the payment status.'
+    }, { status: 500 });
   }
 }
