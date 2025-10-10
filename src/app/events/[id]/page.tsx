@@ -134,9 +134,9 @@ export default function PublicEventDetailPage() {
   }
 
   const getTicketPrice = (ticket: TicketType): number => {
-    if (selectedLocation && ticket.locationPrices) {
+    if (selectedLocation && ticket.locationPrices && typeof ticket.locationPrices === 'object') {
         const prices = ticket.locationPrices as Record<string, number | null>;
-        if (prices[selectedLocation] != null) {
+        if (prices[selectedLocation] !== undefined && prices[selectedLocation] !== null) {
             return Number(prices[selectedLocation]);
         }
     }
