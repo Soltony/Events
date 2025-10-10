@@ -203,7 +203,7 @@ export async function addEvent(data: any) {
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
     
     const locationString = locations.map((l: { value: string }) => l.value).join('||');
-    const imageStrings = images.map((img: { value: string }) => img.value);
+    const imageStrings = Array.isArray(images) ? images.map((img: { value: string }) => img.value) : [];
 
     const newEvent = await prisma.event.create({
         data: {
@@ -254,7 +254,7 @@ export async function updateEvent(id: number, data: any) {
     delete eventDataForUpdate.tickets; 
 
     const locationString = locations.map((l: { value: string }) => l.value).join('||');
-    const imageStrings = images.map((img: { value: string }) => img.value);
+    const imageStrings = Array.isArray(images) ? images.map((img: { value: string }) => img.value) : [];
 
     const eventToUpdate = await prisma.event.findUnique({ where: { id }});
     if (!eventToUpdate) throw new Error("Event not found");
@@ -1062,4 +1062,5 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
 
