@@ -46,7 +46,7 @@ const eventFormSchema = z.object({
   endDate: z.date().optional(),
   category: z.string({ required_error: 'Please select a category.' }),
   otherCategory: z.string().optional(),
-  images: z.array(z.string()).min(1, { message: 'Please upload at least one image.' }),
+  images: z.array(z.object({ value: z.string() })).min(1, { message: 'Please upload at least one image.' }),
 }).refine(data => {
     if (data.category === 'Other') {
         return !!data.otherCategory && data.otherCategory.length > 0;
@@ -112,6 +112,7 @@ export default function EditEventPage() {
         if (event) {
           const isOtherCategory = event.category && !defaultCategories.includes(event.category);
           const eventLocations = event.location ? event.location.split('||').map((loc: string) => ({ value: loc.trim() })) : [{ value: '' }];
+          const eventImages = Array.isArray(event.image) ? event.image.map(url => ({ value: url })) : (event.image ? [{ value: event.image }] : []);
           
           form.reset({
             name: event.name,
@@ -123,7 +124,7 @@ export default function EditEventPage() {
             otherCategory: isOtherCategory ? event.category : '',
             startDate: new Date(event.startDate),
             endDate: event.endDate ? new Date(event.endDate) : undefined,
-            images: Array.isArray(event.image) ? event.image : (event.image ? [event.image] : []),
+            images: eventImages,
           });
         } else {
             toast({ variant: 'destructive', title: 'Error', description: 'Event not found.' });
@@ -146,7 +147,7 @@ export default function EditEventPage() {
         const finalData = {
             ...data,
             category: data.category === 'Other' ? data.otherCategory : data.category,
-            image: data.images, // Pass the array of images
+            image: data.images.map(img => img.value), // Pass the array of image URLs
         };
 
         await updateEvent(eventId, finalData);
@@ -192,7 +193,7 @@ export default function EditEventPage() {
 
         try {
           const uploadedUrls = await Promise.all(uploadPromises);
-          uploadedUrls.forEach(url => appendImage(url));
+          uploadedUrls.forEach(url => appendImage({ value: url }));
         } catch (error) {
            toast({ variant: 'destructive', title: 'Upload failed', description: 'An error occurred during upload.' });
         } finally {
@@ -444,7 +445,7 @@ export default function EditEventPage() {
                   {watchedImages.map((image, index) => (
                     <div key={index} className="relative aspect-video rounded-md overflow-hidden group">
                       <Image
-                        src={image}
+                        src={image.value}
                         alt={`Event image ${index + 1}`}
                         fill
                         className="object-cover"

@@ -49,7 +49,7 @@ const eventFormSchema = z.object({
   endDate: z.date().optional(),
   category: z.string({ required_error: 'Please select a category.' }),
   otherCategory: z.string().optional(),
-  images: z.array(z.string()).min(1, { message: 'Please upload at least one image.' }),
+  images: z.array(z.object({ value: z.string() })).min(1, { message: 'Please upload at least one image.' }),
   tickets: z.array(z.object({
     name: z.string().min(1, { message: "Ticket name can't be empty."}),
     description: z.string().optional(),
@@ -118,7 +118,7 @@ export default function CreateEventPage() {
         const finalData = {
             ...data,
             category: data.category === 'Other' ? data.otherCategory : data.category,
-            image: data.images,
+            image: data.images.map(img => img.value),
         };
         const newEvent = await addEvent(finalData);
         
@@ -172,7 +172,7 @@ export default function CreateEventPage() {
 
         try {
           const uploadedUrls = await Promise.all(uploadPromises);
-          uploadedUrls.forEach(url => appendImage(url));
+          uploadedUrls.forEach(url => appendImage({ value: url }));
         } catch (error) {
            toast({ variant: 'destructive', title: 'Upload failed', description: 'An error occurred during upload.' });
         } finally {
@@ -405,7 +405,7 @@ export default function CreateEventPage() {
                       {watchedImages.map((image, index) => (
                         <div key={index} className="relative aspect-video rounded-md overflow-hidden group">
                           <Image
-                            src={image}
+                            src={image.value}
                             alt={`Event image ${index + 1}`}
                             fill
                             className="object-cover"
