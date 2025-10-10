@@ -129,20 +129,16 @@ export default function PublicEventDetailPage() {
     }
   }
 
-  const getTicketPrice = (ticket: EventWithTickets['ticketTypes'][number]): number => {
-    // Try exact match first
+  const getTicketPrice = (ticket: TicketType): number => {
     if (selectedLocation && ticket.locationPrices) {
-        const direct = (ticket.locationPrices as Record<string, number | string | null>)[selectedLocation];
-        if (direct != null) return Number(direct);
-        // Fallback: match by trimmed key (handles inconsistent whitespace)
-        const keys = Object.keys(ticket.locationPrices);
-        const matchKey = keys.find(k => k.trim() === selectedLocation.trim());
-        if (matchKey && ticket.locationPrices[matchKey] != null) {
-            return Number(ticket.locationPrices[matchKey]);
+        const prices = ticket.locationPrices as Record<string, number | null>;
+        if (prices[selectedLocation] != null) {
+            return Number(prices[selectedLocation]);
         }
     }
     return Number(ticket.basePrice);
-  };
+};
+
 
   const updateTicketQuantity = (ticketType: EventWithTickets['ticketTypes'][number] | SelectedTicket, quantity: number) => {
     const price = getTicketPrice(ticketType as EventWithTickets['ticketTypes'][number]);
@@ -358,11 +354,15 @@ export default function PublicEventDetailPage() {
                                         </SelectTrigger>
                                         <SelectContent>
                                             {eventLocations.map(loc => {
-                                                const tt = event.ticketTypes[0];
-                                                const lp = (tt?.locationPrices || {}) as Record<string, number>;
-                                                const price = lp[loc] != null ? Number(lp[loc]) : Number(tt?.basePrice ?? 0);
+                                                const firstTicket = event.ticketTypes[0];
+                                                let priceForLoc: number | undefined | null;
+                                                if (firstTicket && firstTicket.locationPrices) {
+                                                    priceForLoc = (firstTicket.locationPrices as Record<string, number>)[loc];
+                                                }
+                                                const price = priceForLoc != null ? priceForLoc : firstTicket?.basePrice;
+                                                
                                                 return (
-                                                    <SelectItem key={loc} value={loc}>{loc} — ETB {price.toFixed(2)}</SelectItem>
+                                                    <SelectItem key={loc} value={loc}>{loc} — ETB {Number(price).toFixed(2)}</SelectItem>
                                                 );
                                             })}
                                         </SelectContent>
@@ -472,4 +472,3 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
-
