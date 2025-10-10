@@ -128,11 +128,13 @@ export async function getEventById(id: number) {
         event.ticketTypes = event.ticketTypes.map(tt => {
             const ticketType = { ...tt } as any;
             if (ticketType.locationPrices && typeof ticketType.locationPrices === 'object') {
-                Object.keys(ticketType.locationPrices).forEach(loc => {
-                    if (ticketType.locationPrices[loc] !== null) {
-                        ticketType.locationPrices[loc] = parseFloat(ticketType.locationPrices[loc]);
-                    }
-                });
+                 const normalizedPrices: Record<string, number> = {};
+                 for (const [loc, price] of Object.entries(ticketType.locationPrices)) {
+                     if (price !== null && price !== undefined) {
+                         normalizedPrices[loc] = parseFloat(price as string);
+                     }
+                 }
+                 ticketType.locationPrices = normalizedPrices;
             } else {
                  ticketType.locationPrices = {};
             }

@@ -134,10 +134,15 @@ export default function PublicEventDetailPage() {
   }
 
   const getTicketPrice = (ticket: TicketType): number => {
-    if (selectedLocation && ticket.locationPrices) {
-        const prices = ticket.locationPrices as Record<string, number | null>;
-        if (prices[selectedLocation] != null) {
-            return Number(prices[selectedLocation]);
+    if (selectedLocation && ticket.locationPrices && typeof ticket.locationPrices === 'object') {
+        // 🧩 Normalize key names by trimming whitespace
+        const normalizedPrices = Object.fromEntries(
+        Object.entries(ticket.locationPrices as Record<string, number | null>)
+            .map(([k, v]) => [k.trim(), v])
+        );
+        const key = selectedLocation.trim();
+        if (normalizedPrices[key] !== undefined && normalizedPrices[key] !== null) {
+        return Number(normalizedPrices[key]);
         }
     }
     return Number(ticket.basePrice);
@@ -188,7 +193,7 @@ export default function PublicEventDetailPage() {
   
   // Recalculate prices for already selected tickets whenever location changes
   useEffect(() => {
-    if (!event) return;
+    if (!event || !selectedLocation) return;
     setSelectedTickets(prev => {
       const updated: typeof prev = {};
       for (const [id, selected] of Object.entries(prev)) {
@@ -367,7 +372,11 @@ export default function PublicEventDetailPage() {
                                                 const firstTicket = event.ticketTypes[0];
                                                 let priceForLoc: number | undefined | null;
                                                 if (firstTicket && firstTicket.locationPrices) {
-                                                    priceForLoc = (firstTicket.locationPrices as Record<string, number>)[loc];
+                                                    const normalizedPrices = Object.fromEntries(
+                                                        Object.entries(firstTicket.locationPrices as Record<string, number | null>)
+                                                            .map(([k, v]) => [k.trim(), v])
+                                                    );
+                                                    priceForLoc = normalizedPrices[loc.trim()];
                                                 }
                                                 const price = priceForLoc != null ? priceForLoc : firstTicket?.basePrice;
                                                 
@@ -380,7 +389,7 @@ export default function PublicEventDetailPage() {
                                 </div>
                             )}
                             <h3 className="text-2xl font-semibold mb-4 text-card-foreground">Tickets</h3>
-                            <div className="space-y-4">
+                            <div key={selectedLocation || 'default-location'} className="space-y-4">
                                 {event.ticketTypes.length > 0 ? (
                                 event.ticketTypes.map(ticket => {
                                     const selectedQuantity = selectedTickets[ticket.id]?.quantity || 0;
@@ -388,7 +397,7 @@ export default function PublicEventDetailPage() {
                                     const price = getTicketPrice(ticket);
 
                                     return (
-                                    <div key={ticket.id} className="flex flex-col gap-2 p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md">
+                                    <div key={`${ticket.id}-${selectedLocation}`} className="flex flex-col gap-2 p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md">
                                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                                             <div className="mb-3 sm:mb-0">
                                             <h4 className="font-semibold text-lg">{ticket.name}</h4>
