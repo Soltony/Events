@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { getEventById, validatePromoCode } from '@/lib/actions';
@@ -290,9 +289,9 @@ export default function PublicEventDetailPage() {
             <div 
                 className="p-4 sm:p-8 rounded-xl bg-card text-card-foreground"
             >
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
+                <div className="grid md:grid-cols-5 gap-8">
                     <div className="md:col-span-3 space-y-8">
-                         <div className="w-full aspect-video relative rounded-lg overflow-hidden shadow-lg">
+                        <div className="w-full aspect-video relative rounded-lg overflow-hidden shadow-lg">
                            {imageSources.length > 1 ? (
                               <Carousel 
                                 plugins={[plugin.current]}
@@ -315,6 +314,7 @@ export default function PublicEventDetailPage() {
                               <Image src={imageSources[0]} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
                             )}
                         </div>
+                        
                         <div className="rounded-lg p-0">
                             <Badge variant="outline" className={`mb-2 w-min whitespace-nowrap ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
                             <h1 className="text-4xl font-bold tracking-tight text-card-foreground">{event.name}</h1>
@@ -482,5 +482,3 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
-
-
