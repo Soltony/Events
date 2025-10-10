@@ -3,10 +3,10 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, Trash2, UploadCloud, Loader2, X, Replace } from 'lucide-react';
+import { PlusCircle, Trash2, Loader2, Replace } from 'lucide-react';
 import Image from 'next/image';
 import { useState } from 'react';
 import axios from 'axios';
@@ -33,7 +33,10 @@ import { DateTimePicker } from '@/components/datetime-picker';
 import { useAuth } from '@/context/auth-context';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-const locationPriceSchema = z.record(z.coerce.number().min(0, { message: 'Price must be positive.' }).optional());
+const locationConfigSchema = z.record(z.object({
+    price: z.coerce.number().min(0, { message: 'Price must be non-negative.' }),
+    quantity: z.coerce.number().int().min(0, { message: 'Quantity must be a non-negative integer.' }),
+}));
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
@@ -53,9 +56,7 @@ const eventFormSchema = z.object({
   tickets: z.array(z.object({
     name: z.string().min(1, { message: "Ticket name can't be empty."}),
     description: z.string().optional(),
-    basePrice: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
-    locationPrices: locationPriceSchema.optional(),
-    total: z.coerce.number().int().min(1, { message: 'Capacity must be at least 1.' }),
+    locationConfigs: locationConfigSchema,
   })).min(1, { message: 'You must have at least one ticket tier.'}),
 }).refine(data => {
     if (data.category === 'Other') {
@@ -87,7 +88,7 @@ export default function CreateEventPage() {
       category: '',
       otherCategory: '',
       image: '',
-      tickets: [{ name: 'General Admission', description: 'Standard entry to the event.', basePrice: 25, locationPrices: {}, total: 100 }],
+      tickets: [{ name: 'General Admission', description: 'Standard entry to the event.', locationConfigs: {} }],
     },
   });
 
@@ -492,54 +493,44 @@ export default function CreateEventPage() {
                             </FormItem>
                           )}
                         />
-
-                        <div className="grid grid-cols-2 gap-4 items-end">
-                            <FormField
-                                control={form.control}
-                                name={`tickets.${index}.basePrice`}
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Base Price</FormLabel>
-                                    <FormControl><Input type="number" {...field} placeholder="e.g., 50" /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name={`tickets.${index}.total`}
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Quantity</FormLabel>
-                                    <FormControl><Input type="number" {...field} placeholder="e.g., 100" /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                        </div>
                         
-                        {watchedLocations && watchedLocations.length > 1 && watchedLocations.every(l => l.value) && (
+                        {watchedLocations && watchedLocations.length > 0 && watchedLocations.every(l => l.value) ? (
                             <div className="pt-4">
-                                <h4 className="font-medium text-sm mb-2">Location-Specific Prices (Optional)</h4>
+                                <h4 className="font-medium text-sm mb-2">Location Prices & Quantities</h4>
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Location</TableHead>
-                                            <TableHead>Price</TableHead>
+                                            <TableHead className="w-[120px]">Price (ETB)</TableHead>
+                                            <TableHead className="w-[120px]">Quantity</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {watchedLocations.map((location) => (
                                             <TableRow key={location.value}>
-                                                <TableCell>{location.value}</TableCell>
+                                                <TableCell className="font-medium">{location.value}</TableCell>
                                                 <TableCell>
                                                      <FormField
                                                         control={form.control}
-                                                        name={`tickets.${index}.locationPrices.${location.value}`}
+                                                        name={`tickets.${index}.locationConfigs.${location.value}.price`}
                                                         render={({ field }) => (
                                                             <FormItem>
                                                                 <FormControl>
-                                                                    <Input type="number" {...field} placeholder={`Default: ${form.getValues(`tickets.${index}.basePrice`)}`} />
+                                                                    <Input type="number" {...field} placeholder="e.g., 50" />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                     <FormField
+                                                        control={form.control}
+                                                        name={`tickets.${index}.locationConfigs.${location.value}.quantity`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormControl>
+                                                                    <Input type="number" {...field} placeholder="e.g., 100" />
                                                                 </FormControl>
                                                                 <FormMessage />
                                                             </FormItem>
@@ -551,13 +542,17 @@ export default function CreateEventPage() {
                                     </TableBody>
                                 </Table>
                             </div>
+                        ) : (
+                          <div className="pt-4 text-sm text-muted-foreground">
+                            Please add at least one valid location to set prices and quantities.
+                          </div>
                         )}
                     </Card>
                     ))}
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() => appendTicket({ name: '', description: '', basePrice: 0, locationPrices: {}, total: 50 })}
+                        onClick={() => appendTicket({ name: '', description: '', locationConfigs: {} })}
                         >
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Add Ticket Tier
@@ -578,3 +573,4 @@ export default function CreateEventPage() {
     </div>
   );
 }
+

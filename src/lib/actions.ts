@@ -204,7 +204,6 @@ export async function addEvent(data: any) {
     
     const locationString = locations.map((l: { value: string }) => l.value).join('||');
     
-    // Handle single image string
     const imageArray = image ? [image] : [];
 
     const newEvent = await prisma.event.create({
@@ -223,17 +222,28 @@ export async function addEvent(data: any) {
     });
 
     if (tickets && tickets.length > 0) {
-        const ticketData = tickets.map((ticket: any) => ({
-            name: ticket.name,
-            description: ticket.description,
-            basePrice: ticket.basePrice,
-            locationPrices: ticket.locationPrices || {},
-            total: ticket.total,
-            eventId: newEvent.id,
-        }));
-        await prisma.ticketType.createMany({
-            data: ticketData,
-        });
+      for (const ticket of tickets) {
+        // For each location, find price and quantity, create ticketType
+        for (const loc of locations) {
+            const locationName = loc.value;
+            const config = ticket.locationConfigs?.[locationName];
+            
+            if (config && config.price > 0 && config.quantity > 0) {
+                await prisma.ticketType.create({
+                    data: {
+                        name: `${ticket.name} - ${locationName}`,
+                        description: ticket.description,
+                        basePrice: config.price, // Use location-specific price
+                        total: config.quantity, // Use location-specific quantity
+                        sold: 0,
+                        eventId: newEvent.id,
+                        // locationPrices is no longer the main source, but we can store it for reference if needed
+                        // or just rely on the name and basePrice. For simplicity, we'll rely on the name.
+                    }
+                });
+            }
+        }
+      }
     }
 
     revalidatePath('/dashboard/events');
@@ -1064,6 +1074,7 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
 
 
 
