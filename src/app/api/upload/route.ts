@@ -1,27 +1,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
 
-// Ensure the uploads directory exists
-const uploadsDir = path.join(process.cwd(), 'public/uploads');
-
-const ensureUploadsDirExists = async () => {
-    try {
-        await fs.access(uploadsDir);
-    } catch (error) {
-        await fs.mkdir(uploadsDir, { recursive: true });
-    }
-};
 
 export async function POST(req: NextRequest) {
   if (req.method !== 'POST') {
-    return NextResponse.json({ success: false, error: 'Method Not Allowed' }, { status: 405 });
+    return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
   }
-
-  await ensureUploadsDirExists();
-
   try {
     const { file } = await req.json();
 
@@ -29,21 +13,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid file data provided. Expected a data URI.' }, { status: 400 });
     }
 
-    const base64Data = file.replace(/^data:image\/\w+;base64,/, "");
-    const buffer = Buffer.from(base64Data, 'base64');
-    
-    // Extract file extension
-    const mimeType = file.match(/data:(image\/\w+);/)?.[1];
-    const extension = mimeType ? mimeType.split('/')[1] : 'png';
-    
-    const filename = `${uuidv4()}.${extension}`;
-    const filePath = path.join(uploadsDir, filename);
+       // In a real-world scenario, you would upload the base64-decoded data to a cloud storage service (e.g., Firebase Storage, S3)
+    // and return the public URL.
+    // For this prototype, we will simply return the received data URI directly.
+    // This allows the frontend to use the exact uploaded image without needing a separate storage backend for this demo.
+    const imageUrl = file;
 
-    await fs.writeFile(filePath, buffer);
 
-    const publicUrl = `/uploads/${filename}`;
-
-    return NextResponse.json({ success: true, url: publicUrl });
+    return NextResponse.json({ success: true, url: imageUrl });
   } catch (error) {
     console.error('Upload API error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error.' }, { status: 500 });
