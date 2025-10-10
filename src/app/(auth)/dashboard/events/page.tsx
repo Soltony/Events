@@ -62,8 +62,9 @@ const getCategoryBadgeClass = (category: string) => {
 }
 
 const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolean, onDelete: (e: Event) => void }) => {
-    const imageSources = Array.isArray(event.image) && event.image.length > 0 ? event.image : ['/image/nibtickets.jpg'];
-    
+    const imageSources = Array.isArray(event.image) ? event.image : (event.image ? [event.image] : []);
+    const displayImage = imageSources.length > 0 ? imageSources[0] : '/image/nibtickets.jpg';
+
     const statusBadge = (status: string) => {
         return (
             <Badge variant="outline" className={cn(
@@ -82,19 +83,7 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolea
           <div className="relative z-10 flex flex-col h-full">
             {isAdmin && event.status && statusBadge(event.status)}
             <CardHeader className="p-0 relative aspect-[16/9]">
-              {imageSources.length > 1 ? (
-                <Carousel className="w-full h-full">
-                  <CarouselContent>
-                    {imageSources.map((src, index) => (
-                      <CarouselItem key={index}>
-                        <Image src={src} alt={`${event.name} image ${index + 1}`} fill className="object-cover rounded-t-lg" />
-                      </CarouselItem>
-                    ))}
-                  </CarouselContent>
-                </Carousel>
-              ) : (
-                <Image src={imageSources[0]} alt={event.name} fill className="rounded-t-lg object-cover" data-ai-hint={event.hint ?? 'event'} />
-              )}
+              <Image src={displayImage} alt={event.name} fill className="rounded-t-lg object-cover" data-ai-hint={event.hint ?? 'event'} />
             </CardHeader>
             <CardContent className="p-4 flex-1 space-y-2 bg-card">
                 <Badge variant="outline" className={cn("text-xs", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
