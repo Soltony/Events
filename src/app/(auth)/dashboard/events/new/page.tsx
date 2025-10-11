@@ -52,7 +52,7 @@ const eventFormSchema = z.object({
   endDate: z.date().optional(),
   category: z.string({ required_error: 'Please select a category.' }),
   otherCategory: z.string().optional(),
-  images: z.array(z.object({ value: z.string() })).min(1, { message: 'Please upload at least one image.' }),
+  images: z.array(z.string()).min(1, { message: 'Please upload at least one image.' }),
   tickets: z.array(z.object({
     name: z.string().min(1, { message: "Ticket name can't be empty."}),
     description: z.string().optional(),
@@ -96,7 +96,7 @@ export default function CreateEventPage() {
 
   const { fields: imageFields, append: appendImage, remove: removeImage } = useFieldArray({
     control: form.control,
-    name: "images"
+    name: "images" as any
   });
 
   const watchedImages = form.watch('images');
@@ -119,7 +119,7 @@ export default function CreateEventPage() {
         const finalData = {
             ...data,
             category: data.category === 'Other' ? data.otherCategory : data.category,
-            image: data.images.map(img => img.value),
+            images: data.images,
         };
         const newEvent = await addEvent(finalData);
         
@@ -179,7 +179,8 @@ export default function CreateEventPage() {
           } finally {
              setIsUploading(false);
           }       
-    };
+    }
+  };
   
   return (
     <div className="flex flex-1 items-center justify-center p-4">
@@ -405,7 +406,7 @@ export default function CreateEventPage() {
                       {watchedImages.map((image, index) => (
                         <div key={index} className="relative aspect-video rounded-md overflow-hidden group">
                         <Image
-                            src={image.value}
+                            src={typeof image === 'string' ? image : (image as any).value}
                             alt={`Event image ${index + 1}`}
                             fill
                             className="object-cover"
@@ -579,5 +580,3 @@ export default function CreateEventPage() {
   );
 }
 
-
-    
