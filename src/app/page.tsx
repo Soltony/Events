@@ -64,7 +64,7 @@ const CategoryFilter = ({ categories, selectedCategory, onSelectCategory }: { ca
 
     return (
         <div className="relative">
-            <div className="flex flex-wrap items-center justify-center gap-6">
+            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
                 {categories.map((category) => {
                     const Icon = categoryIcons[category] || <Ticket className="h-4 w-4" style={{ color: '#f59e0b' }} />;
                     return (
@@ -208,7 +208,7 @@ export default function PublicHomePage() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
        <header className="fixed top-0 w-full z-50" style={navbarStyle}>
-        <nav className="container mx-auto px-4 lg:px-6 py-0 flex justify-between items-center h-14">
+        <nav className="container mx-auto px-4 sm:px-6 py-2 flex justify-between items-center h-14">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Image
                 src="/image/nibtickets.jpg"
@@ -240,10 +240,10 @@ export default function PublicHomePage() {
           </div>
 
           <div className="md:hidden flex items-center gap-2">
-            <Button asChild variant="ghost" className="text-sm px-2 h-8">
+             <Button asChild variant="ghost" className="text-sm h-8 px-3">
               <Link href="/tickets">
-                <Ticket className="h-4 w-4 mr-1" />
-                My Tickets
+                <Ticket className="h-4 w-4" />
+                <span className="sr-only">My Tickets</span>
               </Link>
             </Button>
             <AuthStatus />
@@ -255,16 +255,16 @@ export default function PublicHomePage() {
         <section className="relative w-full">
             <EventsCarousel events={upcomingEvents} />
             <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-center text-white p-4 pointer-events-none">
-                <h2 className="text-4xl md:text-6xl font-bold tracking-tight">UPCOMING EVENTS AND TICKET</h2>
-                <p className="mt-4 text-lg md:text-xl max-w-2xl">From music festivals to tech conferences, find your next experience with us. Secure and simple ticketing for every event.</p>
-                <div ref={searchRef} className="relative w-full max-w-2xl mt-8 pointer-events-auto">
+                <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold tracking-tight">UPCOMING EVENTS AND TICKET</h2>
+                <p className="mt-4 text-base md:text-lg max-w-2xl">From music festivals to tech conferences, find your next experience with us. Secure and simple ticketing for every event.</p>
+                <div ref={searchRef} className="relative w-full max-w-lg lg:max-w-2xl mt-8 pointer-events-auto">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input 
                     placeholder="Search events, artists, or venues..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onFocus={() => setIsSearchFocused(true)}
-                    className="pl-12 pr-4 py-6 text-lg bg-white/90 text-black placeholder:text-muted-foreground rounded-full focus:bg-white"
+                    className="pl-12 pr-4 py-6 text-base md:text-lg bg-white/90 text-black placeholder:text-muted-foreground rounded-full focus:bg-white"
                   />
                   {isSearchFocused && searchSuggestions.length > 0 && (
                       <div className="absolute top-full mt-2 w-full bg-white rounded-lg shadow-lg overflow-hidden z-10">
@@ -294,16 +294,16 @@ export default function PublicHomePage() {
                       </div>
                   )}
                 </div>
-                <div className="mt-6 pointer-events-auto">
+                <div className="mt-6 w-full max-w-lg lg:max-w-2xl pointer-events-auto">
                   <CategoryFilter categories={categories} selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />
                 </div>
             </div>
         </section>
 
 
-        <section className="pt-6 pb-12">
+        <section className="pt-12 pb-12">
             <div className="container mx-auto px-4 lg:px-6">
-                <h2 className="text-2xl font-bold tracking-tight mb-6">
+                <h2 className="text-2xl font-bold tracking-tight mb-8">
                     Upcoming Events
                 </h2>
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 items-stretch">
