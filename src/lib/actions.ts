@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -175,7 +174,7 @@ export async function getEventDetails(id: number) {
 }
 
 export async function addEvent(data: any) {
-    const { tickets, startDate, endDate, otherCategory, locations, images, ...eventData } = data;
+    const { tickets, startDate, endDate, otherCategory, locations, ...eventData } = data;
     const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
@@ -203,7 +202,11 @@ export async function addEvent(data: any) {
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
     
     const locationString = locations.map((l: { value: string }) => l.value).join('||');
-    const imageStrings = Array.isArray(images) ? images.map((img: { value: string }) => img.value) : [];
+    
+    // Ensure images are correctly formatted as an array of strings
+    const imageStrings = Array.isArray(data.images)
+        ? data.images.map((img: any) => (typeof img === 'object' ? img.value : img)).filter(Boolean)
+        : [];
 
     const newEvent = await prisma.event.create({
         data: {
@@ -252,7 +255,7 @@ export async function addEvent(data: any) {
 }
 
 export async function updateEvent(id: number, data: any) {
-    const { startDate, endDate, otherCategory, locations, images, ...eventData } = data;
+    const { startDate, endDate, otherCategory, locations, ...eventData } = data;
     const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
@@ -265,7 +268,11 @@ export async function updateEvent(id: number, data: any) {
     delete eventDataForUpdate.tickets; 
 
     const locationString = locations.map((l: { value: string }) => l.value).join('||');
-    const imageStrings = Array.isArray(images) ? images.map((img: { value: string }) => img.value) : [];
+    
+    // Ensure images are correctly formatted as an array of strings
+    const imageStrings = Array.isArray(data.images)
+        ? data.images.map((img: any) => (typeof img === 'object' ? img.value : img)).filter(Boolean)
+        : [];
 
     const eventToUpdate = await prisma.event.findUnique({ where: { id }});
     if (!eventToUpdate) throw new Error("Event not found");
@@ -1073,8 +1080,3 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
-
-
-
-
-
