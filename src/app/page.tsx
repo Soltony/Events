@@ -301,7 +301,7 @@ export default function PublicHomePage() {
         </section>
 
 
-        <section className="pt-12 pb-12">
+        <section className="pt-8 md:pt-12 pb-12">
             <div className="container mx-auto px-4 lg:px-6">
                 <h2 className="text-2xl font-bold tracking-tight mb-8">
                     Upcoming Events
