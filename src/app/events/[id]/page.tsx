@@ -88,10 +88,8 @@ export default function PublicEventDetailPage() {
             notFound();
         }
         setEvent(eventData as EventWithTickets);
-        if (eventData?.location && !eventData.location.includes('||')) {
-            setSelectedLocation(eventData.location);
-        } else if (eventData?.location) {
-             setSelectedLocation(eventData.location.split('||')[0].trim());
+        if (eventData?.location) {
+            setSelectedLocation(eventData.location.split('||')[0].trim());
         }
         setLoading(false);
     }
@@ -134,19 +132,21 @@ export default function PublicEventDetailPage() {
   }
 
   const getTicketPrice = (ticket: TicketType): number => {
-    if (selectedLocation && ticket.locationPrices && typeof ticket.locationPrices === 'object') {
-        // 🧩 Normalize key names by trimming whitespace
-        const normalizedPrices = Object.fromEntries(
-        Object.entries(ticket.locationPrices as Record<string, number | null>)
-            .map(([k, v]) => [k.trim(), v])
-        );
-        const key = selectedLocation.trim();
-        if (normalizedPrices[key] !== undefined && normalizedPrices[key] !== null) {
-        return Number(normalizedPrices[key]);
-        }
-    }
-    return Number(ticket.basePrice);
-};
+      if (selectedLocation && ticket.name.includes(` - ${selectedLocation}`)) {
+          return Number(ticket.basePrice);
+      }
+      
+      const relatedTicket = event?.ticketTypes.find(tt => tt.name.includes(` - ${selectedLocation}`) && tt.name.startsWith(ticket.name.split(' - ')[0]));
+      if(relatedTicket) return Number(relatedTicket.basePrice);
+
+      // Fallback for general tickets if no location-specific one is found or selected
+      if (!selectedLocation) {
+        const generalTicket = event?.ticketTypes.find(tt => tt.name.split(' - ')[0] === ticket.name.split(' - ')[0]);
+        if(generalTicket) return Number(generalTicket.basePrice);
+      }
+
+      return Number(ticket.basePrice);
+  };
 
 
   const updateTicketQuantity = (ticketType: EventWithTickets['ticketTypes'][number] | SelectedTicket, quantity: number) => {
@@ -194,6 +194,7 @@ export default function PublicEventDetailPage() {
   // Recalculate prices for already selected tickets whenever location changes
   useEffect(() => {
     if (!event || !selectedLocation) return;
+  
     setSelectedTickets(prev => {
       const updated: typeof prev = {};
       for (const [id, selected] of Object.entries(prev)) {
@@ -201,8 +202,6 @@ export default function PublicEventDetailPage() {
         if (ticketType) {
           const newPrice = getTicketPrice(ticketType);
           updated[Number(id)] = { ...selected, price: newPrice } as SelectedTicket;
-        } else {
-          updated[Number(id)] = selected;
         }
       }
       return updated;
@@ -240,6 +239,30 @@ export default function PublicEventDetailPage() {
         setIsPurchaseModalOpen(false);
     });
   };
+
+  const filteredAndGroupedTickets = useMemo(() => {
+    if (!event) return [];
+    
+    // 1. Filter tickets that match the selected location
+    const locationTickets = event.ticketTypes.filter(ticket => ticket.name.includes(` - ${selectedLocation}`));
+
+    // 2. If no tickets match the location, it might be an event with no location-specific pricing.
+    if (locationTickets.length === 0) {
+        // Fallback: Group by base name and take the first one (assuming it's a general ticket)
+        const ticketGroups = new Map<string, TicketType>();
+        event.ticketTypes.forEach(ticket => {
+            const baseName = ticket.name.split(' - ')[0];
+            if (!ticketGroups.has(baseName)) {
+                ticketGroups.set(baseName, ticket);
+            }
+        });
+        return Array.from(ticketGroups.values());
+    }
+    
+    return locationTickets;
+
+  }, [event, selectedLocation]);
+
   
   if (loading || !event) {
     return (
@@ -276,7 +299,7 @@ export default function PublicEventDetailPage() {
   }
   
   const imageSources = Array.isArray(event.image) && event.image.length > 0 ? event.image : [DEFAULT_IMAGE_PLACEHOLDER];
-  const eventLocations = event.location.includes('||') ? event.location.split('||').map(l => l.trim()) : [];
+  const eventLocations = event.location ? Array.from(new Set(event.location.split('||').map(l => l.trim()))) : [];
   const organizerName = event.color; // Using color field for organizer name
 
   return (
@@ -357,7 +380,7 @@ export default function PublicEventDetailPage() {
 
                     <div className="md:col-span-2 space-y-8">
                         <div className="rounded-lg p-0">
-                             {eventLocations.length > 0 && (
+                             {eventLocations.length > 1 && (
                                 <div className="mb-6">
                                     <Label htmlFor="location-select" className="text-lg font-semibold mb-2 block">Location</Label>
                                     <Select
@@ -369,16 +392,8 @@ export default function PublicEventDetailPage() {
                                         </SelectTrigger>
                                         <SelectContent>
                                             {eventLocations.map(loc => {
-                                                const firstTicket = event.ticketTypes[0];
-                                                let priceForLoc: number | undefined | null;
-                                                if (firstTicket && firstTicket.locationPrices) {
-                                                    const normalizedPrices = Object.fromEntries(
-                                                        Object.entries(firstTicket.locationPrices as Record<string, number | null>)
-                                                            .map(([k, v]) => [k.trim(), v])
-                                                    );
-                                                    priceForLoc = normalizedPrices[loc.trim()];
-                                                }
-                                                const price = priceForLoc != null ? priceForLoc : firstTicket?.basePrice;
+                                                const ticketForLoc = event.ticketTypes.find(t => t.name.endsWith(` - ${loc}`));
+                                                const price = ticketForLoc ? ticketForLoc.basePrice : 'N/A';
                                                 
                                                 return (
                                                     <SelectItem key={loc} value={loc}>{loc} — ETB {Number(price).toFixed(2)}</SelectItem>
@@ -390,17 +405,18 @@ export default function PublicEventDetailPage() {
                             )}
                             <h3 className="text-2xl font-semibold mb-4 text-card-foreground">Tickets</h3>
                             <div key={selectedLocation || 'default-location'} className="space-y-4">
-                                {event.ticketTypes.length > 0 ? (
-                                event.ticketTypes.map(ticket => {
+                                {filteredAndGroupedTickets.length > 0 ? (
+                                filteredAndGroupedTickets.map(ticket => {
                                     const selectedQuantity = selectedTickets[ticket.id]?.quantity || 0;
                                     const remaining = ticket.total - ticket.sold;
                                     const price = getTicketPrice(ticket);
+                                    const baseTicketName = ticket.name.split(' - ')[0];
 
                                     return (
                                     <div key={`${ticket.id}-${selectedLocation}`} className="flex flex-col gap-2 p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md">
                                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                                             <div className="mb-3 sm:mb-0">
-                                            <h4 className="font-semibold text-lg">{ticket.name}</h4>
+                                            <h4 className="font-semibold text-lg">{baseTicketName}</h4>
                                             <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">ETB {price.toFixed(2)}</p>
                                             <p className="text-sm text-muted-foreground">{remaining > 0 ? `${remaining} remaining` : 'Sold Out'}</p>
                                             </div>
