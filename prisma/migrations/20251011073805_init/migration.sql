@@ -46,7 +46,7 @@ CREATE TABLE "Event" (
     "location" TEXT NOT NULL,
     "hint" TEXT,
     "category" TEXT NOT NULL,
-    "image" TEXT[],
+    "image" TEXT,
     "color" TEXT,
     "status" "EventStatus" NOT NULL DEFAULT 'PENDING',
     "rejectionReason" TEXT,

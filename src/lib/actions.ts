@@ -174,7 +174,7 @@ export async function getEventDetails(id: number) {
 }
 
 export async function addEvent(data: any) {
-    const { tickets, startDate, endDate, otherCategory, locations, ...eventData } = data;
+    const { tickets, startDate, endDate, otherCategory, locations, images, ...eventData } = data;
     const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
@@ -203,15 +203,15 @@ export async function addEvent(data: any) {
     
     const locationString = locations.map((l: { value: string }) => l.value).join('||');
     
-    // Ensure images are correctly formatted as an array of strings
-    const imageStrings = Array.isArray(data.images)
-        ? data.images.map((img: any) => (typeof img === 'object' ? img.value : img)).filter(Boolean)
-        : [];
+    // Get the first image from the array (since we only allow one image now)
+    const imageString = Array.isArray(images) && images.length > 0
+        ? (typeof images[0] === 'object' ? images[0].value : images[0])
+        : null;
 
     const newEvent = await prisma.event.create({
         data: {
             ...eventData,
-            image: imageStrings,
+            image: imageString,
             location: locationString,
             organizerId: user.id,
             nibBankAccount: nibBankAccount,
@@ -255,7 +255,7 @@ export async function addEvent(data: any) {
 }
 
 export async function updateEvent(id: number, data: any) {
-    const { startDate, endDate, otherCategory, locations, ...eventData } = data;
+    const { startDate, endDate, otherCategory, locations, images, ...eventData } = data;
     const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
@@ -269,10 +269,10 @@ export async function updateEvent(id: number, data: any) {
 
     const locationString = locations.map((l: { value: string }) => l.value).join('||');
     
-    // Ensure images are correctly formatted as an array of strings
-    const imageStrings = Array.isArray(data.images)
-        ? data.images.map((img: any) => (typeof img === 'object' ? img.value : img)).filter(Boolean)
-        : [];
+    // Get the first image from the array (since we only allow one image now)
+    const imageString = Array.isArray(images) && images.length > 0
+        ? (typeof images[0] === 'object' ? images[0].value : images[0])
+        : null;
 
     const eventToUpdate = await prisma.event.findUnique({ where: { id }});
     if (!eventToUpdate) throw new Error("Event not found");
@@ -285,7 +285,7 @@ export async function updateEvent(id: number, data: any) {
         where: { id },
         data: {
             ...eventDataForUpdate,
-            image: imageStrings,
+            image: imageString,
             location: locationString,
             category: finalCategory,
             startDate: startDate,
