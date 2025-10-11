@@ -254,8 +254,8 @@ export default function PublicHomePage() {
       <main className="flex-grow pt-14">
         <section className="relative w-full">
             <EventsCarousel events={upcomingEvents} />
-            <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-end pb-20 sm:pb-24 text-center text-white p-4 pointer-events-none">
-                <h2 className="text-3xl md:text-5xl font-bold tracking-tight">UPCOMING EVENTS AND TICKET</h2>
+            <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-end pb-16 text-center text-white p-4 pointer-events-none">
+                <h2 className="text-3xl md:text-5xl font-bold tracking-tight">UPCOMING EVENTS AND TICKETS</h2>
                 <p className="mt-4 text-base md:text-lg max-w-2xl">From music festivals to tech conferences, find your next experience with us. Secure and simple ticketing for every event.</p>
                 <div ref={searchRef} className="relative w-full max-w-lg lg:max-w-2xl mt-8 pointer-events-auto">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -303,7 +303,7 @@ export default function PublicHomePage() {
 
         <section className="pt-8 md:pt-12 pb-12">
             <div className="container mx-auto px-4 lg:px-6">
-                <h2 className="text-2xl font-bold tracking-tight mb-8">
+                <h2 className="text-2xl font-bold tracking-tight mb-8 mt-4 md:mt-0">
                     Upcoming Events
                 </h2>
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 items-stretch">
@@ -462,5 +462,7 @@ const Footer = () => (
       </div>
     </footer>
 )
+
+    
 
     
