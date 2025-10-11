@@ -120,23 +120,11 @@ export default function MyTicketsPage() {
         ) : tickets.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {tickets.map((ticket) => {
-                     const imageSources = Array.isArray(ticket.event.image) && ticket.event.image.length > 0 ? ticket.event.image : [DEFAULT_IMAGE_PLACEHOLDER];
+                     const imageSource = ticket.event.image || DEFAULT_IMAGE_PLACEHOLDER;
                     return (
                         <Card key={ticket.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
                              <CardHeader className="p-0 relative aspect-video">
-                                {imageSources.length > 1 ? (
-                                  <Carousel className="w-full h-full rounded-t-lg">
-                                    <CarouselContent>
-                                      {imageSources.map((src, index) => (
-                                        <CarouselItem key={index}>
-                                          <Image src={src} alt={`${ticket.event.name} image ${index + 1}`} fill className="object-cover rounded-t-lg" />
-                                        </CarouselItem>
-                                      ))}
-                                    </CarouselContent>
-                                  </Carousel>
-                                ) : (
-                                  <Image src={imageSources[0]} alt={ticket.event.name} fill className="object-cover rounded-t-lg" data-ai-hint={ticket.event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
-                                )}
+                                <Image src={imageSource} alt={ticket.event.name} fill className="object-cover rounded-t-lg" data-ai-hint={ticket.event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
                             </CardHeader>
                              <CardContent className="p-4 flex-1 space-y-1">
                                 <CardTitle className="text-xl">{ticket.event.name}</CardTitle>
