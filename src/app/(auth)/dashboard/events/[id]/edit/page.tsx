@@ -46,7 +46,7 @@ const eventFormSchema = z.object({
   endDate: z.date().optional(),
   category: z.string({ required_error: 'Please select a category.' }),
   otherCategory: z.string().optional(),
-  images: z.array(z.object({ value: z.string() })).min(1, { message: 'Please upload at least one image.' }),
+  images: z.array(z.string()).length(1, { message: 'Please upload exactly one image.' }),
 }).refine(data => {
     if (data.category === 'Other') {
         return !!data.otherCategory && data.otherCategory.length > 0;
@@ -85,10 +85,6 @@ export default function EditEventPage() {
     },
   });
 
-  const { fields: imageFields, append: appendImage, remove: removeImage } = useFieldArray({
-    control: form.control,
-    name: "images"
-  });
 
   const watchedImages = form.watch('images');
 
@@ -112,7 +108,7 @@ export default function EditEventPage() {
         if (event) {
           const isOtherCategory = event.category && !defaultCategories.includes(event.category);
           const eventLocations = event.location ? event.location.split('||').map((loc: string) => ({ value: loc.trim() })) : [{ value: '' }];
-          const eventImages = Array.isArray(event.image) ? event.image.map(url => ({ value: url })) : (event.image ? [{ value: event.image }] : []);
+          const eventImages = event.image ? [event.image] : [];
           
           form.reset({
             name: event.name,
@@ -147,7 +143,7 @@ export default function EditEventPage() {
         const finalData = {
             ...data,
             category: data.category === 'Other' ? data.otherCategory : data.category,
-            image: data.images.map(img => img.value), // Pass the array of image URLs
+            images: data.images, // Pass the array of image URLs
         };
 
         await updateEvent(eventId, finalData);
@@ -170,37 +166,29 @@ export default function EditEventPage() {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
-      if (files) {
+      if (files && files.length > 0) {
         setIsUploading(true);
-        const uploadPromises = Array.from(files).map(file => {
-          return new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-              try {
-                const response = await axios.post('/api/upload', { file: reader.result });
-                if (response.data.success) {
-                  resolve(response.data.url);
-                } else {
-                  reject(response.data.error);
-                }
-              } catch (error) {
-                reject(error);
-              }
-            };
-            reader.readAsDataURL(file);
-          });
-        });
-
-        try {
-          const uploadedUrls = await Promise.all(uploadPromises);
-          uploadedUrls.forEach(url => appendImage({ value: url }));
-        } catch (error) {
-           toast({ variant: 'destructive', title: 'Upload failed', description: 'An error occurred during upload.' });
-        } finally {
-           setIsUploading(false);
-        }
+        // Only take the first file
+        const file = files[0];
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          try {
+            const response = await axios.post('/api/upload', { file: reader.result });
+            if (response.data.success) {
+              // Replace the existing image instead of adding to array
+              form.setValue('images', [response.data.url]);
+            } else {
+              toast({ variant: 'destructive', title: 'Upload failed', description: response.data.error });
+            }
+          } catch (error) {
+            toast({ variant: 'destructive', title: 'Upload failed', description: 'An error occurred during upload.' });
+          } finally {
+            setIsUploading(false);
+          }
+        };
+        reader.readAsDataURL(file);
       }
-    };
+  };
 
   if (loading) {
     return (
@@ -437,16 +425,16 @@ export default function EditEventPage() {
 
               <div className="space-y-4">
                 <div>
-                  <FormLabel>Event Visuals</FormLabel>
-                  <FormDescription>Update the images for your event.</FormDescription>
+                  <FormLabel>Event Image</FormLabel>
+                  <FormDescription>Update the image for your event.</FormDescription>
                    <FormMessage className="pt-2">{form.formState.errors.images?.message}</FormMessage>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {watchedImages.map((image, index) => (
-                    <div key={index} className="relative aspect-video rounded-md overflow-hidden group">
+                <div className="flex gap-4">
+                  {watchedImages.length > 0 ? (
+                    <div className="relative aspect-video w-64 rounded-md overflow-hidden group">
                       <Image
-                        src={image.value}
-                        alt={`Event image ${index + 1}`}
+                        src={watchedImages[0]}
+                        alt="Event image"
                         fill
                         className="object-cover"
                       />
@@ -455,29 +443,28 @@ export default function EditEventPage() {
                           type="button"
                           variant="destructive"
                           size="icon"
-                          onClick={() => removeImage(index)}
+                          onClick={() => form.setValue('images', [])}
                         >
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Remove image</span>
                         </Button>
                       </div>
                     </div>
-                  ))}
-                   <label htmlFor="image-upload" className="aspect-video rounded-md border-dashed border-2 flex items-center justify-center cursor-pointer hover:border-primary hover:text-primary transition-colors text-muted-foreground">
+                  ) : null}
+                  <label htmlFor="image-upload" className="aspect-video w-64 rounded-md border-dashed border-2 flex items-center justify-center cursor-pointer hover:border-primary hover:text-primary transition-colors text-muted-foreground">
                     <div className="text-center">
                       {isUploading ? (
                         <Loader2 className="h-8 w-8 animate-spin" />
                       ) : (
                         <>
                           <UploadCloud className="h-8 w-8 mx-auto" />
-                          <span className="text-sm mt-2">Upload</span>
+                          <span className="text-sm mt-2">{watchedImages.length > 0 ? 'Replace Image' : 'Add Image'}</span>
                         </>
                       )}
                     </div>
                     <Input
                       id="image-upload"
                       type="file"
-                      multiple
                       className="sr-only"
                       accept="image/png, image/jpeg, image/gif"
                       onChange={handleFileChange}
