@@ -28,7 +28,7 @@ import Autoplay from "embla-carousel-autoplay";
 
 
 interface EventWithTickets extends Event {
-    ticketTypes: (TicketType & { locationPrices: Record<string, number> | null; basePrice: number })[];
+    ticketTypes: (TicketType & { basePrice: number })[];
 }
 
 export type SelectedTicket = {
@@ -131,26 +131,25 @@ export default function PublicEventDetailPage() {
     }
   }
 
-  const getTicketPrice = (ticket: TicketType): number => {
-      if (selectedLocation && ticket.name.includes(` - ${selectedLocation}`)) {
-          return Number(ticket.basePrice);
-      }
-      
-      const relatedTicket = event?.ticketTypes.find(tt => tt.name.includes(` - ${selectedLocation}`) && tt.name.startsWith(ticket.name.split(' - ')[0]));
-      if(relatedTicket) return Number(relatedTicket.basePrice);
+  const getTicketPriceForLocation = (ticketName: string, location: string | null): number => {
+    if (!event || !location) return 0;
+    
+    // Find a ticket tier that exactly matches the base name and the location
+    const specificTicket = event.ticketTypes.find(
+      t => t.name === `${ticketName} - ${location}`
+    );
 
-      // Fallback for general tickets if no location-specific one is found or selected
-      if (!selectedLocation) {
-        const generalTicket = event?.ticketTypes.find(tt => tt.name.split(' - ')[0] === ticket.name.split(' - ')[0]);
-        if(generalTicket) return Number(generalTicket.basePrice);
-      }
+    if (specificTicket) {
+      return Number(specificTicket.basePrice);
+    }
 
-      return Number(ticket.basePrice);
+    return 0; // Return 0 or some other default if no price is found
   };
 
 
-  const updateTicketQuantity = (ticketType: EventWithTickets['ticketTypes'][number] | SelectedTicket, quantity: number) => {
-    const price = getTicketPrice(ticketType as EventWithTickets['ticketTypes'][number]);
+  const updateTicketQuantity = (ticketType: (EventWithTickets['ticketTypes'][number] & { baseName: string }) | SelectedTicket, quantity: number) => {
+    const price = getTicketPriceForLocation((ticketType as any).baseName || ticketType.name, selectedLocation);
+    
     setSelectedTickets(prev => {
       const newSelected = { ...prev };
       if (quantity > 0) {
@@ -191,23 +190,6 @@ export default function PublicEventDetailPage() {
     setPromoCode('');
   }
   
-  // Recalculate prices for already selected tickets whenever location changes
-  useEffect(() => {
-    if (!event || !selectedLocation) return;
-  
-    setSelectedTickets(prev => {
-      const updated: typeof prev = {};
-      for (const [id, selected] of Object.entries(prev)) {
-        const ticketType = event.ticketTypes.find(t => t.id === Number(id));
-        if (ticketType) {
-          const newPrice = getTicketPrice(ticketType);
-          updated[Number(id)] = { ...selected, price: newPrice } as SelectedTicket;
-        }
-      }
-      return updated;
-    });
-  }, [selectedLocation, event]);
-
   useEffect(() => {
     if (appliedPromo) {
       if (appliedPromo.type === 'PERCENTAGE') {
@@ -240,28 +222,24 @@ export default function PublicEventDetailPage() {
     });
   };
 
-  const filteredAndGroupedTickets = useMemo(() => {
+  const groupedTickets = useMemo(() => {
     if (!event) return [];
     
-    // 1. Filter tickets that match the selected location
-    const locationTickets = event.ticketTypes.filter(ticket => ticket.name.includes(` - ${selectedLocation}`));
-
-    // 2. If no tickets match the location, it might be an event with no location-specific pricing.
-    if (locationTickets.length === 0) {
-        // Fallback: Group by base name and take the first one (assuming it's a general ticket)
-        const ticketGroups = new Map<string, TicketType>();
-        event.ticketTypes.forEach(ticket => {
-            const baseName = ticket.name.split(' - ')[0];
-            if (!ticketGroups.has(baseName)) {
-                ticketGroups.set(baseName, ticket);
-            }
-        });
-        return Array.from(ticketGroups.values());
-    }
+    const ticketGroups = new Map<string, TicketType>();
     
-    return locationTickets;
+    event.ticketTypes.forEach(ticket => {
+        const baseName = ticket.name.split(' - ')[0];
+        if (!ticketGroups.has(baseName)) {
+            ticketGroups.set(baseName, ticket);
+        }
+    });
+    
+    return Array.from(ticketGroups.values()).map(t => ({
+      ...t,
+      baseName: t.name.split(' - ')[0],
+    }));
 
-  }, [event, selectedLocation]);
+  }, [event]);
 
   
   if (loading || !event) {
@@ -391,41 +369,41 @@ export default function PublicEventDetailPage() {
                                             <SelectValue placeholder="Select a location" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {eventLocations.map(loc => {
-                                                const ticketForLoc = event.ticketTypes.find(t => t.name.endsWith(` - ${loc}`));
-                                                const price = ticketForLoc ? ticketForLoc.basePrice : 'N/A';
-                                                
-                                                return (
-                                                    <SelectItem key={loc} value={loc}>{loc} — ETB {Number(price).toFixed(2)}</SelectItem>
-                                                );
-                                            })}
+                                            {eventLocations.map(loc => (
+                                                <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
                             )}
                             <h3 className="text-2xl font-semibold mb-4 text-card-foreground">Tickets</h3>
                             <div key={selectedLocation || 'default-location'} className="space-y-4">
-                                {filteredAndGroupedTickets.length > 0 ? (
-                                filteredAndGroupedTickets.map(ticket => {
+                                {groupedTickets.length > 0 ? (
+                                groupedTickets.map(ticket => {
                                     const selectedQuantity = selectedTickets[ticket.id]?.quantity || 0;
-                                    const remaining = ticket.total - ticket.sold;
-                                    const price = getTicketPrice(ticket);
-                                    const baseTicketName = ticket.name.split(' - ')[0];
+                                    const price = getTicketPriceForLocation(ticket.baseName, selectedLocation);
+                                    
+                                    // Find the specific ticket type for this location to get the correct total/sold count
+                                    const specificTicketForLocation = event.ticketTypes.find(
+                                      t => t.name === `${ticket.baseName} - ${selectedLocation}`
+                                    );
+                                    const remaining = specificTicketForLocation ? specificTicketForLocation.total - specificTicketForLocation.sold : 0;
+                                    const isSoldOut = !specificTicketForLocation || remaining <= 0;
 
                                     return (
                                     <div key={`${ticket.id}-${selectedLocation}`} className="flex flex-col gap-2 p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md">
                                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                                             <div className="mb-3 sm:mb-0">
-                                            <h4 className="font-semibold text-lg">{baseTicketName}</h4>
+                                            <h4 className="font-semibold text-lg">{ticket.baseName}</h4>
                                             <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">ETB {price.toFixed(2)}</p>
-                                            <p className="text-sm text-muted-foreground">{remaining > 0 ? `${remaining} remaining` : 'Sold Out'}</p>
+                                            <p className="text-sm text-muted-foreground">{!isSoldOut ? `${remaining} remaining` : 'Sold Out'}</p>
                                             </div>
                                             <div className="flex items-center gap-2">
                                             <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.max(0, selectedQuantity - 1))} disabled={selectedQuantity === 0}>
                                                 <MinusCircle className="h-4 w-4" />
                                             </Button>
                                             <span className="w-10 text-center font-bold">{selectedQuantity}</span>
-                                            <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))} disabled={remaining === 0 || selectedQuantity >= remaining}>
+                                            <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))} disabled={isSoldOut || selectedQuantity >= remaining}>
                                                 <PlusCircle className="h-4 w-4" />
                                             </Button>
                                             </div>
