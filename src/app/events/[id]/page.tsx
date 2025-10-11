@@ -132,7 +132,18 @@ export default function PublicEventDetailPage() {
   }
 
   const getTicketPriceForLocation = (ticketName: string, location: string | null): number => {
-    if (!event || !location) return 0;
+    if (!event) return 0;
+    
+    // If no location is selected, find any ticket with this base name
+    if (!location) {
+      const anyTicket = event.ticketTypes.find(
+        t => t.name.startsWith(`${ticketName} - `)
+      );
+      if (anyTicket) {
+        return Number(anyTicket.basePrice);
+      }
+      return 0;
+    }
     
     // Find a ticket tier that exactly matches the base name and the location
     const specificTicket = event.ticketTypes.find(
@@ -229,8 +240,22 @@ export default function PublicEventDetailPage() {
     
     event.ticketTypes.forEach(ticket => {
         const baseName = ticket.name.split(' - ')[0];
-        if (!ticketGroups.has(baseName)) {
-            ticketGroups.set(baseName, ticket);
+        const location = ticket.name.split(' - ')[1];
+        
+        // If a location is selected, only include tickets for that location
+        if (selectedLocation && location !== selectedLocation) {
+            return;
+        }
+        
+        // If no location is selected, include all tickets (show first available ticket for each base name)
+        if (!selectedLocation) {
+            if (!ticketGroups.has(baseName)) {
+                ticketGroups.set(baseName, ticket);
+            }
+        } else if (location === selectedLocation) {
+            if (!ticketGroups.has(baseName)) {
+                ticketGroups.set(baseName, ticket);
+            }
         }
     });
     
@@ -239,7 +264,7 @@ export default function PublicEventDetailPage() {
       baseName: t.name.split(' - ')[0],
     }));
 
-  }, [event]);
+  }, [event, selectedLocation]);
 
   
   if (loading || !event) {
@@ -276,7 +301,7 @@ export default function PublicEventDetailPage() {
     )
   }
   
-  const imageSources = Array.isArray(event.image) && event.image.length > 0 ? event.image : [DEFAULT_IMAGE_PLACEHOLDER];
+  const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
   const eventLocations = event.location ? Array.from(new Set(event.location.split('||').map(l => l.trim()))) : [];
   const organizerName = event.color; // Using color field for organizer name
 
@@ -298,27 +323,7 @@ export default function PublicEventDetailPage() {
                 <div className="grid md:grid-cols-5 gap-8">
                     <div className="md:col-span-3 space-y-8">
                         <div className="w-full aspect-video relative rounded-lg overflow-hidden shadow-lg">
-                           {imageSources.length > 1 ? (
-                              <Carousel 
-                                plugins={[plugin.current]}
-                                className="w-full h-full"
-                                onMouseEnter={plugin.current.stop}
-                                onMouseLeave={plugin.current.play}
-                                opts={{ loop: true }}
-                              >
-                                <CarouselContent>
-                                  {imageSources.map((src, index) => (
-                                    <CarouselItem key={index}>
-                                      <Image src={src} alt={`${event.name} image ${index + 1}`} fill className="object-cover" />
-                                    </CarouselItem>
-                                  ))}
-                                </CarouselContent>
-                                <CarouselPrevious className="left-4" />
-                                <CarouselNext className="right-4" />
-                              </Carousel>
-                            ) : (
-                              <Image src={imageSources[0]} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
-                            )}
+                           <Image src={imageSource} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
                         </div>
                         
                         <div className="rounded-lg p-0">
@@ -384,9 +389,9 @@ export default function PublicEventDetailPage() {
                                     const price = getTicketPriceForLocation(ticket.baseName, selectedLocation);
                                     
                                     // Find the specific ticket type for this location to get the correct total/sold count
-                                    const specificTicketForLocation = event.ticketTypes.find(
-                                      t => t.name === `${ticket.baseName} - ${selectedLocation}`
-                                    );
+                                    const specificTicketForLocation = selectedLocation 
+                                        ? event.ticketTypes.find(t => t.name === `${ticket.baseName} - ${selectedLocation}`)
+                                        : ticket; // Use the ticket itself if no location is selected
                                     const remaining = specificTicketForLocation ? specificTicketForLocation.total - specificTicketForLocation.sold : 0;
                                     const isSoldOut = !specificTicketForLocation || remaining <= 0;
 
