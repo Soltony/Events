@@ -49,7 +49,7 @@ model Event {
   location         String
   hint             String?
   category         String
-  image            String[]
+  image            String?
   color            String?
   status           EventStatus  @default(PENDING)
   rejectionReason  String?
