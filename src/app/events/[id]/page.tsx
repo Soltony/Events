@@ -131,35 +131,44 @@ export default function PublicEventDetailPage() {
     }
   }
 
-  const getTicketPriceForLocation = (ticketName: string, location: string | null): number => {
-    if (!event || !location) return 0;
+  const getTicketInfoForLocation = (baseName: string, location: string | null): { price: number, total: number, sold: number, id: number } => {
+    if (!event || !location) return { price: 0, total: 0, sold: 0, id: -1 };
     
-    // Find a ticket tier that exactly matches the base name and the location
     const specificTicket = event.ticketTypes.find(
-      t => t.name === `${ticketName} - ${location}`
+      t => t.name === `${baseName} - ${location}`
     );
 
     if (specificTicket) {
-      return Number(specificTicket.basePrice);
+      return { 
+        price: Number(specificTicket.basePrice),
+        total: specificTicket.total,
+        sold: specificTicket.sold,
+        id: specificTicket.id
+      };
     }
 
-    return 0; // Return 0 or some other default if no price is found
+    return { price: 0, total: 0, sold: 0, id: -1 };
   };
 
 
-  const updateTicketQuantity = (ticketType: (EventWithTickets['ticketTypes'][number] & { baseName: string }) | SelectedTicket, quantity: number) => {
-    const price = getTicketPriceForLocation((ticketType as any).baseName || ticketType.name, selectedLocation);
+  const updateTicketQuantity = (ticketType: (EventWithTickets['ticketTypes'][0] & { baseName: string }) | SelectedTicket, quantity: number) => {
+    const baseName = (ticketType as any).baseName || ticketType.name.split(' - ')[0];
+    const ticketInfo = getTicketInfoForLocation(baseName, selectedLocation);
     
     setSelectedTickets(prev => {
       const newSelected = { ...prev };
       if (quantity > 0) {
-        newSelected[ticketType.id] = {
+        newSelected[ticketInfo.id] = {
           ...ticketType,
-          price: price,
+          id: ticketInfo.id, // Use the specific ID for this location
+          name: `${baseName} - ${selectedLocation}`,
+          price: ticketInfo.price,
+          total: ticketInfo.total,
+          sold: ticketInfo.sold,
           quantity: quantity,
         };
       } else {
-        delete newSelected[ticketType.id];
+        delete newSelected[ticketInfo.id];
       }
       return newSelected;
     });
@@ -380,22 +389,17 @@ export default function PublicEventDetailPage() {
                             <div key={selectedLocation || 'default-location'} className="space-y-4">
                                 {groupedTickets.length > 0 ? (
                                 groupedTickets.map(ticket => {
-                                    const selectedQuantity = selectedTickets[ticket.id]?.quantity || 0;
-                                    const price = getTicketPriceForLocation(ticket.baseName, selectedLocation);
-                                    
-                                    // Find the specific ticket type for this location to get the correct total/sold count
-                                    const specificTicketForLocation = event.ticketTypes.find(
-                                      t => t.name === `${ticket.baseName} - ${selectedLocation}`
-                                    );
-                                    const remaining = specificTicketForLocation ? specificTicketForLocation.total - specificTicketForLocation.sold : 0;
-                                    const isSoldOut = !specificTicketForLocation || remaining <= 0;
+                                    const ticketInfo = getTicketInfoForLocation(ticket.baseName, selectedLocation);
+                                    const selectedQuantity = selectedTickets[ticketInfo.id]?.quantity || 0;
+                                    const remaining = ticketInfo.total - ticketInfo.sold;
+                                    const isSoldOut = ticketInfo.id === -1 || remaining <= 0;
 
                                     return (
                                     <div key={`${ticket.id}-${selectedLocation}`} className="flex flex-col gap-2 p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md">
                                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                                             <div className="mb-3 sm:mb-0">
                                             <h4 className="font-semibold text-lg">{ticket.baseName}</h4>
-                                            <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">ETB {price.toFixed(2)}</p>
+                                            <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">ETB {ticketInfo.price.toFixed(2)}</p>
                                             <p className="text-sm text-muted-foreground">{!isSoldOut ? `${remaining} remaining` : 'Sold Out'}</p>
                                             </div>
                                             <div className="flex items-center gap-2">
