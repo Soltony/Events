@@ -253,9 +253,8 @@ export default function PublicHomePage() {
       <main className="flex-grow pt-14">
         <section className="relative w-full">
             <EventsCarousel events={upcomingEvents} />
-            <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-end text-center text-white p-4 pb-12 sm:pb-16 pointer-events-none">
+           <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-center text-white p-4 pointer-events-none">
                 <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold tracking-tight">UPCOMING EVENTS AND TICKET</h2>
-
                 <p className="mt-4 text-base md:text-lg max-w-2xl">From music festivals to tech conferences, find your next experience with us. Secure and simple ticketing for every event.</p>
                 <div ref={searchRef} className="relative w-full max-w-lg lg:max-w-2xl mt-8 pointer-events-auto">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
