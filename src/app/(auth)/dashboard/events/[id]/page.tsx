@@ -495,6 +495,11 @@ export default function EventDetailPage() {
         return { type: 'NONE', value: null, code: code };
     };
 
+    const getTicketLocation = (ticketName: string) => {
+        const parts = ticketName.split(' - ');
+        return parts.length > 1 ? parts.slice(1).join(' - ') : event.location.split('||')[0].trim();
+    };
+
   return (
     <>
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
@@ -692,6 +697,7 @@ export default function EventDetailPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Type</TableHead>
+                                    <TableHead>Location</TableHead>
                                     <TableHead>Price</TableHead>
                                     <TableHead>Sold / Total</TableHead>
                                     <TableHead>Revenue</TableHead>
@@ -699,24 +705,30 @@ export default function EventDetailPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {event.ticketTypes.map((ticket) => (
-                                    <TableRow key={ticket.id}>
-                                        <TableCell className="font-medium">{ticket.name}</TableCell>
-                                        <TableCell>ETB {Number(ticket.basePrice).toFixed(2)}</TableCell>
-                                        <TableCell>{ticket.sold} / {ticket.total}</TableCell>
-                                        <TableCell>ETB {(ticket.sold * Number(ticket.basePrice)).toLocaleString()}</TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <Button variant="ghost" size="icon" onClick={() => { setTicketToEdit(ticket); setIsEditTicketTypeOpen(true); }}>
-                                                    <Pencil className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => handleOpenDeleteDialog({ id: ticket.id, name: ticket.name, type: 'ticket' })}>
-                                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                {event.ticketTypes.map((ticket) => {
+                                    const ticketNameParts = ticket.name.split(' - ');
+                                    const baseName = ticketNameParts[0];
+                                    const location = ticketNameParts.length > 1 ? ticketNameParts.slice(1).join(' - ') : event.location.split('||')[0].trim();
+                                    return (
+                                        <TableRow key={ticket.id}>
+                                            <TableCell className="font-medium">{baseName}</TableCell>
+                                            <TableCell className="text-muted-foreground">{location}</TableCell>
+                                            <TableCell>ETB {Number(ticket.basePrice).toFixed(2)}</TableCell>
+                                            <TableCell>{ticket.sold} / {ticket.total}</TableCell>
+                                            <TableCell>ETB {(ticket.sold * Number(ticket.basePrice)).toLocaleString()}</TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <Button variant="ghost" size="icon" onClick={() => { setTicketToEdit(ticket); setIsEditTicketTypeOpen(true); }}>
+                                                        <Pencil className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button variant="ghost" size="icon" onClick={() => handleOpenDeleteDialog({ id: ticket.id, name: ticket.name, type: 'ticket' })}>
+                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                })}
                             </TableBody>
                         </Table>
                     </ScrollArea>
