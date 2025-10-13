@@ -24,7 +24,6 @@ import CartSheet from '@/components/cart-sheet';
 import { cn } from '@/lib/utils';
 import { AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import Autoplay from "embla-carousel-autoplay";
 
 
@@ -216,10 +215,22 @@ export default function PublicEventDetailPage() {
     });
   };
 
+    const eventLocations = useMemo(() => {
+        return event?.location ? Array.from(new Set(event.location.split('||').map(l => l.trim()))) : [];
+    }, [event]);
+
     const locationSpecificTickets = useMemo(() => {
-        if (!event || !selectedLocation) return [];
-        return event.ticketTypes.filter(ticket => ticket.name.includes(`- ${selectedLocation}`));
-    }, [event, selectedLocation]);
+        if (!event) return [];
+        // If there's only one location or no location selector is needed, show all tickets.
+        if (eventLocations.length <= 1) {
+            return event.ticketTypes;
+        }
+        // If multiple locations, filter by the selected one.
+        if (selectedLocation) {
+            return event.ticketTypes.filter(ticket => ticket.name.includes(`- ${selectedLocation}`));
+        }
+        return [];
+    }, [event, selectedLocation, eventLocations.length]);
 
   
   if (loading || !event) {
@@ -263,7 +274,6 @@ export default function PublicEventDetailPage() {
   }
   
   const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-  const eventLocations = event.location ? Array.from(new Set(event.location.split('||').map(l => l.trim()))) : [];
   const organizerName = event.color; // Using color field for organizer name
 
   return (
