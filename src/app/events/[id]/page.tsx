@@ -268,33 +268,39 @@ export default function PublicEventDetailPage() {
   
   if (loading || !event) {
     return (
-      <div className="container mx-auto max-w-5xl py-8 px-4">
-         <Button asChild variant="ghost" className="absolute top-4 left-4 z-10 bg-background/50 hover:bg-accent hover:text-accent-foreground">
-            <Link href="/">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Home
-            </Link>
-        </Button>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-12">
-            <div className="md:col-span-2 space-y-8">
-                <Skeleton className="w-full aspect-[4/3] rounded-lg" />
-                <div className="space-y-4">
-                    <Skeleton className="h-10 w-3/4" />
-                    <Skeleton className="h-6 w-1/2" />
-                    <Skeleton className="h-6 w-1/3" />
-                </div>
-                <div className="space-y-4">
-                    <Skeleton className="h-8 w-48" />
-                    <Skeleton className="h-5 w-full" />
-                    <Skeleton className="h-5 w-full" />
-                    <Skeleton className="h-5 w-3/4" />
-                </div>
-            </div>
-            <div className="space-y-8">
-                <Skeleton className="h-8 w-24" />
-                <Skeleton className="h-24 w-full rounded-lg" />
-                <Skeleton className="h-24 w-full rounded-lg" />
-            </div>
+      <div className="min-h-screen bg-gray-50">
+        <header className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-sm">
+          <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center">
+            <Button asChild variant="ghost">
+              <Link href="/">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back to Home
+              </Link>
+            </Button>
+          </div>
+        </header>
+        <div className="container mx-auto max-w-5xl py-8 px-4 pt-24">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="md:col-span-2 space-y-8">
+                  <Skeleton className="w-full aspect-[4/3] rounded-lg" />
+                  <div className="space-y-4">
+                      <Skeleton className="h-10 w-3/4" />
+                      <Skeleton className="h-6 w-1/2" />
+                      <Skeleton className="h-6 w-1/3" />
+                  </div>
+                  <div className="space-y-4">
+                      <Skeleton className="h-8 w-48" />
+                      <Skeleton className="h-5 w-full" />
+                      <Skeleton className="h-5 w-full" />
+                      <Skeleton className="h-5 w-3/4" />
+                  </div>
+              </div>
+              <div className="space-y-8">
+                  <Skeleton className="h-8 w-24" />
+                  <Skeleton className="h-24 w-full rounded-lg" />
+                  <Skeleton className="h-24 w-full rounded-lg" />
+              </div>
+          </div>
         </div>
       </div>
     )
@@ -307,136 +313,142 @@ export default function PublicEventDetailPage() {
   return (
     <>
       <div className="min-h-screen bg-gray-50">
-        <Button asChild variant="ghost" className="absolute top-4 left-4 z-10 bg-background/50 hover:bg-accent hover:text-accent-foreground">
-            <Link href="/">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Home
-            </Link>
-        </Button>
-        <div 
-          className="container mx-auto max-w-5xl py-8 px-4 mt-12"
-        >
-            <div 
-                className="p-4 sm:p-8 rounded-xl bg-card text-card-foreground"
-            >
-                <div className="grid md:grid-cols-5 gap-8">
-                    <div className="md:col-span-3 space-y-8">
-                        <div className="w-full aspect-video relative rounded-lg overflow-hidden shadow-lg">
-                           <Image src={imageSource} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
-                        </div>
-                        
-                        <div className="rounded-lg p-0">
-                            <Badge variant="outline" className={`mb-2 w-min whitespace-nowrap ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
-                            <h1 className="text-4xl font-bold tracking-tight text-card-foreground">{event.name}</h1>
-                            {organizerName && (
-                                <div className="flex items-center gap-2 text-lg text-muted-foreground pt-3">
-                                <UserCircle className="h-5 w-5" />
-                                <span>By {organizerName}</span>
-                                </div>
-                            )}
-                            <div className="text-lg text-muted-foreground space-y-2 pt-4">
-                                <div className="flex items-center gap-3">
-                                    <Calendar className="h-5 w-5" />
-                                    <span>{formatEventDate(event.startDate, event.endDate)}</span>
-                                </div>
-                                {eventLocations.length <= 1 && (
-                                    <div className="flex items-start gap-3">
-                                        <MapPin className="h-5 w-5 mt-1 flex-shrink-0" />
-                                        <span>{event.location.replace(/\|\|/g, ', ')}</span>
-                                    </div>
-                                )}
-                                {event.hint && (
-                                    <div className="flex items-start gap-3 text-base">
-                                    <Info className="h-5 w-5 mt-1 flex-shrink-0" />
-                                    <p className="text-muted-foreground">{event.hint}</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+        <header className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-sm">
+          <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center">
+            <Button asChild variant="ghost">
+              <Link href="/">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back to Home
+              </Link>
+            </Button>
+          </div>
+        </header>
+        <main className="pt-16">
+          <div 
+            className="container mx-auto max-w-5xl py-8 px-4"
+          >
+              <div 
+                  className="p-4 sm:p-8 rounded-xl bg-card text-card-foreground"
+              >
+                  <div className="grid md:grid-cols-5 gap-8">
+                      <div className="md:col-span-3 space-y-8">
+                          <div className="w-full aspect-video relative rounded-lg overflow-hidden shadow-lg">
+                            <Image src={imageSource} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
+                          </div>
+                          
+                          <div className="rounded-lg p-0">
+                              <Badge variant="outline" className={`mb-2 w-min whitespace-nowrap ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
+                              <h1 className="text-4xl font-bold tracking-tight text-card-foreground">{event.name}</h1>
+                              {organizerName && (
+                                  <div className="flex items-center gap-2 text-lg text-muted-foreground pt-3">
+                                  <UserCircle className="h-5 w-5" />
+                                  <span>By {organizerName}</span>
+                                  </div>
+                              )}
+                              <div className="text-lg text-muted-foreground space-y-2 pt-4">
+                                  <div className="flex items-center gap-3">
+                                      <Calendar className="h-5 w-5" />
+                                      <span>{formatEventDate(event.startDate, event.endDate)}</span>
+                                  </div>
+                                  {eventLocations.length <= 1 && (
+                                      <div className="flex items-start gap-3">
+                                          <MapPin className="h-5 w-5 mt-1 flex-shrink-0" />
+                                          <span>{event.location.replace(/\|\|/g, ', ')}</span>
+                                      </div>
+                                  )}
+                                  {event.hint && (
+                                      <div className="flex items-start gap-3 text-base">
+                                      <Info className="h-5 w-5 mt-1 flex-shrink-0" />
+                                      <p className="text-muted-foreground">{event.hint}</p>
+                                      </div>
+                                  )}
+                              </div>
+                          </div>
 
-                        <div className="rounded-lg p-0">
-                            <h3 className="text-2xl font-semibold mb-4 text-card-foreground">About this Event</h3>
-                            <p className="text-base text-muted-foreground whitespace-pre-wrap leading-relaxed">{event.description}</p>
-                        </div>
-                    </div>
+                          <div className="rounded-lg p-0">
+                              <h3 className="text-2xl font-semibold mb-4 text-card-foreground">About this Event</h3>
+                              <p className="text-base text-muted-foreground whitespace-pre-wrap leading-relaxed">{event.description}</p>
+                          </div>
+                      </div>
 
-                    <div className="md:col-span-2 space-y-8">
-                        <div className="rounded-lg p-0">
-                             {eventLocations.length > 1 && (
-                                <div className="mb-6">
-                                    <Label htmlFor="location-select" className="text-lg font-semibold mb-2 block">Location</Label>
-                                    <Select
-                                        value={selectedLocation || ''}
-                                        onValueChange={(value) => setSelectedLocation(value)}
-                                    >
-                                        <SelectTrigger id="location-select">
-                                            <SelectValue placeholder="Select a location" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {eventLocations.map(loc => (
-                                                <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            )}
-                            <h3 className="text-2xl font-semibold mb-4 text-card-foreground">Tickets</h3>
-                            <div key={selectedLocation || 'default-location'} className="space-y-4">
-                                {(event.ticketTypes && event.ticketTypes.length > 0) ? (
-                                    groupedTickets.map(ticket => {
-                                        const ticketInfo = getTicketInfoForLocation(ticket.baseName, selectedLocation);
-                                        const selectedQuantity = selectedTickets[ticketInfo.id]?.quantity || 0;
-                                        const remaining = ticketInfo.total - ticketInfo.sold;
-                                        const isSoldOut = ticketInfo.id === -1 || remaining <= 0;
+                      <div className="md:col-span-2 space-y-8">
+                          <div className="rounded-lg p-0">
+                              {eventLocations.length > 1 && (
+                                  <div className="mb-6">
+                                      <Label htmlFor="location-select" className="text-lg font-semibold mb-2 block">Location</Label>
+                                      <Select
+                                          value={selectedLocation || ''}
+                                          onValueChange={(value) => setSelectedLocation(value)}
+                                      >
+                                          <SelectTrigger id="location-select">
+                                              <SelectValue placeholder="Select a location" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                              {eventLocations.map(loc => (
+                                                  <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                                              ))}
+                                          </SelectContent>
+                                      </Select>
+                                  </div>
+                              )}
+                              <h3 className="text-2xl font-semibold mb-4 text-card-foreground">Tickets</h3>
+                              <div key={selectedLocation || 'default-location'} className="space-y-4">
+                                  {groupedTickets.length > 0 ? (
+                                      groupedTickets.map(ticket => {
+                                          const ticketInfo = getTicketInfoForLocation(ticket.baseName, selectedLocation);
+                                          const selectedQuantity = selectedTickets[ticketInfo.id]?.quantity || 0;
+                                          const remaining = ticketInfo.total - ticketInfo.sold;
+                                          const isSoldOut = ticketInfo.id === -1 || remaining <= 0;
 
-                                        return (
-                                            <div
-                                                key={`${ticket.id}-${selectedLocation}`}
-                                                className="flex flex-col gap-2 p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md"
-                                            >
-                                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                                                    <div className="mb-3 sm:mb-0">
-                                                        <h4 className="font-semibold text-lg">{ticket.baseName}</h4>
-                                                        <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">
-                                                            ETB {ticketInfo.price.toFixed(2)}
-                                                        </p>
-                                                        <p className="text-sm text-muted-foreground">
-                                                            {!isSoldOut ? `${remaining} remaining` : 'Sold Out'}
-                                                        </p>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Button
-                                                            size="icon"
-                                                            variant="outline"
-                                                            onClick={() => updateTicketQuantity(ticket, Math.max(0, selectedQuantity - 1))}
-                                                            disabled={selectedQuantity === 0}
-                                                        >
-                                                            <MinusCircle className="h-4 w-4" />
-                                                        </Button>
-                                                        <span className="w-10 text-center font-bold">{selectedQuantity}</span>
-                                                        <Button
-                                                            size="icon"
-                                                            variant="outline"
-                                                            onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))}
-                                                            disabled={isSoldOut || selectedQuantity >= remaining}
-                                                        >
-                                                            <PlusCircle className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                                {ticket.description && <p className="text-sm text-muted-foreground pt-2 border-t">{ticket.description}</p>}
-                                            </div>
-                                        );
-                                    })
-                                ) : (
-                                    <p className="text-muted-foreground">Tickets are not yet available for this event.</p>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+                                          return (
+                                              <div
+                                                  key={`${ticket.id}-${selectedLocation}`}
+                                                  className="flex flex-col gap-2 p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md"
+                                              >
+                                                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                                                      <div className="mb-3 sm:mb-0">
+                                                          <h4 className="font-semibold text-lg">{ticket.baseName}</h4>
+                                                          <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">
+                                                              ETB {ticketInfo.price.toFixed(2)}
+                                                          </p>
+                                                          <p className="text-sm text-muted-foreground">
+                                                              {!isSoldOut ? `${remaining} remaining` : 'Sold Out'}
+                                                          </p>
+                                                      </div>
+                                                      <div className="flex items-center gap-2">
+                                                          <Button
+                                                              size="icon"
+                                                              variant="outline"
+                                                              onClick={() => updateTicketQuantity(ticket, Math.max(0, selectedQuantity - 1))}
+                                                              disabled={selectedQuantity === 0}
+                                                          >
+                                                              <MinusCircle className="h-4 w-4" />
+                                                          </Button>
+                                                          <span className="w-10 text-center font-bold">{selectedQuantity}</span>
+                                                          <Button
+                                                              size="icon"
+                                                              variant="outline"
+                                                              onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))}
+                                                              disabled={isSoldOut || selectedQuantity >= remaining}
+                                                          >
+                                                              <PlusCircle className="h-4 w-4" />
+                                                          </Button>
+                                                      </div>
+                                                  </div>
+                                                  {ticket.description && <p className="text-sm text-muted-foreground pt-2 border-t">{ticket.description}</p>}
+                                              </div>
+                                          );
+                                      })
+                                  ) : (
+                                      <p className="text-muted-foreground">Tickets are not yet available for this event.</p>
+                                  )}
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+        </main>
       </div>
 
        {totalItems > 0 &&
