@@ -221,18 +221,37 @@ export async function addEvent(data: any) {
     });
 
     if (tickets && tickets.length > 0) {
+      const multipleLocations = Array.isArray(locations) && locations.length > 1;
       for (const ticket of tickets) {
-        if (ticket.price > 0 && ticket.quantity > 0) {
-            await prisma.ticketType.create({
-                data: {
-                    name: `${ticket.name} - ${locations[0].value}`,
-                    description: ticket.description,
-                    basePrice: ticket.price,
-                    total: ticket.quantity,
-                    sold: 0,
-                    eventId: newEvent.id,
+        if (multipleLocations) {
+            for (const loc of locations) {
+                const cfg = ticket.locationConfigs?.[loc.value];
+                if (cfg && cfg.price > 0 && cfg.quantity > 0) {
+                    await prisma.ticketType.create({
+                        data: {
+                            name: `${ticket.name} - ${loc.value}`,
+                            description: ticket.description,
+                            basePrice: cfg.price,
+                            total: cfg.quantity,
+                            sold: 0,
+                            eventId: newEvent.id,
+                        }
+                    });
                 }
-            });
+            }
+        } else {
+            if (ticket.price > 0 && ticket.quantity > 0) {
+                await prisma.ticketType.create({
+                    data: {
+                        name: `${ticket.name} - ${locations[0].value}`,
+                        description: ticket.description,
+                        basePrice: ticket.price,
+                        total: ticket.quantity,
+                        sold: 0,
+                        eventId: newEvent.id,
+                    }
+                });
+            }
         }
       }
     }
