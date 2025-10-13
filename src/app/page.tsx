@@ -254,7 +254,7 @@ export default function PublicHomePage() {
         <section className="relative w-full">
             <EventsCarousel events={upcomingEvents} />
             <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-end text-center text-white p-4 pb-12 sm:pb-16 pointer-events-none">
-                <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold tracking-tight">UPCOMING EVENTS AND TICKET</h2>
+                <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold tracking-tight">UPCOMING EVENTS AND TICKETS</h2>
 
                 <p className="mt-4 text-base md:text-lg max-w-2xl">From music festivals to tech conferences, find your next experience with us. Secure and simple ticketing for every event.</p>
                 <div ref={searchRef} className="relative w-full max-w-lg lg:max-w-2xl mt-8 pointer-events-auto">
@@ -277,7 +277,7 @@ export default function PublicHomePage() {
                                 onClick={() => setIsSearchFocused(false)}
                               >
                                 <Image 
-                                    src={(event.image && event.image[0]) || DEFAULT_IMAGE_PLACEHOLDER}
+                                    src={event.image || DEFAULT_IMAGE_PLACEHOLDER}
                                     alt={event.name} 
                                     width={40} 
                                     height={40} 
@@ -301,9 +301,9 @@ export default function PublicHomePage() {
         </section>
 
 
-        <section className="pt-8 md:pt-12 pb-12">
+        <section className="py-12 md:pt-16">
             <div className="container mx-auto px-4 lg:px-6">
-                <h2 className="text-2xl font-bold tracking-tight mb-8 mt-4 md:mt-0">
+                <h2 className="text-2xl font-bold tracking-tight mb-8">
                     Upcoming Events
                 </h2>
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 items-stretch">
@@ -323,7 +323,7 @@ export default function PublicHomePage() {
                     ))
                 ) : (upcomingEvents.length > 0) ? (
                     upcomingEvents.map((event) => {
-                      const imageSource = (event.image && event.image[0]) || DEFAULT_IMAGE_PLACEHOLDER;
+                      const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
                       return (
                         <CardContainer key={event.id} className="inter-var w-full h-[420px]">
                           <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col justify-between">
@@ -386,7 +386,7 @@ export default function PublicHomePage() {
                     ))
                 ) : (topSellingEvents.length > 0) ? (
                     topSellingEvents.slice(0, 4).map((event) => {
-                      const imageSource = (event.image && event.image[0]) || DEFAULT_IMAGE_PLACEHOLDER;
+                      const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
                       return (
                          <CardContainer key={event.id} className="inter-var w-full h-[420px]">
                           <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col justify-between">
@@ -409,7 +409,7 @@ export default function PublicHomePage() {
                                             Buy Ticket
                                         </Link>
                                     </Button>
-                                </CardItem>
+                                 </CardItem>
                             </div>
                           </CardBody>
                         </CardContainer>
