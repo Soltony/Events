@@ -89,10 +89,9 @@ export default function PublicEventDetailPage() {
         }
         setEvent(eventData as EventWithTickets);
 
-        // --- Set default location ---
+        // --- Set default location (single-location mode) ---
         if (eventData?.location) {
-            const locations = eventData.location.split('||').map(l => l.trim());
-            setSelectedLocation(locations[0]); // default to first location
+            setSelectedLocation(eventData.location.trim());
         }
 
         setLoading(false);
@@ -245,16 +244,20 @@ export default function PublicEventDetailPage() {
   const groupedTickets = useMemo(() => {
     if (!event) return [];
     
-    const ticketGroups = new Map<string, TicketType>();
+    const ticketGroups = new Map<string, any>();
     
     event.ticketTypes.forEach(ticket => {
       const baseName = ticket.name.split(' - ')[0];
       if (!ticketGroups.has(baseName)) {
-          ticketGroups.set(baseName, ticket);
+          ticketGroups.set(baseName, {
+            ...ticket,
+            basePrice: Number((ticket as any).basePrice),
+            locationPrices: (ticket as any).locationPrices || {},
+          });
       }
     });
     
-    return Array.from(ticketGroups.values()).map(t => ({
+    return Array.from(ticketGroups.values()).map((t: any) => ({
       ...t,
       baseName: t.name.split(' - ')[0],
     }));
@@ -296,8 +299,8 @@ export default function PublicEventDetailPage() {
     )
   }
   
-  const imageSource = (event.image && event.image[0]) || DEFAULT_IMAGE_PLACEHOLDER;
-  const eventLocations = event.location ? Array.from(new Set(event.location.split('||').map(l => l.trim()))) : [];
+  const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
+  const eventLocations = event.location ? [event.location.trim()] : [];
   const organizerName = event.color; // Using color field for organizer name
 
   return (
@@ -378,7 +381,7 @@ export default function PublicEventDetailPage() {
                             )}
                             <h3 className="text-2xl font-semibold mb-4 text-card-foreground">Tickets</h3>
                             <div key={selectedLocation || 'default-location'} className="space-y-4">
-                                {groupedTickets.length > 0 ? (
+                                {(event.ticketTypes && event.ticketTypes.length > 0) ? (
                                     groupedTickets.map(ticket => {
                                         const ticketInfo = getTicketInfoForLocation(ticket.baseName, selectedLocation);
                                         const selectedQuantity = selectedTickets[ticketInfo.id]?.quantity || 0;

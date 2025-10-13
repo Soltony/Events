@@ -18,7 +18,7 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
 
 export async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const tokenCookie = cookieStore.get('authTokens');
 
     if (!tokenCookie?.value) {
@@ -225,25 +225,17 @@ export async function addEvent(data: any) {
 
     if (tickets && tickets.length > 0) {
       for (const ticket of tickets) {
-        // For each location, find price and quantity, create ticketType
-        for (const loc of locations) {
-            const locationName = loc.value;
-            const config = ticket.locationConfigs?.[locationName];
-            
-            if (config && config.price > 0 && config.quantity > 0) {
-                await prisma.ticketType.create({
-                    data: {
-                        name: `${ticket.name} - ${locationName}`,
-                        description: ticket.description,
-                        basePrice: config.price, // Use location-specific price
-                        total: config.quantity, // Use location-specific quantity
-                        sold: 0,
-                        eventId: newEvent.id,
-                        // locationPrices is no longer the main source, but we can store it for reference if needed
-                        // or just rely on the name and basePrice. For simplicity, we'll rely on the name.
-                    }
-                });
-            }
+        if (ticket.price > 0 && ticket.quantity > 0) {
+            await prisma.ticketType.create({
+                data: {
+                    name: `${ticket.name} - ${locations[0].value}`,
+                    description: ticket.description,
+                    basePrice: ticket.price,
+                    total: ticket.quantity,
+                    sold: 0,
+                    eventId: newEvent.id,
+                }
+            });
         }
       }
     }
@@ -777,8 +769,8 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error('Authentication service URL is not configured.');
         }
 
-        const cookieStore = cookies();
-        const tokenCookie = await cookieStore.get('authTokens');
+        const cookieStore = await cookies();
+        const tokenCookie = cookieStore.get('authTokens');
         if (!tokenCookie?.value) {
             throw new Error('Authentication token not found');
         }

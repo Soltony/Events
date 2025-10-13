@@ -31,12 +31,9 @@ import { Separator } from '@/components/ui/separator';
 import LocationInput from '@/components/location-input';
 import { DateTimePicker } from '@/components/datetime-picker';
 import { useAuth } from '@/context/auth-context';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+// Single-location mode: no per-location pricing table
 
-const locationConfigSchema = z.record(z.object({
-    price: z.coerce.number().min(0, { message: 'Price must be non-negative.' }),
-    quantity: z.coerce.number().int().min(0, { message: 'Quantity must be a non-negative integer.' }),
-}));
+// Removed per-location config schema
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
@@ -56,7 +53,8 @@ const eventFormSchema = z.object({
   tickets: z.array(z.object({
     name: z.string().min(1, { message: "Ticket name can't be empty."}),
     description: z.string().optional(),
-    locationConfigs: locationConfigSchema,
+    price: z.coerce.number().min(0, { message: 'Price must be non-negative.' }),
+    quantity: z.coerce.number().int().min(0, { message: 'Quantity must be a non-negative integer.' }),
   })).min(1, { message: 'You must have at least one ticket tier.'}),
 }).refine(data => {
     if (data.category === 'Other') {
@@ -90,7 +88,7 @@ export default function CreateEventPage() {
       category: '',
       otherCategory: '',
       images: [],
-      tickets: [{ name: 'General Admission', description: 'Standard entry to the event.', locationConfigs: {} }],
+      tickets: [{ name: 'General Admission', description: 'Standard entry to the event.', price: 0, quantity: 0 }],
     },
   });
 
@@ -317,8 +315,8 @@ export default function CreateEventPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <FormLabel>Locations</FormLabel>
-                  <FormDescription>Add one or more locations for your event. Start typing to search for a location in Ethiopia.</FormDescription>
+                  <FormLabel>Location</FormLabel>
+                  <FormDescription>Add the event location. Start typing to search for a location in Ethiopia.</FormDescription>
                   <FormMessage>{form.formState.errors.locations?.message}</FormMessage>
 
                   {locationFields.map((field, index) => (
@@ -343,21 +341,14 @@ export default function CreateEventPage() {
                               variant="outline"
                               size="icon"
                               onClick={() => removeLocation(index)}
-                              disabled={locationFields.length <= 1}
+                              disabled={true}
                           >
                               <Trash2 className="h-4 w-4" />
                               <span className="sr-only">Remove location</span>
                           </Button>
                       </div>
                   ))}
-                  <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => appendLocation({ value: '' })}
-                  >
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      Add Location
-                  </Button>
+                  {/* Multiple locations disabled intentionally */}
                 </div>
 
 
@@ -486,65 +477,40 @@ export default function CreateEventPage() {
                           )}
                         />
                         
-                        {watchedLocations && watchedLocations.length > 0 && watchedLocations.every(l => l.value) ? (
-                            <div className="pt-4">
-                                <h4 className="font-medium text-sm mb-2">Location Prices & Quantities</h4>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Location</TableHead>
-                                            <TableHead className="w-[120px]">Price (ETB)</TableHead>
-                                            <TableHead className="w-[120px]">Quantity</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {watchedLocations.map((location) => (
-                                            <TableRow key={location.value}>
-                                                <TableCell className="font-medium">{location.value}</TableCell>
-                                                <TableCell>
-                                                     <FormField
-                                                        control={form.control}
-                                                        name={`tickets.${index}.locationConfigs.${location.value}.price`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormControl>
-                                                                    <Input type="number" {...field} placeholder="e.g., 50" />
-                                                                </FormControl>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </TableCell>
-                                                <TableCell>
-                                                     <FormField
-                                                        control={form.control}
-                                                        name={`tickets.${index}.locationConfigs.${location.value}.quantity`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormControl>
-                                                                    <Input type="number" {...field} placeholder="e.g., 100" />
-                                                                </FormControl>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        ) : (
-                          <div className="pt-4 text-sm text-muted-foreground">
-                            Please add at least one valid location to set prices and quantities.
-                          </div>
-                        )}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                          <FormField
+                            control={form.control}
+                            name={`tickets.${index}.price`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Price (ETB)</FormLabel>
+                                <FormControl>
+                                  <Input type="number" step="0.01" min="0" placeholder="e.g., 50" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name={`tickets.${index}.quantity`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Quantity</FormLabel>
+                                <FormControl>
+                                  <Input type="number" min="0" placeholder="e.g., 100" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
                     </Card>
                     ))}
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() => appendTicket({ name: '', description: '', locationConfigs: {} })}
+                        onClick={() => appendTicket({ name: '', description: '', price: 0, quantity: 0 })}
                         >
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Add Ticket Tier
