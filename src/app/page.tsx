@@ -252,51 +252,53 @@ export default function PublicHomePage() {
 
       <main className="flex-grow pt-14">
         <section className="relative w-full">
-          <EventsCarousel events={upcomingEvents} />
-          <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-end text-center text-white p-4 pb-12 sm:pb-16 pointer-events-none">
-            <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold tracking-tight">UPCOMING EVENTS AND TICKETS</h2>
-            <p className="mt-4 text-base md:text-lg max-w-2xl">From music festivals to tech conferences, find your next experience with us. Secure and simple ticketing for every event.</p>
-            <div ref={searchRef} className="relative w-full max-w-lg lg:max-w-2xl mt-8 pointer-events-auto">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input 
-                placeholder="Search events, artists, or venues..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setIsSearchFocused(true)}
-                className="pl-12 pr-4 py-6 text-base md:text-lg bg-white/90 text-black placeholder:text-muted-foreground rounded-full focus:bg-white"
-              />
-              {isSearchFocused && searchSuggestions.length > 0 && (
-                  <div className="absolute top-full mt-2 w-full bg-white rounded-lg shadow-lg overflow-hidden z-10">
-                    <ul>
-                      {searchSuggestions.map(event => (
-                        <li key={event.id}>
-                          <Link 
-                            href={`/events/${event.id}`} 
-                            className="flex items-center gap-4 p-3 hover:bg-gray-100"
-                            onClick={() => setIsSearchFocused(false)}
-                          >
-                            <Image 
-                                src={event.image || DEFAULT_IMAGE_PLACEHOLDER}
-                                alt={event.name} 
-                                width={40} 
-                                height={40} 
-                                className="object-cover rounded-md"
-                            />
-                            <div>
-                                <p className="font-semibold text-black">{event.name}</p>
-                                <p className="text-sm text-gray-500">{event.location}</p>
-                            </div>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-              )}
+            <EventsCarousel events={upcomingEvents} />
+
+           <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-center text-white p-4 pointer-events-none">
+                <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold tracking-tight">UPCOMING EVENTS AND TICKET</h2>
+
+                <p className="mt-4 text-base md:text-lg max-w-2xl">From music festivals to tech conferences, find your next experience with us. Secure and simple ticketing for every event.</p>
+                <div ref={searchRef} className="relative w-full max-w-lg lg:max-w-2xl mt-8 pointer-events-auto">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input 
+                    placeholder="Search events, artists, or venues..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => setIsSearchFocused(true)}
+                    className="pl-12 pr-4 py-6 text-base md:text-lg bg-white/90 text-black placeholder:text-muted-foreground rounded-full focus:bg-white"
+                  />
+                  {isSearchFocused && searchSuggestions.length > 0 && (
+                      <div className="absolute top-full mt-2 w-full bg-white rounded-lg shadow-lg overflow-hidden z-10">
+                        <ul>
+                          {searchSuggestions.map(event => (
+                            <li key={event.id}>
+                              <Link 
+                                href={`/events/${event.id}`} 
+                                className="flex items-center gap-4 p-3 hover:bg-gray-100"
+                                onClick={() => setIsSearchFocused(false)}
+                              >
+                                <Image 
+                                    src={event.image || DEFAULT_IMAGE_PLACEHOLDER}
+                                    alt={event.name} 
+                                    width={40} 
+                                    height={40} 
+                                    className="object-cover rounded-md"
+                                />
+                                <div>
+                                    <p className="font-semibold text-black">{event.name}</p>
+                                    <p className="text-sm text-gray-500">{event.location}</p>
+                                </div>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                  )}
+                </div>
+                <div className="mt-6 w-full max-w-lg lg:max-w-2xl pointer-events-auto">
+                  <CategoryFilter categories={categories} selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />
+                </div>
             </div>
-            <div className="mt-6 w-full max-w-lg lg:max-w-2xl pointer-events-auto">
-              <CategoryFilter categories={categories} selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />
-            </div>
-          </div>
         </section>
 
 
