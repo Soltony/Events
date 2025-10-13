@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -46,8 +45,8 @@ export default function EventsCarousel({ events }: { events: EventWithTickets[] 
     }}
     >
     <CarouselContent>
-        {events.map((event) => {
-            const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
+        {events.map((event, index) => {
+            const imageUrl = (event.image && event.image[0]) || DEFAULT_IMAGE_PLACEHOLDER;
             return (
                 <CarouselItem key={event.id}>
                     <div className="relative w-full aspect-video">
@@ -56,7 +55,7 @@ export default function EventsCarousel({ events }: { events: EventWithTickets[] 
                             alt={event.name}
                             fill
                             className="object-cover"
-                            priority={events.indexOf(event) === 0}
+                            priority={index === 0}
                              onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }}
                         />
                     </div>
