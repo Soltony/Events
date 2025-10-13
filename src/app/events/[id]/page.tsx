@@ -296,7 +296,7 @@ export default function PublicEventDetailPage() {
     )
   }
   
-  const imageSource = (event.image && event.image[0]) || DEFAULT_IMAGE_PLACEHOLDER;
+  const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
   const eventLocations = event.location ? Array.from(new Set(event.location.split('||').map(l => l.trim()))) : [];
   const organizerName = event.color; // Using color field for organizer name
 
