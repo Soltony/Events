@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
     const startDateFormat = 'LLL dd, y, hh:mm a';
@@ -182,9 +183,12 @@ const EventGrid = ({ events, isLoading, isAdmin, onDelete }: { events: Event[], 
     );
 }
 
-
-export default function ManageEventsPage() {
+function ManageEventsPageContent() {
   const { user } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  
   const [loading, setLoading] = useState(true);
   const [eventToModify, setEventToModify] = useState<Event | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
@@ -199,7 +203,13 @@ export default function ManageEventsPage() {
   const [allEvents, setAllEvents] = useState<Event[]>([]);
   
   const isAdmin = user?.role?.name === 'Admin';
-  const [activeTab, setActiveTab] = useState(isAdmin ? 'pending' : 'all');
+  const [activeTab, setActiveTab] = useState(tabFromUrl || (isAdmin ? 'pending' : 'all'));
+  
+  useEffect(() => {
+    if (tabFromUrl) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
 
   const fetchAllEvents = useCallback(async () => {
     setLoading(true);
@@ -297,6 +307,11 @@ export default function ManageEventsPage() {
     }
   }
 
+  const onTabChange = (value: string) => {
+    setActiveTab(value);
+    // Update URL to reflect the current tab
+    router.replace(`/dashboard/events?tab=${value}`, { scroll: false });
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
@@ -307,9 +322,14 @@ export default function ManageEventsPage() {
             {isAdmin ? 'Review, approve, and manage all events.' : 'Select an event to view its details and manage it.'}
           </p>
         </div>
+         <Button asChild>
+            <Link href="/dashboard/events/new">
+                <PlusCircle className="mr-2 h-4 w-4" /> Create New Event
+            </Link>
+        </Button>
       </div>
       
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
         {isAdmin ? (
             <TabsList>
                 <TabsTrigger value="pending">Pending ({pendingEvents.length})</TabsTrigger>
@@ -385,4 +405,12 @@ export default function ManageEventsPage() {
         </Dialog>
     </div>
   );
+}
+
+export default function ManageEventsPage() {
+    return (
+        <Suspense fallback={<div className="flex flex-1 justify-center items-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+            <ManageEventsPageContent />
+        </Suspense>
+    )
 }

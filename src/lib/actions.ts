@@ -203,10 +203,7 @@ export async function addEvent(data: any) {
     
     const locationString = locations.map((l: { value: string }) => l.value).join('||');
     
-    // Get the first image from the array (since we only allow one image now)
-    const imageString = Array.isArray(images) && images.length > 0
-        ? (typeof images[0] === 'object' ? images[0].value : images[0])
-        : null;
+    const imageString = Array.isArray(images) && images.length > 0 ? images[0] : null;
 
     const newEvent = await prisma.event.create({
         data: {
@@ -271,7 +268,7 @@ export async function updateEvent(id: number, data: any) {
     
     // Get the first image from the array (since we only allow one image now)
     const imageString = Array.isArray(images) && images.length > 0
-        ? (typeof images[0] === 'object' ? images[0].value : images[0])
+        ? images[0]
         : null;
 
     const eventToUpdate = await prisma.event.findUnique({ where: { id }});
