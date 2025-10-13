@@ -89,9 +89,10 @@ export default function PublicEventDetailPage() {
         }
         setEvent(eventData as EventWithTickets);
 
-        // --- Set default location (single-location mode) ---
+        // --- Set default location ---
         if (eventData?.location) {
-            setSelectedLocation(eventData.location.trim());
+            const locations = eventData.location.split('||').map(l => l.trim());
+            setSelectedLocation(locations[0]); // default to first location
         }
 
         setLoading(false);
@@ -300,7 +301,7 @@ export default function PublicEventDetailPage() {
   }
   
   const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-  const eventLocations = event.location ? [event.location.trim()] : [];
+  const eventLocations = event.location ? Array.from(new Set(event.location.split('||').map(l => l.trim()))) : [];
   const organizerName = event.color; // Using color field for organizer name
 
   return (

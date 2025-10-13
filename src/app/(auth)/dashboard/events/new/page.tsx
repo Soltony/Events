@@ -49,7 +49,7 @@ const eventFormSchema = z.object({
   endDate: z.date().optional(),
   category: z.string({ required_error: 'Please select a category.' }),
   otherCategory: z.string().optional(),
-  images: z.array(z.string()).length(1, { message: 'Please upload exactly one image.' }),
+  images: z.array(z.string()).min(1, { message: 'Please upload exactly one image.' }),
   tickets: z.array(z.object({
     name: z.string().min(1, { message: "Ticket name can't be empty."}),
     description: z.string().optional(),
@@ -113,7 +113,6 @@ export default function CreateEventPage() {
         const finalData = {
             ...data,
             category: data.category === 'Other' ? data.otherCategory : data.category,
-            images: data.images,
         };
         const newEvent = await addEvent(finalData);
         
@@ -122,14 +121,19 @@ export default function CreateEventPage() {
                 title: 'Event Submitted!',
                 description: `Your event "${data.name}" is now pending admin approval.`,
             });
+            router.push('/dashboard/events');
         } else {
             toast({
                 title: 'Event Created!',
                 description: `Successfully created "${data.name}".`,
             });
+             if (user?.role?.name === 'Admin') {
+                router.push('/dashboard/events?tab=approved');
+            } else {
+                router.push('/dashboard/events');
+            }
         }
         
-        router.push('/dashboard/events');
     } catch (error: any) {
         console.error("Failed to create event:", error);
         toast({
@@ -385,7 +389,7 @@ export default function CreateEventPage() {
                       {watchedImages.length > 0 ? (
                         <div className="relative aspect-video w-64 rounded-md overflow-hidden group">
                           <Image
-                              src={typeof watchedImages[0] === 'string' ? watchedImages[0] : (watchedImages[0] as any).value}
+                              src={watchedImages[0]}
                               alt="Event image"
                               fill
                               className="object-cover"
@@ -531,4 +535,3 @@ export default function CreateEventPage() {
     </div>
   );
 }
-
