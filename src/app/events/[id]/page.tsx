@@ -124,10 +124,10 @@ export default function PublicEventDetailPage() {
     ): { price: number; total: number; sold: number; id: number } => {
         if (!event || !location) return { price: 0, total: 0, sold: 0, id: -1 };
 
-        // Flexible lookup: match baseName and location anywhere in the ticket name
+        // --- Stricter Matching Logic ---
+        const expectedTicketName = `${baseName} - ${location}`;
         const specificTicket = event.ticketTypes.find(
-            t => t.name.toLowerCase().includes(baseName.toLowerCase()) &&
-                t.name.toLowerCase().includes(location.toLowerCase())
+            t => t.name.trim() === expectedTicketName.trim()
         );
 
         if (specificTicket) {
@@ -296,7 +296,7 @@ export default function PublicEventDetailPage() {
     )
   }
   
-  const imageSource = event.image?.[0] || DEFAULT_IMAGE_PLACEHOLDER;
+  const imageSource = (event.image && event.image[0]) || DEFAULT_IMAGE_PLACEHOLDER;
   const eventLocations = event.location ? Array.from(new Set(event.location.split('||').map(l => l.trim()))) : [];
   const organizerName = event.color; // Using color field for organizer name
 
@@ -503,6 +503,8 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
+    
+
     
 
     
