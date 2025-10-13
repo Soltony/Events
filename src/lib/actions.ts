@@ -244,7 +244,7 @@ export async function addEvent(data: any) {
             if (ticket.price > 0 && ticket.quantity > 0) {
                 await prisma.ticketType.create({
                     data: {
-                        name: `${ticket.name} - ${locations[0].value}`,
+                        name: ticket.name,
                         description: ticket.description,
                         basePrice: ticket.price,
                         total: ticket.quantity,

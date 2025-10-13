@@ -218,7 +218,7 @@ export default function PublicEventDetailPage() {
 
     const locationSpecificTickets = useMemo(() => {
         if (!event || !selectedLocation) return [];
-        return event.ticketTypes.filter(ticket => ticket.name.includes(` - ${selectedLocation}`));
+        return event.ticketTypes.filter(ticket => ticket.name.includes(`- ${selectedLocation}`));
     }, [event, selectedLocation]);
 
   
@@ -474,9 +474,3 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
-    
-
-    
-
-    
-
