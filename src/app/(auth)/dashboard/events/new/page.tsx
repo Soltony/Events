@@ -57,7 +57,7 @@ const eventFormSchema = z.object({
     name: z.string().min(1, { message: "Ticket name can't be empty."}),
     description: z.string().optional(),
     // Base fields (used when only one location)
-    price: z.coerce.number().min(0, { message: 'Price must be non-negative.' }).default(0),
+    basePrice: z.coerce.number().min(0, { message: 'Price must be non-negative.' }).default(0),
     quantity: z.coerce.number().int().min(0, { message: 'Quantity must be a non-negative integer.' }).default(0),
     // Per-location overrides when multiple locations
     locationConfigs: locationConfigSchema.optional().default({}),
@@ -94,7 +94,7 @@ export default function CreateEventPage() {
       category: '',
       otherCategory: '',
       images: [],
-      tickets: [{ name: 'General Admission', description: 'Standard entry to the event.', price: 0, quantity: 0, locationConfigs: {} }],
+      tickets: [{ name: 'General Admission', description: 'Standard entry to the event.', basePrice: 0, quantity: 0, locationConfigs: {} }],
     },
   });
 
@@ -546,7 +546,7 @@ export default function CreateEventPage() {
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                             <FormField
                               control={form.control}
-                              name={`tickets.${index}.price`}
+                              name={`tickets.${index}.basePrice`}
                               render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Price (ETB)</FormLabel>
@@ -577,7 +577,7 @@ export default function CreateEventPage() {
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() => appendTicket({ name: '', description: '', price: 0, quantity: 0, locationConfigs: {} })}
+                        onClick={() => appendTicket({ name: '', description: '', basePrice: 0, quantity: 0, locationConfigs: {} })}
                         >
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Add Ticket Tier

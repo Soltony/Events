@@ -222,15 +222,16 @@ export async function addEvent(data: any) {
     });
 
     if (tickets && tickets.length > 0) {
-      const multipleLocations = Array.isArray(locations) && locations.length > 1;
+      const multipleLocations = Array.isArray(locations) && locations.length > 1 && locations.every(l => l.value);
       for (const ticket of tickets) {
         if (multipleLocations) {
             for (const loc of locations) {
-                const cfg = ticket.locationConfigs?.[loc.value];
-                if (cfg && cfg.price > 0 && cfg.quantity > 0) {
+                const locationName = loc.value;
+                const cfg = ticket.locationConfigs?.[locationName];
+                if (cfg && cfg.price >= 0 && cfg.quantity >= 0) { // Allow 0 for free tickets
                     await prisma.ticketType.create({
                         data: {
-                            name: `${ticket.name} - ${loc.value}`,
+                            name: `${ticket.name} - ${locationName}`,
                             description: ticket.description,
                             basePrice: cfg.price,
                             total: cfg.quantity,
@@ -241,12 +242,12 @@ export async function addEvent(data: any) {
                 }
             }
         } else {
-            if (ticket.price > 0 && ticket.quantity > 0) {
+            if (ticket.basePrice >= 0 && ticket.quantity >= 0) { // Allow 0 for free tickets
                 await prisma.ticketType.create({
                     data: {
                         name: ticket.name,
                         description: ticket.description,
-                        basePrice: ticket.price,
+                        basePrice: ticket.basePrice,
                         total: ticket.quantity,
                         sold: 0,
                         eventId: newEvent.id,
