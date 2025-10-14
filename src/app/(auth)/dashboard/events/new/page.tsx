@@ -8,7 +8,7 @@ import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, Trash2, UploadCloud, Loader2, X } from 'lucide-react';
 import Image from 'next/image';
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 import { Button } from '@/components/ui/button';
@@ -115,7 +115,7 @@ export default function CreateEventPage() {
 
   // Sync the first ticket's location price with the first location field
   const firstLocationValue = form.watch('locations.0.value');
-  React.useEffect(() => {
+  useEffect(() => {
     const currentTicketLocation = form.getValues('tickets.0.locationPrices.0.location');
     if (firstLocationValue && currentTicketLocation !== firstLocationValue) {
       form.setValue('tickets.0.locationPrices.0.location', firstLocationValue, { shouldValidate: true });
