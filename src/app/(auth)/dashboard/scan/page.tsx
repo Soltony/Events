@@ -88,9 +88,8 @@ export default function ScanQrPage() {
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            // When scanning from a file, we don't need a visible element.
-            // Passing `verbose: false` to the constructor is important for this.
-            const qrScanner = new Html5Qrcode(qrUploaderId, { verbose: false });
+            // For file-based scanning, initialize the scanner without a DOM element.
+            const qrScanner = new Html5Qrcode({ verbose: false });
             try {
                 const decodedText = await qrScanner.scanFile(file, /* showImage= */ false);
                 await processScan(decodedText);
@@ -164,7 +163,7 @@ export default function ScanQrPage() {
                 </p>
             </div>
             
-            {/* Hidden element for file-based QR code scanning */}
+            {/* This div is not needed for file scanning but kept for consistency if needed elsewhere */}
             <div id={qrUploaderId} style={{ display: 'none' }}></div>
 
             <Card>
