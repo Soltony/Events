@@ -87,27 +87,30 @@ export default function ScanQrPage() {
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            // For file-based scanning, use the hidden DOM element ID.
-            const qrScanner = new Html5Qrcode(qrUploaderId);
-            try {
-                const decodedText = await qrScanner.scanFile(file, /* showImage= */ false);
-                await processScan(decodedText);
-            } catch (err) {
-                console.error("QR decode failed:", err);
-                setResult({ data: null, error: "Could not decode QR code from image." });
-                toast({
-                    variant: 'destructive',
-                    title: 'Scan Error',
-                    description: "Could not decode QR code from image.",
-                });
-            } finally {
-                // Always clear input so user can re-upload same file.
-                if (fileInputRef.current) {
-                    fileInputRef.current.value = '';
-                }
-                // Properly stop the scanner instance
-                await qrScanner.clear();
+        if (!file) return;
+    
+        // Initialize scanner attached to a hidden div
+        const qrScanner = new Html5Qrcode(qrUploaderId);
+    
+        try {
+            // Decode QR from image
+            const decodedText = await qrScanner.scanFile(file, false);
+            await processScan(decodedText);
+        } catch (err) {
+            console.error("QR decode failed:", err);
+            setResult({ data: null, error: "Could not decode QR code from image." });
+            toast({
+                variant: 'destructive',
+                title: 'Scan Error',
+                description: "Could not decode QR code from image.",
+            });
+        } finally {
+            // Clean up: only needed for file scan
+            if (Html5Qrcode.isScanning) {
+                await qrScanner.stop();
+            }
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
             }
         }
     };
