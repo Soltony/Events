@@ -74,7 +74,7 @@ export default function EventsCarousel({ events }: { events: EventWithTickets[] 
                     const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
                     return (
                         <CarouselItem key={event.id}>
-                            <div className="relative w-full aspect-video">
+                            <div className="relative w-full aspect-square md:aspect-video">
                                 <Image
                                     src={imageUrl}
                                     alt={event.name}
