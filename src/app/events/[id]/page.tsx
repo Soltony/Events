@@ -6,7 +6,7 @@ import { getEventById, validatePromoCode } from '@/lib/actions';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone, ArrowLeft, X, UserCircle, GripVertical } from 'lucide-react';
+import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone, ArrowLeft, X, UserCircle, GripVertical, AlertCircle } from 'lucide-react';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import type { Event, TicketType, PromoCode } from '@prisma/client';
@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 import { AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Autoplay from "embla-carousel-autoplay";
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 interface EventWithTickets extends Event {
@@ -92,7 +93,9 @@ export default function PublicEventDetailPage() {
         // --- Set default location ---
         if (eventData?.location) {
             const locations = eventData.location.split('||').map(l => l.trim());
-            setSelectedLocation(locations[0]); // default to first location
+            if (locations.length > 0) {
+              setSelectedLocation(locations[0]);
+            }
         }
 
         setLoading(false);
@@ -230,7 +233,7 @@ export default function PublicEventDetailPage() {
             return event.ticketTypes.filter(ticket => ticket.name.includes(`- ${selectedLocation}`));
         }
         return [];
-    }, [event, selectedLocation, eventLocations.length]);
+    }, [event, selectedLocation, eventLocations]);
 
   
   if (loading || !event) {
@@ -246,29 +249,31 @@ export default function PublicEventDetailPage() {
             </Button>
           </div>
         </header>
-        <div className="container mx-auto max-w-5xl py-8 px-4 pt-24">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="md:col-span-2 space-y-8">
-                  <Skeleton className="w-full aspect-[4/3] rounded-lg" />
-                  <div className="space-y-4">
-                      <Skeleton className="h-10 w-3/4" />
-                      <Skeleton className="h-6 w-1/2" />
-                      <Skeleton className="h-6 w-1/3" />
-                  </div>
-                  <div className="space-y-4">
-                      <Skeleton className="h-8 w-48" />
-                      <Skeleton className="h-5 w-full" />
-                      <Skeleton className="h-5 w-full" />
-                      <Skeleton className="h-5 w-3/4" />
-                  </div>
-              </div>
-              <div className="space-y-8">
-                  <Skeleton className="h-8 w-24" />
-                  <Skeleton className="h-24 w-full rounded-lg" />
-                  <Skeleton className="h-24 w-full rounded-lg" />
-              </div>
+        <main className="pt-16">
+          <div className="container mx-auto max-w-5xl py-8 px-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="md:col-span-2 space-y-8">
+                    <Skeleton className="w-full aspect-[4/3] rounded-lg" />
+                    <div className="space-y-4">
+                        <Skeleton className="h-10 w-3/4" />
+                        <Skeleton className="h-6 w-1/2" />
+                        <Skeleton className="h-6 w-1/3" />
+                    </div>
+                    <div className="space-y-4">
+                        <Skeleton className="h-8 w-48" />
+                        <Skeleton className="h-5 w-full" />
+                        <Skeleton className="h-5 w-full" />
+                        <Skeleton className="h-5 w-3/4" />
+                    </div>
+                </div>
+                <div className="space-y-8">
+                    <Skeleton className="h-8 w-24" />
+                    <Skeleton className="h-24 w-full rounded-lg" />
+                    <Skeleton className="h-24 w-full rounded-lg" />
+                </div>
+            </div>
           </div>
-        </div>
+        </main>
       </div>
     )
   }
@@ -355,6 +360,12 @@ export default function PublicEventDetailPage() {
                                               ))}
                                           </SelectContent>
                                       </Select>
+                                       <Alert variant="default" className="mt-4 bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
+                                            <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                            <AlertDescription className="text-blue-700 dark:text-blue-300 text-xs">
+                                                Note: Ticket prices may vary by location.
+                                            </AlertDescription>
+                                        </Alert>
                                   </div>
                               )}
                               <h3 className="text-2xl font-semibold mb-4 text-card-foreground">Tickets</h3>
@@ -484,3 +495,4 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
+

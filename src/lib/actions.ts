@@ -363,19 +363,19 @@ export async function deleteEvent(id: number) {
 }
 
 
-export async function addTicketType(eventId: number, data: any) {
-    const newTicketType = await prisma.ticketType.create({
-        data: {
-            name: data.name,
-            description: data.description,
-            basePrice: data.price,
-            locationPrices: data.locationPrices || {},
-            total: data.total,
-            eventId: eventId,
-        }
-    });
+export async function addTicketType(eventId: number, data: { name: string; description?: string; locationPrices: { location: string; price: number; quantity: number }[] }) {
+    for (const config of data.locationPrices) {
+        await prisma.ticketType.create({
+            data: {
+                name: `${data.name} - ${config.location}`,
+                description: data.description,
+                basePrice: config.price,
+                total: config.quantity,
+                eventId: eventId,
+            }
+        });
+    }
     revalidatePath(`/dashboard/events/${eventId}`);
-    return serialize(newTicketType);
 }
 
 export async function updateTicketType(ticketTypeId: number, data: any) {
