@@ -88,7 +88,9 @@ export default function ScanQrPage() {
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            const qrScanner = new Html5Qrcode(qrUploaderId);
+            // When scanning from a file, we don't need a visible element.
+            // Passing `verbose: false` to the constructor is important for this.
+            const qrScanner = new Html5Qrcode(qrUploaderId, { verbose: false });
             try {
                 const decodedText = await qrScanner.scanFile(file, /* showImage= */ false);
                 await processScan(decodedText);
@@ -96,6 +98,7 @@ export default function ScanQrPage() {
                  setResult({ data: null, error: "Could not decode QR code from image." });
                  toast({ variant: 'destructive', title: 'Scan Error', description: "Could not decode QR code from image." });
             } finally {
+                // Clear the file input so the user can upload the same file again if needed.
                 if(fileInputRef.current) {
                     fileInputRef.current.value = '';
                 }
@@ -153,7 +156,7 @@ export default function ScanQrPage() {
 
 
     return (
-        <div className="flex flex-1 flex-col gap-4 md:gap-8 max-w-2xl mx-auto">
+        <div className="flex flex-1 flex-col gap-4 md:gap-8 max-w-2xl mx-auto p-4 sm:p-0">
             <div className="space-y-2">
                 <h1 className="text-3xl font-bold tracking-tight">Scan QR Code</h1>
                 <p className="text-muted-foreground">
