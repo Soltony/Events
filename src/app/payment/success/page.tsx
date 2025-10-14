@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
@@ -19,7 +20,7 @@ interface TicketDetails extends Attendee {
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
     if (endDate) {
-        return `${format(new Date(startDate), 'LLL dd, y')} - ${format(new Date(endDate), 'LLL dd, y')}`;
+        return `${''}${format(new Date(startDate), 'LLL dd, y')} - ${format(new Date(endDate), 'LLL dd, y')}`;
     }
     return format(new Date(startDate), 'LLL dd, y');
 }
