@@ -88,19 +88,26 @@ export default function ScanQrPage() {
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            // For file-based scanning, initialize the scanner without a DOM element.
-            const qrScanner = new Html5Qrcode({ verbose: false });
+            // For file-based scanning, use the hidden DOM element ID.
+            const qrScanner = new Html5Qrcode(qrUploaderId);
             try {
                 const decodedText = await qrScanner.scanFile(file, /* showImage= */ false);
                 await processScan(decodedText);
             } catch (err) {
-                 setResult({ data: null, error: "Could not decode QR code from image." });
-                 toast({ variant: 'destructive', title: 'Scan Error', description: "Could not decode QR code from image." });
+                console.error("QR decode failed:", err);
+                setResult({ data: null, error: "Could not decode QR code from image." });
+                toast({
+                    variant: 'destructive',
+                    title: 'Scan Error',
+                    description: "Could not decode QR code from image.",
+                });
             } finally {
-                // Clear the file input so the user can upload the same file again if needed.
-                if(fileInputRef.current) {
+                // Always clear input so user can re-upload same file.
+                if (fileInputRef.current) {
                     fileInputRef.current.value = '';
                 }
+                // Properly stop the scanner instance
+                await qrScanner.clear();
             }
         }
     };
@@ -163,7 +170,6 @@ export default function ScanQrPage() {
                 </p>
             </div>
             
-            {/* This div is not needed for file scanning but kept for consistency if needed elsewhere */}
             <div id={qrUploaderId} style={{ display: 'none' }}></div>
 
             <Card>
