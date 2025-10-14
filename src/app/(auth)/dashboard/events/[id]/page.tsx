@@ -487,7 +487,7 @@ export default function EventDetailPage() {
   const chartConfig = {
     sold: {
       label: "Sold",
-      color: "#feb914",
+      color: "#FEB914",
     },
     remaining: {
       label: "Remaining",
