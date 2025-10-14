@@ -51,16 +51,14 @@ export default function EventsCarousel({ events }: { events: EventWithTickets[] 
 
   if (events.length === 0) {
     return (
-        <div className="w-full aspect-square md:aspect-video bg-gray-200 flex items-center justify-center text-muted-foreground">
-            <div className="relative w-full aspect-square md:aspect-video">
-                <Image
-                    src={DEFAULT_IMAGE_PLACEHOLDER}
-                    alt="No upcoming events"
-                    fill
-                    className="object-cover"
-                    priority
-                />
-            </div>
+        <div className="relative w-full aspect-square md:aspect-video">
+            <Image
+                src={DEFAULT_IMAGE_PLACEHOLDER}
+                alt="No upcoming events"
+                fill
+                className="object-cover"
+                priority
+            />
         </div>
     );
   }
@@ -91,7 +89,7 @@ export default function EventsCarousel({ events }: { events: EventWithTickets[] 
                                     priority={index === 0}
                                     onError={(e) => { 
                                         const target = e.target as HTMLImageElement;
-                                        target.srcset = DEFAULT_IMAGE_PLACEHOLDER;
+                                        target.srcset = '';
                                         target.src = DEFAULT_IMAGE_PLACEHOLDER;
                                      }}
                                 />
