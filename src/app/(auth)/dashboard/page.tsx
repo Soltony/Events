@@ -52,7 +52,7 @@ export default function DashboardPage() {
   
   const PageTitle = () => (
      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">
             An overview of all your events.
         </p>
@@ -63,7 +63,7 @@ export default function DashboardPage() {
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
       <PageTitle />
       
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
@@ -140,7 +140,7 @@ export default function DashboardPage() {
         <div className="w-full">
             <div className="flex flex-1 flex-col gap-4 md:gap-8">
                 <PageTitle />
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                     <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-5 w-24" /><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><Skeleton className="h-7 w-20" /><Skeleton className="h-4 w-32 mt-1" /></CardContent></Card>
                     <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-5 w-24" /><TicketIcon className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><Skeleton className="h-7 w-16" /><Skeleton className="h-4 w-28 mt-1" /></CardContent></Card>
                     <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><Skeleton className="h-5 w-24" /><CalendarIcon className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><Skeleton className="h-7 w-8" /><Skeleton className="h-4 w-36 mt-1" /></CardContent></Card>

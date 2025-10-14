@@ -42,7 +42,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-4">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background p-4">
        <Button asChild variant="ghost" className="absolute top-4 left-4">
         <Link href="/">
           <ArrowLeft className="mr-2 h-4 w-4" />

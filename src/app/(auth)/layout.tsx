@@ -11,7 +11,32 @@ import {
   SidebarHeader,
   SidebarContent,
   SidebarTrigger,
+  useSidebar,
 } from '@/components/ui/sidebar';
+import { cn } from '@/lib/utils';
+
+function MainContent({ children }: { children: React.ReactNode }) {
+  const { state } = useSidebar();
+  return (
+    <div
+      className={cn(
+        'flex flex-col flex-1 overflow-hidden transition-all duration-300 ease-in-out',
+        state === 'expanded' ? 'md:ml-64' : 'md:ml-14'
+      )}
+    >
+      <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 flex-shrink-0">
+        <div className="md:hidden">
+          <SidebarTrigger className="text-[#8B5E34]" />
+        </div>
+        <div className="flex-1">{/* Page title would go here if needed */}</div>
+        <UserNav />
+      </header>
+      <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 overflow-y-auto">
+        {children}
+      </main>
+    </div>
+  );
+}
 
 export default function AuthLayout({
   children,
@@ -23,7 +48,7 @@ export default function AuthLayout({
       <SidebarProvider>
         <div className="flex min-h-screen w-full bg-background">
           {/* Fixed Sidebar */}
-          <Sidebar className="fixed inset-y-0 left-0 z-20 h-full w-64">
+          <Sidebar className="fixed inset-y-0 left-0 z-20 h-full">
             <SidebarContent className="flex flex-col h-full overflow-y-auto">
               <SidebarHeader className="p-4 flex h-16 items-center justify-center border-b border-sidebar-border md:pt-4 pt-8">
                 <Link
@@ -50,20 +75,7 @@ export default function AuthLayout({
           </Sidebar>
 
           {/* Main Content (scrollable) */}
-          <div className="flex flex-col flex-1 ml-64 overflow-hidden">
-            <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 flex-shrink-0">
-              <div className="md:hidden">
-                <SidebarTrigger className="text-[#8B5E34]" />
-              </div>
-              <div className="flex-1">
-                {/* Page title would go here if needed */}
-              </div>
-              <UserNav />
-            </header>
-            <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 overflow-y-auto">
-              {children}
-            </main>
-          </div>
+          <MainContent>{children}</MainContent>
         </div>
       </SidebarProvider>
     </AuthGuard>

@@ -253,12 +253,12 @@ export default function ReportsPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <CardTitle>Product Sales</CardTitle>
               <CardDescription>Product sales, revenue, and other metrics.</CardDescription>
             </div>
-            <Button variant="outline" onClick={() => handleDownload('product')} disabled={downloading === 'product'}>
+            <Button variant="outline" onClick={() => handleDownload('product')} disabled={downloading === 'product'} className="w-full sm:w-auto">
                 {downloading === 'product' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
                 Download Report
             </Button>
@@ -295,12 +295,12 @@ export default function ReportsPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <CardTitle>Promo Codes Report</CardTitle>
               <CardDescription>Promo code usage and discount breakdown.</CardDescription>
             </div>
-             <Button variant="outline" onClick={() => handleDownload('promo')} disabled={downloading === 'promo'}>
+             <Button variant="outline" onClick={() => handleDownload('promo')} disabled={downloading === 'promo'} className="w-full sm:w-auto">
                 {downloading === 'promo' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
                 Download Report
             </Button>

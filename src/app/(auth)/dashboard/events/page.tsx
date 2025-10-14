@@ -141,7 +141,7 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolea
 const EventGrid = ({ events, isLoading, isAdmin, onDelete }: { events: Event[], isLoading: boolean, isAdmin: boolean, onDelete: (e: Event) => void }) => {
     if (isLoading) {
         return (
-            <div className="grid gap-4 md:gap-8 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {[...Array(4)].map((_, i) => (
                     <Card key={i}>
                         <CardHeader className="p-0"><Skeleton className="w-full aspect-[16/9] rounded-t-lg" /></CardHeader>
@@ -161,7 +161,7 @@ const EventGrid = ({ events, isLoading, isAdmin, onDelete }: { events: Event[], 
 
     if (events.length === 0) {
         return (
-            <Card className="md:col-span-2 lg:col-span-4 flex items-center justify-center p-8 text-center">
+            <Card className="sm:col-span-2 lg:col-span-3 xl:col-span-4 flex items-center justify-center p-8 text-center">
                 <div>
                     <h3 className="text-2xl font-semibold tracking-tight">No events found in this category.</h3>
                 </div>
@@ -170,7 +170,7 @@ const EventGrid = ({ events, isLoading, isAdmin, onDelete }: { events: Event[], 
     }
     
     return (
-        <div className="grid gap-4 md:gap-8 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {events.map(event => (
                 <EventCard 
                     key={event.id}
@@ -315,14 +315,14 @@ function ManageEventsPageContent() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
-      <div className="flex items-center justify-between space-y-2">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Manage Events</h1>
           <p className="text-muted-foreground">
             {isAdmin ? 'Review, approve, and manage all events.' : 'Select an event to view its details and manage it.'}
           </p>
         </div>
-         <Button asChild>
+         <Button asChild className="w-full sm:w-auto">
             <Link href="/dashboard/events/new">
                 <PlusCircle className="mr-2 h-4 w-4" /> Create New Event
             </Link>

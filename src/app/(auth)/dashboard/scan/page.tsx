@@ -171,7 +171,7 @@ export default function ScanQrPage() {
                                 }}
                             />
                          ) : (
-                            <div className="text-center text-muted-foreground">
+                            <div className="text-center text-muted-foreground p-4">
                                 <CameraOff className="mx-auto h-12 w-12" />
                                 <p className="mt-2">Camera is off. Press "Start Camera" to begin.</p>
                             </div>
