@@ -183,10 +183,12 @@ export default function PublicHomePage() {
   }, [events, searchQuery, selectedCategory]);
 
   const { upcomingEvents, topSellingEvents } = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
     
-    const upcoming = filteredEvents.filter(event => new Date(event.startDate) >= today);
+    const upcoming = filteredEvents.filter(event => {
+        const eventEndDate = event.endDate ? new Date(event.endDate) : new Date(event.startDate);
+        return eventEndDate >= now;
+    });
     
     const topSelling = [...filteredEvents].sort((a, b) => {
         const salesA = a.ticketTypes.reduce((sum, t) => sum + t.sold, 0);
