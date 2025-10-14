@@ -101,20 +101,20 @@ export default function CartSheet({
             </ScrollArea>
             <SheetFooter className="mt-auto flex flex-col gap-4 !space-x-0 border-t border-border pt-4">
                  <div className="space-y-2">
-                    <div className="text-sm">
+                    <div className="text-sm flex justify-between">
                         <span className="text-muted-foreground">Subtotal</span>
-                        <p className="font-medium">{subtotal.toFixed(2)} ETB</p>
+                        <span className="font-medium">{subtotal.toFixed(2)} ETB</span>
                     </div>
                     {appliedPromo && (
-                        <div className="text-sm text-green-600 dark:text-green-400">
+                        <div className="text-sm flex justify-between text-green-600 dark:text-green-400">
                             <span>Discount ({appliedPromo.code})</span>
-                            <p className="font-medium">-{discount.toFixed(2)} ETB</p>
+                            <span className="font-medium">-{discount.toFixed(2)} ETB</span>
                         </div>
                     )}
                     <div className="border-t border-border my-2"></div>
-                    <div className="text-base">
-                        <span className="font-semibold">Total</span>
-                        <p className="font-bold text-lg">{total.toFixed(2)} ETB</p>
+                    <div className="text-sm flex justify-between">
+                        <span className="text-muted-foreground">Total</span>
+                        <span className="font-medium">{total.toFixed(2)} ETB</span>
                     </div>
                 </div>
 
