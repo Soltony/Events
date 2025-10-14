@@ -222,37 +222,21 @@ export async function addEvent(data: any) {
     });
 
     if (tickets && tickets.length > 0) {
-      const multipleLocations = Array.isArray(locations) && locations.length > 1 && locations.every(l => l.value);
       for (const ticket of tickets) {
-        if (multipleLocations) {
-            for (const loc of locations) {
-                const locationName = loc.value;
-                const cfg = ticket.locationConfigs?.[locationName];
-                if (cfg && cfg.price >= 0 && cfg.quantity >= 0) { // Allow 0 for free tickets
-                    await prisma.ticketType.create({
+        if (ticket.locationPrices && ticket.locationPrices.length > 0) {
+            for (const config of ticket.locationPrices) {
+                if (config.location && config.price >= 0 && config.quantity >= 0) {
+                     await prisma.ticketType.create({
                         data: {
-                            name: `${ticket.name} - ${locationName}`,
+                            name: `${ticket.name} - ${config.location}`,
                             description: ticket.description,
-                            basePrice: cfg.price,
-                            total: cfg.quantity,
+                            basePrice: config.price,
+                            total: config.quantity,
                             sold: 0,
                             eventId: newEvent.id,
                         }
                     });
                 }
-            }
-        } else {
-            if (ticket.basePrice >= 0 && ticket.quantity >= 0) { // Allow 0 for free tickets
-                await prisma.ticketType.create({
-                    data: {
-                        name: ticket.name,
-                        description: ticket.description,
-                        basePrice: ticket.basePrice,
-                        total: ticket.quantity,
-                        sold: 0,
-                        eventId: newEvent.id,
-                    }
-                });
             }
         }
       }

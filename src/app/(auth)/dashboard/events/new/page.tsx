@@ -33,10 +33,11 @@ import { DateTimePicker } from '@/components/datetime-picker';
 import { useAuth } from '@/context/auth-context';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-const locationConfigSchema = z.record(z.object({
-    price: z.coerce.number().min(0, { message: 'Price must be non-negative.' }),
-    quantity: z.coerce.number().int().min(0, { message: 'Quantity must be a non-negative integer.' }),
-}));
+const locationPriceSchema = z.object({
+  location: z.string().min(1, "Location is required."),
+  price: z.coerce.number().min(0, 'Price must be a positive number.'),
+  quantity: z.coerce.number().int().min(1, 'Quantity must be at least 1.'),
+});
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
@@ -56,11 +57,7 @@ const eventFormSchema = z.object({
   tickets: z.array(z.object({
     name: z.string().min(1, { message: "Ticket name can't be empty."}),
     description: z.string().optional(),
-    // Base fields (used when only one location)
-    basePrice: z.coerce.number().min(0, { message: 'Price must be non-negative.' }).default(0),
-    quantity: z.coerce.number().int().min(0, { message: 'Quantity must be a non-negative integer.' }).default(0),
-    // Per-location overrides when multiple locations
-    locationConfigs: locationConfigSchema.optional().default({}),
+    locationPrices: z.array(locationPriceSchema).min(1, "You must add at least one location configuration."),
   })).min(1, { message: 'You must have at least one ticket tier.'}),
 }).refine(data => {
     if (data.category === 'Other') {
@@ -94,10 +91,13 @@ export default function CreateEventPage() {
       category: '',
       otherCategory: '',
       images: [],
-      tickets: [{ name: 'General Admission', description: 'Standard entry to the event.', basePrice: 0, quantity: 0, locationConfigs: {} }],
+      tickets: [{ 
+        name: 'General Admission', 
+        description: 'Standard entry to the event.', 
+        locationPrices: [{ location: '', price: 0, quantity: 100 }]
+      }],
     },
   });
-
 
   const watchedImages = form.watch('images');
   const watchedCategory = form.watch('category');
@@ -112,6 +112,15 @@ export default function CreateEventPage() {
     control: form.control,
     name: "locations"
   });
+
+  // Sync the first ticket's location price with the first location field
+  const firstLocationValue = form.watch('locations.0.value');
+  React.useEffect(() => {
+    const currentTicketLocation = form.getValues('tickets.0.locationPrices.0.location');
+    if (firstLocationValue && currentTicketLocation !== firstLocationValue) {
+      form.setValue('tickets.0.locationPrices.0.location', firstLocationValue, { shouldValidate: true });
+    }
+  }, [firstLocationValue, form]);
 
   async function onSubmit(data: EventFormValues) {
     setIsSubmitting(true);
@@ -453,131 +462,89 @@ export default function CreateEventPage() {
                         <FormMessage>{form.formState.errors.tickets?.message}</FormMessage>
                     </div>
 
-                    {ticketFields.map((field, index) => (
-                    <Card key={field.id} className="p-4 space-y-4">
-                        <div className="flex justify-between items-start">
-                        <FormField
-                            control={form.control}
-                            name={`tickets.${index}.name`}
-                            render={({ field }) => (
-                            <FormItem className="flex-grow pr-4">
-                                <FormLabel>Ticket Name</FormLabel>
-                                <FormControl><Input {...field} placeholder="e.g., VIP Pass" /></FormControl>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={() => removeTicket(index)}
-                            disabled={ticketFields.length <= 1}
-                            className="mt-8"
-                        >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Remove tier</span>
-                        </Button>
-                        </div>
-                        
-                         <FormField
-                          control={form.control}
-                          name={`tickets.${index}.description`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Description</FormLabel>
-                              <FormControl>
-                                <Textarea {...field} placeholder="Describe what this ticket includes (e.g., front row seats, free drink)." className="resize-none" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        {watchedLocations && watchedLocations.length > 1 && watchedLocations.every(l => l.value) ? (
-                          <div className="pt-4">
-                            <h4 className="font-medium text-sm mb-2">Location Prices & Quantities</h4>
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Location</TableHead>
-                                  <TableHead className="w-[120px]">Price (ETB)</TableHead>
-                                  <TableHead className="w-[120px]">Quantity</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {watchedLocations.map((location) => (
-                                  <TableRow key={location.value}>
-                                    <TableCell className="font-medium">{location.value}</TableCell>
-                                    <TableCell>
-                                      <FormField
-                                        control={form.control}
-                                        name={`tickets.${index}.locationConfigs.${location.value}.price`}
-                                        render={({ field }) => (
-                                          <FormItem>
-                                            <FormControl>
-                                              <Input type="number" step="0.01" min="0" placeholder="e.g., 50" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                          </FormItem>
-                                        )}
-                                      />
-                                    </TableCell>
-                                    <TableCell>
-                                      <FormField
-                                        control={form.control}
-                                        name={`tickets.${index}.locationConfigs.${location.value}.quantity`}
-                                        render={({ field }) => (
-                                          <FormItem>
-                                            <FormControl>
-                                              <Input type="number" min="0" placeholder="e.g., 100" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                          </FormItem>
-                                        )}
-                                      />
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    {ticketFields.map((ticket, ticketIndex) => {
+                      const { fields: locationPriceFields, append: appendLocationPrice, remove: removeLocationPrice } = useFieldArray({
+                          control: form.control,
+                          name: `tickets.${ticketIndex}.locationPrices`
+                      });
+                      
+                      return (
+                        <Card key={ticket.id} className="p-4 space-y-4">
+                            <div className="flex justify-between items-start">
+                                <FormField
+                                    control={form.control}
+                                    name={`tickets.${ticketIndex}.name`}
+                                    render={({ field }) => (
+                                    <FormItem className="flex-grow pr-4">
+                                        <FormLabel>Ticket Name</FormLabel>
+                                        <FormControl><Input {...field} placeholder="e.g., VIP Pass" /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => removeTicket(ticketIndex)}
+                                    disabled={ticketFields.length <= 1}
+                                    className="mt-8"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                    <span className="sr-only">Remove tier</span>
+                                </Button>
+                            </div>
+                            
                             <FormField
                               control={form.control}
-                              name={`tickets.${index}.basePrice`}
+                              name={`tickets.${ticketIndex}.description`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Price (ETB)</FormLabel>
+                                  <FormLabel>Description</FormLabel>
                                   <FormControl>
-                                    <Input type="number" step="0.01" min="0" placeholder="e.g., 50" {...field} />
+                                    <Textarea {...field} placeholder="Describe what this ticket includes (e.g., front row seats, free drink)." className="resize-none" />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
                             />
-                            <FormField
-                              control={form.control}
-                              name={`tickets.${index}.quantity`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Quantity</FormLabel>
-                                  <FormControl>
-                                    <Input type="number" min="0" placeholder="e.g., 100" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        )}
-                    </Card>
-                    ))}
+
+                             <div className="space-y-4 rounded-md border p-4">
+                               <h4 className="font-medium text-sm">Location Prices & Quantities</h4>
+                               <FormMessage>{form.formState.errors.tickets?.[ticketIndex]?.locationPrices?.root?.message}</FormMessage>
+                              
+                               {locationPriceFields.map((field, priceIndex) => (
+                                <div key={field.id} className="grid grid-cols-12 gap-2 items-end">
+                                  <FormField control={form.control} name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.location`} render={({ field }) => (
+                                    <FormItem className="col-span-4"><FormLabel className="text-xs">Location</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger></FormControl>
+                                            <SelectContent>{watchedLocations.map(l => l.value).filter(Boolean).map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}</SelectContent>
+                                        </Select>
+                                    <FormMessage /></FormItem>
+                                  )}/>
+                                   <FormField control={form.control} name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.price`} render={({ field }) => (
+                                    <FormItem className="col-span-3"><FormLabel className="text-xs">Price</FormLabel><FormControl><Input type="number" placeholder="500" {...field} /></FormControl><FormMessage /></FormItem>
+                                   )}/>
+                                   <FormField control={form.control} name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.quantity`} render={({ field }) => (
+                                    <FormItem className="col-span-3"><FormLabel className="text-xs">Quantity</FormLabel><FormControl><Input type="number" placeholder="100" {...field} /></FormControl><FormMessage /></FormItem>
+                                   )}/>
+                                   <div className="col-span-2 flex items-center">
+                                      <Button type="button" variant="outline" size="icon" onClick={() => removeLocationPrice(priceIndex)} disabled={locationPriceFields.length <= 1}><Trash2 className="h-4 w-4" /></Button>
+                                   </div>
+                                </div>
+                              ))}
+                              <Button type="button" variant="outline" size="sm" onClick={() => appendLocationPrice({ location: watchedLocations[0]?.value || '', price: 0, quantity: 100 })} disabled={!watchedLocations.some(l => l.value)}>
+                                <PlusCircle className="mr-2 h-4 w-4"/> Add Location Price
+                              </Button>
+                            </div>
+                        </Card>
+                      )
+                    })}
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() => appendTicket({ name: '', description: '', basePrice: 0, quantity: 0, locationConfigs: {} })}
+                        onClick={() => appendTicket({ name: '', description: '', locationPrices: [{ location: watchedLocations[0]?.value || '', price: 0, quantity: 100 }] })}
                         >
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Add Ticket Tier
