@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowUpRight, Search, Ticket, CheckCircle, ShoppingCart, CreditCard, Facebook, Linkedin, Instagram, Youtube, Send, Mic, Drama, MessageSquareHeart, Gamepad2, Presentation, Utensils } from 'lucide-react';
+import { ArrowUpRight, Search, Ticket, CheckCircle, ShoppingCart, CreditCard, Facebook, Linkedin, Instagram, Youtube, Send, Mic, Drama, MessageSquareHeart, Gamepad2, Presentation, Utensils, LayoutGrid } from 'lucide-react';
 import { getPublicEvents } from '@/lib/actions';
 import { format } from 'date-fns';
 import type { Event, TicketType } from '@prisma/client';
@@ -20,6 +20,7 @@ import EventsCarousel from "@/components/events-carousel";
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
@@ -47,20 +48,20 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 
 const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 
-const CategoryFilter = ({ categories, selectedCategory, onSelectCategory }: { categories: string[], selectedCategory: string, onSelectCategory: (category: string) => void }) => {
-    
-    const categoryIcons: { [key: string]: React.ReactNode } = {
-        'All': <Ticket className="h-4 w-4" style={{ color: '#f59e0b' }} />,
-        'Technology': <Presentation className="h-4 w-4" style={{ color: '#3b82f6' }} />,
-        'Music': <Mic className="h-4 w-4" style={{ color: '#8b5cf6' }} />,
-        'Art': <Drama className="h-4 w-4" style={{ color: '#ec4899' }} />,
-        'Community': <MessageSquareHeart className="h-4 w-4" style={{ color: '#22c55e' }} />,
-        'Business': <Gamepad2 className="h-4 w-4" style={{ color: '#6366f1' }} />,
-        'Food & Drink': <Utensils className="h-4 w-4" style={{ color: '#f97316' }} />,
-        'Food': <Utensils className="h-4 w-4" style={{ color: '#f97316' }} />,
-        'Other': <Ticket className="h-4 w-4" style={{ color: '#f59e0b' }} />
-    };
+const categoryIcons: { [key: string]: React.ReactNode } = {
+    'All': <Ticket className="h-4 w-4" style={{ color: '#f59e0b' }} />,
+    'Technology': <Presentation className="h-4 w-4" style={{ color: '#3b82f6' }} />,
+    'Music': <Mic className="h-4 w-4" style={{ color: '#8b5cf6' }} />,
+    'Art': <Drama className="h-4 w-4" style={{ color: '#ec4899' }} />,
+    'Community': <MessageSquareHeart className="h-4 w-4" style={{ color: '#22c55e' }} />,
+    'Business': <Gamepad2 className="h-4 w-4" style={{ color: '#6366f1' }} />,
+    'Food & Drink': <Utensils className="h-4 w-4" style={{ color: '#f97316' }} />,
+    'Food': <Utensils className="h-4 w-4" style={{ color: '#f97316' }} />,
+    'Other': <Ticket className="h-4 w-4" style={{ color: '#f59e0b' }} />
+};
 
+
+const CategoryFilter = ({ categories, selectedCategory, onSelectCategory }: { categories: string[], selectedCategory: string, onSelectCategory: (category: string) => void }) => {
     return (
         <div className="relative">
             <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
@@ -239,6 +240,25 @@ export default function PublicHomePage() {
           </div>
 
           <div className="md:hidden flex items-center gap-2">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="text-sm h-8 px-3">
+                        <LayoutGrid className="h-4 w-4" />
+                        <span className="sr-only">Categories</span>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                    {categories.map((category) => (
+                        <DropdownMenuItem key={category} onSelect={() => setSelectedCategory(category)}>
+                             <div className="flex items-center gap-2">
+                                {categoryIcons[category] || <Ticket className="h-4 w-4" />}
+                                <span>{category}</span>
+                            </div>
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
+
              <Button asChild variant="ghost" className="text-sm h-8 px-3">
               <Link href="/tickets">
                 <Ticket className="h-4 w-4" />
@@ -295,7 +315,7 @@ export default function PublicHomePage() {
                       </div>
                   )}
                 </div>
-                <div className="mt-6 w-full max-w-lg lg:max-w-2xl pointer-events-auto">
+                <div className="mt-6 w-full max-w-lg lg:max-w-2xl pointer-events-auto hidden md:block">
                   <CategoryFilter categories={categories} selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />
                 </div>
             </div>
