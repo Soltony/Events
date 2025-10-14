@@ -101,15 +101,15 @@ export default function CartSheet({
                  <div className="space-y-2">
                     <div className="flex justify-between">
                         <span>Subtotal</span>
-                        <span className="font-semibold">{subtotal.toFixed(2)} ETB</span>
+                        <span className="font-semibold">ETB {subtotal.toFixed(2)}</span>
                     </div>
                     {appliedPromo && (
                         <div className="flex justify-between text-green-600 dark:text-green-400">
                             <span>Discount ({appliedPromo.code})</span>
-                            <span className="font-semibold">- ETB {discount.toFixed(2)}</span>
+                            <span className="font-semibold">-ETB {discount.toFixed(2)}</span>
                         </div>
                     )}
-                    <div className="border-t border-border"></div>
+                    <div className="border-t border-border my-2"></div>
                     <div className="flex justify-between text-xl font-bold">
                         <span>Total</span>
                         <span>ETB {total.toFixed(2)}</span>
