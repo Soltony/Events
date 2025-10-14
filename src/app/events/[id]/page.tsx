@@ -49,7 +49,7 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
       const endDateFormat = format(new Date(endDate), 'LLL dd, y') === format(new Date(startDate), 'LLL dd, y') 
         ? 'hh:mm a'
         : startDateFormat;
-      return `${format(new Date(startDate), startDateFormat)} - ${format(new Date(endDate), endDateFormat)}`;
+      return `${''}${format(new Date(startDate), startDateFormat)} - ${format(new Date(endDate), endDateFormat)}`;
     }
     return format(new Date(startDate), startDateFormat);
 }
@@ -386,7 +386,7 @@ export default function PublicEventDetailPage() {
                                                       <div className="mb-3 sm:mb-0">
                                                           <h4 className="font-semibold text-lg">{baseName}</h4>
                                                           <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">
-                                                              ETB {Number(ticket.basePrice).toFixed(2)}
+                                                              {Number(ticket.basePrice).toFixed(2)} ETB
                                                           </p>
                                                           <p className="text-sm text-muted-foreground">
                                                               {!isSoldOut ? `${remaining} remaining` : 'Sold Out'}
@@ -495,4 +495,3 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
-
