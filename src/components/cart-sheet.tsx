@@ -82,7 +82,7 @@ export default function CartSheet({
                             <div className="flex-1">
                                 <p className="font-semibold">{ticket.name}</p>
                                 <p className="text-sm text-accent font-bold">
-                                    ETB {ticket.price.toFixed(2)}
+                                    {ticket.price.toFixed(2)} ETB
                                 </p>
                             </div>
                             <div className="flex items-center gap-2">
