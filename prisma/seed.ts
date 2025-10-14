@@ -59,6 +59,7 @@ async function main() {
   await prisma.attendee.deleteMany({});
   await prisma.promoCode.deleteMany({});
   await prisma.ticketType.deleteMany({});
+  await prisma.pendingOrder.deleteMany({}); 
   await prisma.event.deleteMany({});
 
   // Create Events
