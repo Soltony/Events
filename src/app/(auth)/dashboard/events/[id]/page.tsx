@@ -491,7 +491,7 @@ export default function EventDetailPage() {
     },
     remaining: {
       label: "Remaining",
-      color: "hsl(var(--secondary))",
+      color: "hsl(var(--secondary-foreground) / 0.2)",
     },
   };
 
