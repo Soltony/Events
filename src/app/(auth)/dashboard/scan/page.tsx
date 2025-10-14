@@ -34,6 +34,8 @@ export default function ScanQrPage() {
     const [isScanning, setIsScanning] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
+    const qrUploaderId = "qr-code-image-uploader";
+
 
     const processScan = async (decodedText: string) => {
         setIsLoading(true);
@@ -86,8 +88,7 @@ export default function ScanQrPage() {
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            // Do not pass an element ID. This is more reliable for file scanning.
-            const qrScanner = new Html5Qrcode(/* verbose= */ false);
+            const qrScanner = new Html5Qrcode(qrUploaderId);
             try {
                 const decodedText = await qrScanner.scanFile(file, /* showImage= */ false);
                 await processScan(decodedText);
@@ -160,6 +161,9 @@ export default function ScanQrPage() {
                 </p>
             </div>
             
+            {/* Hidden element for file-based QR code scanning */}
+            <div id={qrUploaderId} style={{ display: 'none' }}></div>
+
             <Card>
                 <CardContent className="p-4 sm:p-6">
                     <div className="w-full aspect-square bg-muted rounded-lg border-dashed border-2 flex items-center justify-center overflow-hidden relative">
