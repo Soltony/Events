@@ -30,12 +30,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SESSION_TIMEOUT_DURATION = 15 * 60 * 1000; 
+const SESSION_TIMEOUT_DURATION = 15 * 60 * 1000;
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION = 30 * 1000; // 30 seconds
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [user, setUser] = useState<UserWithRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
@@ -149,6 +153,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, logout]);
 
   const login = async (data: any) => {
+    if (lockoutUntil && Date.now() < lockoutUntil) {
+        const timeLeft = Math.ceil((lockoutUntil - Date.now()) / 1000);
+        toast({
+            variant: 'destructive',
+            title: 'Login Locked',
+            description: `Too many failed attempts. Please try again in ${timeLeft} seconds.`,
+        });
+        return;
+    }
+
     setIsLoading(true);
     try {
       const requestData = {
@@ -158,6 +172,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await api.post('/api/auth/login', requestData);
 
       if (response.data && response.data.isSuccess) {
+        setFailedAttempts(0);
+        setLockoutUntil(null);
+
         const { accessToken, refreshToken, AccessToken, RefreshToken } = response.data;
         const resolvedAccessToken = accessToken || AccessToken;
         const resolvedRefreshToken = refreshToken || RefreshToken;
@@ -207,17 +224,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
       } else {
-        const errorMessage = response.data.errors?.join(', ') || 'Login failed. Please check your credentials.';
-        throw new Error(errorMessage);
+        const currentFailed = failedAttempts + 1;
+        setFailedAttempts(currentFailed);
+
+        if (currentFailed >= MAX_LOGIN_ATTEMPTS) {
+            const newLockoutUntil = Date.now() + LOCKOUT_DURATION;
+            setLockoutUntil(newLockoutUntil);
+            setFailedAttempts(0);
+            toast({
+                variant: 'destructive',
+                title: 'Login Locked',
+                description: `Too many failed attempts. Please try again in ${LOCKOUT_DURATION / 1000} seconds.`,
+            });
+        } else {
+            const errorMessage = response.data.errors?.join(', ') || 'Login failed. Please check your credentials.';
+            throw new Error(errorMessage);
+        }
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'An error occurred during login.';
-      toast({
-        variant: 'destructive',
-        title: 'Login Failed',
-        description: errorMessage,
-      });
-      console.error('Login error:', error);
+      if (failedAttempts < MAX_LOGIN_ATTEMPTS -1) {
+          const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'An error occurred during login.';
+          toast({
+            variant: 'destructive',
+            title: 'Login Failed',
+            description: errorMessage,
+          });
+          console.error('Login error:', error);
+      }
     } finally {
         setIsLoading(false);
     }
