@@ -126,20 +126,15 @@ export async function POST(req: NextRequest) {
         const paymentToken = responseData.token;
 
         if (responseData.responseCode === '00' && paymentToken) {
-            // Update pending order with the payment token (if needed)
-            // For now, we will redirect to a success/processing page.
-            // The actual redirect URL might come from the payment gateway.
-             await prisma.pendingOrder.update({
+            await prisma.pendingOrder.update({
                 where: { id: pendingOrder.id },
-                data: { arifpaySessionId: paymentToken }, // Using existing field for payment token
+                data: { arifpaySessionId: transactionId }, // Use our transactionId as the session identifier
             });
 
-            // Assuming the gateway provides a redirect URL
-            const redirectUrl = responseData.redirectUrl || `${process.env.SUCCESS_URL}?transaction_id=${transactionId}`;
-            
-            // In a real scenario, you might redirect the user to a URL provided by NIB.
-            // For now, we simulate a successful initiation and return a URL to our own processing page.
-            return NextResponse.json({ paymentUrl: redirectUrl, successUrl: redirectUrl, pendingOrder });
+            return NextResponse.json({ 
+                paymentToken: paymentToken,
+                transactionId: transactionId,
+            });
         } else {
             console.error('Payment session creation failed:', responseData);
             return NextResponse.json({

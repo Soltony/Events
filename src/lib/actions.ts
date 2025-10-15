@@ -871,11 +871,10 @@ export async function updatePasswordFlag(userId: string, passwordChangeRequired:
 
 
 // Ticket/Attendee Actions
-interface PurchaseRequest {
+export interface PurchaseRequest {
   eventId: number;
   tickets: { id: number; quantity: number, name: string; price: number }[];
   promoCode?: string;
-  authToken?: string; // Added authToken
   attendeeDetails: {
     name: string;
     phone: string;
@@ -884,7 +883,6 @@ interface PurchaseRequest {
 }
 
 export async function purchaseTickets(request: PurchaseRequest) {
-    'use server';
     const { eventId, tickets, promoCode, attendeeDetails } = request;
 
     if (!attendeeDetails.name || !attendeeDetails.phone) {
@@ -902,7 +900,6 @@ export async function purchaseTickets(request: PurchaseRequest) {
     const useMockFlow = process.env.NODE_ENV === 'development' || !process.env.BASE_URL || !process.env.ARIFPAY_API_KEY;
 
     try {
-        // Production flow with real payment gateway
         const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_VERCEL_URL;
         if (!appUrl) {
             throw new Error("App URL environment variable is not set.");
@@ -912,7 +909,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
             eventId,
             tickets,
             promoCode,
-            authToken, // Pass the token to the API route
+            authToken,
             attendeeDetails: {
                 ...attendeeDetails,
                 userId: user?.id,
@@ -927,8 +924,8 @@ export async function purchaseTickets(request: PurchaseRequest) {
 
         const result = await response.json();
 
-        if (response.ok && result.paymentUrl) {
-            redirect(result.paymentUrl);
+        if (response.ok && (result.paymentUrl || result.paymentToken)) {
+            return result;
         } else {
             throw new Error(result.detail || result.error || 'Failed to initiate payment session.');
         }
@@ -937,7 +934,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
             throw error;
         }
         console.error("Payment initiation failed:", error.message);
-        redirect(`/payment/failure?event_id=${eventId}`);
+        return { error: error.message || 'Failed to initiate payment.' };
     }
 }
 

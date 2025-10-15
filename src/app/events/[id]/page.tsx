@@ -11,7 +11,7 @@ import { notFound, useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import type { Event, TicketType, PromoCode } from '@prisma/client';
 import { useEffect, useState, useTransition, useMemo, useRef } from 'react';
-import { purchaseTickets } from '@/lib/actions';
+import { purchaseTickets, type PurchaseRequest } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -198,23 +198,54 @@ export default function PublicEventDetailPage() {
     }
   }, [appliedPromo, subtotal]);
 
-  const handlePurchase = () => {
+  const handlePurchase = async () => {
     if (!attendeeName || !attendeePhone) {
       toast({ variant: 'destructive', title: "Missing Information", description: "Please enter your name and phone number." });
       return;
     }
 
-    startTransition(() => {
-        purchaseTickets({
-            eventId,
-            tickets: Object.values(selectedTickets),
-            promoCode: appliedPromo?.code,
-            attendeeDetails: {
-              name: attendeeName,
-              phone: attendeePhone,
+    setIsPurchaseModalOpen(false);
+
+    startTransition(async () => {
+        try {
+            const purchaseRequest: PurchaseRequest = {
+                eventId,
+                tickets: Object.values(selectedTickets),
+                promoCode: appliedPromo?.code,
+                attendeeDetails: {
+                    name: attendeeName,
+                    phone: attendeePhone,
+                },
+            };
+            const result = await purchaseTickets(purchaseRequest);
+
+            if (result.error) {
+                throw new Error(result.error);
             }
-        });
-        setIsPurchaseModalOpen(false);
+
+            if (result.paymentToken && result.transactionId) {
+                if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
+                    window.myJsChannel.postMessage({ token: result.paymentToken });
+                    router.push(`/payment/processing?transaction_id=${result.transactionId}`);
+                } else {
+                    console.error("NIB Super App channel (window.myJsChannel) not found.");
+                    toast({
+                        variant: "destructive",
+                        title: "Communication Error",
+                        description: "Could not communicate with the payment app.",
+                    });
+                }
+            } else {
+                 throw new Error("Invalid payment session response.");
+            }
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Payment Initiation Failed",
+                description: error.message || "An unknown error occurred.",
+            });
+            router.push(`/payment/failure?event_id=${eventId}`);
+        }
     });
   };
 
