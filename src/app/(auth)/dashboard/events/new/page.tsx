@@ -544,7 +544,7 @@ export default function CreateEventPage() {
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() => appendTicket({ name: '', description: '', locationPrices: [{ location: (watchedLocations && watchedLocations.length > 0) ? watchedLocations[0].value : '', price: 0, quantity: 100 }] })}
+                        onClick={() => appendTicket({ name: '', description: '', locationPrices: [{ location: watchedLocations?.[0]?.value ?? '', price: 0, quantity: 100 }] })}
                         >
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Add Ticket Tier
