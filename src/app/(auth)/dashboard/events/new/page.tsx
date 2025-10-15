@@ -1,9 +1,8 @@
 
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, Control } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, Trash2, UploadCloud, Loader2, X } from 'lucide-react';
@@ -31,12 +30,17 @@ import { Separator } from '@/components/ui/separator';
 import LocationInput from '@/components/location-input';
 import { DateTimePicker } from '@/components/datetime-picker';
 import { useAuth } from '@/context/auth-context';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const locationPriceSchema = z.object({
   location: z.string().min(1, "Location is required."),
   price: z.coerce.number().min(0, 'Price must be a positive number.'),
   quantity: z.coerce.number().int().min(1, 'Quantity must be at least 1.'),
+});
+
+const ticketSchema = z.object({
+  name: z.string().min(1, { message: "Ticket name can't be empty."}),
+  description: z.string().optional(),
+  locationPrices: z.array(locationPriceSchema).min(1, "You must add at least one location configuration."),
 });
 
 const eventFormSchema = z.object({
@@ -54,11 +58,7 @@ const eventFormSchema = z.object({
   category: z.string({ required_error: 'Please select a category.' }),
   otherCategory: z.string().optional(),
   images: z.array(z.string()).min(1, { message: 'Please upload exactly one image.' }),
-  tickets: z.array(z.object({
-    name: z.string().min(1, { message: "Ticket name can't be empty."}),
-    description: z.string().optional(),
-    locationPrices: z.array(locationPriceSchema).min(1, "You must add at least one location configuration."),
-  })).min(1, { message: 'You must have at least one ticket tier.'}),
+  tickets: z.array(ticketSchema).min(1, { message: 'You must have at least one ticket tier.'}),
 }).refine(data => {
     if (data.category === 'Other') {
         return !!data.otherCategory && data.otherCategory.length > 0;
@@ -71,7 +71,133 @@ const eventFormSchema = z.object({
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
 
-const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
+// New component for Ticket Tier Card to correctly handle nested field array
+const TicketTierCard = ({
+  ticketIndex,
+  control,
+  remove,
+  totalTickets,
+  watchedLocations,
+}: {
+  ticketIndex: number;
+  control: Control<EventFormValues>;
+  remove: (index: number) => void;
+  totalTickets: number;
+  watchedLocations: { value: string }[];
+}) => {
+  const { fields: locationPriceFields, append: appendLocationPrice, remove: removeLocationPrice } = useFieldArray({
+    control,
+    name: `tickets.${ticketIndex}.locationPrices`,
+  });
+
+  return (
+    <Card className="p-4 space-y-4">
+      <div className="flex justify-between items-start">
+        <FormField
+          control={control}
+          name={`tickets.${ticketIndex}.name`}
+          render={({ field }) => (
+            <FormItem className="flex-grow pr-4">
+              <FormLabel>Ticket Name</FormLabel>
+              <FormControl><Input {...field} placeholder="e.g., VIP Pass" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={() => remove(ticketIndex)}
+          disabled={totalTickets <= 1}
+          className="mt-8"
+        >
+          <Trash2 className="h-4 w-4" />
+          <span className="sr-only">Remove tier</span>
+        </Button>
+      </div>
+
+      <FormField
+        control={control}
+        name={`tickets.${ticketIndex}.description`}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Description</FormLabel>
+            <FormControl>
+              <Textarea {...field} placeholder="Describe what this ticket includes (e.g., front row seats, free drink)." className="resize-none" />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <div className="space-y-4 rounded-md border p-4">
+        <h4 className="font-medium text-sm">Location Prices & Quantities</h4>
+        <FormField
+          control={control}
+          name={`tickets.${ticketIndex}.locationPrices`}
+          render={() => <FormMessage />}
+        />
+
+        {locationPriceFields.map((field, priceIndex) => (
+          <div key={field.id} className="grid grid-cols-12 gap-2 items-end">
+            <FormField
+              control={control}
+              name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.location`}
+              render={({ field }) => (
+                <FormItem className="col-span-4">
+                  <FormLabel className="text-xs">Location</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger></FormControl>
+                    <SelectContent>{watchedLocations.map(l => l.value).filter(Boolean).map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.price`}
+              render={({ field }) => (
+                <FormItem className="col-span-3">
+                  <FormLabel className="text-xs">Price</FormLabel>
+                  <FormControl><Input type="number" placeholder="500" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.quantity`}
+              render={({ field }) => (
+                <FormItem className="col-span-3">
+                  <FormLabel className="text-xs">Quantity</FormLabel>
+                  <FormControl><Input type="number" placeholder="100" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="col-span-2 flex items-center">
+              <Button type="button" variant="outline" size="icon" onClick={() => removeLocationPrice(priceIndex)} disabled={locationPriceFields.length <= 1}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => appendLocationPrice({ location: watchedLocations[0]?.value || '', price: 0, quantity: 100 })}
+          disabled={!watchedLocations.some(l => l.value)}
+        >
+          <PlusCircle className="mr-2 h-4 w-4" /> Add Location Price
+        </Button>
+      </div>
+    </Card>
+  );
+};
+
 
 export default function CreateEventPage() {
   const router = useRouter();
@@ -91,25 +217,27 @@ export default function CreateEventPage() {
       category: '',
       otherCategory: '',
       images: [],
-      tickets: [{ 
-        name: 'General Admission', 
-        description: 'Standard entry to the event.', 
+      tickets: [{
+        name: 'General Admission',
+        description: 'Standard entry to the event.',
         locationPrices: [{ location: '', price: 0, quantity: 100 }]
       }],
     },
   });
+
+  const { control } = form;
 
   const watchedImages = form.watch('images');
   const watchedCategory = form.watch('category');
   const watchedLocations = form.watch('locations');
 
   const { fields: ticketFields, append: appendTicket, remove: removeTicket } = useFieldArray({
-    control: form.control,
+    control,
     name: "tickets"
   });
 
   const { fields: locationFields, append: appendLocation, remove: removeLocation } = useFieldArray({
-    control: form.control,
+    control,
     name: "locations"
   });
 
@@ -130,7 +258,7 @@ export default function CreateEventPage() {
             category: data.category === 'Other' ? data.otherCategory : data.category,
         };
         const newEvent = await addEvent(finalData);
-        
+
         if (newEvent.status === 'PENDING') {
             toast({
                 title: 'Event Submitted!',
@@ -148,7 +276,7 @@ export default function CreateEventPage() {
                 router.push('/dashboard/events');
             }
         }
-        
+
     } catch (error: any) {
         console.error("Failed to create event:", error);
         toast({
@@ -186,7 +314,7 @@ export default function CreateEventPage() {
         reader.readAsDataURL(file);
     }
   };
-  
+
   return (
     <div className="flex flex-1 items-center justify-center p-4">
       <div className="w-full max-w-4xl">
@@ -199,7 +327,7 @@ export default function CreateEventPage() {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                 <FormField
-                  control={form.control}
+                  control={control}
                   name="name"
                   render={({ field }) => (
                     <FormItem>
@@ -215,7 +343,7 @@ export default function CreateEventPage() {
                   )}
                 />
                  <FormField
-                  control={form.control}
+                  control={control}
                   name="color" // <-- Now using 'color' field
                   render={({ field }) => (
                     <FormItem>
@@ -231,7 +359,7 @@ export default function CreateEventPage() {
                   )}
                 />
                 <FormField
-                  control={form.control}
+                  control={control}
                   name="description"
                   render={({ field }) => (
                     <FormItem>
@@ -253,7 +381,7 @@ export default function CreateEventPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
-                      control={form.control}
+                      control={control}
                       name="category"
                       render={({ field }) => (
                         <FormItem>
@@ -282,7 +410,7 @@ export default function CreateEventPage() {
                     />
                     {watchedCategory === 'Other' && (
                       <FormField
-                        control={form.control}
+                        control={control}
                         name="otherCategory"
                         render={({ field }) => (
                           <FormItem>
@@ -301,7 +429,7 @@ export default function CreateEventPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
-                      control={form.control}
+                      control={control}
                       name="startDate"
                       render={({ field }) => (
                         <FormItem className="flex flex-col">
@@ -315,7 +443,7 @@ export default function CreateEventPage() {
                       )}
                     />
                     <FormField
-                      control={form.control}
+                      control={control}
                       name="endDate"
                       render={({ field }) => (
                         <FormItem className="flex flex-col">
@@ -341,7 +469,7 @@ export default function CreateEventPage() {
                   {locationFields.map((field, index) => (
                       <div key={field.id} className="flex items-center gap-2">
                           <FormField
-                              control={form.control}
+                              control={control}
                               name={`locations.${index}.value`}
                               render={({ field }) => (
                                   <FormItem className="flex-grow">
@@ -379,7 +507,7 @@ export default function CreateEventPage() {
 
 
                 <FormField
-                  control={form.control}
+                  control={control}
                   name="hint"
                   render={({ field }) => (
                     <FormItem>
@@ -398,7 +526,7 @@ export default function CreateEventPage() {
                     </FormItem>
                   )}
                 />
-                
+
                 <Separator />
 
                 <div className="space-y-4">
@@ -452,7 +580,6 @@ export default function CreateEventPage() {
                     </div>
                 </div>
 
-
                 <Separator />
 
                 <div className="space-y-6">
@@ -462,90 +589,26 @@ export default function CreateEventPage() {
                         <FormMessage>{form.formState.errors.tickets?.message}</FormMessage>
                     </div>
 
-                    {ticketFields.map((ticket, ticketIndex) => {
-                      const { fields: locationPriceFields, append: appendLocationPrice, remove: removeLocationPrice } = useFieldArray({
-                          control: form.control,
-                          name: `tickets.${ticketIndex}.locationPrices`
-                      });
-                      
-                      return (
-                        <Card key={ticket.id} className="p-4 space-y-4">
-                            <div className="flex justify-between items-start">
-                                <FormField
-                                    control={form.control}
-                                    name={`tickets.${ticketIndex}.name`}
-                                    render={({ field }) => (
-                                    <FormItem className="flex-grow pr-4">
-                                        <FormLabel>Ticket Name</FormLabel>
-                                        <FormControl><Input {...field} placeholder="e.g., VIP Pass" /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => removeTicket(ticketIndex)}
-                                    disabled={ticketFields.length <= 1}
-                                    className="mt-8"
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                    <span className="sr-only">Remove tier</span>
-                                </Button>
-                            </div>
-                            
-                            <FormField
-                              control={form.control}
-                              name={`tickets.${ticketIndex}.description`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Description</FormLabel>
-                                  <FormControl>
-                                    <Textarea {...field} placeholder="Describe what this ticket includes (e.g., front row seats, free drink)." className="resize-none" />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
+                    {ticketFields.map((ticket, ticketIndex) => (
+                      <TicketTierCard
+                        key={ticket.id}
+                        ticketIndex={ticketIndex}
+                        control={control}
+                        remove={removeTicket}
+                        totalTickets={ticketFields.length}
+                        watchedLocations={watchedLocations}
+                      />
+                    ))}
 
-                             <div className="space-y-4 rounded-md border p-4">
-                               <h4 className="font-medium text-sm">Location Prices & Quantities</h4>
-                               <FormMessage>{form.formState.errors.tickets?.[ticketIndex]?.locationPrices?.root?.message}</FormMessage>
-                              
-                               {locationPriceFields.map((field, priceIndex) => (
-                                <div key={field.id} className="grid grid-cols-12 gap-2 items-end">
-                                  <FormField control={form.control} name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.location`} render={({ field }) => (
-                                    <FormItem className="col-span-4"><FormLabel className="text-xs">Location</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                                            <FormControl><SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger></FormControl>
-                                            <SelectContent>{watchedLocations.map(l => l.value).filter(Boolean).map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}</SelectContent>
-                                        </Select>
-                                    <FormMessage /></FormItem>
-                                  )}/>
-                                   <FormField control={form.control} name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.price`} render={({ field }) => (
-                                    <FormItem className="col-span-3"><FormLabel className="text-xs">Price</FormLabel><FormControl><Input type="number" placeholder="500" {...field} /></FormControl><FormMessage /></FormItem>
-                                   )}/>
-                                   <FormField control={form.control} name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.quantity`} render={({ field }) => (
-                                    <FormItem className="col-span-3"><FormLabel className="text-xs">Quantity</FormLabel><FormControl><Input type="number" placeholder="100" {...field} /></FormControl><FormMessage /></FormItem>
-                                   )}/>
-                                   <div className="col-span-2 flex items-center">
-                                      <Button type="button" variant="outline" size="icon" onClick={() => removeLocationPrice(priceIndex)} disabled={locationPriceFields.length <= 1}><Trash2 className="h-4 w-4" /></Button>
-                                   </div>
-                                </div>
-                              ))}
-                              <Button type="button" variant="outline" size="sm" onClick={() => appendLocationPrice({ location: watchedLocations[0]?.value || '', price: 0, quantity: 100 })} disabled={!watchedLocations.some(l => l.value)}>
-                                <PlusCircle className="mr-2 h-4 w-4"/> Add Location Price
-                              </Button>
-                            </div>
-                        </Card>
-                      )
-                    })}
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() => appendTicket({ name: '', description: '', locationPrices: [{ location: watchedLocations?.[0]?.value ?? '', price: 0, quantity: 100 }] })}
-                        >
+                        onClick={() => appendTicket({
+                            name: '',
+                            description: '',
+                            locationPrices: [{ location: watchedLocations?.[0]?.value ?? '', price: 0, quantity: 100 }]
+                        })}
+                    >
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Add Ticket Tier
                     </Button>
@@ -565,3 +628,5 @@ export default function CreateEventPage() {
     </div>
   );
 }
+
+    
