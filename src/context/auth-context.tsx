@@ -96,31 +96,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function initializeAuth() {
-        try {
-            const storedUser = localStorage.getItem('authUser');
-            const response = await fetch('/api/auth/session');
+      try {
+        // First, try to initialize from Authorization header via our new endpoint
+        const initResponse = await fetch('/api/auth/init', { method: 'POST' });
 
-            if (storedUser && response.ok) {
-                const { accessToken } = await response.json();
-                if (accessToken) {
-                    setAuthToken(accessToken);
-                    const parsedUser = JSON.parse(storedUser);
-                    setUser(parsedUser);
-                } else {
-                    await clearAuthData();
-                }
-            } else {
-                 await clearAuthData();
-            }
-        } catch (error) {
-            console.error("Failed to initialize auth state", error);
-            await clearAuthData();
-        } finally {
+        if (initResponse.ok) {
+          const { user: initializedUser, isSuccess } = await initResponse.json();
+          if (isSuccess && initializedUser) {
+            setUser(initializedUser);
+            localStorage.setItem('authUser', JSON.stringify(initializedUser));
+            setAuthToken(initializedUser.token); // Assuming token is on user object from init
             setIsLoading(false);
+            return;
+          }
         }
+        
+        // If header auth fails or is not present, fall back to cookie/localStorage session
+        const storedUser = localStorage.getItem('authUser');
+        const sessionResponse = await fetch('/api/auth/session');
+
+        if (storedUser && sessionResponse.ok) {
+          const { accessToken } = await sessionResponse.json();
+          if (accessToken) {
+            setAuthToken(accessToken);
+            const parsedUser = JSON.parse(storedUser);
+            setUser(parsedUser);
+          } else {
+            await clearAuthData();
+          }
+        } else {
+          await clearAuthData();
+        }
+      } catch (error) {
+        console.error("Failed to initialize auth state", error);
+        await clearAuthData();
+      } finally {
+        setIsLoading(false);
+      }
     }
     initializeAuth();
-}, [clearAuthData]);
+  }, [clearAuthData]);
 
 
   useEffect(() => {
