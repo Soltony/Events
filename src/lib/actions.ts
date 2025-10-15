@@ -875,6 +875,7 @@ interface PurchaseRequest {
   eventId: number;
   tickets: { id: number; quantity: number, name: string; price: number }[];
   promoCode?: string;
+  authToken?: string; // Added authToken
   attendeeDetails: {
     name: string;
     phone: string;
@@ -894,36 +895,13 @@ export async function purchaseTickets(request: PurchaseRequest) {
     }
     
     const user = await getCurrentUser();
+    const cookieStore = cookies();
+    const tokenCookie = cookieStore.get('authTokens');
+    const authToken = tokenCookie ? JSON.parse(tokenCookie.value).accessToken : undefined;
     
     const useMockFlow = process.env.NODE_ENV === 'development' || !process.env.BASE_URL || !process.env.ARIFPAY_API_KEY;
 
     try {
-        if (useMockFlow) {
-            console.log("Using mock payment flow.");
-            const totalQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0);
-            const transactionId = randomBytes(16).toString('hex');
-
-            const pendingOrder = await prisma.pendingOrder.create({
-                data: {
-                    transactionId: transactionId,
-                    arifpaySessionId: transactionId, // Use the same ID for mock session
-                    eventId,
-                    ticketTypeId: tickets[0].id,
-                    attendeeData: {
-                        name: attendeeDetails.name,
-                        phoneNumber: attendeeDetails.phone,
-                        userId: user?.id,
-                        quantity: totalQuantity,
-                    },
-                    promoCode,
-                    status: 'PENDING',
-                },
-            });
-
-            redirect(`/payment/success?session_id=${pendingOrder.arifpaySessionId}`);
-            return;
-        }
-
         // Production flow with real payment gateway
         const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_VERCEL_URL;
         if (!appUrl) {
@@ -934,6 +912,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
             eventId,
             tickets,
             promoCode,
+            authToken, // Pass the token to the API route
             attendeeDetails: {
                 ...attendeeDetails,
                 userId: user?.id,
@@ -951,7 +930,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
         if (response.ok && result.paymentUrl) {
             redirect(result.paymentUrl);
         } else {
-            throw new Error(result.error || 'Failed to initiate payment session.');
+            throw new Error(result.detail || result.error || 'Failed to initiate payment session.');
         }
     } catch (error: any) {
         if (error.digest?.startsWith('NEXT_REDIRECT')) {

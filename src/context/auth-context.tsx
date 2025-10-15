@@ -97,35 +97,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function initializeAuth() {
       try {
-        // First, try to initialize from Authorization header via our new endpoint
-        const initResponse = await fetch('/api/auth/init', { method: 'POST' });
-
-        if (initResponse.ok) {
-          const { user: initializedUser, isSuccess } = await initResponse.json();
-          if (isSuccess && initializedUser) {
-            setUser(initializedUser);
-            localStorage.setItem('authUser', JSON.stringify(initializedUser));
-            setAuthToken(initializedUser.token); // Assuming token is on user object from init
-            setIsLoading(false);
-            return;
-          }
-        }
-        
-        // If header auth fails or is not present, fall back to cookie/localStorage session
-        const storedUser = localStorage.getItem('authUser');
         const sessionResponse = await fetch('/api/auth/session');
 
-        if (storedUser && sessionResponse.ok) {
-          const { accessToken } = await sessionResponse.json();
-          if (accessToken) {
-            setAuthToken(accessToken);
-            const parsedUser = JSON.parse(storedUser);
-            setUser(parsedUser);
-          } else {
-            await clearAuthData();
-          }
+        if (sessionResponse.ok) {
+            const sessionData = await sessionResponse.json();
+            if (sessionData.accessToken) {
+                setTokens({ accessToken: sessionData.accessToken, refreshToken: sessionData.refreshToken || '' });
+                setAuthToken(sessionData.accessToken);
+                const storedUser = localStorage.getItem('authUser');
+                if (storedUser) {
+                    setUser(JSON.parse(storedUser));
+                } else {
+                    // If no user in local storage, try to fetch it
+                    await refreshUser();
+                }
+            } else {
+                 await clearAuthData();
+            }
         } else {
-          await clearAuthData();
+             // Fallback to header-based initialization if session cookie is not found/valid
+            const initResponse = await fetch('/api/auth/init', { method: 'POST' });
+            if (initResponse.ok) {
+                const { user: initializedUser, isSuccess } = await initResponse.json();
+                if (isSuccess && initializedUser) {
+                    setUser(initializedUser);
+                    localStorage.setItem('authUser', JSON.stringify(initializedUser));
+                    const newSessionResponse = await fetch('/api/auth/session');
+                    if (newSessionResponse.ok) {
+                        const newSessionData = await newSessionResponse.json();
+                        setAuthToken(newSessionData.accessToken);
+                    }
+                }
+            } else {
+                await clearAuthData();
+            }
         }
       } catch (error) {
         console.error("Failed to initialize auth state", error);
@@ -135,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     initializeAuth();
-  }, [clearAuthData]);
+  }, [clearAuthData, refreshUser]);
 
 
   useEffect(() => {
