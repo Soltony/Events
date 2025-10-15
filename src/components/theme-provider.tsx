@@ -13,11 +13,6 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
       defaultTheme="system"
       enableSystem
       storageKey="nib-theme"
-      cookieOptions={{
-        sameSite: "lax",
-        secure: true,
-        httpOnly: true,
-      }}
     >
       {children}
     </NextThemesProvider>
