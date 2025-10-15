@@ -34,6 +34,17 @@ export function middleware(req: NextRequest) {
   res.headers.set('Content-Security-Policy', cspHeader.replace(/\s{2,}/g, ' ').trim());
   res.headers.set('X-Content-Type-Options', 'nosniff');
 
+  // Handle theme cookie
+  const themeCookie = req.cookies.get('nib-theme');
+  if (themeCookie) {
+    res.cookies.set('nib-theme', themeCookie.value, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+    });
+  }
+
   return res;
 }
 
