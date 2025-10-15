@@ -33,30 +33,44 @@ export async function POST(req: NextRequest) {
     }
 
     const token = authHeader.substring(7);
+    const validationUrl = process.env.AUTH_VALIDATION_URL;
 
-    // Decode JWT to get user identifier (e.g., user ID or phone number)
-    // This is a simplified decoding, in a real app, you would verify the signature
-    const payloadBase64 = token.split('.')[1];
-    if (!payloadBase64) {
-      return NextResponse.json({ isSuccess: false, error: 'Invalid token format.'}, { status: 401 });
-    }
-
-    const decodedJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
-    const decoded = JSON.parse(decodedJson);
-    const userId = decoded.sub; // Assuming 'sub' claim holds the user ID
-
-    if (!userId) {
-        return NextResponse.json({ isSuccess: false, error: 'Token does not contain a user identifier.'}, { status: 401 });
+    if (!validationUrl) {
+      console.error('AUTH_VALIDATION_URL is not set in environment variables.');
+      return NextResponse.json({ isSuccess: false, error: 'Authentication service is not configured.' }, { status: 500 });
     }
     
-    // Fetch user from your database
+    // Validate the token with the external service
+    const externalResponse = await fetch(validationUrl, {
+        method: 'GET',
+        headers: {
+            Authorization: authHeader,
+            Accept: 'application/json',
+        },
+        cache: 'no-store',
+    });
+
+    if (!externalResponse.ok) {
+        const errorText = await externalResponse.text();
+        console.error(`External token validation failed with status ${externalResponse.status}: ${errorText}`);
+        return NextResponse.json({ isSuccess: false, error: 'Token validation failed.'}, { status: 401 });
+    }
+
+    const responseData = await externalResponse.json();
+    const phoneNumber = responseData.phone;
+    
+    if (!phoneNumber) {
+        return NextResponse.json({ isSuccess: false, error: 'External service did not return a phone number.'}, { status: 401 });
+    }
+    
+    // Fetch user from your database using the phone number
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { phoneNumber: phoneNumber },
       include: { role: true },
     });
 
     if (!user) {
-      return NextResponse.json({ isSuccess: false, error: 'User not found.'}, { status: 404 });
+      return NextResponse.json({ isSuccess: false, error: 'User not found in local database.'}, { status: 404 });
     }
 
     // In this flow, the token from the header is the source of truth.
