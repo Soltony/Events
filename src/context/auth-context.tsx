@@ -2,7 +2,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import api, { setAuthToken } from '@/lib/api';
 import { getUserByPhoneNumber } from '@/lib/actions';
@@ -30,38 +30,28 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SESSION_TIMEOUT_DURATION = 15 * 60 * 1000; // 15 minutes
-
-function setCookie(name: string, value: string, days: number) {
-    let expires = "";
-    if (days) {
-        const date = new Date();
-        date.setTime(date.getTime() + (days*24*60*60*1000));
-        expires = "; expires=" + date.toUTCString();
-    }
-    document.cookie = name + "=" + (value || "")  + expires + "; path=/; SameSite=Lax; Secure";
-}
-
-function eraseCookie(name: string) {   
-    document.cookie = name+'=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-}
+const SESSION_TIMEOUT_DURATION = 15 * 60 * 1000; 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [user, setUser] = useState<UserWithRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
   const { toast } = useToast();
 
-  const logout = useCallback(async (options?: { reason?: string }) => {
-    const { reason } = options || {};
-    
-    // Clear client-side state and storage first
+  const clearAuthData = useCallback(async () => {
     setUser(null);
     setTokens(null);
     setAuthToken(null);
     localStorage.removeItem('authUser');
-    eraseCookie('authTokens');
+    await fetch('/api/auth/session', { method: 'DELETE' });
+  }, []);
+
+  const logout = useCallback(async (options?: { reason?: string }) => {
+    const { reason } = options || {};
+    
+    await clearAuthData();
     
     if (reason) {
         toast({
@@ -70,10 +60,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
     }
     
-    // We push to login after clearing state
-    router.push('/login');
+    // Only redirect if they are on a protected route.
+    if (pathname.startsWith('/dashboard')) {
+        router.push('/login');
+    }
 
-  }, [router, toast]);
+  }, [router, toast, clearAuthData, pathname]);
 
   const refreshUser = useCallback(async () => {
     const storedUser = localStorage.getItem('authUser');
@@ -99,27 +91,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem('authUser');
+    async function initializeAuth() {
+        try {
+            const storedUser = localStorage.getItem('authUser');
+            const response = await fetch('/api/auth/session');
 
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-      }
-    } catch (error) {
-        console.error("Failed to parse auth data from localStorage", error);
-        logout({ reason: 'Your session was corrupted. Please log in again.'});
-    } finally {
-        setIsLoading(false);
+            if (storedUser && response.ok) {
+                const { accessToken } = await response.json();
+                if (accessToken) {
+                    setAuthToken(accessToken);
+                    const parsedUser = JSON.parse(storedUser);
+                    setUser(parsedUser);
+                } else {
+                    await clearAuthData();
+                }
+            } else {
+                 await clearAuthData();
+            }
+        } catch (error) {
+            console.error("Failed to initialize auth state", error);
+            await clearAuthData();
+        } finally {
+            setIsLoading(false);
+        }
     }
-  }, [logout]);
+    initializeAuth();
+}, [clearAuthData]);
+
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
 
     const resetTimeout = () => {
       clearTimeout(timeoutId);
-      if (localStorage.getItem('authUser')) { // Check for user presence instead of tokens
+      if (localStorage.getItem('authUser')) { 
           timeoutId = setTimeout(() => {
             logout({ reason: 'You have been logged out due to inactivity.' });
           }, SESSION_TIMEOUT_DURATION);
@@ -132,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         resetTimeout();
     };
 
-    if (user) { // Trigger based on user state
+    if (user) { 
       events.forEach(event => window.addEventListener(event, handleActivity));
       resetTimeout();
     }
@@ -158,16 +163,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const resolvedRefreshToken = refreshToken || RefreshToken;
 
         if (resolvedAccessToken) {
-          const newTokens = { accessToken: resolvedAccessToken, refreshToken: resolvedRefreshToken };
-          setTokens(newTokens);
-          setAuthToken(resolvedAccessToken);
-          setCookie('authTokens', JSON.stringify(newTokens), 1);
           
-          // Force a fresh fetch of user data from DB to get correct role/permissions
           const userData = await getUserByPhoneNumber(data.phoneNumber);
           if (!userData) {
             throw new Error('Failed to retrieve user data after login.');
           }
+
+          if (userData.status === 'INACTIVE') {
+            throw new Error('Your account is inactive. Please contact an administrator.');
+          }
+          
+          const newTokens = { accessToken: resolvedAccessToken, refreshToken: resolvedRefreshToken };
+          
+          await fetch('/api/auth/session', {
+            method: 'POST',
+            body: JSON.stringify(newTokens),
+          });
+          
+          setTokens(newTokens);
+          setAuthToken(resolvedAccessToken);
+          
           setUser(userData);
           localStorage.setItem('authUser', JSON.stringify(userData));
           
@@ -179,7 +194,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (userData.passwordChangeRequired) {
               router.push('/profile');
           } else {
-             // Role-based redirection
               switch(userData.role?.name) {
                   case 'Admin':
                   default:
@@ -193,7 +207,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
       } else {
-        throw new Error(response.data.errors?.join(', ') || 'Login failed');
+        const errorMessage = response.data.errors?.join(', ') || 'Login failed. Please check your credentials.';
+        throw new Error(errorMessage);
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'An error occurred during login.';
@@ -212,7 +227,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user || !user.role?.permissions) {
       return false;
     }
-    // Admin has all permissions
     if (user.role.name === 'Admin') return true;
     
     const userPermissions = user.role.permissions.split(',');

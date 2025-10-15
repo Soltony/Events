@@ -85,11 +85,10 @@ export default function ProfilePage() {
 
     } catch (error: any) {
         console.error("Failed to change password:", error);
-        const errorMessage = error.response?.data?.errors?.[0] || error.message || 'Failed to change password.';
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: errorMessage,
+            description: "Password change failed. Please try again.",
         });
     } finally {
         setIsSubmitting(false);
@@ -164,6 +163,7 @@ export default function ProfilePage() {
             </div>
           </form>
         </Form>
+        <p className="text-sm text-muted-foreground mt-4">Password must contain both uppercase and lowercase letters.</p>
       </CardContent>
     </Card>
   );

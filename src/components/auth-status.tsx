@@ -20,17 +20,17 @@ export function AuthStatus() {
   }
   
   if (isLoading) {
-    return <Skeleton className="h-10 w-full rounded-md" />;
+    return <Skeleton className="h-10 w-10 rounded-full" />;
   }
 
   if (isAuthenticated) {
     // We only show UserNav on non-dashboard pages from here.
-    return <UserNav />;
+    return (
+      <div className="flex items-center gap-2">
+        <UserNav />
+      </div>
+    )
   }
 
-  return (
-    <Button asChild className="w-full">
-      <Link href="/login">Organizer Login</Link>
-    </Button>
-  );
+  return null;
 }

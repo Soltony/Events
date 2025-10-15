@@ -16,7 +16,6 @@ export default function QrScannerComponent({ onScanSuccess, onScanFailure }: QrS
     const { toast } = useToast();
 
     useEffect(() => {
-        // This check is crucial for preventing SSR execution
         if (typeof window === 'undefined') {
             return;
         }
@@ -27,14 +26,13 @@ export default function QrScannerComponent({ onScanSuccess, onScanFailure }: QrS
             return;
         }
 
-        // html5-qrcode instance
         const html5QrCode = new Html5Qrcode(QR_REGION_ID);
         let isScannerRunning = false;
 
         const qrCodeSuccessCallback = (decodedText: string, result: Html5QrcodeResult) => {
             if (isScannerRunning) {
                 onScanSuccess(decodedText);
-                isScannerRunning = false; // Prevent multiple success triggers
+                isScannerRunning = false; 
                  html5QrCode.stop().catch(err => {
                     console.error("Failed to stop scanner after success", err);
                 });
@@ -43,7 +41,6 @@ export default function QrScannerComponent({ onScanSuccess, onScanFailure }: QrS
 
         const qrCodeErrorCallback = (errorMessage: string, error: Html5QrcodeError) => {
             // This callback is called frequently, so we can ignore most errors.
-            // You can use onScanFailure for more verbose logging if needed.
         };
 
         const config = {
@@ -53,7 +50,6 @@ export default function QrScannerComponent({ onScanSuccess, onScanFailure }: QrS
             disableFlip: false,
         };
         
-        // Start scanning
         html5QrCode.start(
             { facingMode: "environment" },
             config,
@@ -71,7 +67,6 @@ export default function QrScannerComponent({ onScanSuccess, onScanFailure }: QrS
             });
         });
 
-        // Cleanup function to stop the scanner when the component unmounts
         return () => {
             if (isScannerRunning && html5QrCode.isScanning) {
                 html5QrCode.stop().catch(err => {

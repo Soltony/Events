@@ -1,6 +1,12 @@
 -- CreateEnum
 CREATE TYPE "PromoCodeType" AS ENUM ('PERCENTAGE', 'FIXED');
 
+-- CreateEnum
+CREATE TYPE "EventStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
+
+-- CreateEnum
+CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'INACTIVE');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -9,7 +15,9 @@ CREATE TABLE "User" (
     "phoneNumber" TEXT NOT NULL,
     "email" TEXT,
     "roleId" TEXT NOT NULL,
+    "status" "UserStatus" NOT NULL DEFAULT 'ACTIVE',
     "passwordChangeRequired" BOOLEAN NOT NULL DEFAULT true,
+    "nibBankAccount" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -39,7 +47,11 @@ CREATE TABLE "Event" (
     "hint" TEXT,
     "category" TEXT NOT NULL,
     "image" TEXT,
+    "color" TEXT,
+    "status" "EventStatus" NOT NULL DEFAULT 'PENDING',
+    "rejectionReason" TEXT,
     "organizerId" TEXT NOT NULL,
+    "nibBankAccount" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -50,7 +62,9 @@ CREATE TABLE "Event" (
 CREATE TABLE "TicketType" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
-    "price" DECIMAL(10,2) NOT NULL,
+    "description" TEXT,
+    "basePrice" DECIMAL(10,2) NOT NULL,
+    "locationPrices" JSONB,
     "total" INTEGER NOT NULL,
     "sold" INTEGER NOT NULL DEFAULT 0,
     "eventId" INTEGER NOT NULL,
@@ -64,11 +78,11 @@ CREATE TABLE "TicketType" (
 CREATE TABLE "Attendee" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
-    "email" TEXT,
-    "checkedIn" BOOLEAN NOT NULL DEFAULT false,
+    "phoneNumber" TEXT,
     "eventId" INTEGER NOT NULL,
     "ticketTypeId" INTEGER NOT NULL,
     "userId" TEXT,
+    "checkedIn" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -92,15 +106,15 @@ CREATE TABLE "PromoCode" (
 
 -- CreateTable
 CREATE TABLE "PendingOrder" (
-    "id" SERIAL NOT NULL,
+    "id" TEXT NOT NULL,
     "transactionId" TEXT NOT NULL,
     "arifpaySessionId" TEXT,
     "eventId" INTEGER NOT NULL,
-    "ticketTypeId" INTEGER NOT NULL,
+    "ticketTypeId" INTEGER,
+    "attendeeId" INTEGER,
     "attendeeData" JSONB NOT NULL,
     "promoCode" TEXT,
     "status" TEXT NOT NULL DEFAULT 'PENDING',
-    "attendeeId" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -117,7 +131,7 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 CREATE UNIQUE INDEX "Role_name_key" ON "Role"("name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "PromoCode_code_key" ON "PromoCode"("code");
+CREATE UNIQUE INDEX "PromoCode_code_eventId_key" ON "PromoCode"("code", "eventId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PendingOrder_transactionId_key" ON "PendingOrder"("transactionId");
@@ -135,10 +149,10 @@ ALTER TABLE "User" ADD CONSTRAINT "User_roleId_fkey" FOREIGN KEY ("roleId") REFE
 ALTER TABLE "Event" ADD CONSTRAINT "Event_organizerId_fkey" FOREIGN KEY ("organizerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "TicketType" ADD CONSTRAINT "TicketType_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "TicketType" ADD CONSTRAINT "TicketType_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Attendee" ADD CONSTRAINT "Attendee_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Attendee" ADD CONSTRAINT "Attendee_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Attendee" ADD CONSTRAINT "Attendee_ticketTypeId_fkey" FOREIGN KEY ("ticketTypeId") REFERENCES "TicketType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -147,13 +161,13 @@ ALTER TABLE "Attendee" ADD CONSTRAINT "Attendee_ticketTypeId_fkey" FOREIGN KEY (
 ALTER TABLE "Attendee" ADD CONSTRAINT "Attendee_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "PromoCode" ADD CONSTRAINT "PromoCode_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "PromoCode" ADD CONSTRAINT "PromoCode_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "PendingOrder" ADD CONSTRAINT "PendingOrder_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "PendingOrder" ADD CONSTRAINT "PendingOrder_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "PendingOrder" ADD CONSTRAINT "PendingOrder_ticketTypeId_fkey" FOREIGN KEY ("ticketTypeId") REFERENCES "TicketType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "PendingOrder" ADD CONSTRAINT "PendingOrder_ticketTypeId_fkey" FOREIGN KEY ("ticketTypeId") REFERENCES "TicketType"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PendingOrder" ADD CONSTRAINT "PendingOrder_attendeeId_fkey" FOREIGN KEY ("attendeeId") REFERENCES "Attendee"("id") ON DELETE SET NULL ON UPDATE CASCADE;

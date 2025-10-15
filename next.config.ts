@@ -1,12 +1,32 @@
 
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  output: 'standalone',
+import type { NextConfig } from "next";
+
+const securityHeaders = [
+    {
+      key: 'Strict-Transport-Security',
+      value: 'max-age=63072000; includeSubDomains; preload',
+    },
+    {
+      key: 'X-Content-Type-Options',
+      value: 'nosniff',
+    },
+];
+
+const nextConfig: NextConfig = {
+  output: "standalone",
   typescript: {
     ignoreBuildErrors: true,
   },
   eslint: {
     ignoreDuringBuilds: true,
+  },
+  async headers() {
+    return [
+        {
+            source: '/:path*',
+            headers: securityHeaders,
+        },
+    ];
   },
   images: {
     remotePatterns: [
@@ -14,7 +34,7 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'placehold.co',
         port: '',
-        pathname: '/**',
+        pathname: '/',
       },
       {
         protocol: 'https',
@@ -22,7 +42,17 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
+       {
+        protocol: "https",
+        hostname: "picsum.photos",
+      },
     ],
+  },
+  poweredByHeader: false,
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "100mb", // increase limit to 10MB (adjust as needed)
+    },
   },
 };
 

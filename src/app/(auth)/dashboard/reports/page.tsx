@@ -49,19 +49,16 @@ interface ReportsData {
     promoCodes: PromoCodeReport[];
 }
 
-// Helper to convert array of objects to CSV
 function convertToCSV(data: any[], headers: { key: string, label: string }[]): string {
     const headerRow = headers.map(h => h.label).join(',');
     const bodyRows = data.map(row => {
         return headers.map(header => {
             let value = row[header.key];
             
-            // Format date objects
             if (header.key === 'date' && value instanceof Date) {
                 value = format(value, 'yyyy-MM-dd');
             }
 
-            // Handle nested objects (like event.name)
             if (header.key.includes('.')) {
                 const keys = header.key.split('.');
                 let nestedValue: any = row;
@@ -76,7 +73,6 @@ function convertToCSV(data: any[], headers: { key: string, label: string }[]): s
                 value = nestedValue;
             }
 
-            // Escape commas and quotes
             const stringValue = String(value ?? '').replace(/"/g, '""');
             return `"${stringValue}"`;
         }).join(',');
@@ -161,7 +157,6 @@ export default function ReportsPage() {
         } catch (error) {
             console.error("Failed to download report:", error);
         } finally {
-            // Add a small delay to allow download to initiate
             setTimeout(() => setDownloading(null), 500);
         }
     };
@@ -258,12 +253,12 @@ export default function ReportsPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <CardTitle>Product Sales</CardTitle>
               <CardDescription>Product sales, revenue, and other metrics.</CardDescription>
             </div>
-            <Button variant="outline" onClick={() => handleDownload('product')} disabled={downloading === 'product'}>
+            <Button variant="outline" onClick={() => handleDownload('product')} disabled={downloading === 'product'} className="w-full sm:w-auto">
                 {downloading === 'product' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
                 Download Report
             </Button>
@@ -300,12 +295,12 @@ export default function ReportsPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <CardTitle>Promo Codes Report</CardTitle>
               <CardDescription>Promo code usage and discount breakdown.</CardDescription>
             </div>
-             <Button variant="outline" onClick={() => handleDownload('promo')} disabled={downloading === 'promo'}>
+             <Button variant="outline" onClick={() => handleDownload('promo')} disabled={downloading === 'promo'} className="w-full sm:w-auto">
                 {downloading === 'promo' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
                 Download Report
             </Button>

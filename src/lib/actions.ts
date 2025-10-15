@@ -4,10 +4,11 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
-import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee } from '@prisma/client';
+import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee, EventStatus, UserStatus } from '@prisma/client';
 import { redirect } from 'next/navigation';
-import { ReadonlyRequestCookies, cookies } from 'next/headers';
+import { cookies } from 'next/headers';
 import type { DateRange } from 'react-day-picker';
+import { randomBytes } from 'crypto';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -16,9 +17,9 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
         : value
 ));
 
-// This function can be used in any server action to get the currently logged-in user.
-async function getCurrentUser(cookieStore: ReadonlyRequestCookies): Promise<(User & { role: Role }) | null> {
+export async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
   try {
+    const cookieStore = await cookies();
     const tokenCookie = cookieStore.get('authTokens');
 
     if (!tokenCookie?.value) {
@@ -51,7 +52,7 @@ async function getCurrentUser(cookieStore: ReadonlyRequestCookies): Promise<(Use
         include: { role: true },
     });
     
-    return user;
+    return serialize(user);
 
   } catch(e) {
       console.error("Error decoding token or finding user", e);
@@ -61,16 +62,20 @@ async function getCurrentUser(cookieStore: ReadonlyRequestCookies): Promise<(Use
 
 
 // Event Actions
-export async function getEvents() {
-    const user = await getCurrentUser(cookies());
+export async function getEvents(status?: EventStatus | 'all') {
+    const user = await getCurrentUser();
     if (!user) {
-        // Return empty array if not authenticated, AuthGuard will handle redirection
         return [];
     }
 
-    const whereClause: { organizerId?: string } = {};
+    const isAdmin = user.role.name === 'Admin';
+    let whereClause: any = {};
 
-    if (user.role.name !== 'Admin') {
+    if (status && status !== 'all') {
+        whereClause.status = status;
+    }
+
+    if (!isAdmin) {
         whereClause.organizerId = user.id;
     }
 
@@ -78,8 +83,10 @@ export async function getEvents() {
         where: whereClause,
         orderBy: { startDate: 'asc' },
     });
+
     return serialize(events);
 }
+
 
 export async function getPublicEvents(): Promise<(Event & { ticketTypes: TicketType[] })[]> {
     const today = new Date();
@@ -87,6 +94,7 @@ export async function getPublicEvents(): Promise<(Event & { ticketTypes: TicketT
 
     const events = await prisma.event.findMany({
         where: {
+            status: 'APPROVED',
             OR: [
                 {
                     endDate: {
@@ -115,11 +123,31 @@ export async function getEventById(id: number) {
             ticketTypes: true,
         },
     });
+
+    if (event) {
+        event.ticketTypes = event.ticketTypes.map(tt => {
+            const ticketType = { ...tt } as any;
+            if (ticketType.locationPrices && typeof ticketType.locationPrices === 'object') {
+                 const normalizedPrices: Record<string, number> = {};
+                 for (const [loc, price] of Object.entries(ticketType.locationPrices)) {
+                     if (price !== null && price !== undefined) {
+                         normalizedPrices[loc] = parseFloat(price as string);
+                     }
+                 }
+                 ticketType.locationPrices = normalizedPrices;
+            } else {
+                 ticketType.locationPrices = {};
+            }
+            ticketType.basePrice = parseFloat(ticketType.basePrice as any);
+            return ticketType;
+        });
+    }
+
     return serialize(event);
 }
 
 export async function getEventDetails(id: number) {
-    const user = await getCurrentUser(cookies());
+    const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
     }
@@ -147,57 +175,98 @@ export async function getEventDetails(id: number) {
 }
 
 export async function addEvent(data: any) {
-    const { tickets, startDate, endDate, otherCategory, ...eventData } = data;
-    const user = await getCurrentUser(cookies());
+    const { tickets, startDate, endDate, otherCategory, locations, images, ...eventData } = data;
+    const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
     }
 
-    // Determine the final category and remove the temporary 'otherCategory' field
+    let nibBankAccount = user.nibBankAccount;
+
+    if (user.role.name === 'Admin' && !nibBankAccount) {
+        const defaultAdmin = await prisma.user.findFirst({
+            where: { role: { name: 'Admin' } },
+            orderBy: { createdAt: 'asc' },
+        });
+        
+        if (defaultAdmin?.nibBankAccount) {
+            nibBankAccount = defaultAdmin.nibBankAccount;
+        } else {
+            console.warn("Admin event creation: Default admin has no NIB account. Event will be created without a bank account, but this may cause payout issues.");
+        }
+    }
+
+    if (user.role.name !== 'Admin' && !nibBankAccount) {
+        throw new Error('You must have a NIB Account set in your profile to create an event.');
+    }
+
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
     
-    // Set default image if one isn't provided
-    if (!eventData.image) {
-        eventData.image = '/image/nibtickets.jpg';
-    }
+    const locationString = locations.map((l: { value: string }) => l.value).join('||');
     
+    const imageString = Array.isArray(images) && images.length > 0 ? images[0] : null;
+
     const newEvent = await prisma.event.create({
         data: {
             ...eventData,
+            image: imageString,
+            location: locationString,
             organizerId: user.id,
+            nibBankAccount: nibBankAccount,
             category: finalCategory,
             startDate: startDate,
             endDate: endDate,
+            status: user.role.name === 'Admin' ? 'APPROVED' : 'PENDING',
+            rejectionReason: null,
         },
     });
 
     if (tickets && tickets.length > 0) {
-        await prisma.ticketType.createMany({
-            data: tickets.map((ticket: any) => ({
-                ...ticket,
-                eventId: newEvent.id,
-            })),
-        });
+      for (const ticket of tickets) {
+        if (ticket.locationPrices && ticket.locationPrices.length > 0) {
+            for (const config of ticket.locationPrices) {
+                if (config.location && config.price >= 0 && config.quantity >= 0) {
+                     await prisma.ticketType.create({
+                        data: {
+                            name: `${ticket.name} - ${config.location}`,
+                            description: ticket.description,
+                            basePrice: config.price,
+                            total: config.quantity,
+                            sold: 0,
+                            eventId: newEvent.id,
+                        }
+                    });
+                }
+            }
+        }
+      }
     }
 
     revalidatePath('/dashboard/events');
-    revalidatePath('/dashboard/events/new');
+    revalidatePath('/dashboard');
     revalidatePath('/');
     return serialize(newEvent);
 }
 
 export async function updateEvent(id: number, data: any) {
-    const { startDate, endDate, otherCategory, ...eventData } = data;
-    const user = await getCurrentUser(cookies());
+    const { startDate, endDate, otherCategory, locations, images, ...eventData } = data;
+    const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
     }
 
-    // Determine the final category
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
 
     const eventDataForUpdate = { ...eventData };
     delete eventDataForUpdate.otherCategory;
+    delete eventDataForUpdate.tickets; 
+
+    const locationString = locations.map((l: { value: string }) => l.value).join('||');
+    
+    // Get the first image from the array (since we only allow one image now)
+    const imageString = Array.isArray(images) && images.length > 0
+        ? images[0]
+        : null;
 
     const eventToUpdate = await prisma.event.findUnique({ where: { id }});
     if (!eventToUpdate) throw new Error("Event not found");
@@ -210,9 +279,12 @@ export async function updateEvent(id: number, data: any) {
         where: { id },
         data: {
             ...eventDataForUpdate,
+            image: imageString,
+            location: locationString,
             category: finalCategory,
             startDate: startDate,
             endDate: endDate,
+            status: user.role.name === 'Admin' ? eventToUpdate.status : 'PENDING',
         }
     });
 
@@ -225,8 +297,32 @@ export async function updateEvent(id: number, data: any) {
     return serialize(updatedEvent);
 }
 
+export async function updateEventStatus(id: number, status: EventStatus, rejectionReason?: string) {
+    const user = await getCurrentUser();
+    if (!user || user.role.name !== 'Admin') {
+        throw new Error("You are not authorized to perform this action.");
+    }
+    
+    const eventToUpdate = await prisma.event.findUnique({ where: { id }});
+    if (!eventToUpdate) throw new Error("Event not found");
+
+    const updatedEvent = await prisma.event.update({
+        where: { id },
+        data: {
+            status: status,
+            rejectionReason: status === 'REJECTED' ? rejectionReason : null,
+        }
+    });
+
+    revalidatePath('/dashboard/events');
+    revalidatePath('/dashboard');
+    revalidatePath(`/dashboard/events/${id}`);
+    revalidatePath('/');
+    return serialize(updatedEvent);
+}
+
 export async function deleteEvent(id: number) {
-  const user = await getCurrentUser(cookies());
+  const user = await getCurrentUser();
   if (!user) {
     throw new Error('User is not authenticated.');
   }
@@ -242,6 +338,7 @@ export async function deleteEvent(id: number) {
     prisma.attendee.deleteMany({ where: { eventId: id } }),
     prisma.promoCode.deleteMany({ where: { eventId: id } }),
     prisma.ticketType.deleteMany({ where: { eventId: id } }),
+    prisma.pendingOrder.deleteMany({ where: { eventId: id } }),
     prisma.event.delete({ where: { id } }),
   ]);
   
@@ -250,21 +347,31 @@ export async function deleteEvent(id: number) {
 }
 
 
-export async function addTicketType(eventId: number, data: Omit<TicketType, 'id' | 'eventId' | 'createdAt' | 'updatedAt' | 'sold'>) {
-    const newTicketType = await prisma.ticketType.create({
-        data: {
-            ...data,
-            eventId: eventId,
-        }
-    });
+export async function addTicketType(eventId: number, data: { name: string; description?: string; locationPrices: { location: string; price: number; quantity: number }[] }) {
+    for (const config of data.locationPrices) {
+        await prisma.ticketType.create({
+            data: {
+                name: `${data.name} - ${config.location}`,
+                description: data.description,
+                basePrice: config.price,
+                total: config.quantity,
+                eventId: eventId,
+            }
+        });
+    }
     revalidatePath(`/dashboard/events/${eventId}`);
-    return serialize(newTicketType);
 }
 
-export async function updateTicketType(ticketTypeId: number, data: Partial<Omit<TicketType, 'id' | 'eventId' | 'createdAt' | 'updatedAt' | 'sold'>>) {
+export async function updateTicketType(ticketTypeId: number, data: any) {
   const updatedTicketType = await prisma.ticketType.update({
     where: { id: ticketTypeId },
-    data: data,
+    data: {
+        name: data.name,
+        description: data.description,
+        basePrice: data.price,
+        locationPrices: data.locationPrices || {},
+        total: data.total,
+    },
   });
   revalidatePath(`/dashboard/events/${updatedTicketType.eventId}`);
   return serialize(updatedTicketType);
@@ -284,10 +391,23 @@ export async function deleteTicketType(ticketTypeId: number) {
 }
 
 
-export async function addPromoCode(eventId: number, data: { code: string; type: PromoCodeType; value: number; maxUses: number; }) {
+export async function addPromoCode(eventId: number, data: any, allTicketTypes?: TicketType[]) {
+    let finalCode = data.code;
+    if (data.restrictionType === 'TICKET' && data.ticketTypeId && allTicketTypes) {
+        const ticketType = allTicketTypes.find(t => t.id === parseInt(data.ticketTypeId, 10));
+        if (ticketType) {
+            finalCode = `TICKET:${ticketType.name}:${data.code}`;
+        }
+    } else if (data.restrictionType === 'LOCATION' && data.location) {
+        finalCode = `LOCATION:${data.location}:${data.code}`;
+    }
+
     const newPromoCode = await prisma.promoCode.create({
         data: {
-            ...data,
+            code: finalCode,
+            type: data.type,
+            value: data.value,
+            maxUses: data.maxUses,
             eventId: eventId,
         }
     });
@@ -295,10 +415,25 @@ export async function addPromoCode(eventId: number, data: { code: string; type: 
     return serialize(newPromoCode);
 }
 
-export async function updatePromoCode(promoCodeId: number, data: Partial<PromoCode>) {
+export async function updatePromoCode(promoCodeId: number, data: any, allTicketTypes?: TicketType[]) {
+  let finalCode = data.code;
+    if (data.restrictionType === 'TICKET' && data.ticketTypeId && allTicketTypes) {
+        const ticketType = allTicketTypes.find(t => t.id === parseInt(data.ticketTypeId, 10));
+        if (ticketType) {
+            finalCode = `TICKET:${ticketType.name}:${data.code}`;
+        }
+    } else if (data.restrictionType === 'LOCATION' && data.location) {
+        finalCode = `LOCATION:${data.location}:${data.code}`;
+    }
+
   const updatedPromoCode = await prisma.promoCode.update({
     where: { id: promoCodeId },
-    data: data,
+    data: {
+        code: finalCode,
+        type: data.type,
+        value: data.value,
+        maxUses: data.maxUses,
+    },
   });
   revalidatePath(`/dashboard/events/${updatedPromoCode.eventId}`);
   return serialize(updatedPromoCode);
@@ -318,39 +453,46 @@ export async function deletePromoCode(promoCodeId: number) {
 
 // Dashboard Actions
 export async function getDashboardData() {
-    const user = await getCurrentUser(cookies());
+    const user = await getCurrentUser();
     if (!user) {
          return {
             totalRevenue: 0,
             totalTicketsSold: 0,
             totalEvents: 0,
+            pendingEvents: 0,
             salesData: [],
         };
     }
 
-    const whereClause = user.role.name === 'Admin' ? {} : { organizerId: user.id };
+    const isUserAdmin = user.role.name === 'Admin';
+    const organizerFilter = isUserAdmin ? {} : { organizerId: user.id };
     
-    const events = await prisma.event.findMany({
-        where: whereClause,
+    const totalEvents = await prisma.event.count({ where: organizerFilter });
+
+    const approvedWhereClause = { ...organizerFilter, status: 'APPROVED' as EventStatus };
+    
+    const approvedEvents = await prisma.event.findMany({
+        where: approvedWhereClause,
         include: {
-            ticketTypes: {
-                select: {
-                    sold: true,
-                    price: true
-                }
-            }
+            ticketTypes: true
         }
     });
-
-    const totalEvents = events.length;
-    const totalRevenue = events.reduce((sum, event) => {
-        return sum + event.ticketTypes.reduce((eventSum, tt) => eventSum + (tt.sold * Number(tt.price)), 0)
+    
+    const pendingEventsFilter = isUserAdmin ? { status: 'PENDING' as EventStatus } : { organizerId: user.id, status: 'PENDING' as EventStatus };
+    const pendingEvents = await prisma.event.count({ where: pendingEventsFilter });
+    
+    const totalRevenue = approvedEvents.reduce((sum, event) => {
+        return sum + event.ticketTypes.reduce((eventSum, tt) => {
+            const price = tt.basePrice ? Number(tt.basePrice) : 0;
+            return eventSum + (tt.sold * price);
+        }, 0);
     }, 0);
-    const totalTicketsSold = events.reduce((sum, event) => {
+
+    const totalTicketsSold = approvedEvents.reduce((sum, event) => {
         return sum + event.ticketTypes.reduce((eventSum, tt) => eventSum + tt.sold, 0)
     }, 0);
     
-    const chartData = events.map(event => ({
+    const chartData = approvedEvents.map(event => ({
         name: event.name,
         ticketsSold: event.ticketTypes.reduce((sum, t) => sum + t.sold, 0),
     })).filter(e => e.ticketsSold > 0);
@@ -359,6 +501,7 @@ export async function getDashboardData() {
         totalRevenue,
         totalTicketsSold,
         totalEvents,
+        pendingEvents,
         salesData: chartData,
     });
 }
@@ -366,7 +509,7 @@ export async function getDashboardData() {
 
 // Reports Actions
 export async function getReportsData(dateRange?: DateRange) {
-    const user = await getCurrentUser(cookies());
+    const user = await getCurrentUser();
     if (!user) {
         return {
             productSales: [],
@@ -375,7 +518,7 @@ export async function getReportsData(dateRange?: DateRange) {
         };
     }
 
-    const whereClause: any = {};
+    const whereClause: any = { status: 'APPROVED' };
 
     if (user.role.name !== 'Admin') {
         whereClause.organizerId = user.id;
@@ -397,10 +540,10 @@ export async function getReportsData(dateRange?: DateRange) {
         orderBy: { startDate: 'asc' }
     });
 
-    const ticketTypes = events.flatMap(e => e.ticketTypes.map(tt => ({ ...tt, event: { name: e.name } })));
+    const ticketTypes = events.flatMap(e => e.ticketTypes.map(tt => ({ ...tt, event: { name: e.name }, basePrice: tt.basePrice })));
     
     const dailySalesData = events.map(event => {
-        const revenue = event.ticketTypes.reduce((sum, t) => sum + (t.sold * Number(t.price)), 0);
+        const revenue = event.ticketTypes.reduce((sum, t) => sum + (t.sold * Number(t.basePrice)), 0);
         return {
             date: event.startDate,
             eventName: event.name,
@@ -412,8 +555,7 @@ export async function getReportsData(dateRange?: DateRange) {
     const promoCodes = events.flatMap(e => e.promoCodes.map(pc => ({ ...pc, event: { name: e.name } })));
     
     const promoCodeData = promoCodes.map(code => {
-        // This estimation logic is kept from mock data as there's no order history
-        const avgTicketPrice = 50; 
+        const avgTicketPrice = 50;
         let totalDiscount = 0;
         if (code.type === 'PERCENTAGE') {
             totalDiscount = code.uses * (avgTicketPrice * (Number(code.value) / 100));
@@ -427,7 +569,7 @@ export async function getReportsData(dateRange?: DateRange) {
     });
 
     return serialize({
-        productSales: ticketTypes,
+        productSales: ticketTypes.map(p => ({...p, price: p.basePrice, revenue: p.sold * Number(p.basePrice)})),
         dailySales: dailySalesData,
         promoCodes: promoCodeData
     });
@@ -435,7 +577,7 @@ export async function getReportsData(dateRange?: DateRange) {
 
 // Settings Actions
 export async function getUsersAndRoles() {
-    const currentUser = await getCurrentUser(cookies());
+    const currentUser = await getCurrentUser();
     if (!currentUser) {
         return { users: [], roles: [] };
     }
@@ -470,7 +612,7 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
 
 
 export async function addUser(data: any) {
-    const { firstName, lastName, phoneNumber, email, password, roleId } = data;
+    const { firstName, lastName, phoneNumber, email, roleId, nibBankAccount } = data;
 
     const phoneRegex = /^(09|07)\d{8}$/;
     if (!phoneRegex.test(phoneNumber)) {
@@ -481,14 +623,12 @@ export async function addUser(data: any) {
     if (!authApiUrl) {
       throw new Error('Auth API URL not configured.');
     }
-    const cookieStore = cookies();
-        const tokenCookie = cookieStore.get('authTokens');
-        if (!tokenCookie?.value) {
-            throw new Error('Authentication token not found');
-        }
-        const tokenData = JSON.parse(tokenCookie.value);
-        const token = tokenData.accessToken;
+    
+    const password = "User@123";
+    
     try {
+        const authServiceEmail = email || `${phoneNumber}@nibtickets.com`;
+
         const registrationResponse = await fetch(`${authApiUrl}/api/Auth/register`, {
             method: 'POST',
             headers: { 
@@ -498,7 +638,7 @@ export async function addUser(data: any) {
                 firstName,
                 lastName,
                 phoneNumber,
-                email: email || undefined,
+                email: authServiceEmail,
                 password,
             }),
         });
@@ -506,8 +646,16 @@ export async function addUser(data: any) {
         const responseData = await registrationResponse.json();
                                               
         if (!responseData || !responseData.isSuccess) {
-            const errorMessage = responseData.errors?.join(', ') || 'Failed to register user with auth service.';
-            // Pass the specific error message from the auth service forward
+            let errorMessage = 'Failed to register user with auth service.';
+            if (responseData.errors) {
+              if (Array.isArray(responseData.errors)) {
+                errorMessage = responseData.errors.join(', ');
+              } else if (typeof responseData.errors === 'string') {
+                errorMessage = responseData.errors;
+              } else if (typeof responseData.errors === 'object') {
+                errorMessage = Object.values(responseData.errors).flat().join(' ');
+              }
+            }
             throw new Error(errorMessage);
         }
         
@@ -537,6 +685,7 @@ export async function addUser(data: any) {
             phoneNumber,
             roleId,
             passwordChangeRequired: true,
+            nibBankAccount: nibBankAccount || null,
         };
 
         if (email) {
@@ -561,7 +710,6 @@ export async function addUser(data: any) {
             throw new Error('A user with this email address already exists in the local database.');
         }
         
-        // Check for specific auth service error messages
         if (error.message.includes('already taken')) {
             throw new Error(error.message);
         }
@@ -571,13 +719,16 @@ export async function addUser(data: any) {
 }
 
 export async function updateUser(userId: string, data: Partial<User>) {
-    const { firstName, lastName, roleId } = data;
+    const { firstName, lastName, phoneNumber, roleId, nibBankAccount, email } = data;
     const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: {
             firstName,
             lastName,
+            phoneNumber,
             roleId,
+            nibBankAccount: nibBankAccount || null,
+            email,
         },
     });
 
@@ -591,6 +742,15 @@ export async function updateUserRole(userId: string, newRoleId: string) {
     const user = await prisma.user.update({
         where: { id: userId },
         data: { roleId: newRoleId },
+    });
+    revalidatePath('/dashboard/settings/users');
+    return serialize(user);
+}
+
+export async function updateUserStatus(userId: string, status: UserStatus) {
+    const user = await prisma.user.update({
+        where: { id: userId },
+        data: { status },
     });
     revalidatePath('/dashboard/settings/users');
     return serialize(user);
@@ -611,7 +771,7 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error('Authentication service URL is not configured.');
         }
 
-        const cookieStore = cookies();
+        const cookieStore = await cookies();
         const tokenCookie = cookieStore.get('authTokens');
         if (!tokenCookie?.value) {
             throw new Error('Authentication token not found');
@@ -655,13 +815,7 @@ export async function deleteUser(userId: string, phoneNumber: string) {
 
 
 export async function getRoles() {
-    const roles = await prisma.role.findMany({
-         where: {
-            name: {
-                not: 'Admin'
-            }
-        }
-    });
+    const roles = await prisma.role.findMany();
     return serialize(roles);
 }
 
@@ -692,7 +846,7 @@ export async function updateRole(id: string, data: Partial<Role>) {
         data: data,
     });
     revalidatePath('/dashboard/settings/roles');
-    revalidatePath(`/dashboard/settings/roles/edit?id=${id}`);
+    revalidatePath(`/dashboard/settings/roles/${id}/edit`);
     return serialize(role);
 }
 
@@ -724,88 +878,72 @@ interface PurchaseRequest {
   attendeeDetails: {
     name: string;
     phone: string;
+    email?: string;
   };
 }
 
 export async function purchaseTickets(request: PurchaseRequest) {
     'use server';
-
     const { eventId, tickets, promoCode, attendeeDetails } = request;
 
     if (!attendeeDetails.name || !attendeeDetails.phone) {
         throw new Error("Attendee name and phone number are required.");
     }
-     if (tickets.length === 0) {
+    if (tickets.length === 0) {
         throw new Error("No tickets in purchase request.");
     }
-
-    const event = await prisma.event.findUnique({where: {id: eventId}});
-    if (!event) {
-        throw new Error("Event not found.");
-    }
-
-    const targetUser = await prisma.user.findUnique({
-        where: { phoneNumber: attendeeDetails.phone }
-    });
-
-    const ticketTypeIds = tickets.map(t => t.id);
-    const ticketTypes = await prisma.ticketType.findMany({
-        where: { id: { in: ticketTypeIds } }
-    });
-
-    let totalAmount = 0;
-    const itemsForArifpay = [];
-
-    for (const ticket of tickets) {
-        const ticketType = ticketTypes.find(tt => tt.id === ticket.id);
-        if (!ticketType) throw new Error(`Ticket type with id ${ticket.id} not found.`);
-        if ((ticketType.total - ticketType.sold) < ticket.quantity) {
-            throw new Error(`Not enough tickets available for ${ticketType.name}.`);
-        }
-        totalAmount += Number(ticketType.price) * ticket.quantity;
-
-        itemsForArifpay.push({
-          name: ticketType.name,
-          quantity: ticket.quantity,
-          price: Number(ticketType.price),
-          description: `Ticket for ${event.name}`
-        });
-    }
     
-    const purchaseQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0);
-
-    const attendeeDataForApi = {
-        name: attendeeDetails.name,
-        email: targetUser?.email,
-        userId: targetUser?.id,
-        phone: attendeeDetails.phone,
-        quantity: purchaseQuantity,
-    };
+    const user = await getCurrentUser();
+    
+    const useMockFlow = process.env.NODE_ENV === 'development' || !process.env.BASE_URL || !process.env.ARIFPAY_API_KEY;
 
     try {
-        const appUrl = process.env.APP_URL;
-        if (!appUrl) {
-            throw new Error("APP_URL environment variable is not set.");
+        if (useMockFlow) {
+            console.log("Using mock payment flow.");
+            const totalQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0);
+            const transactionId = randomBytes(16).toString('hex');
+
+            const pendingOrder = await prisma.pendingOrder.create({
+                data: {
+                    transactionId: transactionId,
+                    arifpaySessionId: transactionId, // Use the same ID for mock session
+                    eventId,
+                    ticketTypeId: tickets[0].id,
+                    attendeeData: {
+                        name: attendeeDetails.name,
+                        phoneNumber: attendeeDetails.phone,
+                        userId: user?.id,
+                        quantity: totalQuantity,
+                    },
+                    promoCode,
+                    status: 'PENDING',
+                },
+            });
+
+            redirect(`/payment/success?session_id=${pendingOrder.arifpaySessionId}`);
+            return;
         }
 
-        // The name passed to ArifPay should be a single descriptor for the whole purchase
-        const firstTicketName = itemsForArifpay[0]?.name || 'Event Ticket';
-        const purchaseName = tickets.length > 1 
-            ? `${event.name} - Multiple Tickets`
-            : `${event.name} - ${firstTicketName}`;
+        // Production flow with real payment gateway
+        const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_VERCEL_URL;
+        if (!appUrl) {
+            throw new Error("App URL environment variable is not set.");
+        }
+
+        const purchaseData = {
+            eventId,
+            tickets,
+            promoCode,
+            attendeeDetails: {
+                ...attendeeDetails,
+                userId: user?.id,
+            }
+        };
 
         const response = await fetch(`${appUrl}/api/payment/arifpay/initiate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                eventId: eventId,
-                ticketTypeId: tickets[0].id, // Pass a representative ticketTypeId
-                quantity: purchaseQuantity,
-                price: totalAmount,
-                name: purchaseName, 
-                attendeeData: attendeeDataForApi,
-                promoCode: promoCode,
-            }),
+            body: JSON.stringify(purchaseData),
         });
 
         const result = await response.json();
@@ -819,8 +957,8 @@ export async function purchaseTickets(request: PurchaseRequest) {
         if (error.digest?.startsWith('NEXT_REDIRECT')) {
             throw error;
         }
-        console.error("Failed to initiate ArifPay payment:", error);
-        throw new Error(error.message);
+        console.error("Payment initiation failed:", error.message);
+        redirect(`/payment/failure?event_id=${eventId}`);
     }
 }
 
@@ -832,21 +970,6 @@ export async function getTicketDetailsForConfirmation(attendeeId: number) {
             ticketType: true,
         },
     });
-
-    if (!attendee) {
-        return null;
-    }
-
-    if (attendee.userId) {
-      const user = await getCurrentUser(cookies());
-      if (user && attendee.userId !== user.id) {
-          const cookieHeader = cookies().get('myTickets');
-          const localTicketIds = cookieHeader ? JSON.parse(cookieHeader.value) : [];
-          if (!localTicketIds.includes(attendeeId)) {
-             // Not their ticket and not a guest purchase from this session
-          }
-      }
-    }
 
     return serialize(attendee);
 }
@@ -880,18 +1003,45 @@ export async function getTicketsByUserId(userId: string | null, localTicketIds: 
     return serialize(tickets);
 }
 
-export async function validatePromoCode(eventId: number, promoCode: string): Promise<PromoCode | null> {
-    const promo = await prisma.promoCode.findFirst({
+export async function validatePromoCode(code: string, eventId: number, location?: string | null, ticketTypesInCart?: { id: number; name: string }[]): Promise<PromoCode | null> {
+    const promos = await prisma.promoCode.findMany({
         where: {
-            code: promoCode,
             eventId: eventId,
             uses: {
                 lt: prisma.promoCode.fields.maxUses
             }
         }
     });
-    return serialize(promo);
+
+    for (const promo of promos) {
+        // No restrictions, just match the code
+        if (promo.code === code) return serialize(promo);
+
+        // Check for structured codes
+        if (promo.code.includes(':')) {
+            const parts = promo.code.split(':');
+            const type = parts[0];
+            const value = parts[1];
+            const actualCode = parts[2];
+
+            if (actualCode === code) {
+                if (type === 'TICKET' && ticketTypesInCart) {
+                    if (ticketTypesInCart.some(t => t.name === value)) {
+                        return serialize(promo);
+                    }
+                }
+                if (type === 'LOCATION' && location) {
+                    if (location === value) {
+                        return serialize(promo);
+                    }
+                }
+            }
+        }
+    }
+
+    return null;
 }
+
 
 export async function checkInAttendee(attendeeId: number) {
     'use server';

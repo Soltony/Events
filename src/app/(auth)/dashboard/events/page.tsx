@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -13,16 +14,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, ArrowUpRight, Pencil, Trash2, MapPin } from "lucide-react";
+import { PlusCircle, ArrowUpRight, Pencil, Trash2, MapPin, CheckCircle2, XCircle, Loader2, Eye } from "lucide-react";
 import Link from 'next/link';
 import Image from 'next/image';
-import { getEvents, deleteEvent } from '@/lib/actions';
+import { getEvents, deleteEvent, updateEventStatus } from '@/lib/actions';
 import { Badge } from '@/components/ui/badge';
-import type { Event } from '@prisma/client';
+import type { Event, EventStatus } from '@prisma/client';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/auth-context';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from '@/lib/utils';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
     const startDateFormat = 'LLL dd, y, hh:mm a';
@@ -36,45 +45,222 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     return format(new Date(startDate), startDateFormat);
 }
 
-export default function ManageEventsPage() {
-  const [events, setEvents] = useState<Event[]>([]);
+const getCategoryBadgeClass = (category: string) => {
+    switch (category) {
+      case 'Technology':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'Music':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'Art':
+        return 'bg-pink-100 text-pink-800 border-pink-200';
+      case 'Community':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'Business':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+}
+
+const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolean, onDelete: (e: Event) => void }) => {
+    const displayImage = event.image || '/image/nibtickets.jpg';
+
+    const statusBadge = (status: string) => {
+        return (
+            <Badge variant="outline" className={cn(
+                'absolute top-2 right-2 text-xs z-20',
+                status === 'APPROVED' && 'bg-green-100 text-green-800 border-transparent',
+                status === 'PENDING' && 'bg-yellow-100 text-yellow-800 border-transparent',
+                status === 'REJECTED' && 'bg-red-100 text-red-800 border-transparent'
+            )}>
+                {status}
+            </Badge>
+        );
+    }
+    
+    return (
+        <Card className="flex flex-col hover:shadow-lg transition-shadow duration-300 relative overflow-hidden group">
+          <div className="relative z-10 flex flex-col h-full">
+            {isAdmin && event.status && statusBadge(event.status)}
+            <CardHeader className="p-0 relative aspect-[16/9]">
+              <Image src={displayImage} alt={event.name} fill className="rounded-t-lg object-cover" data-ai-hint={event.hint ?? 'event'} />
+            </CardHeader>
+            <CardContent className="p-4 flex-1 space-y-2 bg-card">
+                <Badge variant="outline" className={cn("text-xs", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
+                <CardTitle className="text-lg leading-tight">{event.name}</CardTitle>
+                <div className="space-y-1 pt-1">
+                <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
+                <CardDescription className="flex items-center gap-1.5 pt-1 text-xs">
+                    <MapPin className="h-3 w-3" />
+                    {event.location}
+                </CardDescription>
+                {event.status === 'REJECTED' && event.rejectionReason && (
+                    <CardDescription className="text-xs text-red-600 pt-1 italic">
+                        Reason: {event.rejectionReason}
+                    </CardDescription>
+                )}
+                </div>
+            </CardContent>
+            <CardFooter className="p-2 border-t flex justify-end gap-1 bg-card rounded-b-lg">
+                {event.status === 'PENDING' && isAdmin ? (
+                    <Button asChild className="w-full">
+                        <Link href={`/dashboard/events/${event.id}`}>
+                            <Eye className="h-4 w-4 mr-2" /> Review Event
+                        </Link>
+                    </Button>
+                ) : (
+                    <>
+                        <Button asChild variant="ghost" size="icon">
+                            <Link href={`/dashboard/events/${event.id}/edit`} aria-label="Edit Event">
+                                <Pencil className="h-4 w-4" />
+                            </Link>
+                        </Button>
+                        <Button 
+                            variant="ghost" 
+                            size="icon"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => onDelete(event)}
+                            aria-label="Delete Event"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <Button asChild size="icon" className="ml-auto">
+                            <Link href={`/dashboard/events/${event.id}`} aria-label="Manage Event">
+                                <ArrowUpRight className="h-4 w-4" />
+                            </Link>
+                        </Button>
+                    </>
+                )}
+            </CardFooter>
+          </div>
+        </Card>
+    );
+};
+
+
+const EventGrid = ({ events, isLoading, isAdmin, onDelete }: { events: Event[], isLoading: boolean, isAdmin: boolean, onDelete: (e: Event) => void }) => {
+    if (isLoading) {
+        return (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {[...Array(4)].map((_, i) => (
+                    <Card key={i}>
+                        <CardHeader className="p-0"><Skeleton className="w-full aspect-[16/9] rounded-t-lg" /></CardHeader>
+                        <CardContent className="p-4 space-y-2">
+                        <Skeleton className="h-5 w-20" />
+                        <Skeleton className="h-7 w-3/4" />
+                        <Skeleton className="h-5 w-1/2" />
+                        </CardContent>
+                        <CardFooter className="p-4">
+                        <Skeleton className="h-9 w-full" />
+                        </CardFooter>
+                    </Card>
+                ))}
+            </div>
+        );
+    }
+
+    if (events.length === 0) {
+        return (
+            <Card className="sm:col-span-2 lg:col-span-3 xl:col-span-4 flex items-center justify-center p-8 text-center">
+                <div>
+                    <h3 className="text-2xl font-semibold tracking-tight">No events found in this category.</h3>
+                </div>
+            </Card>
+        );
+    }
+    
+    return (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {events.map(event => (
+                <EventCard 
+                    key={event.id}
+                    event={event}
+                    isAdmin={isAdmin}
+                    onDelete={onDelete}
+                />
+            ))}
+        </div>
+    );
+}
+
+function ManageEventsPageContent() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  
   const [loading, setLoading] = useState(true);
-  const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
+  const [eventToModify, setEventToModify] = useState<Event | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
   const { toast } = useToast();
 
-  const fetchEvents = async () => {
+  const [pendingEvents, setPendingEvents] = useState<Event[]>([]);
+  const [approvedEvents, setApprovedEvents] = useState<Event[]>([]);
+  const [rejectedEvents, setRejectedEvents] = useState<Event[]>([]);
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
+  
+  const isAdmin = user?.role?.name === 'Admin';
+  const [activeTab, setActiveTab] = useState(tabFromUrl || (isAdmin ? 'pending' : 'all'));
+  
+  useEffect(() => {
+    if (tabFromUrl) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
+
+  const fetchAllEvents = useCallback(async () => {
+    setLoading(true);
     try {
-        setLoading(true);
-        const fetchedEvents = await getEvents();
-        setEvents(fetchedEvents);
+        if (isAdmin) {
+            const [pending, approved, rejected, all] = await Promise.all([
+                getEvents('PENDING'),
+                getEvents('APPROVED'),
+                getEvents('REJECTED'),
+                getEvents('all'),
+            ]);
+            setPendingEvents(pending);
+            setApprovedEvents(approved);
+            setRejectedEvents(rejected);
+            setAllEvents(all);
+        } else {
+            const allUserEvents = await getEvents('all');
+            setAllEvents(allUserEvents);
+        }
     } catch (error) {
         console.error("Failed to fetch events:", error);
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to load events.' });
     } finally {
         setLoading(false);
     }
-  };
+  }, [isAdmin, toast]);
 
   useEffect(() => {
-    fetchEvents();
-  }, []);
+    fetchAllEvents();
+  }, [fetchAllEvents]);
   
   const handleOpenDeleteDialog = (event: Event) => {
-    setEventToDelete(event);
+    setEventToModify(event);
     setIsAlertOpen(true);
   };
 
-  const handleDelete = async () => {
-    if (!eventToDelete) return;
+  const handleOpenRejectDialog = (event: Event) => {
+    setEventToModify(event);
+    setIsRejectDialogOpen(true);
+  };
 
+  const handleDelete = async () => {
+    if (!eventToModify) return;
+    setActionLoading(true);
     try {
-        await deleteEvent(eventToDelete.id);
+        await deleteEvent(eventToModify.id);
         toast({
             title: 'Event Deleted',
-            description: `"${eventToDelete.name}" has been successfully deleted.`,
+            description: `"${eventToModify.name}" has been successfully deleted.`,
         });
-        fetchEvents(); // Re-fetch events to update the list
+        fetchAllEvents();
     } catch (error) {
         console.error("Failed to delete event:", error);
         toast({
@@ -84,101 +270,92 @@ export default function ManageEventsPage() {
         });
     } finally {
         setIsAlertOpen(false);
-        setEventToDelete(null);
+        setEventToModify(null);
+        setActionLoading(false);
     }
   };
 
+  const handleApprove = async (event: Event) => {
+    setActionLoading(true);
+    try {
+      await updateEventStatus(event.id, 'APPROVED');
+      toast({ title: 'Event Approved', description: `"${event.name}" is now live.`});
+      await fetchAllEvents();
+      setActiveTab('approved');
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to approve event.' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!eventToModify) return;
+    setActionLoading(true);
+    try {
+      await updateEventStatus(eventToModify.id, 'REJECTED', rejectionReason);
+      toast({ title: 'Event Rejected' });
+      await fetchAllEvents();
+      setActiveTab('rejected');
+    } catch (error) {
+       toast({ variant: 'destructive', title: 'Error', description: 'Failed to reject event.' });
+    } finally {
+      setActionLoading(false);
+      setIsRejectDialogOpen(false);
+      setEventToModify(null);
+      setRejectionReason('');
+    }
+  }
+
+  const onTabChange = (value: string) => {
+    setActiveTab(value);
+    // Update URL to reflect the current tab
+    router.replace(`/dashboard/events?tab=${value}`, { scroll: false });
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
-      <div className="flex items-center justify-between space-y-2">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Manage Events</h1>
           <p className="text-muted-foreground">
-            Select an event to view its details and manage it.
+            {isAdmin ? 'Review, approve, and manage all events.' : 'Select an event to view its details and manage it.'}
           </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button asChild>
+         <Button asChild className="w-full sm:w-auto">
             <Link href="/dashboard/events/new">
-              <PlusCircle className="mr-2 h-4 w-4" /> Create Event
+                <PlusCircle className="mr-2 h-4 w-4" /> Create New Event
             </Link>
-          </Button>
-        </div>
+        </Button>
       </div>
       
-      <div className="grid gap-4 md:gap-8 md:grid-cols-2 lg:grid-cols-4">
-        {loading ? (
-            [...Array(4)].map((_, i) => (
-                <Card key={i}>
-                    <CardHeader className="p-0"><Skeleton className="w-full aspect-[3/2] rounded-t-lg" /></CardHeader>
-                    <CardContent className="p-4 space-y-2">
-                      <Skeleton className="h-5 w-20" />
-                      <Skeleton className="h-7 w-3/4" />
-                      <Skeleton className="h-5 w-1/2" />
-                    </CardContent>
-                    <CardFooter className="p-4">
-                      <Skeleton className="h-9 w-full" />
-                    </CardFooter>
-                </Card>
-            ))
-        ) : events.length > 0 ? (
-          events.map((event) => {
-            const imageUrl = event.image || '/image/nibtickets.jpg';
-            return (
-              <Card key={event.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
-                <CardHeader className="p-0">
-                  <Image src={imageUrl} alt={event.name} width={600} height={400} className="rounded-t-lg object-cover aspect-[3/2]" data-ai-hint={event.hint ?? 'event'} />
-                </CardHeader>
-                <CardContent className="p-4 flex-1 space-y-2">
-                  <Badge variant="outline" className="text-xs">{event.category}</Badge>
-                  <CardTitle className="text-lg leading-tight">{event.name}</CardTitle>
-                  <div className="space-y-1 pt-1">
-                    <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
-                    <CardDescription className="flex items-center gap-1.5 pt-1 text-xs">
-                        <MapPin className="h-3 w-3" />
-                        {event.location}
-                    </CardDescription>
-                  </div>
-                </CardContent>
-                 <CardFooter className="p-2 border-t flex justify-end gap-1">
-                    <Button asChild variant="ghost" size="icon">
-                        <Link href={`/dashboard/events/${event.id}/edit`} aria-label="Edit Event">
-                            <Pencil className="h-4 w-4" />
-                        </Link>
-                    </Button>
-                    <Button 
-                        variant="ghost" 
-                        size="icon"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleOpenDeleteDialog(event)}
-                        aria-label="Delete Event"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
-                    <Button asChild size="icon" className="ml-auto">
-                        <Link href={`/dashboard/events/${event.id}`} aria-label="Manage Event">
-                            <ArrowUpRight className="h-4 w-4" />
-                        </Link>
-                    </Button>
-                </CardFooter>
-              </Card>
-            )
-          })
+      <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
+        {isAdmin ? (
+            <TabsList>
+                <TabsTrigger value="pending">Pending ({pendingEvents.length})</TabsTrigger>
+                <TabsTrigger value="approved">Approved ({approvedEvents.length})</TabsTrigger>
+                <TabsTrigger value="rejected">Rejected ({rejectedEvents.length})</TabsTrigger>
+                <TabsTrigger value="all">All Events ({allEvents.length})</TabsTrigger>
+            </TabsList>
         ) : (
-            <Card className="md:col-span-2 lg:col-span-4 flex items-center justify-center p-8 text-center">
-                <div>
-                    <h3 className="text-2xl font-semibold tracking-tight">You haven't created any events yet</h3>
-                    <p className="text-muted-foreground mt-2 mb-6">Let's get your first event set up.</p>
-                    <Button asChild>
-                        <Link href="/dashboard/events/new">
-                        <PlusCircle className="mr-2 h-4 w-4" /> Create Event
-                        </Link>
-                    </Button>
-                </div>
-            </Card>
+             <TabsList>
+                 <TabsTrigger value="all">My Events ({allEvents.length})</TabsTrigger>
+            </TabsList>
         )}
-      </div>
+        <TabsContent value="pending" className="mt-4">
+            <EventGrid events={pendingEvents} isLoading={loading} isAdmin={isAdmin} onDelete={handleOpenDeleteDialog} />
+        </TabsContent>
+        <TabsContent value="approved" className="mt-4">
+            <EventGrid events={approvedEvents} isLoading={loading} isAdmin={isAdmin} onDelete={handleOpenDeleteDialog} />
+        </TabsContent>
+        <TabsContent value="rejected" className="mt-4">
+            <EventGrid events={rejectedEvents} isLoading={loading} isAdmin={isAdmin} onDelete={handleOpenDeleteDialog} />
+        </TabsContent>
+        <TabsContent value="all" className="mt-4">
+            <EventGrid events={allEvents} isLoading={loading} isAdmin={isAdmin} onDelete={handleOpenDeleteDialog} />
+        </TabsContent>
+      </Tabs>
+
 
        <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent>
@@ -186,18 +363,54 @@ export default function ManageEventsPage() {
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the event
-              <strong className="mx-1">"{eventToDelete?.name}"</strong>
+              <strong className="mx-1">"{eventToModify?.name}"</strong>
               and all of its associated data, including tickets and attendees.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
-              Delete Event
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90" disabled={actionLoading}>
+              {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Delete Event
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+        <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Reject Event: {eventToModify?.name}</DialogTitle>
+                    <DialogDescription>Please provide a reason for rejecting this event. This will be visible to the organizer.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="rejection-reason" className="text-right">Reason</Label>
+                        <Textarea 
+                            id="rejection-reason"
+                            value={rejectionReason}
+                            onChange={(e) => setRejectionReason(e.target.value)}
+                            className="col-span-3"
+                            placeholder="e.g., Missing required information, event not suitable for platform."
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => setIsRejectDialogOpen(false)}>Cancel</Button>
+                    <Button variant="destructive" onClick={handleReject} disabled={actionLoading}>
+                        {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Confirm Rejection
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </div>
   );
+}
+
+export default function ManageEventsPage() {
+    return (
+        <Suspense fallback={<div className="flex flex-1 justify-center items-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+            <ManageEventsPageContent />
+        </Suspense>
+    )
 }

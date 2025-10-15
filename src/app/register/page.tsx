@@ -66,7 +66,22 @@ export default function RegisterPage() {
          throw new Error(response.data.errors?.join(', ') || 'Registration failed');
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'An unknown error occurred.';
+      let errorMessage = 'An unknown error occurred.';
+      if (error.response?.data?.errors) {
+        const errors = error.response.data.errors;
+        if (Array.isArray(errors)) {
+          errorMessage = errors.join(', ');
+        } else {
+          errorMessage = String(errors);
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      if (errorMessage.toLowerCase().includes('phone number is already registered')) {
+        errorMessage = 'This phone number is already registered.';
+      }
+
        toast({
         variant: 'destructive',
         title: 'Registration Failed',
@@ -79,7 +94,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-4">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="items-center text-center pt-8 pb-4">
             <Image

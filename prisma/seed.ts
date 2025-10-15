@@ -48,7 +48,8 @@ async function main() {
       firstName: 'Admin',
       lastName: 'User',
       phoneNumber: '0912345678',
-      roleId: adminRole.id
+      roleId: adminRole.id,
+      nibBankAccount: '7000101672811'
     },
   });
 
@@ -58,6 +59,7 @@ async function main() {
   await prisma.attendee.deleteMany({});
   await prisma.promoCode.deleteMany({});
   await prisma.ticketType.deleteMany({});
+  await prisma.pendingOrder.deleteMany({}); 
   await prisma.event.deleteMany({});
 
   // Create Events
@@ -71,14 +73,16 @@ async function main() {
       endDate: addDays(today, 32),
       location: 'Metropolis Convention Center',
       category: 'Technology',
-      image: '/image/nibtickets.jpg',
+      status: 'APPROVED',
+      image: '/image/3.jpg',
       hint: 'technology conference',
       organizerId: adminUser.id,
+      nibBankAccount: '7000123456789',
       ticketTypes: {
         create: [
-          { name: 'General Admission', price: 299.00, total: 1000, sold: 450 },
-          { name: 'VIP Pass', price: 799.00, total: 150, sold: 120 },
-          { name: 'Student Pass', price: 99.00, total: 200, sold: 85 },
+          { name: 'General Admission', basePrice: 299.00, total: 1000, sold: 450, description: 'Access to all keynotes and general sessions.' },
+          { name: 'VIP Pass', basePrice: 799.00, total: 150, sold: 120, description: 'Includes VIP lounge access, exclusive networking events, and premium seating.' },
+          { name: 'Student Pass', basePrice: 99.00, total: 200, sold: 85, description: 'For currently enrolled students. Valid student ID required.' },
         ]
       },
       promoCodes: {
@@ -99,15 +103,17 @@ async function main() {
       endDate: addDays(today, 61),
       location: 'Sunshine Valley Park',
       category: 'Music',
-      image: '/image/nibtickets.jpg',
-      hint: 'music festival',
+      status: 'APPROVED',
+      image: '/image/1.jpg',
+      hint: 'music festival concert',
       organizerId: adminUser.id,
+      nibBankAccount: '7000987654321',
       ticketTypes: {
         create: [
-          { name: 'Weekend Pass', price: 180.00, total: 5000, sold: 2100 },
-          { name: 'VIP Weekend', price: 450.00, total: 500, sold: 450 },
-          { name: 'Saturday Pass', price: 95.00, total: 1500, sold: 800 },
-          { name: 'Sunday Pass', price: 95.00, total: 1500, sold: 650 },
+          { name: 'Weekend Pass', description: 'Full access for both Saturday and Sunday.', basePrice: 180.00, total: 5000, sold: 2100 },
+          { name: 'VIP Weekend', description: 'VIP area access, private bars, and premium viewing.', basePrice: 450.00, total: 500, sold: 450 },
+          { name: 'Saturday Pass', description: 'Access to all shows on Saturday.', basePrice: 95.00, total: 1500, sold: 800 },
+          { name: 'Sunday Pass', description: 'Access to all shows on Sunday.', basePrice: 95.00, total: 1500, sold: 650 },
         ]
       }
     }
@@ -121,12 +127,14 @@ async function main() {
       startDate: addDays(today, 15),
       location: 'The Downtown Gallery',
       category: 'Art',
-      image: '/image/nibtickets.jpg',
+      status: 'APPROVED',
+      image: '/image/2.jpg',
       hint: 'art gallery',
       organizerId: adminUser.id,
+      nibBankAccount: '7000112233445',
       ticketTypes: {
         create: [
-          { name: 'Standard Entry', price: 25.00, total: 500, sold: 120 },
+          { name: 'Standard Entry', basePrice: 25.00, total: 500, sold: 120, description: 'General entry to the exhibition.' },
         ]
       }
     }
@@ -144,7 +152,7 @@ async function main() {
         data: [
           {
               name: 'John Doe',
-              email: 'john.doe@example.com',
+              phoneNumber: '0911223344',
               eventId: event1.id,
               ticketTypeId: generalTicketId,
               userId: adminUser.id,
@@ -152,7 +160,7 @@ async function main() {
           },
           {
               name: 'Jane Smith',
-              email: 'jane.smith@example.com',
+              phoneNumber: '0955667788',
               eventId: event1.id,
               ticketTypeId: vipTicketId,
               userId: adminUser.id,
@@ -175,5 +183,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
-
-    

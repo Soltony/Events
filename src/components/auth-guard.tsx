@@ -21,7 +21,7 @@ const pagePermissions: Record<string, string | string[]> = {
     '/dashboard/settings/users/[id]/edit': 'User Management:Update',
     '/dashboard/settings/roles': 'Role Management:Read',
     '/dashboard/settings/roles/new': 'Role Management:Create',
-    '/dashboard/settings/roles/edit': 'Role Management:Update',
+    '/dashboard/settings/roles/[id]/edit': 'Role Management:Update',
 };
 
 function hasAccess(pathname: string, hasPermission: (p: string) => boolean): boolean {
@@ -124,3 +124,5 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
+
+    

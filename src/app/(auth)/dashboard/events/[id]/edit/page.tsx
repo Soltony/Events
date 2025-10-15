@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter, useParams } from 'next/navigation';
-import { UploadCloud, Loader2, ArrowLeft } from 'lucide-react';
+import { UploadCloud, Loader2, ArrowLeft, PlusCircle, Trash2, X } from 'lucide-react';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -33,8 +34,11 @@ import { DateTimePicker } from '@/components/datetime-picker';
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
+  color: z.string().optional(), // organizer name
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
-  location: z.string().min(3, { message: 'Location is required.' }),
+  locations: z.array(z.object({
+    value: z.string().min(3, { message: "Location can't be empty."}),
+  })).min(1, { message: 'You must have at least one location.'}),
   hint: z.string().optional(),
   startDate: z.date({
     required_error: 'A start date and time for the event is required.',
@@ -42,7 +46,7 @@ const eventFormSchema = z.object({
   endDate: z.date().optional(),
   category: z.string({ required_error: 'Please select a category.' }),
   otherCategory: z.string().optional(),
-  image: z.string().optional(),
+  images: z.array(z.string()).length(1, { message: 'Please upload exactly one image.' }),
 }).refine(data => {
     if (data.category === 'Other') {
         return !!data.otherCategory && data.otherCategory.length > 0;
@@ -66,19 +70,27 @@ export default function EditEventPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-
+  
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
       name: '',
+      color: '', // organizer name
       description: '',
-      location: '',
+      locations: [{ value: '' }],
       hint: '',
       category: '',
       otherCategory: '',
-      image: '',
+      images: [],
     },
+  });
+
+
+  const watchedImages = form.watch('images');
+
+  const { fields: locationFields, append: appendLocation, remove: removeLocation } = useFieldArray({
+    control: form.control,
+    name: "locations"
   });
 
   const watchedCategory = form.watch('category');
@@ -95,21 +107,21 @@ export default function EditEventPage() {
         const event = await getEventById(eventId);
         if (event) {
           const isOtherCategory = event.category && !defaultCategories.includes(event.category);
+          const eventLocations = event.location ? event.location.split('||').map((loc: string) => ({ value: loc.trim() })) : [{ value: '' }];
+          const eventImages = event.image ? [event.image] : [];
           
           form.reset({
             name: event.name,
+            color: event.color || '', // organizer name
             description: event.description,
-            location: event.location,
+            locations: eventLocations,
             hint: event.hint || '',
             category: isOtherCategory ? 'Other' : event.category,
             otherCategory: isOtherCategory ? event.category : '',
             startDate: new Date(event.startDate),
             endDate: event.endDate ? new Date(event.endDate) : undefined,
-            image: event.image || '',
+            images: eventImages,
           });
-          if (event.image) {
-            setPreviewImage(event.image);
-          }
         } else {
             toast({ variant: 'destructive', title: 'Error', description: 'Event not found.' });
             router.push('/dashboard/events');
@@ -131,6 +143,7 @@ export default function EditEventPage() {
         const finalData = {
             ...data,
             category: data.category === 'Other' ? data.otherCategory : data.category,
+            images: data.images, // Pass the array of image URLs
         };
 
         await updateEvent(eventId, finalData);
@@ -152,31 +165,30 @@ export default function EditEventPage() {
   }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
+      const files = e.target.files;
+      if (files && files.length > 0) {
         setIsUploading(true);
-        setPreviewImage(URL.createObjectURL(file)); // Local preview
+        // Only take the first file
+        const file = files[0];
         const reader = new FileReader();
         reader.onloadend = async () => {
           try {
             const response = await axios.post('/api/upload', { file: reader.result });
             if (response.data.success) {
-              form.setValue('image', response.data.url);
-              setPreviewImage(response.data.url); // Final URL
+              // Replace the existing image instead of adding to array
+              form.setValue('images', [response.data.url]);
             } else {
               toast({ variant: 'destructive', title: 'Upload failed', description: response.data.error });
-              setPreviewImage(form.getValues('image')); // Revert to original on failure
             }
           } catch (error) {
-            toast({ variant: 'destructive', title: 'Upload failed', description: 'An error occurred.' });
-            setPreviewImage(form.getValues('image'));
+            toast({ variant: 'destructive', title: 'Upload failed', description: 'An error occurred during upload.' });
           } finally {
             setIsUploading(false);
           }
         };
         reader.readAsDataURL(file);
       }
-    };
+  };
 
   if (loading) {
     return (
@@ -233,6 +245,22 @@ export default function EditEventPage() {
                     <FormControl>
                       <Input placeholder="e.g., Tech Conference 2025" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="color" // organizer name
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Organizer Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Acme Inc. or John Doe" {...field} />
+                    </FormControl>
+                     <FormDescription>
+                        Optional: The name that will be publicly displayed as the event organizer.
+                      </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -327,25 +355,43 @@ export default function EditEventPage() {
                   />
               </div>
 
-              <FormField
-                control={form.control}
-                name="location"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Location</FormLabel>
-                    <FormControl>
-                      <LocationInput
-                        value={field.value}
-                        onChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Start typing to search for a location in Ethiopia.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                 <div className="space-y-4">
+                  <FormLabel>Location</FormLabel>
+                  <FormDescription>Edit the single location for your event.</FormDescription>
+                  <FormMessage>{form.formState.errors.locations?.message}</FormMessage>
+
+                  {locationFields.map((field, index) => (
+                      <div key={field.id} className="flex items-center gap-2">
+                          <FormField
+                              control={form.control}
+                              name={`locations.${index}.value`}
+                              render={({ field }) => (
+                                  <FormItem className="flex-grow">
+                                      <FormControl>
+                                          <LocationInput
+                                              value={field.value}
+                                              onChange={field.onChange}
+                                          />
+                                      </FormControl>
+                                      <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
+                          <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => removeLocation(index)}
+                              disabled={true}
+                          >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Remove location</span>
+                          </Button>
+                      </div>
+                  ))}
+                  {/* Multiple locations disabled intentionally */}
+                </div>
+
 
               <FormField
                 control={form.control}
@@ -361,7 +407,7 @@ export default function EditEventPage() {
                       />
                     </FormControl>
                      <FormDescription>
-                      Optional: Provide more detailed location info like landmarks, building names, or floor numbers.
+                      Optional: Provide more detailed location info like landmarks, building names, or floor numbers. This applies to all locations.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -373,57 +419,54 @@ export default function EditEventPage() {
               <div className="space-y-4">
                 <div>
                   <FormLabel>Event Image</FormLabel>
-                  <FormDescription>Update the image for your event gallery.</FormDescription>
-                   <FormMessage className="pt-2">{form.formState.errors.image?.message}</FormMessage>
+                  <FormDescription>Update the image for your event.</FormDescription>
+                   <FormMessage className="pt-2">{form.formState.errors.images?.message}</FormMessage>
                 </div>
-                <div className="w-full max-w-sm">
-                   <FormField
-                      control={form.control}
-                      name="image"
-                      render={({ field }) => (
-                      <FormItem>
-                          <FormControl>
-                            <div className="aspect-video rounded-md relative group bg-muted border-dashed border-2 flex items-center justify-center">
-                              {isUploading && (
-                                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
-                                      <Loader2 className="h-8 w-8 animate-spin text-white" />
-                                  </div>
-                              )}
-                              {previewImage && !isUploading ? (
-                                <Image
-                                  src={previewImage}
-                                  alt="Event image preview"
-                                  fill
-                                  className="object-cover rounded-md"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.src = DEFAULT_IMAGE_PLACEHOLDER;
-                                    target.srcset = '';
-                                  }}
-                                />
-                              ) : null}
-                              <div className={`absolute inset-0 flex items-center justify-center gap-2 transition-opacity ${previewImage ? 'bg-black/40 opacity-0 group-hover:opacity-100' : 'bg-transparent'} ${isUploading ? 'opacity-0' : ''}`}>
-                                <label htmlFor="image-upload" className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 px-3 cursor-pointer bg-secondary text-secondary-foreground hover:bg-secondary/80">
-                                  <UploadCloud className="mr-2 h-4 w-4" />
-                                  {previewImage ? 'Change' : 'Upload'}
-                                  <Input
-                                    id="image-upload"
-                                    type="file"
-                                    className="sr-only"
-                                    accept="image/png, image/jpeg, image/gif"
-                                    onChange={handleFileChange}
-                                    disabled={isUploading}
-                                  />
-                                </label>
-                              </div>
-                            </div>
-                          </FormControl>
-                           <FormMessage />
-                      </FormItem>
+                <div className="flex gap-4">
+                  {watchedImages.length > 0 ? (
+                    <div className="relative aspect-video w-64 rounded-md overflow-hidden group">
+                      <Image
+                        src={watchedImages[0]}
+                        alt="Event image"
+                        fill
+                        className="object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => form.setValue('images', [])}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Remove image</span>
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                  <label htmlFor="image-upload" className="aspect-video w-64 rounded-md border-dashed border-2 flex items-center justify-center cursor-pointer hover:border-primary hover:text-primary transition-colors text-muted-foreground">
+                    <div className="text-center">
+                      {isUploading ? (
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                      ) : (
+                        <>
+                          <UploadCloud className="h-8 w-8 mx-auto" />
+                          <span className="text-sm mt-2">{watchedImages.length > 0 ? 'Replace Image' : 'Add Image'}</span>
+                        </>
                       )}
+                    </div>
+                    <Input
+                      id="image-upload"
+                      type="file"
+                      className="sr-only"
+                      accept="image/png, image/jpeg, image/gif"
+                      onChange={handleFileChange}
+                      disabled={isUploading}
                     />
+                  </label>
                 </div>
               </div>
+
 
               <Separator />
 

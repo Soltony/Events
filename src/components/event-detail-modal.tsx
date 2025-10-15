@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
@@ -10,7 +9,7 @@ import { Calendar, MapPin, Ticket, Loader2, X, User, Phone } from 'lucide-react'
 import type { Event, TicketType } from '@prisma/client';
 import { format } from 'date-fns';
 import { ScrollArea } from './ui/scroll-area';
-import { useTransition, useState } from 'react';
+import React, { useTransition, useState } from 'react';
 import { purchaseTickets } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
@@ -27,13 +26,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
 }
 
 interface EventDetailModalProps {
-  event: EventWithTickets;
+  event: EventWithTickets | null; 
   isOpen: boolean;
   onClose: () => void;
 }
@@ -49,7 +49,15 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const { user } = useAuth();
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [loadingTicketId, setLoadingTicketId] = useState<number | null>(null);
+
+  // Initialize selected location when event changes
+  React.useEffect(() => {
+    if (event?.location) {
+      setSelectedLocation(event.location.split('||')[0].trim());
+    }
+  }, [event]);
   
   const [purchaseState, setPurchaseState] = useState<{ ticket: TicketType | null; isOpen: boolean }>({ ticket: null, isOpen: false });
   const [attendeeName, setAttendeeName] = useState(user ? `${user.firstName} ${user.lastName}` : '');
@@ -128,18 +136,50 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
                 </div>
                 
                 <div className="flex flex-col min-h-0">
+                        {event.location && event.location.includes('||') && (
+                            <div className="mb-4">
+                                <Label htmlFor="location-select" className="text-sm font-medium mb-2 block">Location</Label>
+                                <Select
+                                    value={selectedLocation || ''}
+                                    onValueChange={(value) => setSelectedLocation(value)}
+                                >
+                                    <SelectTrigger id="location-select">
+                                        <SelectValue placeholder="Select a location" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {event.location.split('||').map(loc => (
+                                            <SelectItem key={loc.trim()} value={loc.trim()}>{loc.trim()}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
                         <h3 className="text-lg font-semibold mb-2">Tickets</h3>
                         <ScrollArea className="flex-1 -mr-4 pr-4">
                             <div className="space-y-3">
                                 {event.ticketTypes.length > 0 ? (
-                                    event.ticketTypes.map(ticket => {
+                                    event.ticketTypes
+                                        .filter(ticket => {
+                                            // If location is selected, only show tickets for that location
+                                            if (selectedLocation) {
+                                                return ticket.name.includes(` - ${selectedLocation}`);
+                                            }
+                                            // If no location selected, show all tickets
+                                            return true;
+                                        })
+                                        .map(ticket => {
                                         const isLoading = isPending && loadingTicketId === ticket.id;
                                         const isSoldOut = ticket.total - ticket.sold <= 0;
+                                        // Extract base name (remove location suffix)
+                                        const baseName = ticket.name.includes(' - ') 
+                                            ? ticket.name.split(' - ')[0] 
+                                            : ticket.name;
+                                        
                                         return (
                                             <div key={ticket.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 rounded-lg border bg-secondary/50">
                                                 <div className="mb-2 sm:mb-0">
-                                                    <h4 className="font-semibold text-base">{ticket.name}</h4>
-                                                    <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-base">ETB {Number(ticket.price).toFixed(2)}</p>
+                                                    <h4 className="font-semibold text-base">{baseName}</h4>
+                                                    <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-base">ETB {Number(ticket.basePrice).toFixed(2)}</p>
                                                     <p className="text-xs text-muted-foreground">{!isSoldOut ? `${ticket.total - ticket.sold} remaining` : 'Sold Out'}</p>
                                                 </div>
                                                 <Button 

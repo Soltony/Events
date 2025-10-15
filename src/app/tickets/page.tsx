@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -13,6 +14,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowUpRight, Ticket } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 interface FullTicket extends Attendee {
   event: Event;
@@ -118,11 +120,11 @@ export default function MyTicketsPage() {
         ) : tickets.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {tickets.map((ticket) => {
-                     const imageUrl = ticket.event.image || DEFAULT_IMAGE_PLACEHOLDER;
+                     const imageSource = ticket.event.image || DEFAULT_IMAGE_PLACEHOLDER;
                     return (
                         <Card key={ticket.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
-                             <CardHeader className="p-0">
-                                <Image src={imageUrl} alt={ticket.event.name} width={600} height={338} className="rounded-t-lg object-cover aspect-video" data-ai-hint={ticket.event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
+                             <CardHeader className="p-0 relative aspect-video">
+                                <Image src={imageSource} alt={ticket.event.name} fill className="object-cover rounded-t-lg" data-ai-hint={ticket.event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
                             </CardHeader>
                              <CardContent className="p-4 flex-1 space-y-1">
                                 <CardTitle className="text-xl">{ticket.event.name}</CardTitle>

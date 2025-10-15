@@ -1,13 +1,14 @@
 
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, Trash2, UploadCloud, Loader2 } from 'lucide-react';
+import { PlusCircle, Trash2, UploadCloud, Loader2, X } from 'lucide-react';
 import Image from 'next/image';
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 import { Button } from '@/components/ui/button';
@@ -29,11 +30,22 @@ import { addEvent } from '@/lib/actions';
 import { Separator } from '@/components/ui/separator';
 import LocationInput from '@/components/location-input';
 import { DateTimePicker } from '@/components/datetime-picker';
+import { useAuth } from '@/context/auth-context';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+const locationPriceSchema = z.object({
+  location: z.string().min(1, "Location is required."),
+  price: z.coerce.number().min(0, 'Price must be a positive number.'),
+  quantity: z.coerce.number().int().min(1, 'Quantity must be at least 1.'),
+});
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
+  color: z.string().optional(), // This field will now store the organizer name
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
-  location: z.string().min(3, { message: 'Location is required.' }),
+  locations: z.array(z.object({
+    value: z.string().min(3, { message: "Location can't be empty."}),
+  })).min(1, { message: 'You must have at least one location.'}),
   hint: z.string().optional(),
   startDate: z.date({
     required_error: 'A start date and time for the event is required.',
@@ -41,11 +53,11 @@ const eventFormSchema = z.object({
   endDate: z.date().optional(),
   category: z.string({ required_error: 'Please select a category.' }),
   otherCategory: z.string().optional(),
-  image: z.string().optional(),
+  images: z.array(z.string()).min(1, { message: 'Please upload exactly one image.' }),
   tickets: z.array(z.object({
     name: z.string().min(1, { message: "Ticket name can't be empty."}),
-    price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
-    total: z.coerce.number().int().min(1, { message: 'Capacity must be at least 1.' }),
+    description: z.string().optional(),
+    locationPrices: z.array(locationPriceSchema).min(1, "You must add at least one location configuration."),
   })).min(1, { message: 'You must have at least one ticket tier.'}),
 }).refine(data => {
     if (data.category === 'Other') {
@@ -64,30 +76,51 @@ const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 export default function CreateEventPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
       name: '',
+      color: '', // organizer name
       description: '',
-      location: '',
+      locations: [{ value: '' }],
       hint: '',
       category: '',
       otherCategory: '',
-      image: '',
-      tickets: [{ name: 'General Admission', price: 25, total: 100 }],
+      images: [],
+      tickets: [{ 
+        name: 'General Admission', 
+        description: 'Standard entry to the event.', 
+        locationPrices: [{ location: '', price: 0, quantity: 100 }]
+      }],
     },
   });
 
+  const watchedImages = form.watch('images');
   const watchedCategory = form.watch('category');
+  const watchedLocations = form.watch('locations');
 
   const { fields: ticketFields, append: appendTicket, remove: removeTicket } = useFieldArray({
     control: form.control,
     name: "tickets"
   });
+
+  const { fields: locationFields, append: appendLocation, remove: removeLocation } = useFieldArray({
+    control: form.control,
+    name: "locations"
+  });
+
+  // Sync the first ticket's location price with the first location field
+  const firstLocationValue = form.watch('locations.0.value');
+  useEffect(() => {
+    const currentTicketLocation = form.getValues('tickets.0.locationPrices.0.location');
+    if (firstLocationValue && currentTicketLocation !== firstLocationValue) {
+      form.setValue('tickets.0.locationPrices.0.location', firstLocationValue, { shouldValidate: true });
+    }
+  }, [firstLocationValue, form]);
 
   async function onSubmit(data: EventFormValues) {
     setIsSubmitting(true);
@@ -96,54 +129,67 @@ export default function CreateEventPage() {
             ...data,
             category: data.category === 'Other' ? data.otherCategory : data.category,
         };
-        await addEvent(finalData);
-        toast({
-            title: 'Event Created!',
-            description: `Successfully created "${data.name}".`,
-        });
-        router.push('/dashboard/events');
-    } catch (error) {
+        const newEvent = await addEvent(finalData);
+        
+        if (newEvent.status === 'PENDING') {
+            toast({
+                title: 'Event Submitted!',
+                description: `Your event "${data.name}" is now pending admin approval.`,
+            });
+            router.push('/dashboard/events');
+        } else {
+            toast({
+                title: 'Event Created!',
+                description: `Successfully created "${data.name}".`,
+            });
+             if (user?.role?.name === 'Admin') {
+                router.push('/dashboard/events?tab=approved');
+            } else {
+                router.push('/dashboard/events');
+            }
+        }
+        
+    } catch (error: any) {
         console.error("Failed to create event:", error);
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'Failed to create event. Please try again.',
+            description: error.message || 'Failed to create event. Please try again.',
         });
     } finally {
         setIsSubmitting(false);
     }
   }
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
+ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const files = e.target.files;
+  if (files && files.length > 0) {
         setIsUploading(true);
-        setPreviewImage(URL.createObjectURL(file)); // Create a local URL for instant preview
+        // Only take the first file
+        const file = files[0];
         const reader = new FileReader();
         reader.onloadend = async () => {
           try {
             const response = await axios.post('/api/upload', { file: reader.result });
             if (response.data.success) {
-              form.setValue('image', response.data.url);
-              setPreviewImage(response.data.url); // Update preview with the final URL
+              // Replace the existing image instead of adding to array
+              form.setValue('images', [response.data.url]);
             } else {
               toast({ variant: 'destructive', title: 'Upload failed', description: response.data.error });
-               setPreviewImage(null); // Clear preview on failure
             }
           } catch (error) {
-            toast({ variant: 'destructive', title: 'Upload failed', description: 'An error occurred while uploading the image.' });
-            setPreviewImage(null);
+            toast({ variant: 'destructive', title: 'Upload failed', description: 'An error occurred during upload.' });
           } finally {
             setIsUploading(false);
           }
         };
         reader.readAsDataURL(file);
-      }
-    };
-
+    }
+  };
+  
   return (
-    <div className="flex flex-1 justify-center p-4">
-      <div className="w-full max-w-3xl">
+    <div className="flex flex-1 items-center justify-center p-4">
+      <div className="w-full max-w-4xl">
         <Card>
           <CardHeader>
             <CardTitle>Create New Event</CardTitle>
@@ -163,6 +209,22 @@ export default function CreateEventPage() {
                       </FormControl>
                       <FormDescription>
                         This is the public name of your event.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="color" // <-- Now using 'color' field
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Organizer Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Acme Inc. or John Doe" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Optional: The name that will be publicly displayed as the event organizer.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -271,25 +333,50 @@ export default function CreateEventPage() {
                     />
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="location"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Location</FormLabel>
-                      <FormControl>
-                        <LocationInput
-                          value={field.value}
-                          onChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Start typing to search for a location in Ethiopia.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="space-y-4">
+                  <FormLabel>Locations</FormLabel>
+                  <FormDescription>Add one or more locations for your event. Start typing to search for a location in Ethiopia.</FormDescription>
+                  <FormMessage>{form.formState.errors.locations?.message}</FormMessage>
+
+                  {locationFields.map((field, index) => (
+                      <div key={field.id} className="flex items-center gap-2">
+                          <FormField
+                              control={form.control}
+                              name={`locations.${index}.value`}
+                              render={({ field }) => (
+                                  <FormItem className="flex-grow">
+                                      <FormControl>
+                                          <LocationInput
+                                              value={field.value}
+                                              onChange={field.onChange}
+                                          />
+                                      </FormControl>
+                                      <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
+                          <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => removeLocation(index)}
+                              disabled={locationFields.length <= 1}
+                          >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Remove location</span>
+                          </Button>
+                      </div>
+                  ))}
+                  <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => appendLocation({ value: '' })}
+                  >
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Add Location
+                  </Button>
+                </div>
+
 
                 <FormField
                   control={form.control}
@@ -305,7 +392,7 @@ export default function CreateEventPage() {
                         />
                       </FormControl>
                       <FormDescription>
-                        Optional: Provide more detailed location info like landmarks, building names, or floor numbers.
+                        Optional: Provide more detailed location info like landmarks, building names, or floor numbers. This applies to all locations.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -315,135 +402,153 @@ export default function CreateEventPage() {
                 <Separator />
 
                 <div className="space-y-4">
-                  <div>
+                    <div>
                     <FormLabel>Event Image</FormLabel>
-                    <FormDescription>Upload an image for your event.</FormDescription>
-                    <FormMessage className="pt-2">{form.formState.errors.image?.message}</FormMessage>
-                  </div>
-                  <div className="w-full max-w-sm">
-                    <FormField
-                        control={form.control}
-                        name="image"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormControl>
-                              <div className="aspect-video rounded-md relative group bg-muted border-dashed border-2 flex items-center justify-center">
-                                {isUploading && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
-                                        <Loader2 className="h-8 w-8 animate-spin text-white" />
-                                    </div>
-                                )}
-                                {previewImage && !isUploading ? (
-                                  <Image
-                                    src={previewImage}
-                                    alt="Event image preview"
-                                    fill
-                                    className="object-cover rounded-md"
-                                    onError={(e) => {
-                                      const target = e.target as HTMLImageElement;
-                                      target.src = DEFAULT_IMAGE_PLACEHOLDER;
-                                      target.srcset = '';
-                                    }}
-                                  />
-                                ) : null}
-                                <div className={`absolute inset-0 flex items-center justify-center gap-2 transition-opacity ${previewImage ? 'bg-black/40 opacity-0 group-hover:opacity-100' : 'bg-transparent'} ${isUploading ? 'opacity-0' : ''}`}>
-                                  <label htmlFor="image-upload" className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 px-3 cursor-pointer bg-secondary text-secondary-foreground hover:bg-secondary/80">
-                                    <UploadCloud className="mr-2 h-4 w-4" />
-                                    {previewImage ? 'Change' : 'Upload'}
-                                    <Input
-                                      id="image-upload"
-                                      type="file"
-                                      className="sr-only"
-                                      accept="image/png, image/jpeg, image/gif"
-                                      onChange={handleFileChange}
-                                      disabled={isUploading}
-                                    />
-                                  </label>
-                                </div>
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                      />
-                  </div>
+                    <FormDescription>Upload one image for your event.</FormDescription>
+                    <FormMessage className="pt-2">{form.formState.errors.images?.message}</FormMessage>
+                    </div>
+                    <div className="flex gap-4">
+                      {watchedImages.length > 0 ? (
+                        <div className="relative aspect-video w-64 rounded-md overflow-hidden group">
+                          <Image
+                              src={watchedImages[0]}
+                              alt="Event image"
+                              fill
+                              className="object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            onClick={() => form.setValue('images', [])}
+                            >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Remove image</span>
+                            </Button>
+                          </div>
+                        </div>
+                      ) : null}
+                      <label htmlFor="image-upload" className="aspect-video w-64 rounded-md border-dashed border-2 flex items-center justify-center cursor-pointer hover:border-primary hover:text-primary transition-colors text-muted-foreground">
+                        <div className="text-center">
+                            {isUploading ? (
+                            <Loader2 className="h-8 w-8 animate-spin" />
+                            ) : (
+                            <>
+                                <PlusCircle className="h-8 w-8 mx-auto" />
+                                <span className="text-sm mt-2">{watchedImages.length > 0 ? 'Replace Image' : 'Add Image'}</span>
+                            </>
+                            )}
+                        </div>
+                        <Input
+                            id="image-upload"
+                            type="file"
+                            className="sr-only"
+                            accept="image/png, image/jpeg, image/gif"
+                            onChange={handleFileChange}
+                            disabled={isUploading}
+                        />
+                      </label>
+                    </div>
                 </div>
 
 
                 <Separator />
 
                 <div className="space-y-6">
-                  <div>
-                      <FormLabel>Ticket Tiers</FormLabel>
-                      <FormDescription>Create one or more ticket types for your event.</FormDescription>
-                      <FormMessage>{form.formState.errors.tickets?.message}</FormMessage>
-                  </div>
+                    <div>
+                        <FormLabel>Ticket Tiers</FormLabel>
+                        <FormDescription>Create one or more ticket types for your event.</FormDescription>
+                        <FormMessage>{form.formState.errors.tickets?.message}</FormMessage>
+                    </div>
 
-                  {ticketFields.map((field, index) => (
-                    <Card key={field.id} className="p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_120px_auto] gap-4 items-start">
-                        <FormField
-                          control={form.control}
-                          name={`tickets.${index}.name`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className={index !== 0 ? "sr-only" : ""}>Ticket Name</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="e.g., VIP Pass" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`tickets.${index}.price`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className={index !== 0 ? "sr-only" : ""}>Price</FormLabel>
-                              <FormControl>
-                                <Input type="number" {...field} placeholder="e.g., 50" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`tickets.${index}.total`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className={index !== 0 ? "sr-only" : ""}>Quantity</FormLabel>
-                              <FormControl>
-                                <Input type="number" {...field} placeholder="e.g., 100"/>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <div className={`flex items-end h-full ${index !== 0 ? "pt-8" : ""}`}>
-                          <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              onClick={() => removeTicket(index)}
-                              disabled={ticketFields.length <= 1}
-                          >
-                              <Trash2 className="h-4 w-4" />
-                              <span className="sr-only">Remove tier</span>
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                  <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => appendTicket({ name: '', price: 0, total: 50 })}
-                      >
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      Add Ticket Tier
-                  </Button>
+                    {ticketFields.map((ticket, ticketIndex) => {
+                      const { fields: locationPriceFields, append: appendLocationPrice, remove: removeLocationPrice } = useFieldArray({
+                          control: form.control,
+                          name: `tickets.${ticketIndex}.locationPrices`
+                      });
+                      
+                      return (
+                        <Card key={ticket.id} className="p-4 space-y-4">
+                            <div className="flex justify-between items-start">
+                                <FormField
+                                    control={form.control}
+                                    name={`tickets.${ticketIndex}.name`}
+                                    render={({ field }) => (
+                                    <FormItem className="flex-grow pr-4">
+                                        <FormLabel>Ticket Name</FormLabel>
+                                        <FormControl><Input {...field} placeholder="e.g., VIP Pass" /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => removeTicket(ticketIndex)}
+                                    disabled={ticketFields.length <= 1}
+                                    className="mt-8"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                    <span className="sr-only">Remove tier</span>
+                                </Button>
+                            </div>
+                            
+                            <FormField
+                              control={form.control}
+                              name={`tickets.${ticketIndex}.description`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Description</FormLabel>
+                                  <FormControl>
+                                    <Textarea {...field} placeholder="Describe what this ticket includes (e.g., front row seats, free drink)." className="resize-none" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                             <div className="space-y-4 rounded-md border p-4">
+                               <h4 className="font-medium text-sm">Location Prices & Quantities</h4>
+                               <FormMessage>{form.formState.errors.tickets?.[ticketIndex]?.locationPrices?.root?.message}</FormMessage>
+                              
+                               {locationPriceFields.map((field, priceIndex) => (
+                                <div key={field.id} className="grid grid-cols-12 gap-2 items-end">
+                                  <FormField control={form.control} name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.location`} render={({ field }) => (
+                                    <FormItem className="col-span-4"><FormLabel className="text-xs">Location</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger></FormControl>
+                                            <SelectContent>{watchedLocations.map(l => l.value).filter(Boolean).map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}</SelectContent>
+                                        </Select>
+                                    <FormMessage /></FormItem>
+                                  )}/>
+                                   <FormField control={form.control} name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.price`} render={({ field }) => (
+                                    <FormItem className="col-span-3"><FormLabel className="text-xs">Price</FormLabel><FormControl><Input type="number" placeholder="500" {...field} /></FormControl><FormMessage /></FormItem>
+                                   )}/>
+                                   <FormField control={form.control} name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.quantity`} render={({ field }) => (
+                                    <FormItem className="col-span-3"><FormLabel className="text-xs">Quantity</FormLabel><FormControl><Input type="number" placeholder="100" {...field} /></FormControl><FormMessage /></FormItem>
+                                   )}/>
+                                   <div className="col-span-2 flex items-center">
+                                      <Button type="button" variant="outline" size="icon" onClick={() => removeLocationPrice(priceIndex)} disabled={locationPriceFields.length <= 1}><Trash2 className="h-4 w-4" /></Button>
+                                   </div>
+                                </div>
+                              ))}
+                              <Button type="button" variant="outline" size="sm" onClick={() => appendLocationPrice({ location: watchedLocations[0]?.value || '', price: 0, quantity: 100 })} disabled={!watchedLocations.some(l => l.value)}>
+                                <PlusCircle className="mr-2 h-4 w-4"/> Add Location Price
+                              </Button>
+                            </div>
+                        </Card>
+                      )
+                    })}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => appendTicket({ name: '', description: '', locationPrices: [{ location: watchedLocations[0]?.value || '', price: 0, quantity: 100 }] })}
+                        >
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add Ticket Tier
+                    </Button>
                 </div>
 
                 <Separator />

@@ -6,39 +6,40 @@ import { getEventById, validatePromoCode } from '@/lib/actions';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone } from 'lucide-react';
-import { notFound, useParams } from 'next/navigation';
+import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone, ArrowLeft, X, UserCircle, GripVertical, AlertCircle } from 'lucide-react';
+import { notFound, useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import type { Event, TicketType, PromoCode } from '@prisma/client';
-import { useEffect, useState, useTransition, useMemo } from 'react';
+import { useEffect, useState, useTransition, useMemo, useRef } from 'react';
 import { purchaseTickets } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import Link from 'next/link';
+import CartSheet from '@/components/cart-sheet';
+import { cn } from '@/lib/utils';
+import { AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import Autoplay from "embla-carousel-autoplay";
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 interface EventWithTickets extends Event {
-    ticketTypes: TicketType[];
+    ticketTypes: (TicketType & { basePrice: number })[];
 }
 
-type SelectedTicket = {
+export type SelectedTicket = {
   id: number;
   name: string;
   price: number;
   quantity: number;
+  total: number;
+  sold: number;
+  description?: string | null;
 }
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
@@ -48,7 +49,7 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
       const endDateFormat = format(new Date(endDate), 'LLL dd, y') === format(new Date(startDate), 'LLL dd, y') 
         ? 'hh:mm a'
         : startDateFormat;
-      return `${format(new Date(startDate), startDateFormat)} - ${format(new Date(endDate), endDateFormat)}`;
+      return `${''}${format(new Date(startDate), startDateFormat)} - ${format(new Date(endDate), endDateFormat)}`;
     }
     return format(new Date(startDate), startDateFormat);
 }
@@ -56,12 +57,14 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 
 export default function PublicEventDetailPage() {
+  const router = useRouter();
   const params = useParams<{ id:string }>();
   const eventId = params ? parseInt(params.id, 10) : NaN;
   const [isPending, startTransition] = useTransition();
   const [event, setEvent] = useState<EventWithTickets | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTickets, setSelectedTickets] = useState<Record<number, SelectedTicket>>({});
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
   const [discount, setDiscount] = useState(0);
@@ -70,6 +73,10 @@ export default function PublicEventDetailPage() {
   const [attendeeName, setAttendeeName] = useState('');
   const [attendeePhone, setAttendeePhone] = useState('');
   const { toast } = useToast();
+  
+  const plugin = useRef(
+    Autoplay({ delay: 3000, stopOnInteraction: true, stopOnMouseEnter: true })
+  );
 
   useEffect(() => {
     if (isNaN(eventId)) {
@@ -81,7 +88,16 @@ export default function PublicEventDetailPage() {
         if (!eventData) {
             notFound();
         }
-        setEvent(eventData);
+        setEvent(eventData as EventWithTickets);
+
+        // --- Set default location ---
+        if (eventData?.location) {
+            const locations = eventData.location.split('||').map(l => l.trim());
+            if (locations.length > 0) {
+              setSelectedLocation(locations[0]);
+            }
+        }
+
         setLoading(false);
     }
     fetchEvent();
@@ -98,35 +114,64 @@ export default function PublicEventDetailPage() {
   const totalItems = useMemo(() => {
       return Object.values(selectedTickets).reduce((acc, ticket) => acc + ticket.quantity, 0);
   }, [selectedTickets]);
+  
+  useEffect(() => {
+    // When location changes, clear the cart to avoid price mismatches
+    setSelectedTickets({});
+  }, [selectedLocation]);
 
-  const updateTicketQuantity = (ticketType: TicketType, quantity: number) => {
-    setSelectedTickets(prev => {
-      const newSelected = { ...prev };
-      if (quantity > 0) {
-        newSelected[ticketType.id] = {
-          id: ticketType.id,
-          name: ticketType.name,
-          price: Number(ticketType.price),
-          quantity: quantity,
-        };
-      } else {
-        delete newSelected[ticketType.id];
-      }
-      return newSelected;
-    });
+  const getCategoryBadgeClass = (category: string) => {
+    switch (category) {
+      case 'Technology':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'Music':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'Art':
+        return 'bg-pink-100 text-pink-800 border-pink-200';
+      case 'Community':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'Business':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  }
+
+  const updateTicketQuantity = (
+    ticketType: TicketType,
+    quantity: number
+  ) => {
+      setSelectedTickets(prev => {
+          const newSelected = { ...prev };
+          if (quantity > 0) {
+              newSelected[ticketType.id] = {
+                  id: ticketType.id,
+                  name: ticketType.name,
+                  price: Number(ticketType.basePrice),
+                  total: ticketType.total,
+                  sold: ticketType.sold,
+                  quantity: quantity,
+                  description: ticketType.description
+              };
+          } else {
+              delete newSelected[ticketType.id];
+          }
+          return newSelected;
+      });
   };
 
   const handleApplyPromoCode = async () => {
     if (!promoCode) return;
     setIsPromoLoading(true);
     try {
-        const result = await validatePromoCode(eventId, promoCode);
+        const ticketTypesInCart = Object.values(selectedTickets).map(t => ({ id: t.id, name: t.name }));
+        const result = await validatePromoCode(promoCode, eventId, selectedLocation, ticketTypesInCart);
         if (result) {
             setAppliedPromo(result);
             toast({ title: "Success", description: "Promo code applied!" });
         } else {
             setAppliedPromo(null);
-            toast({ variant: 'destructive', title: "Error", description: "Invalid or expired promo code." });
+            toast({ variant: 'destructive', title: "Error", description: "Invalid or expired promo code for the selected ticket type or location." });
         }
     } catch (e) {
         setAppliedPromo(null);
@@ -135,13 +180,18 @@ export default function PublicEventDetailPage() {
         setIsPromoLoading(false);
     }
   };
+
+  const removePromoCode = () => {
+    setAppliedPromo(null);
+    setPromoCode('');
+  }
   
   useEffect(() => {
     if (appliedPromo) {
       if (appliedPromo.type === 'PERCENTAGE') {
         setDiscount(subtotal * (Number(appliedPromo.value) / 100));
       } else if (appliedPromo.type === 'FIXED') {
-        setDiscount(Number(appliedPromo.value));
+        setDiscount(Math.min(subtotal, Number(appliedPromo.value)));
       }
     } else {
       setDiscount(0);
@@ -167,192 +217,281 @@ export default function PublicEventDetailPage() {
         setIsPurchaseModalOpen(false);
     });
   };
+
+    const eventLocations = useMemo(() => {
+        return event?.location ? Array.from(new Set(event.location.split('||').map(l => l.trim()))) : [];
+    }, [event]);
+
+    const locationSpecificTickets = useMemo(() => {
+        if (!event) return [];
+        // If there's only one location or no location selector is needed, show all tickets.
+        if (eventLocations.length <= 1) {
+            return event.ticketTypes;
+        }
+        // If multiple locations, filter by the selected one.
+        if (selectedLocation) {
+            return event.ticketTypes.filter(ticket => ticket.name.includes(`- ${selectedLocation}`));
+        }
+        return [];
+    }, [event, selectedLocation, eventLocations]);
+
   
   if (loading || !event) {
     return (
-        <div className="container mx-auto p-4 md:p-8 max-w-4xl">
-             <div className="bg-card shadow-xl rounded-lg overflow-hidden">
-                <Skeleton className="w-full aspect-video" />
-                <div className="p-8 space-y-6">
-                    <Skeleton className="h-6 w-24" />
-                    <Skeleton className="h-10 w-3/4" />
-                    <div className="space-y-4 pt-2">
+      <div className="min-h-screen bg-gray-50">
+        <header className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-sm">
+          <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center">
+            <Button asChild variant="ghost">
+              <Link href="/">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back to Home
+              </Link>
+            </Button>
+          </div>
+        </header>
+        <main className="pt-16">
+          <div className="container mx-auto max-w-5xl py-8 px-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="md:col-span-2 space-y-8">
+                    <Skeleton className="w-full aspect-[4/3] rounded-lg" />
+                    <div className="space-y-4">
+                        <Skeleton className="h-10 w-3/4" />
                         <Skeleton className="h-6 w-1/2" />
                         <Skeleton className="h-6 w-1/3" />
                     </div>
-                     <div className="border-t my-6"></div>
-                     <div className="space-y-4">
-                        <Skeleton className="h-6 w-40" />
-                        <Skeleton className="h-16 w-full" />
-                     </div>
-                     <div className="border-t my-6"></div>
-                      <div className="space-y-4">
-                        <Skeleton className="h-6 w-32" />
-                        <Skeleton className="h-20 w-full" />
-                        <Skeleton className="h-20 w-full" />
-                     </div>
+                    <div className="space-y-4">
+                        <Skeleton className="h-8 w-48" />
+                        <Skeleton className="h-5 w-full" />
+                        <Skeleton className="h-5 w-full" />
+                        <Skeleton className="h-5 w-3/4" />
+                    </div>
+                </div>
+                <div className="space-y-8">
+                    <Skeleton className="h-8 w-24" />
+                    <Skeleton className="h-24 w-full rounded-lg" />
+                    <Skeleton className="h-24 w-full rounded-lg" />
                 </div>
             </div>
-        </div>
+          </div>
+        </main>
+      </div>
     )
   }
   
-  const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
+  const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
+  const organizerName = event.color; // Using color field for organizer name
 
   return (
-    <div className="container mx-auto p-4 md:p-8 max-w-4xl">
-      <div className="bg-card shadow-xl rounded-lg overflow-hidden">
-        <div className="relative w-full aspect-video">
-          <Image src={imageUrl} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
-        </div>
+    <>
+      <div className="min-h-screen bg-gray-50">
+        <header className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-sm">
+          <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center">
+            <Button asChild variant="ghost">
+              <Link href="/">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back to Home
+              </Link>
+            </Button>
+          </div>
+        </header>
+        <main className="pt-16">
+          <div 
+            className="container mx-auto max-w-5xl py-8 px-4"
+          >
+              <div 
+                  className="p-4 sm:p-8 rounded-xl bg-card text-card-foreground"
+              >
+                  <div className="grid md:grid-cols-5 gap-8">
+                      <div className="md:col-span-3 space-y-8">
+                          <div className="w-full aspect-video relative rounded-lg overflow-hidden shadow-lg">
+                            <Image src={imageSource} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
+                          </div>
+                          
+                          <div className="rounded-lg p-0">
+                              <Badge variant="outline" className={`mb-2 w-min whitespace-nowrap ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
+                              <h1 className="text-4xl font-bold tracking-tight text-card-foreground">{event.name}</h1>
+                              {organizerName && (
+                                  <div className="flex items-center gap-2 text-lg text-muted-foreground pt-3">
+                                  <UserCircle className="h-5 w-5" />
+                                  <span>By {organizerName}</span>
+                                  </div>
+                              )}
+                              <div className="text-lg text-muted-foreground space-y-2 pt-4">
+                                  <div className="flex items-center gap-3">
+                                      <Calendar className="h-5 w-5" />
+                                      <span>{formatEventDate(event.startDate, event.endDate)}</span>
+                                  </div>
+                                  {eventLocations.length <= 1 && (
+                                      <div className="flex items-start gap-3">
+                                          <MapPin className="h-5 w-5 mt-1 flex-shrink-0" />
+                                          <span>{event.location.replace(/\|\|/g, ', ')}</span>
+                                      </div>
+                                  )}
+                                  {event.hint && (
+                                      <div className="flex items-start gap-3 text-base">
+                                      <Info className="h-5 w-5 mt-1 flex-shrink-0" />
+                                      <p className="text-muted-foreground">{event.hint}</p>
+                                      </div>
+                                  )}
+                              </div>
+                          </div>
 
-        <div className="p-6 md:p-8 space-y-8">
-            <div>
-                <Badge variant="outline" className="mb-2 w-min whitespace-nowrap">{event.category}</Badge>
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{event.name}</h1>
-                <div className="text-lg text-muted-foreground space-y-2 pt-4">
-                    <div className="flex items-center gap-3">
-                        <Calendar className="h-5 w-5" />
-                        <span>{formatEventDate(event.startDate, event.endDate)}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <MapPin className="h-5 w-5" />
-                        <span>{event.location}</span>
-                    </div>
-                    {event.hint && (
-                      <div className="flex items-start gap-3 text-base">
-                          <Info className="h-5 w-5 mt-1 flex-shrink-0" />
-                          <p className="text-muted-foreground">{event.hint}</p>
+                          <div className="rounded-lg p-0">
+                              <h3 className="text-2xl font-semibold mb-4 text-card-foreground">About this Event</h3>
+                              <p className="text-base text-muted-foreground whitespace-pre-wrap leading-relaxed">{event.description}</p>
+                          </div>
                       </div>
-                    )}
-                </div>
-            </div>
 
-            <div className="border-t"></div>
-
-            <div>
-                <h3 className="text-2xl font-semibold mb-4">About this Event</h3>
-                <p className="text-base text-muted-foreground whitespace-pre-wrap leading-relaxed">{event.description}</p>
-            </div>
-            
-            <div className="border-t"></div>
-
-            <div>
-                <h3 className="text-2xl font-semibold mb-4">Tickets</h3>
-                <div className="space-y-4">
-                    {event.ticketTypes.length > 0 ? (
-                        event.ticketTypes.map(ticket => {
-                            const selectedQuantity = selectedTickets[ticket.id]?.quantity || 0;
-                            const remaining = ticket.total - ticket.sold;
-                            return (
-                                <div key={ticket.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-lg border bg-secondary/50">
-                                    <div className="mb-3 sm:mb-0">
-                                        <h4 className="font-semibold text-lg">{ticket.name}</h4>
-                                        <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">ETB {Number(ticket.price).toFixed(2)}</p>
-                                        <p className="text-sm text-muted-foreground">{remaining > 0 ? `${remaining} remaining` : 'Sold Out'}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.max(0, selectedQuantity - 1))} disabled={selectedQuantity === 0}>
-                                            <MinusCircle className="h-4 w-4" />
-                                        </Button>
-                                        <span className="w-10 text-center font-bold">{selectedQuantity}</span>
-                                        <Button size="icon" variant="outline" onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))} disabled={remaining === 0 || selectedQuantity >= remaining}>
-                                            <PlusCircle className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            )
-                        })
-                    ) : (
-                        <p className="text-muted-foreground">Tickets are not yet available for this event.</p>
-                    )}
-                </div>
-            </div>
-
-            {totalItems > 0 && (
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Order Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex justify-between">
-                            <span>Subtotal ({totalItems} items)</span>
-                            <span className="font-semibold">ETB {subtotal.toFixed(2)}</span>
-                        </div>
-                        <div className="flex gap-2">
-                            <Input 
-                                placeholder="Promo Code" 
-                                value={promoCode}
-                                onChange={e => setPromoCode(e.target.value)}
-                                className="flex-grow"
-                            />
-                            <Button onClick={handleApplyPromoCode} disabled={isPromoLoading || !promoCode}>
-                                {isPromoLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Apply
-                            </Button>
-                        </div>
-                        {appliedPromo && (
-                             <div className="flex justify-between text-green-600">
-                                <span>Discount ({appliedPromo.code})</span>
-                                <span className="font-semibold">- ETB {discount.toFixed(2)}</span>
-                            </div>
-                        )}
-                        <div className="border-t"></div>
-                        <div className="flex justify-between text-xl font-bold">
-                            <span>Total</span>
-                            <span>ETB {total.toFixed(2)}</span>
-                        </div>
-                    </CardContent>
-                    <CardFooter>
-                         <AlertDialog open={isPurchaseModalOpen} onOpenChange={setIsPurchaseModalOpen}>
-                            <AlertDialogTrigger asChild>
-                                 <Button 
-                                    disabled={totalItems === 0}
-                                    className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
-                                    size="lg"
-                                >
-                                    <ShoppingCart className="mr-2 h-4 w-4" />
-                                    Purchase Tickets
-                                </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                <AlertDialogTitle>Attendee Information</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    Please provide your name and phone number for the ticket.
-                                </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <div className="space-y-4">
-                                  <div className="grid gap-2">
-                                      <Label htmlFor="name">Full Name</Label>
-                                      <div className="relative">
-                                          <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                          <Input id="name" placeholder="Enter your full name" value={attendeeName} onChange={e => setAttendeeName(e.target.value)} className="pl-10" />
-                                      </div>
+                      <div className="md:col-span-2 space-y-8">
+                          <div className="rounded-lg p-0">
+                              {eventLocations.length > 1 && (
+                                  <div className="mb-6">
+                                      <Label htmlFor="location-select" className="text-lg font-semibold mb-2 block">Location</Label>
+                                      <Select
+                                          value={selectedLocation || ''}
+                                          onValueChange={(value) => setSelectedLocation(value)}
+                                      >
+                                          <SelectTrigger id="location-select">
+                                              <SelectValue placeholder="Select a location" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                              {eventLocations.map(loc => (
+                                                  <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                                              ))}
+                                          </SelectContent>
+                                      </Select>
+                                       <Alert variant="default" className="mt-4 bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800">
+                                            <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                            <AlertDescription className="text-blue-700 dark:text-blue-300 text-xs">
+                                                Note: Ticket prices may vary by location.
+                                            </AlertDescription>
+                                        </Alert>
                                   </div>
-                                  <div className="grid gap-2">
-                                      <Label htmlFor="phone">Phone Number</Label>
-                                       <div className="relative">
-                                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                          <Input id="phone" placeholder="e.g., 0912345678" value={attendeePhone} onChange={e => setAttendeePhone(e.target.value)} className="pl-10" />
-                                      </div>
-                                  </div>
-                                </div>
-                                <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handlePurchase} disabled={isPending}>
-                                     {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Proceed to Payment
-                                </AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    </CardFooter>
-                </Card>
-            )}
+                              )}
+                              <h3 className="text-2xl font-semibold mb-4 text-card-foreground">Tickets</h3>
+                              <div key={selectedLocation || 'default-location'} className="space-y-4">
+                                  {locationSpecificTickets.length > 0 ? (
+                                      locationSpecificTickets.map(ticket => {
+                                          const selectedQuantity = selectedTickets[ticket.id]?.quantity || 0;
+                                          const remaining = ticket.total - ticket.sold;
+                                          const isSoldOut = remaining <= 0;
+                                          const baseName = ticket.name.split(' - ')[0];
 
-        </div>
+                                          return (
+                                              <div
+                                                  key={ticket.id}
+                                                  className="flex flex-col gap-2 p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md"
+                                              >
+                                                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                                                      <div className="mb-3 sm:mb-0">
+                                                          <h4 className="font-semibold text-lg">{baseName}</h4>
+                                                          <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">
+                                                              {Number(ticket.basePrice).toFixed(2)} ETB
+                                                          </p>
+                                                          <p className="text-sm text-muted-foreground">
+                                                              {!isSoldOut ? `${remaining} remaining` : 'Sold Out'}
+                                                          </p>
+                                                      </div>
+                                                      <div className="flex items-center gap-2">
+                                                          <Button
+                                                              size="icon"
+                                                              variant="outline"
+                                                              onClick={() => updateTicketQuantity(ticket, Math.max(0, selectedQuantity - 1))}
+                                                              disabled={selectedQuantity === 0}
+                                                          >
+                                                              <MinusCircle className="h-4 w-4" />
+                                                          </Button>
+                                                          <span className="w-10 text-center font-bold">{selectedQuantity}</span>
+                                                          <Button
+                                                              size="icon"
+                                                              variant="outline"
+                                                              onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))}
+                                                              disabled={isSoldOut || selectedQuantity >= remaining}
+                                                          >
+                                                              <PlusCircle className="h-4 w-4" />
+                                                          </Button>
+                                                      </div>
+                                                  </div>
+                                                  {ticket.description && <p className="text-sm text-muted-foreground pt-2 border-t">{ticket.description}</p>}
+                                              </div>
+                                          );
+                                      })
+                                  ) : (
+                                      <p className="text-muted-foreground">Tickets are not yet available for this event.</p>
+                                  )}
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+        </main>
       </div>
-    </div>
+
+       {totalItems > 0 &&
+        <CartSheet
+            selectedTickets={selectedTickets}
+            subtotal={subtotal}
+            discount={discount}
+            total={total}
+            totalItems={totalItems}
+            promoCode={promoCode}
+            setPromoCode={setPromoCode}
+            appliedPromo={appliedPromo}
+            isPromoLoading={isPromoLoading}
+            handleApplyPromoCode={handleApplyPromoCode}
+            removePromoCode={removePromoCode}
+            updateTicketQuantity={(ticket: SelectedTicket, quantity: number) => {
+                 const originalTicket = event?.ticketTypes.find(t => t.id === ticket.id);
+                 if (originalTicket) {
+                    updateTicketQuantity(originalTicket, quantity);
+                 }
+            }}
+        >
+            <Button
+                onClick={() => setIsPurchaseModalOpen(true)}
+                className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+                size="lg"
+            >
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                Purchase Tickets
+            </Button>
+        </CartSheet>
+      }
+
+      <AlertDialog open={isPurchaseModalOpen} onOpenChange={setIsPurchaseModalOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Attendee Information</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please provide your name and phone number for the ticket.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Full Name</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input id="name" placeholder="Enter your full name" value={attendeeName} onChange={e => setAttendeeName(e.target.value)} className="pl-10" />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input id="phone" placeholder="e.g., 0912345678" value={attendeePhone} onChange={e => setAttendeePhone(e.target.value)} className="pl-10" />
+              </div>
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handlePurchase} disabled={isPending}>
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Proceed to Payment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

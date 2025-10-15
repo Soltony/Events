@@ -8,19 +8,30 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { transactionId: string } }
 ) {
-  const transactionId = params.transactionId;
+  const id = params.transactionId;
 
   try {
-    if (!transactionId) {
-      return NextResponse.json({ error: 'Transaction ID is required.' }, { status: 400 });
+    if (!id) {
+      return NextResponse.json({
+        error: 'Invalid request',
+        detail: 'Provide the transaction ID or session ID in the URL path.'
+      }, { status: 400 });
     }
 
-    const order = await prisma.pendingOrder.findUnique({
-      where: { transactionId },
+    const order = await prisma.pendingOrder.findFirst({
+      where: { 
+          OR: [
+              { transactionId: id },
+              { arifpaySessionId: id },
+          ]
+      },
     });
 
     if (!order) {
-      return NextResponse.json({ error: 'Order not found.' }, { status: 404 });
+      return NextResponse.json({
+        error: 'Order not found',
+        detail: 'No order exists for the provided transaction/session ID.'
+      }, { status: 404 });
     }
     
     if (order.status === 'COMPLETED' && order.attendeeId) {
@@ -33,7 +44,10 @@ export async function GET(
     return NextResponse.json({ status: order.status });
 
   } catch (error) {
-    console.error(`Failed to get payment status for ${transactionId}:`, error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error(`Failed to get payment status for ${id}:`, error);
+    return NextResponse.json({
+      error: 'Failed to fetch payment status',
+      detail: 'An unexpected error occurred while checking the payment status.'
+    }, { status: 500 });
   }
 }

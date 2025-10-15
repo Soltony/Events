@@ -1,21 +1,25 @@
 
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/auth-context';
-import { AuthStatus } from '@/components/auth-status';
-
+import { ConditionalFooter } from '@/components/conditional-footer';
+import { headers } from 'next/headers'
+import React from 'react';
+ 
 export const metadata: Metadata = {
   title: 'NibTera Tickets',
   description: 'The ultimate solution for event ticketing.',
   icons: null,
 };
-
-export default function RootLayout({
+ 
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nonce = headers().get('x-nonce') ?? ""
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -31,12 +35,13 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased" suppressHydrationWarning={true}>
         <AuthProvider>
-          <div className="flex flex-col min-h-screen relative">
+            <div className="flex flex-col min-h-screen relative">
               <main className="flex-1 bg-background">
                 {children}
               </main>
-          </div>
-          <Toaster />
+              <ConditionalFooter />
+            </div>
+            <Toaster />
         </AuthProvider>
       </body>
     </html>

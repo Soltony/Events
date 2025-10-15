@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -32,7 +33,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Loader2, ArrowLeft, Save } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Mail } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast"
 import { getRoles, getUserById, updateUser } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -41,7 +42,14 @@ import { useAuth } from '@/context/auth-context';
 const editUserFormSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required." }),
   lastName: z.string().min(1, { message: "Last name is required." }),
+  phoneNumber: z.string().min(10, { message: "Phone number must be at least 10 digits." }),
+  email: z.string().email({ message: "Invalid email address." }).optional().or(z.literal('')),
   roleId: z.string({ required_error: "Please select a role." }),
+  nibBankAccount: z.string()
+    .optional()
+    .or(z.literal(''))
+    .refine(val => !val || (val.length >= 13 && val.length <= 15), { message: "NIB Account must be between 13 and 15 digits." })
+    .refine(val => !val || val.startsWith('70'), { message: "NIB Account must start with 70." })
 });
 
 type EditUserFormValues = z.infer<typeof editUserFormSchema>;
@@ -73,7 +81,10 @@ export default function EditUserPage() {
         defaultValues: {
             firstName: '',
             lastName: '',
+            phoneNumber: '',
+            email: '',
             roleId: '',
+            nibBankAccount: '',
         }
     });
 
@@ -94,22 +105,25 @@ export default function EditUserPage() {
                     const currentUserRoleRank = currentUser.role?.name ? (roleHierarchy[currentUser.role.name] || 0) : 0;
                     const targetUserRoleRank = userData.role?.name ? (roleHierarchy[userData.role.name] || 0) : 0;
 
-                    // A user can edit their own profile
                     const isEditingSelf = currentUser.id === userData.id;
+                    const isCurrentUserAdmin = currentUser.role?.name === 'Admin';
 
-                    // Deny access if a user tries to edit someone with an equal or higher role, unless it's their own profile
-                    if (!isEditingSelf && currentUserRoleRank <= targetUserRoleRank) {
+                    // Deny access if a user tries to edit someone with an equal or higher role, unless it's their own profile or they are an admin.
+                    if (!isEditingSelf && !isCurrentUserAdmin && currentUserRoleRank <= targetUserRoleRank) {
                         toast({ variant: 'destructive', title: 'Access Denied', description: "You don't have permission to edit this user." });
                         router.push('/dashboard/settings/users');
                         return;
                     }
 
                     setUser(userData);
-                    setRoles(rolesData.filter((role: Role) => role.name !== 'Admin'));
+                    setRoles(rolesData);
                     form.reset({
                         firstName: userData.firstName,
                         lastName: userData.lastName,
+                        phoneNumber: userData.phoneNumber,
+                        email: userData.email || '',
                         roleId: userData.roleId,
+                        nibBankAccount: userData.nibBankAccount || '',
                     });
                 } else {
                     toast({ variant: 'destructive', title: 'Error', description: 'User not found.' });
@@ -170,66 +184,104 @@ export default function EditUserPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-4 md:gap-8">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
-          <span className="sr-only">Back</span>
-        </Button>
-        <div>
-            <h1 className="text-3xl font-bold tracking-tight">Edit User</h1>
-            <p className="text-muted-foreground">Update details for {user?.firstName} {user?.lastName}</p>
+    <div className="flex flex-1 items-center justify-center p-4">
+      <div className="w-full max-w-2xl">
+        <div className="flex items-center gap-4 mb-4 md:mb-8">
+            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4" />
+            <span className="sr-only">Back</span>
+            </Button>
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight">Edit User</h1>
+                <p className="text-muted-foreground">Update details for {user?.firstName} {user?.lastName}</p>
+            </div>
         </div>
-      </div>
-      <Card>
-        <CardHeader>
-            <CardTitle>User Details</CardTitle>
-            <CardDescription>Update the user's information below.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-w-lg">
-                    <div className="grid grid-cols-2 gap-4">
-                        <FormField control={form.control} name="firstName" render={({ field }) => (
-                            <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="John" {...field} /></FormControl><FormMessage /></FormItem>
-                        )}/>
-                        <FormField control={form.control} name="lastName" render={({ field }) => (
-                            <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Doe" {...field} /></FormControl><FormMessage /></FormItem>
-                        )}/>
-                    </div>
+        <Card>
+            <CardHeader>
+                <CardTitle>User Details</CardTitle>
+                <CardDescription>Update the user's information below.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-w-lg">
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField control={form.control} name="firstName" render={({ field }) => (
+                                <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="John" {...field} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                            <FormField control={form.control} name="lastName" render={({ field }) => (
+                                <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Doe" {...field} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                        </div>
+                        
+                        <FormField
+                            control={form.control}
+                            name="phoneNumber"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Phone Number</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="0912345678" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="email"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Email <span className="text-muted-foreground">(Optional)</span></FormLabel>
+                                <FormControl>
+                                    <Input placeholder="john.doe@example.com" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="nibBankAccount"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>
+                                    NIB Account <span className="text-muted-foreground">(Optional)</span>
+                                </FormLabel>
+                                <FormControl>
+                                    <Input placeholder="700***********" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
                     
-                    <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
-                        <FormControl>
-                            <Input placeholder="0912345678" value={user?.phoneNumber || ''} disabled />
-                        </FormControl>
-                        <FormDescription>Phone number cannot be changed.</FormDescription>
-                    </FormItem>
-                   
-                    <FormField control={form.control} name="roleId" render={({ field }) => (
-                        <FormItem><FormLabel>Role</FormLabel>
-                            <Select 
-                                onValueChange={field.onChange} 
-                                value={field.value}
-                                disabled={user?.role?.name === 'Admin'}
-                            >
-                                <FormControl><SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
-                                <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )}/>
-                    <div className="flex justify-end gap-2 pt-4">
-                        <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
-                        <Button type="submit" disabled={isSubmitting} style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
-                            {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2 h-4 w-4" />}
-                            Save Changes
-                        </Button>
-                    </div>
-                </form>
-            </Form>
-        </CardContent>
-      </Card>
+                        <FormField control={form.control} name="roleId" render={({ field }) => (
+                            <FormItem><FormLabel>Role</FormLabel>
+                                <Select 
+                                    onValueChange={field.onChange} 
+                                    value={field.value}
+                                    disabled={currentUser?.id === userId}
+                                >
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
+                                    <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}/>
+                        <div className="flex justify-end gap-2 pt-4">
+                            <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
+                            <Button type="submit" disabled={isSubmitting} style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
+                                {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2 h-4 w-4" />}
+                                Save Changes
+                            </Button>
+                        </div>
+                    </form>
+                </Form>
+            </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

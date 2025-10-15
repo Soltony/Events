@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -6,7 +7,7 @@ import { useForm, Controller } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
@@ -160,88 +161,96 @@ export default function CreateRolePage() {
 
 
   return (
-    <div className="flex flex-1 flex-col gap-4 md:gap-8">
-       <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Create New Role</h1>
-          <p className="text-muted-foreground">
-            Define a new role and select the granular permissions it has for each page.
-          </p>
+    <div className="flex flex-1 items-center justify-center p-4">
+       <div className="w-full max-w-4xl">
+        <div className="flex items-center gap-4 mb-4 md:mb-8">
+            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4" />
+            <span className="sr-only">Back</span>
+            </Button>
+            <div>
+            <h1 className="text-3xl font-bold tracking-tight">Create New Role</h1>
+            <p className="text-muted-foreground">
+                Define a new role and select the granular permissions it has for each page.
+            </p>
+            </div>
         </div>
-      <Card>
-        <CardContent className="pt-6">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Role Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Event Manager" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Briefly describe this role's purpose"
-                        className="resize-none"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <Separator />
+        <Card>
+            <CardContent className="pt-6">
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Role Name</FormLabel>
+                        <FormControl>
+                        <Input placeholder="e.g., Event Manager" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                        <Textarea
+                            placeholder="Briefly describe this role's purpose"
+                            className="resize-none"
+                            {...field}
+                        />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                
+                <Separator />
 
-              <div className="space-y-6">
-                <div>
-                    <FormLabel>Permissions</FormLabel>
-                    <FormDescription>Select the permissions for this role.</FormDescription>
+                <div className="space-y-6">
+                    <div>
+                        <FormLabel>Permissions</FormLabel>
+                        <FormDescription>Select the permissions for this role.</FormDescription>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {Object.entries(permissionCategories).map(([category, actions]) => renderPermissionCard(category, actions))}
+                    </div>
                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     {Object.entries(permissionCategories).map(([category, actions]) => renderPermissionCard(category, actions))}
-                 </div>
-              </div>
-              
-              <Separator />
+                
+                <Separator />
 
-              <div className="space-y-6">
-                <div>
-                    <h3 className="text-xl font-semibold">Settings</h3>
-                    <FormDescription>Permissions for system settings.</FormDescription>
+                <div className="space-y-6">
+                    <div>
+                        <h3 className="text-xl font-semibold">Settings</h3>
+                        <FormDescription>Permissions for system settings.</FormDescription>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {Object.entries(settingsPermissionCategories).map(([category, actions]) => renderPermissionCard(category, actions))}
+                    </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {Object.entries(settingsPermissionCategories).map(([category, actions]) => renderPermissionCard(category, actions))}
+
+                <FormMessage className="pt-4">{form.formState.errors.permissions?.message}</FormMessage>
+                <Separator />
+
+                <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => router.back()}>
+                        Cancel
+                    </Button>
+                    <Button type="submit" disabled={isSubmitting} style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Save Changes
+                    </Button>
                 </div>
-              </div>
-
-               <FormMessage className="pt-4">{form.formState.errors.permissions?.message}</FormMessage>
-              <Separator />
-
-              <div className="flex justify-end gap-2">
-                 <Button type="button" variant="outline" onClick={() => router.back()}>
-                    Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmitting} style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
-                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Save Changes
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+                </form>
+            </Form>
+            </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
