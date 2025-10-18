@@ -44,6 +44,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { toast } = useToast();
 
+  // Initialize failed attempts and lockout from localStorage
+  useEffect(() => {
+    const storedFailedAttempts = localStorage.getItem('failedLoginAttempts');
+    const storedLockoutUntil = localStorage.getItem('lockoutUntil');
+    
+    if (storedFailedAttempts) {
+      setFailedAttempts(parseInt(storedFailedAttempts, 10));
+    }
+    
+    if (storedLockoutUntil) {
+      const lockoutTime = parseInt(storedLockoutUntil, 10);
+      // Only set lockout if it hasn't expired yet
+      if (Date.now() < lockoutTime) {
+        setLockoutUntil(lockoutTime);
+      } else {
+        // Clear expired lockout
+        localStorage.removeItem('lockoutUntil');
+        localStorage.removeItem('failedLoginAttempts');
+      }
+    }
+  }, []);
+
   const clearAuthData = useCallback(async () => {
     setUser(null);
     setTokens(null);
@@ -194,6 +216,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.data && response.data.isSuccess) {
         setFailedAttempts(0);
         setLockoutUntil(null);
+        // Clear stored failed attempts and lockout on successful login
+        localStorage.removeItem('failedLoginAttempts');
+        localStorage.removeItem('lockoutUntil');
 
         const { accessToken, refreshToken, AccessToken, RefreshToken } = response.data;
         const resolvedAccessToken = accessToken || AccessToken;
@@ -246,11 +271,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         const currentFailed = failedAttempts + 1;
         setFailedAttempts(currentFailed);
+        // Persist failed attempts to localStorage
+        localStorage.setItem('failedLoginAttempts', currentFailed.toString());
 
         if (currentFailed >= MAX_LOGIN_ATTEMPTS) {
             const newLockoutUntil = Date.now() + LOCKOUT_DURATION;
             setLockoutUntil(newLockoutUntil);
             setFailedAttempts(0);
+            // Persist lockout state to localStorage
+            localStorage.setItem('lockoutUntil', newLockoutUntil.toString());
+            localStorage.removeItem('failedLoginAttempts'); // Reset failed attempts after lockout
             toast({
                 variant: 'destructive',
                 title: 'Login Locked',
@@ -262,7 +292,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch (error: any) {
-      if (failedAttempts < MAX_LOGIN_ATTEMPTS -1) {
+      // Handle failed attempts for network errors or other exceptions
+      const currentFailed = failedAttempts + 1;
+      setFailedAttempts(currentFailed);
+      localStorage.setItem('failedLoginAttempts', currentFailed.toString());
+
+      if (currentFailed >= MAX_LOGIN_ATTEMPTS) {
+          const newLockoutUntil = Date.now() + LOCKOUT_DURATION;
+          setLockoutUntil(newLockoutUntil);
+          setFailedAttempts(0);
+          localStorage.setItem('lockoutUntil', newLockoutUntil.toString());
+          localStorage.removeItem('failedLoginAttempts');
+          toast({
+              variant: 'destructive',
+              title: 'Login Locked',
+              description: `Too many failed attempts. Please try again in ${LOCKOUT_DURATION / 1000} seconds.`,
+          });
+      } else {
           const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'An error occurred during login.';
           toast({
             variant: 'destructive',
