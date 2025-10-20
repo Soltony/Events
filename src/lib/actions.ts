@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -624,7 +623,8 @@ export async function addUser(data: any) {
       throw new Error('Auth API URL not configured.');
     }
     
-    const password = "User@123";
+    // Generate a secure, random password. e.g., "UserA1b2C3d4@"
+    const password = `User${randomBytes(4).toString('hex')}@`;
     
     try {
         const authServiceEmail = email || `${phoneNumber}@nibtickets.com`;
@@ -1064,3 +1064,5 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
+    
