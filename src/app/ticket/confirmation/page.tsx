@@ -72,7 +72,6 @@ export default function TicketConfirmationPage() {
                 const dataUrl = await QRCode.toDataURL(qrCodeData, {
                     errorCorrectionLevel: 'H',
                     type: 'image/png',
-                    quality: 0.92,
                     margin: 1,
                     color: {
                         dark: '#0D1A2E',
