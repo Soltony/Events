@@ -18,6 +18,9 @@ export async function POST(req: NextRequest) {
             detail: 'Use HTTP POST to initiate a payment session.'
         }, { status: 405 });
     }
+    
+    const transactionId = randomUUID();
+
     try {
         const body = await req.json();
         const { eventId, tickets, promoCode, attendeeDetails, authToken, mock } = body;
@@ -44,9 +47,8 @@ export async function POST(req: NextRequest) {
         const totalAmount = (tickets as Array<{ price: number; quantity: number }>).reduce((sum: number, t) => sum + Number(t.price) * Number(t.quantity), 0);
         const totalQuantity = (tickets as Array<{ quantity: number }>).reduce((sum: number, t) => sum + Number(t.quantity), 0);
         
-        const transactionId = randomUUID();
         const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
-        const callBackURL = process.env.ARIFPAY_CALLBACK_URL || '/api/payment/arifpay/notify'; // Re-using for now
+        const callBackURL = process.env.ARIFPAY_CALLBACK_URL || '/api/payment/arifpay/notify';
 
         const ACCOUNT_NO = process.env.NIB_ACCOUNT_NO;
         const COMPANY_NAME = process.env.NIB_COMPANY_NAME;
@@ -54,19 +56,24 @@ export async function POST(req: NextRequest) {
         const NIB_PAYMENT_URL = process.env.NIB_PAYMENT_URL;
 
         if (!ACCOUNT_NO || !COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL) {
-            console.error("NIB Payment Gateway environment variables are not set.");
+            console.error(`[TX:${transactionId}] NIB Payment Gateway environment variables are not set.`);
             return NextResponse.json({
                 error: 'Server configuration error',
-                detail: 'NIB Payment gateway credentials are missing. Please contact support.',
+                detail: 'Payment gateway credentials are missing. Please contact support.',
             }, { status: 500 });
         }
         
-        // The token is now passed in the request body from purchaseTickets action
+        try {
+            new URL(NIB_PAYMENT_URL);
+        } catch (e) {
+            console.error(`[TX:${transactionId}] Invalid NIB_PAYMENT_URL provided in environment variables.`);
+            return NextResponse.json({ error: 'Server configuration error', detail: 'Payment gateway URL is misconfigured.' }, { status: 500 });
+        }
+        
         if (!authToken) {
              return NextResponse.json({ error: 'Authentication token is missing.' }, { status: 401 });
         }
 
-        // Create the pending order first
         const pendingOrder = await prisma.pendingOrder.create({
             data: {
                 transactionId: transactionId,
@@ -118,8 +125,8 @@ export async function POST(req: NextRequest) {
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error("NIB Payment Gateway Error:", errorText);
-            return NextResponse.json({ error: 'Payment gateway rejected the request.', detail: errorText }, { status: response.status });
+            console.error(`[TX:${transactionId}] NIB Payment Gateway Error. Status: ${response.status}.`);
+            return NextResponse.json({ error: 'Payment gateway rejected the request.', detail: `Transaction failed. Please contact support with reference: ${transactionId}` }, { status: response.status });
         }
 
         const responseData = await response.json();
@@ -128,7 +135,7 @@ export async function POST(req: NextRequest) {
         if (responseData.responseCode === '00' && paymentToken) {
             await prisma.pendingOrder.update({
                 where: { id: pendingOrder.id },
-                data: { arifpaySessionId: transactionId }, // Use our transactionId as the session identifier
+                data: { arifpaySessionId: transactionId },
             });
 
             return NextResponse.json({ 
@@ -136,19 +143,18 @@ export async function POST(req: NextRequest) {
                 transactionId: transactionId,
             });
         } else {
-            console.error('Payment session creation failed:', responseData);
+            console.error(`[TX:${transactionId}] Payment session creation failed. Response Code: ${responseData.responseCode}`);
             return NextResponse.json({
                 error: 'Payment session creation failed',
-                detail: responseData.responseMessage || 'The gateway did not return a valid payment token.',
-                pendingOrder
+                detail: `The gateway did not return a valid payment token. Please contact support with reference: ${transactionId}`,
             }, { status: 502 });
         }
 
     } catch (error: any) {
-        console.error('Payment initiation failed:', error);
+        console.error(`[TX:${transactionId}] Payment initiation failed:`, error.message);
         return NextResponse.json({
             error: 'Unexpected server error',
-            detail: error.message || 'An unknown error occurred while initiating the payment.'
+            detail: `An unknown error occurred. Please contact support with reference: ${transactionId}`
         }, { status: 500 });
     }
 }
