@@ -31,7 +31,7 @@ async function main() {
     }
   });
   
-  console.log(`Created roles: ${adminRole.name}`);
+  console.log(`Created role: ${adminRole.name}`);
 
   // Create Users
   const adminUser = await prisma.user.upsert({
@@ -46,7 +46,7 @@ async function main() {
     },
   });
 
-  console.log(`Created admin user: ${adminUser.firstName}`);
+  console.log('Admin user created or updated.');
 
   // This section will only run in non-production environments to prevent accidental data loss.
   if (process.env.NODE_ENV !== 'production') {
@@ -90,7 +90,7 @@ async function main() {
           }
         }
       });
-      console.log(`Created event: ${event1.name}`);
+      console.log('Created event 1.');
 
       const event2 = await tx.event.create({
         data: {
@@ -115,7 +115,7 @@ async function main() {
           }
         }
       });
-      console.log(`Created event: ${event2.name}`);
+      console.log('Created event 2.');
       
       const event3 = await tx.event.create({
         data: {
@@ -136,7 +136,7 @@ async function main() {
           }
         }
       });
-      console.log(`Created event: ${event3.name}`);
+      console.log('Created event 3.');
       
       const event1Tickets = await tx.ticketType.findMany({ where: { eventId: event1.id } });
       
