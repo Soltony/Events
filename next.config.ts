@@ -15,10 +15,10 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   async headers() {
     return [
