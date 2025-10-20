@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     cookies().set('authTokens', JSON.stringify(tokens), {
       httpOnly: true,
       secure: true,
-      sameSite: 'lax',
+      sameSite: 'strict',
       path: '/',
       maxAge: 60 * 60 * 24, // 1 day
     });
