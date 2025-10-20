@@ -41,15 +41,14 @@ async function main() {
 
   // Create Users
   const adminUser = await prisma.user.upsert({
-    where: { phoneNumber: '0912345678' },
+    where: { phoneNumber: '0900000000' },
     update: {},
     create: {
-      id: 'b1e55c84-9055-4eb5-8bd4-a262538f7e66',
       firstName: 'Admin',
       lastName: 'User',
-      phoneNumber: '0912345678',
+      phoneNumber: '0900000000',
       roleId: adminRole.id,
-      nibBankAccount: '7000101672811'
+      nibBankAccount: '7000000000000'
     },
   });
 
@@ -77,7 +76,7 @@ async function main() {
       image: '/image/3.jpg',
       hint: 'technology conference',
       organizerId: adminUser.id,
-      nibBankAccount: '7000123456789',
+      nibBankAccount: '7000000000001',
       ticketTypes: {
         create: [
           { name: 'General Admission', basePrice: 299.00, total: 1000, sold: 450, description: 'Access to all keynotes and general sessions.' },
@@ -107,7 +106,7 @@ async function main() {
       image: '/image/1.jpg',
       hint: 'music festival concert',
       organizerId: adminUser.id,
-      nibBankAccount: '7000987654321',
+      nibBankAccount: '7000000000002',
       ticketTypes: {
         create: [
           { name: 'Weekend Pass', description: 'Full access for both Saturday and Sunday.', basePrice: 180.00, total: 5000, sold: 2100 },
@@ -131,7 +130,7 @@ async function main() {
       image: '/image/2.jpg',
       hint: 'art gallery',
       organizerId: adminUser.id,
-      nibBankAccount: '7000112233445',
+      nibBankAccount: '7000000000003',
       ticketTypes: {
         create: [
           { name: 'Standard Entry', basePrice: 25.00, total: 500, sold: 120, description: 'General entry to the exhibition.' },
@@ -152,7 +151,7 @@ async function main() {
         data: [
           {
               name: 'John Doe',
-              phoneNumber: '0911223344',
+              phoneNumber: '0911111111',
               eventId: event1.id,
               ticketTypeId: generalTicketId,
               userId: adminUser.id,
@@ -160,7 +159,7 @@ async function main() {
           },
           {
               name: 'Jane Smith',
-              phoneNumber: '0955667788',
+              phoneNumber: '0922222222',
               eventId: event1.id,
               ticketTypeId: vipTicketId,
               userId: adminUser.id,
