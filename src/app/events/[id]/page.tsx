@@ -92,7 +92,7 @@ export default function PublicEventDetailPage() {
 
         // --- Set default location ---
         if (eventData?.location) {
-            const locations = eventData.location.split('||').map(l => l.trim());
+            const locations = eventData.location.split('||').map((l: string) => l.trim());
             if (locations.length > 0) {
               setSelectedLocation(locations[0]);
             }
