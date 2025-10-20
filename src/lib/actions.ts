@@ -16,6 +16,18 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
         : value
 ));
 
+// --- Permission Definitions ---
+const VALID_PERMISSIONS = new Set([
+  'Dashboard:Create', 'Dashboard:Read', 'Dashboard:Update', 'Dashboard:Delete',
+  'Scan QR:Create', 'Scan QR:Read', 'Scan QR:Update', 'Scan QR:Delete',
+  'Events:Create', 'Events:Read', 'Events:Update', 'Events:Delete',
+  'Reports:Create', 'Reports:Read', 'Reports:Update', 'Reports:Delete',
+  'User Registration:Create', 'User Registration:Read', 'User Registration:Update', 'User Registration:Delete',
+  'User Management:Create', 'User Management:Read', 'User Management:Update', 'User Management:Delete',
+  'Role Management:Create', 'Role Management:Read', 'Role Management:Update', 'Role Management:Delete',
+]);
+
+
 export async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
   try {
     const cookieStore = await cookies();
@@ -828,11 +840,15 @@ export async function getRoleById(id: string) {
 
 export async function createRole(data: { name: string; description: string; permissions: string[] }) {
     const { name, description, permissions } = data;
+
+    // Filter incoming permissions against the valid list
+    const sanitizedPermissions = permissions.filter(p => VALID_PERMISSIONS.has(p));
+
     const role = await prisma.role.create({
         data: {
             name,
             description,
-            permissions: permissions.join(','),
+            permissions: sanitizedPermissions.join(','),
         },
     });
     revalidatePath('/dashboard/settings/roles');
@@ -840,15 +856,27 @@ export async function createRole(data: { name: string; description: string; perm
     return serialize(role);
 }
 
-export async function updateRole(id: string, data: Partial<Role>) {
+export async function updateRole(id: string, data: Partial<Role> & { permissions: string }) {
+    const permissionsArray = Array.isArray(data.permissions) 
+        ? data.permissions 
+        : (data.permissions || '').split(',');
+
+    // Filter incoming permissions against the valid list
+    const sanitizedPermissions = permissionsArray.filter(p => VALID_PERMISSIONS.has(p));
+
     const role = await prisma.role.update({
         where: { id },
-        data: data,
+        data: {
+            name: data.name,
+            description: data.description,
+            permissions: sanitizedPermissions.join(','),
+        },
     });
     revalidatePath('/dashboard/settings/roles');
     revalidatePath(`/dashboard/settings/roles/${id}/edit`);
     return serialize(role);
 }
+
 
 export async function deleteRole(id: string) {
     const usersWithRole = await prisma.user.count({ where: { roleId: id } });
@@ -1064,5 +1092,3 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
-
-    
