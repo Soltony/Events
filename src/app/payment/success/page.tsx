@@ -44,7 +44,7 @@ function SuccessContent() {
             return;
         }
 
-        const pollForStatus = async (retries = 12, delay = 2000): Promise<number | null> => {
+        const pollForStatus = async (retries = 12, delay = 2000): Promise<string | null> => {
             for (let i = 0; i < retries; i++) {
                 try {
                     const response = await fetch(`/api/payment/status/${idToCheck}`);
@@ -95,7 +95,7 @@ function SuccessContent() {
 
                 // The QR code should only contain the attendee's ID (the ticket ID)
                 const qrCodeData = ticketDetails.id.toString();
-                const dataUrl = await QRCode.toDataURL(qrCodeData, { errorCorrectionLevel: 'H', type: 'image/png', quality: 0.92, margin: 1 });
+                const dataUrl = await QRCode.toDataURL(qrCodeData, { errorCorrectionLevel: 'H', type: 'image/png', margin: 1 });
                 setQrCodeDataUrl(dataUrl);
                 setLoading(false);
 

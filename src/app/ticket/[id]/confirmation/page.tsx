@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -44,7 +45,7 @@ export default function TicketConfirmationPage() {
         async function fetchTicketAndGenerateQR() {
             try {
                 setLoading(true);
-                const ticketDetails = await getTicketDetailsForConfirmation(attendeeId);
+                const ticketDetails = await getTicketDetailsForConfirmation(attendeeId.toString());
                 
                 if (!ticketDetails) {
                     setLoading(false);
@@ -55,22 +56,17 @@ export default function TicketConfirmationPage() {
                 setTicket(ticketDetails);
 
                 // Save ticket to local storage for "My Tickets" page
-                const myTickets = JSON.parse(localStorage.getItem('myTickets') || '[]');
+                const myTickets = JSON.parse(localStorage.getItem('myTickets') || '[]') as number[];
                 if (!myTickets.includes(ticketDetails.id)) {
                     myTickets.push(ticketDetails.id);
                     localStorage.setItem('myTickets', JSON.stringify(myTickets));
                 }
 
-                const qrCodeData = JSON.stringify({
-                    ticketId: ticketDetails.id,
-                    eventId: ticketDetails.eventId,
-                    attendeeName: ticketDetails.name,
-                });
+                const qrCodeData = ticketDetails.id.toString();
 
                 const dataUrl = await QRCode.toDataURL(qrCodeData, {
                     errorCorrectionLevel: 'H',
                     type: 'image/png',
-                    quality: 0.92,
                     margin: 1,
                     color: {
                         dark: '#0D1A2E',
