@@ -938,9 +938,23 @@ export async function purchaseTickets(request: PurchaseRequest) {
     }
 }
 
-export async function getTicketDetailsForConfirmation(attendeeId: number) {
+export async function getTicketDetailsForConfirmation(identifier: string) {
+    const isNumericId = /^\d+$/.test(identifier);
+
+    let whereClause;
+    if (isNumericId) {
+        whereClause = { id: parseInt(identifier, 10) };
+    } else {
+        // If it's not numeric, assume it's a transactionId from the payment success page
+        const order = await prisma.pendingOrder.findUnique({
+            where: { transactionId: identifier },
+        });
+        if (!order || !order.attendeeId) return null;
+        whereClause = { id: order.attendeeId };
+    }
+
     const attendee = await prisma.attendee.findUnique({
-        where: { id: attendeeId },
+        where: whereClause,
         include: {
             event: true,
             ticketType: true,
