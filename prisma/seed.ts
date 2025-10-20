@@ -7,33 +7,27 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('Start seeding ...');
 
+  const adminPermissions = [
+    'Dashboard:Create', 'Dashboard:Read', 'Dashboard:Update', 'Dashboard:Delete',
+    'Scan QR:Create', 'Scan QR:Read', 'Scan QR:Update', 'Scan QR:Delete',
+    'Events:Create', 'Events:Read', 'Events:Update', 'Events:Delete',
+    'Reports:Create', 'Reports:Read', 'Reports:Update', 'Reports:Delete',
+    'User Registration:Create', 'User Registration:Read', 'User Registration:Update', 'User Registration:Delete',
+    'User Management:Create', 'User Management:Read', 'User Management:Update', 'User Management:Delete',
+    'Role Management:Create', 'Role Management:Read', 'Role Management:Update', 'Role Management:Delete',
+  ];
+
   // Create Roles with granular permissions
   const adminRole = await prisma.role.upsert({
     where: { name: 'Admin' },
     update: {
       description: 'Administrator with all permissions',
-      permissions: [
-        'Dashboard:Create', 'Dashboard:Read', 'Dashboard:Update', 'Dashboard:Delete',
-        'Scan QR:Create', 'Scan QR:Read', 'Scan QR:Update', 'Scan QR:Delete',
-        'Events:Create', 'Events:Read', 'Events:Update', 'Events:Delete',
-        'Reports:Create', 'Reports:Read', 'Reports:Update', 'Reports:Delete',
-        'User Registration:Create', 'User Registration:Read', 'User Registration:Update', 'User Registration:Delete',
-        'User Management:Create', 'User Management:Read', 'User Management:Update', 'User Management:Delete',
-        'Role Management:Create', 'Role Management:Read', 'Role Management:Update', 'Role Management:Delete',
-      ].join(',')
+      permissions: adminPermissions.join(','),
     },
     create: {
         name: 'Admin',
         description: 'Administrator with all permissions',
-        permissions: [
-          'Dashboard:Create', 'Dashboard:Read', 'Dashboard:Update', 'Dashboard:Delete',
-          'Scan QR:Create', 'Scan QR:Read', 'Scan QR:Update', 'Scan QR:Delete',
-          'Events:Create', 'Events:Read', 'Events:Update', 'Events:Delete',
-          'Reports:Create', 'Reports:Read', 'Reports:Update', 'Reports:Delete',
-          'User Registration:Create', 'User Registration:Read', 'User Registration:Update', 'User Registration:Delete',
-          'User Management:Create', 'User Management:Read', 'User Management:Update', 'User Management:Delete',
-          'Role Management:Create', 'Role Management:Read', 'Role Management:Update', 'Role Management:Delete',
-        ].join(',')
+        permissions: adminPermissions.join(','),
     }
   });
   
