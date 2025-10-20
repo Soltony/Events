@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -16,6 +15,18 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
         ? value.toString()
         : value
 ));
+
+// --- Permission Definitions ---
+const VALID_PERMISSIONS = new Set([
+  'Dashboard:Create', 'Dashboard:Read', 'Dashboard:Update', 'Dashboard:Delete',
+  'Scan QR:Create', 'Scan QR:Read', 'Scan QR:Update', 'Scan QR:Delete',
+  'Events:Create', 'Events:Read', 'Events:Update', 'Events:Delete',
+  'Reports:Create', 'Reports:Read', 'Reports:Update', 'Reports:Delete',
+  'User Registration:Create', 'User Registration:Read', 'User Registration:Update', 'User Registration:Delete',
+  'User Management:Create', 'User Management:Read', 'User Management:Update', 'User Management:Delete',
+  'Role Management:Create', 'Role Management:Read', 'Role Management:Update', 'Role Management:Delete',
+]);
+
 
 export async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
   try {
@@ -624,7 +635,8 @@ export async function addUser(data: any) {
       throw new Error('Auth API URL not configured.');
     }
     
-    const password = "User@123";
+    // Generate a secure, random password. e.g., "UserA1b2C3d4@"
+    const password = `User${randomBytes(4).toString('hex')}@`;
     
     try {
         const authServiceEmail = email || `${phoneNumber}@nibtickets.com`;
@@ -828,11 +840,15 @@ export async function getRoleById(id: string) {
 
 export async function createRole(data: { name: string; description: string; permissions: string[] }) {
     const { name, description, permissions } = data;
+
+    // Filter incoming permissions against the valid list
+    const sanitizedPermissions = permissions.filter(p => VALID_PERMISSIONS.has(p));
+
     const role = await prisma.role.create({
         data: {
             name,
             description,
-            permissions: permissions.join(','),
+            permissions: sanitizedPermissions.join(','),
         },
     });
     revalidatePath('/dashboard/settings/roles');
@@ -840,15 +856,27 @@ export async function createRole(data: { name: string; description: string; perm
     return serialize(role);
 }
 
-export async function updateRole(id: string, data: Partial<Role>) {
+export async function updateRole(id: string, data: Partial<Role> & { permissions: string }) {
+    const permissionsArray = Array.isArray(data.permissions) 
+        ? data.permissions 
+        : (data.permissions || '').split(',');
+
+    // Filter incoming permissions against the valid list
+    const sanitizedPermissions = permissionsArray.filter(p => VALID_PERMISSIONS.has(p));
+
     const role = await prisma.role.update({
         where: { id },
-        data: data,
+        data: {
+            name: data.name,
+            description: data.description,
+            permissions: sanitizedPermissions.join(','),
+        },
     });
     revalidatePath('/dashboard/settings/roles');
     revalidatePath(`/dashboard/settings/roles/${id}/edit`);
     return serialize(role);
 }
+
 
 export async function deleteRole(id: string) {
     const usersWithRole = await prisma.user.count({ where: { roleId: id } });
@@ -871,7 +899,7 @@ export async function updatePasswordFlag(userId: string, passwordChangeRequired:
 
 
 // Ticket/Attendee Actions
-interface PurchaseRequest {
+export interface PurchaseRequest {
   eventId: number;
   tickets: { id: number; quantity: number, name: string; price: number }[];
   promoCode?: string;
@@ -883,7 +911,6 @@ interface PurchaseRequest {
 }
 
 export async function purchaseTickets(request: PurchaseRequest) {
-    'use server';
     const { eventId, tickets, promoCode, attendeeDetails } = request;
 
     if (!attendeeDetails.name || !attendeeDetails.phone) {
@@ -894,37 +921,13 @@ export async function purchaseTickets(request: PurchaseRequest) {
     }
     
     const user = await getCurrentUser();
+    const cookieStore = cookies();
+    const tokenCookie = cookieStore.get('authTokens');
+    const authToken = tokenCookie ? JSON.parse(tokenCookie.value).accessToken : undefined;
     
     const useMockFlow = process.env.NODE_ENV === 'development' || !process.env.BASE_URL || !process.env.ARIFPAY_API_KEY;
 
     try {
-        if (useMockFlow) {
-            console.log("Using mock payment flow.");
-            const totalQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0);
-            const transactionId = randomBytes(16).toString('hex');
-
-            const pendingOrder = await prisma.pendingOrder.create({
-                data: {
-                    transactionId: transactionId,
-                    arifpaySessionId: transactionId, // Use the same ID for mock session
-                    eventId,
-                    ticketTypeId: tickets[0].id,
-                    attendeeData: {
-                        name: attendeeDetails.name,
-                        phoneNumber: attendeeDetails.phone,
-                        userId: user?.id,
-                        quantity: totalQuantity,
-                    },
-                    promoCode,
-                    status: 'PENDING',
-                },
-            });
-
-            redirect(`/payment/success?session_id=${pendingOrder.arifpaySessionId}`);
-            return;
-        }
-
-        // Production flow with real payment gateway
         const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_VERCEL_URL;
         if (!appUrl) {
             throw new Error("App URL environment variable is not set.");
@@ -934,6 +937,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
             eventId,
             tickets,
             promoCode,
+            authToken,
             attendeeDetails: {
                 ...attendeeDetails,
                 userId: user?.id,
@@ -948,23 +952,37 @@ export async function purchaseTickets(request: PurchaseRequest) {
 
         const result = await response.json();
 
-        if (response.ok && result.paymentUrl) {
-            redirect(result.paymentUrl);
+        if (response.ok && (result.paymentUrl || result.paymentToken)) {
+            return result;
         } else {
-            throw new Error(result.error || 'Failed to initiate payment session.');
+            throw new Error(result.detail || result.error || 'Failed to initiate payment session.');
         }
     } catch (error: any) {
         if (error.digest?.startsWith('NEXT_REDIRECT')) {
             throw error;
         }
         console.error("Payment initiation failed:", error.message);
-        redirect(`/payment/failure?event_id=${eventId}`);
+        return { error: error.message || 'Failed to initiate payment.' };
     }
 }
 
-export async function getTicketDetailsForConfirmation(attendeeId: number) {
+export async function getTicketDetailsForConfirmation(identifier: string) {
+    const isNumericId = /^\d+$/.test(identifier);
+
+    let whereClause;
+    if (isNumericId) {
+        whereClause = { id: parseInt(identifier, 10) };
+    } else {
+        // If it's not numeric, assume it's a transactionId from the payment success page
+        const order = await prisma.pendingOrder.findUnique({
+            where: { transactionId: identifier },
+        });
+        if (!order || !order.attendeeId) return null;
+        whereClause = { id: order.attendeeId };
+    }
+
     const attendee = await prisma.attendee.findUnique({
-        where: { id: attendeeId },
+        where: whereClause,
         include: {
             event: true,
             ticketType: true,

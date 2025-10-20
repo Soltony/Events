@@ -53,8 +53,10 @@ function SuccessContent() {
                         continue;
                     }
                     const data = await response.json();
-                    if (data.status === 'COMPLETED' && data.attendeeId) {
-                        return data.attendeeId;
+                    if (data.status === 'COMPLETED') {
+                        // The confirmation is done via transaction ID, which is public.
+                        // We fetch the secure ticket details on the server from there.
+                        return data.transactionId; 
                     }
                     if (data.status === 'PENDING' && i > 1) { // After ~4s, assume mock flow might be stuck
                         const mockResponse = await fetch('/api/payment/arifpay/notify', {
@@ -79,9 +81,9 @@ function SuccessContent() {
             return null;
         };
 
-        const fetchTicketData = async (attendeeId: number) => {
+        const fetchTicketData = async (transactionId: string) => {
              try {
-                const ticketDetails = await getTicketDetailsForConfirmation(attendeeId);
+                const ticketDetails = await getTicketDetailsForConfirmation(transactionId);
                 if (!ticketDetails) throw new Error("Could not retrieve ticket details.");
                 setTicket(ticketDetails);
                 
@@ -91,7 +93,8 @@ function SuccessContent() {
                     localStorage.setItem('myTickets', JSON.stringify(myTickets));
                 }
 
-                const qrCodeData = JSON.stringify({ ticketId: ticketDetails.id });
+                // The QR code should only contain the attendee's ID (the ticket ID)
+                const qrCodeData = ticketDetails.id.toString();
                 const dataUrl = await QRCode.toDataURL(qrCodeData, { errorCorrectionLevel: 'H', type: 'image/png', quality: 0.92, margin: 1 });
                 setQrCodeDataUrl(dataUrl);
                 setLoading(false);
@@ -102,9 +105,9 @@ function SuccessContent() {
             }
         };
 
-        pollForStatus().then((attendeeId) => {
-            if (attendeeId) {
-                fetchTicketData(attendeeId);
+        pollForStatus().then((finalTransactionId) => {
+            if (finalTransactionId) {
+                fetchTicketData(finalTransactionId);
             } else {
                 setError("Payment confirmation timed out. Please check 'My Tickets' page later or contact support.");
                 setLoading(false);

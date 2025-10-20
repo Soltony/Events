@@ -1,7 +1,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { randomBytes } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
+import { format } from 'date-fns';
 
 function formatPhoneNumber(phone: string): string {
     if ((phone.startsWith('09') || phone.startsWith('07')) && phone.length === 10) {
@@ -17,9 +18,33 @@ export async function POST(req: NextRequest) {
             detail: 'Use HTTP POST to initiate a payment session.'
         }, { status: 405 });
     }
+    
+    const transactionId = randomUUID();
+    
+    const ACCOUNT_NO = process.env.NIB_ACCOUNT_NO;
+    const COMPANY_NAME = process.env.NIB_COMPANY_NAME;
+    const NIB_PAYMENT_KEY = process.env.NIB_PAYMENT_KEY;
+    const NIB_PAYMENT_URL = process.env.NIB_PAYMENT_URL;
+
+    if (!ACCOUNT_NO || !COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL) {
+        console.error(`[TX:${transactionId}] NIB Payment Gateway environment variables are not set.`);
+        return NextResponse.json({
+            error: 'Server configuration error',
+            detail: 'Payment gateway credentials are missing. Please contact support.',
+        }, { status: 500 });
+    }
+
+    try {
+        new URL(NIB_PAYMENT_URL);
+    } catch (e) {
+        console.error(`[TX:${transactionId}] Invalid NIB_PAYMENT_URL provided in environment variables.`);
+        return NextResponse.json({ error: 'Server configuration error', detail: 'Payment gateway URL is misconfigured.' }, { status: 500 });
+    }
+
+
     try {
         const body = await req.json();
-        const { eventId, tickets, promoCode, attendeeDetails, mock } = body;
+        const { eventId, tickets, promoCode, attendeeDetails, authToken, mock } = body;
 
         if (!eventId || !tickets?.length || !attendeeDetails) {
             return NextResponse.json({
@@ -29,6 +54,9 @@ export async function POST(req: NextRequest) {
         }
 
         const event = await prisma.event.findUnique({ where: { id: eventId } });
+        if (!event) {
+             return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+        }
 
         if (!event?.nibBankAccount && !mock) {
             return NextResponse.json({
@@ -39,9 +67,14 @@ export async function POST(req: NextRequest) {
 
         const totalAmount = (tickets as Array<{ price: number; quantity: number }>).reduce((sum: number, t) => sum + Number(t.price) * Number(t.quantity), 0);
         const totalQuantity = (tickets as Array<{ quantity: number }>).reduce((sum: number, t) => sum + Number(t.quantity), 0);
-        const transactionId = randomBytes(16).toString('hex');
+        
+        const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
+        const callBackURL = process.env.ARIFPAY_CALLBACK_URL || '/api/payment/arifpay/notify';
+        
+        if (!authToken) {
+             return NextResponse.json({ error: 'Authentication token is missing.' }, { status: 401 });
+        }
 
-        // Create the pending order first without the ArifPay session ID.
         const pendingOrder = await prisma.pendingOrder.create({
             data: {
                 transactionId: transactionId,
@@ -58,99 +91,71 @@ export async function POST(req: NextRequest) {
             },
         });
 
-        if (mock) {
-            return NextResponse.json({ pendingOrder });
-        }
+        const signatureString = [
+            `accountNo=${ACCOUNT_NO}`,
+            `amount=${totalAmount}`,
+            `callBackURL=${callBackURL}`,
+            `companyName=${COMPANY_NAME}`,
+            `Key=${NIB_PAYMENT_KEY}`,
+            `token=${authToken}`,
+            `transactionId=${transactionId}`,
+            `transactionTime=${transactionTime}`
+        ].join('&');
 
-        const paymentGatewayUrl = process.env.BASE_URL;
-        const apiKey = process.env.ARIFPAY_API_KEY;
-        const failureUrl = `${process.env.FAILURE_URL}?event_id=${eventId}`;
-        const callbackUrl = process.env.ARIFPAY_CALLBACK_URL;
-        const successUrl = `${process.env.SUCCESS_URL}?transaction_id=${transactionId}`;
+        const signature = createHash('sha256').update(signatureString, 'utf8').digest('hex');
 
-        if (!paymentGatewayUrl || !apiKey || !failureUrl || !callbackUrl || !successUrl) {
-            console.error("Payment gateway URL, API key, or callback/redirect URLs are missing.");
-            return NextResponse.json({
-                error: 'Server configuration error',
-                detail: 'Payment gateway credentials or callback/redirect URLs are missing. Please contact support.',
-                pendingOrder
-            }, { status: 500 });
-        }
-
-        const paymentGatewayData = {
-            phone: formatPhoneNumber(attendeeDetails.phone),
-            email: `${formatPhoneNumber(attendeeDetails.phone)}@nibticket.com`,
-            cbs: event!.nibBankAccount!,
-            items: [{ name: event!.name, quantity: totalQuantity, price: totalAmount, description: event!.description }],
+        const payload = {
+            accountNo: ACCOUNT_NO,
+            amount: String(totalAmount),
+            callBackURL: callBackURL,
+            companyName: COMPANY_NAME,
+            token: authToken,
+            transactionId: transactionId,
+            transactionTime: transactionTime,
+            signature: signature
         };
-  
-            console.log(paymentGatewayData);
-        let paymentGatewayResponse;
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000); 
 
-            paymentGatewayResponse = await fetch(`${paymentGatewayUrl}/api/payment/createsession`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Api-Key': apiKey },
-                body: JSON.stringify(paymentGatewayData),
-                signal: controller.signal,
+        const response = await fetch(NIB_PAYMENT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`[TX:${transactionId}] NIB Payment Gateway Error. Status: ${response.status}.`);
+            return NextResponse.json({ error: 'Payment gateway rejected the request.', detail: `Transaction failed. Please contact support with reference: ${transactionId}` }, { status: response.status });
+        }
+
+        const responseData = await response.json();
+        const paymentToken = responseData.token;
+
+        if (responseData.responseCode === '00' && paymentToken) {
+            await prisma.pendingOrder.update({
+                where: { id: pendingOrder.id },
+                data: { arifpaySessionId: transactionId },
             });
 
-            console.log("Payment Gateway Response:", paymentGatewayResponse);
-            
-            clearTimeout(timeoutId);
-
-        } catch (networkError: any) {
-            if (networkError.name === 'AbortError') {
-                 console.error("ArifPay API call timed out:", networkError);
-                 return NextResponse.json({
-                    error: 'Payment gateway timeout',
-                    detail: 'We could not establish a session with ArifPay within 15 seconds. Please try again.',
-                    pendingOrder
-                 }, { status: 504 });
-            }
-            console.error("Network error while connecting to ArifPay:", networkError);
-            return NextResponse.json({
-                error: 'Payment gateway unreachable',
-                detail: 'A network error occurred while contacting ArifPay. Check your connection and try again.',
-                pendingOrder
-            }, { status: 503 });
-        }
-        
-        const rawText = await paymentGatewayResponse.text();
-        let paymentGatewayResult: any;
-        try {
-            paymentGatewayResult = JSON.parse(rawText);
-        } catch (parseError) {
-            console.error("Failed to parse ArifPay response as JSON:", rawText);
-            return NextResponse.json({
-                error: 'Invalid gateway response',
-                detail: 'ArifPay returned a non‑JSON response. Please try again later.',
-                pendingOrder
-            }, { status: 502 });
-        }
-
-        if (paymentGatewayResult.ResponseCode !== "0" || !paymentGatewayResult.Data?.URL || !paymentGatewayResult.Data?.NA) {
-            console.error('Payment Gateway API Error:', paymentGatewayResult);
+            return NextResponse.json({ 
+                paymentToken: paymentToken,
+                transactionId: transactionId,
+            });
+        } else {
+            console.error(`[TX:${transactionId}] Payment session creation failed. Response Code: ${responseData.responseCode}`);
             return NextResponse.json({
                 error: 'Payment session creation failed',
-                detail: paymentGatewayResult.ResponseDescription || 'The gateway did not accept the session request. Please verify organizer payout setup and try again.',
-                pendingOrder
+                detail: `The gateway did not return a valid payment token. Please contact support with reference: ${transactionId}`,
             }, { status: 502 });
         }
-        
-        await prisma.pendingOrder.update({
-            where: { id: pendingOrder.id },
-            data: { arifpaySessionId: paymentGatewayResult.Data.NA },
-        });
-        const finalSuccessUrl = `${process.env.SUCCESS_URL}?transaction_id=${transactionId}&session_id=${paymentGatewayResult.Data.NA}`;
-        return NextResponse.json({ paymentUrl: paymentGatewayResult.Data.URL, successUrl: finalSuccessUrl, pendingOrder });
+
     } catch (error: any) {
-        console.error('Payment initiation failed:', error);
+        console.error(`[TX:${transactionId}] Payment initiation failed:`, error.message);
         return NextResponse.json({
             error: 'Unexpected server error',
-            detail: error.message || 'An unknown error occurred while initiating the payment.'
+            detail: `An unknown error occurred. Please contact support with reference: ${transactionId}`
         }, { status: 500 });
     }
 }

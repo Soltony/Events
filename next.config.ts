@@ -10,15 +10,27 @@ const securityHeaders = [
       key: 'X-Content-Type-Options',
       value: 'nosniff',
     },
+    {
+      key: 'X-Frame-Options',
+      value: 'DENY',
+    },
+     {
+      key: 'Referrer-Policy',
+      value: 'origin-when-cross-origin',
+    },
+    {
+      key: 'Permissions-Policy',
+      value: "camera=(), microphone=(), geolocation=(), payment=()",
+    }
 ];
 
 const nextConfig: NextConfig = {
   output: "standalone",
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   async headers() {
     return [
@@ -51,7 +63,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   experimental: {
     serverActions: {
-      bodySizeLimit: "100mb", // increase limit to 10MB (adjust as needed)
+      bodySizeLimit: "10mb",
     },
   },
 };

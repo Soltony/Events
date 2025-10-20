@@ -30,8 +30,8 @@ export default function LoginPage() {
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
     defaultValues: {
-      phoneNumber: '0912345678',
-      password: 'Admin@123',
+      phoneNumber: '',
+      password: '',
     },
   });
 

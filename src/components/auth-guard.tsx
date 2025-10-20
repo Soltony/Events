@@ -31,21 +31,29 @@ function hasAccess(pathname: string, hasPermission: (p: string) => boolean): boo
         }
         return hasPermission(p);
     };
-
-    // Exact match
-    const requiredPermission = Object.keys(pagePermissions).find(key => {
-         if (key.includes('[')) {
-            const regex = new RegExp(`^${key.replace(/\[.*?\]/g, '[^/]+')}$`);
-            return regex.test(pathname);
+    
+    // Find a matching pattern for the current path
+    const pathSegments = pathname.split('/').filter(Boolean);
+    
+    const matchingPattern = Object.keys(pagePermissions).find(pattern => {
+        const patternSegments = pattern.split('/').filter(Boolean);
+        if (pathSegments.length !== patternSegments.length) {
+            return false;
         }
-        return key === pathname;
+        
+        return patternSegments.every((segment, index) => {
+            if (segment.startsWith('[') && segment.endsWith(']')) {
+                return true; // It's a dynamic part, so it matches
+            }
+            return segment === pathSegments[index];
+        });
     });
 
-    if (requiredPermission) {
-        return checkPermission(pagePermissions[requiredPermission]);
+    if (matchingPattern) {
+        return checkPermission(pagePermissions[matchingPattern]);
     }
     
-    // Allow access to pages not in the list, like the profile page
+    // Allow access to pages not in the list (e.g., /profile)
     return true;
 }
 
@@ -124,5 +132,3 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
-
-    

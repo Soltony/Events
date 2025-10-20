@@ -6,6 +6,7 @@ export function middleware(req: NextRequest) {
   
   // ArifPay URL for connect-src, if available
   const arifPayUrl = process.env.BASE_URL ? new URL(process.env.BASE_URL).origin : '';
+  const nibPreProdUrl = 'http://nib-pre-production.nibbank.com.et:8086';
 
   const cspHeader = `
     default-src 'self';
@@ -13,7 +14,7 @@ export function middleware(req: NextRequest) {
     style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com https://unpkg.com;
     font-src 'self' https://fonts.gstatic.com;
     img-src 'self' data: https://placehold.co https://storage.googleapis.com https://picsum.photos;
-    connect-src 'self' https://nominatim.openstreetmap.org ${arifPayUrl};
+    connect-src 'self' https://nominatim.openstreetmap.org ${arifPayUrl} ${nibPreProdUrl};
     frame-src 'self';
     object-src 'none';
     base-uri 'self';
