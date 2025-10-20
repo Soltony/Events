@@ -122,6 +122,7 @@ async function main() {
           name: 'Art & Soul Exhibition',
           description: 'A curated exhibition showcasing the vibrant works of emerging local artists. Discover new talent, purchase unique pieces, and meet the creators.',
           startDate: addDays(today, 15),
+          endDate: addDays(today, 15),
           location: 'The Downtown Gallery',
           category: 'Art',
           status: 'APPROVED',
