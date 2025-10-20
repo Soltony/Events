@@ -20,6 +20,27 @@ export async function POST(req: NextRequest) {
     }
     
     const transactionId = randomUUID();
+    
+    const ACCOUNT_NO = process.env.NIB_ACCOUNT_NO;
+    const COMPANY_NAME = process.env.NIB_COMPANY_NAME;
+    const NIB_PAYMENT_KEY = process.env.NIB_PAYMENT_KEY;
+    const NIB_PAYMENT_URL = process.env.NIB_PAYMENT_URL;
+
+    if (!ACCOUNT_NO || !COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL) {
+        console.error(`[TX:${transactionId}] NIB Payment Gateway environment variables are not set.`);
+        return NextResponse.json({
+            error: 'Server configuration error',
+            detail: 'Payment gateway credentials are missing. Please contact support.',
+        }, { status: 500 });
+    }
+
+    try {
+        new URL(NIB_PAYMENT_URL);
+    } catch (e) {
+        console.error(`[TX:${transactionId}] Invalid NIB_PAYMENT_URL provided in environment variables.`);
+        return NextResponse.json({ error: 'Server configuration error', detail: 'Payment gateway URL is misconfigured.' }, { status: 500 });
+    }
+
 
     try {
         const body = await req.json();
@@ -49,26 +70,6 @@ export async function POST(req: NextRequest) {
         
         const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
         const callBackURL = process.env.ARIFPAY_CALLBACK_URL || '/api/payment/arifpay/notify';
-
-        const ACCOUNT_NO = process.env.NIB_ACCOUNT_NO;
-        const COMPANY_NAME = process.env.NIB_COMPANY_NAME;
-        const NIB_PAYMENT_KEY = process.env.NIB_PAYMENT_KEY;
-        const NIB_PAYMENT_URL = process.env.NIB_PAYMENT_URL;
-
-        if (!ACCOUNT_NO || !COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL) {
-            console.error(`[TX:${transactionId}] NIB Payment Gateway environment variables are not set.`);
-            return NextResponse.json({
-                error: 'Server configuration error',
-                detail: 'Payment gateway credentials are missing. Please contact support.',
-            }, { status: 500 });
-        }
-        
-        try {
-            new URL(NIB_PAYMENT_URL);
-        } catch (e) {
-            console.error(`[TX:${transactionId}] Invalid NIB_PAYMENT_URL provided in environment variables.`);
-            return NextResponse.json({ error: 'Server configuration error', detail: 'Payment gateway URL is misconfigured.' }, { status: 500 });
-        }
         
         if (!authToken) {
              return NextResponse.json({ error: 'Authentication token is missing.' }, { status: 401 });
