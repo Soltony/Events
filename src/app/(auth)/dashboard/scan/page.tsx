@@ -106,7 +106,7 @@ export default function ScanQrPage() {
             });
         } finally {
             // Clean up: only needed for file scan
-            if (Html5Qrcode.isScanning) {
+            if (qrScanner.isScanning) {
                 await qrScanner.stop();
             }
             if (fileInputRef.current) {
