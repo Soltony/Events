@@ -26,6 +26,7 @@ import { AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDes
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Autoplay from "embla-carousel-autoplay";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useAuth } from '@/context/auth-context';
 
 
 interface EventWithTickets extends Event {
@@ -61,6 +62,7 @@ export default function PublicEventDetailPage() {
   const params = useParams<{ id:string }>();
   const eventId = params ? parseInt(params.id, 10) : NaN;
   const [isPending, startTransition] = useTransition();
+  const { user } = useAuth();
   const [event, setEvent] = useState<EventWithTickets | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTickets, setSelectedTickets] = useState<Record<number, SelectedTicket>>({});
@@ -119,6 +121,14 @@ export default function PublicEventDetailPage() {
     // When location changes, clear the cart to avoid price mismatches
     setSelectedTickets({});
   }, [selectedLocation]);
+
+  useEffect(() => {
+    // Pre-fill attendee info if user is logged in
+    if (user) {
+        setAttendeeName(`${user.firstName} ${user.lastName}`);
+        setAttendeePhone(user.phoneNumber);
+    }
+  }, [user]);
 
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
@@ -510,7 +520,7 @@ export default function PublicEventDetailPage() {
               <Label htmlFor="phone">Phone Number</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="phone" placeholder="e.g., 0912345678" value={attendeePhone} onChange={e => setAttendeePhone(e.target.value)} className="pl-10" />
+                <Input id="phone" placeholder="e.g., 0912345678" value={attendeePhone} onChange={e => setAttendeePhone(e.target.value)} className="pl-10" disabled={!!user} />
               </div>
             </div>
           </div>
