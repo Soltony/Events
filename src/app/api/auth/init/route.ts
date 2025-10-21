@@ -4,6 +4,7 @@ import { headers } from 'next/headers';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import type { User, Role } from '@prisma/client';
+import { encryptSessionPayload } from '@/lib/sessionCrypto';
 
 interface UserWithRole extends User {
   role: Role;
@@ -73,17 +74,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ isSuccess: false, error: 'User not found in local database.'}, { status: 404 });
     }
 
-    // In this flow, the token from the header is the source of truth.
-    // We create a session cookie with it.
     const tokens = {
       accessToken: token,
-      // A refresh token would typically come from your auth provider, 
-      // but we'll use the access token here for simplicity in this flow.
-      refreshToken: token, 
+      refreshToken: token,
+      phoneNumber: phoneNumber,
     };
 
     const cookieStore = await cookies();
-    cookieStore.set('auth', JSON.stringify(tokens), {
+    const encrypted = await encryptSessionPayload(JSON.stringify(tokens));
+    cookieStore.set('auth', encrypted, {
       httpOnly: true,
       secure: true,
       sameSite: 'strict',

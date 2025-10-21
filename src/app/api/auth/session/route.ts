@@ -10,15 +10,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
   }
   try {
-    const tokens = await req.json();
-    const { accessToken, refreshToken } = tokens;
+    const payload = await req.json();
+    const { accessToken, refreshToken, phoneNumber } = payload;
 
-    if (!accessToken || !refreshToken) {
-      return NextResponse.json({ success: false, error: 'Missing tokens' }, { status: 400 });
+    if (!accessToken || !refreshToken || !phoneNumber) {
+      return NextResponse.json({ success: false, error: 'Missing tokens or phone number' }, { status: 400 });
     }
 
     const cookieStore = await cookies();
-    const encrypted = await encryptSessionPayload(JSON.stringify(tokens));
+    const encrypted = await encryptSessionPayload(JSON.stringify(payload));
     cookieStore.set('auth', encrypted, {
       httpOnly: true,
       secure: true,
@@ -41,15 +41,15 @@ export async function GET(req: NextRequest) {
   const tokenCookie = cookieStore.get('auth');
 
   if (!tokenCookie) {
-    return NextResponse.json({ accessToken: null }, { status: 401 });
+    return NextResponse.json({ accessToken: null, phoneNumber: null }, { status: 401 });
   }
 
   try {
     const decrypted = await decryptSessionPayload(tokenCookie.value);
-    const { accessToken } = JSON.parse(decrypted);
-    return NextResponse.json({ accessToken });
+    const { accessToken, phoneNumber } = JSON.parse(decrypted);
+    return NextResponse.json({ accessToken, phoneNumber });
   } catch (error) {
-    return NextResponse.json({ accessToken: null }, { status: 401 });
+    return NextResponse.json({ accessToken: null, phoneNumber: null }, { status: 401 });
   }
 }
 

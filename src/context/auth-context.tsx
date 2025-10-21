@@ -132,7 +132,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setAuthToken(sessionData.accessToken);
                 const storedUser = localStorage.getItem('authUser');
                 if (storedUser) {
-                    setUser(JSON.parse(storedUser));
+                    const parsedUser = JSON.parse(storedUser);
+                    // Verify that the user in localStorage matches the phone number from the session
+                    if (parsedUser.phoneNumber === sessionData.phoneNumber) {
+                        setUser(parsedUser);
+                    } else {
+                        // If mismatch, the user in local storage is stale, refetch it
+                        await refreshUser();
+                    }
                 } else {
                     // If no user in local storage, try to fetch it
                     await refreshUser();
@@ -239,17 +246,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             throw new Error('Your account is inactive. Please contact an administrator.');
           }
           
-          const newTokens = { accessToken: resolvedAccessToken, refreshToken: resolvedRefreshToken };
-          
-          // The CSRF token will be set by the middleware automatically upon successful login request.
-          // Forcing a page reload will ensure the new token is picked up by the API client.
+          const newTokens = { 
+              accessToken: resolvedAccessToken, 
+              refreshToken: resolvedRefreshToken,
+              phoneNumber: data.phoneNumber,
+          };
           
           await fetch('/api/auth/session', {
             method: 'POST',
             body: JSON.stringify(newTokens),
           });
           
-          setTokens(newTokens);
+          setTokens({ accessToken: newTokens.accessToken, refreshToken: newTokens.refreshToken });
           setAuthToken(resolvedAccessToken);
           
           setUser(userData);
