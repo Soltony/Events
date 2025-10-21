@@ -6,6 +6,7 @@ import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee, EventStatus, UserStatus } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
+import { decryptSessionPayload } from './sessionCrypto';
 import type { DateRange } from 'react-day-picker';
 import { randomBytes } from 'crypto';
 
@@ -37,7 +38,9 @@ export async function getCurrentUser(): Promise<(User & { role: Role }) | null> 
       return null;
     }
     
-    const tokenData = JSON.parse(tokenCookie.value);
+    // Cookie is encrypted; decrypt before parsing JSON
+    const decrypted = await decryptSessionPayload(tokenCookie.value);
+    const tokenData = JSON.parse(decrypted);
     const token = tokenData.accessToken;
 
     if (!token) {
