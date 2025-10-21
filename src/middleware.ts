@@ -63,12 +63,13 @@ export async function middleware(req: NextRequest) {
   requestHeaders.set('x-nonce', nonce);
 
   // --- Start CSRF Logic ---
-
-  // Check if it's a state-changing API request that needs CSRF protection.
   const isApiRequest = req.nextUrl.pathname.startsWith('/api/');
   const isStateChangingMethod = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method);
+  const isAuthRequest = req.nextUrl.pathname.startsWith('/api/auth/');
 
-  if (isApiRequest && isStateChangingMethod) {
+  // Check if it's a state-changing API request that needs CSRF protection.
+  // We explicitly EXCLUDE auth requests from this check, as they handle session creation.
+  if (isApiRequest && !isAuthRequest && isStateChangingMethod) {
     const csrfTokenFromHeader = req.headers.get(CSRF_HEADER_NAME);
     const csrfSecretFromCookie = req.cookies.get(CSRF_COOKIE_NAME_SECRET)?.value;
 
