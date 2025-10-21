@@ -8,10 +8,9 @@ export default function TicketsLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const navbarStyle = { background: '#fefce5' };
   return (
     <>
-      <header className="fixed top-0 z-40 w-full" style={navbarStyle}>
+      <header className="fixed top-0 z-40 w-full bg-background/80 backdrop-blur-sm">
         <div className="container flex h-14 items-center space-x-4 sm:justify-between sm:space-x-0">
           <div className="flex gap-6 md:gap-10">
             <Link href="/" className="flex items-center space-x-2">

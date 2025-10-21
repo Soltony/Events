@@ -93,7 +93,7 @@ export default function ManageRolesPage() {
                         <CardTitle>All Roles</CardTitle>
                         <CardDescription>A list of all user roles in the system.</CardDescription>
                     </div>
-                    <Button asChild style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
+                    <Button asChild>
                         <Link href="/dashboard/settings/roles/new">
                             <PlusCircle className="mr-2 h-4 w-4" /> Add New Role
                         </Link>
@@ -122,7 +122,7 @@ export default function ManageRolesPage() {
                         <TableCell className="font-mono uppercase">{role.name}</TableCell>
                         <TableCell className="text-muted-foreground">{role.description || '-'}</TableCell>
                         <TableCell>
-                            <Badge variant="secondary" style={{ backgroundColor: '#FEF9C3', color: '#713F12' }}>
+                            <Badge variant="secondary">
                                 {getPermissionCount(role.permissions)} assigned
                             </Badge>
                         </TableCell>
