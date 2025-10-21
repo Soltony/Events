@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import api, { setAuthToken } from '@/lib/api';
 import { getUserByPhoneNumber } from '@/lib/actions';
 import type { User, Role } from '@prisma/client';
+import Cookies from 'js-cookie';
 
 interface AuthTokens {
   accessToken: string;
@@ -71,6 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokens(null);
     setAuthToken(null);
     localStorage.removeItem('authUser');
+    // Clear CSRF cookies on logout
+    Cookies.remove('csrf_token');
+    Cookies.remove('csrf_secret');
     await fetch('/api/auth/session', { method: 'DELETE' });
   }, []);
 
@@ -236,6 +240,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           
           const newTokens = { accessToken: resolvedAccessToken, refreshToken: resolvedRefreshToken };
+          
+          // The CSRF token will be set by the middleware automatically upon successful login request.
+          // Forcing a page reload will ensure the new token is picked up by the API client.
           
           await fetch('/api/auth/session', {
             method: 'POST',
