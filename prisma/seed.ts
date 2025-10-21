@@ -22,12 +22,12 @@ async function main() {
     where: { name: 'Admin' },
     update: {
       description: 'Administrator with all permissions',
-      permissions: adminPermissions.join(','),
+      permissions: JSON.stringify(adminPermissions),
     },
     create: {
         name: 'Admin',
         description: 'Administrator with all permissions',
-        permissions: adminPermissions.join(','),
+        permissions: JSON.stringify(adminPermissions),
     }
   });
   

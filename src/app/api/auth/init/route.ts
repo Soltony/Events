@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const headerList = headers();
+    const headerList = await headers();
     const authHeader = headerList.get('Authorization');
 
     if (!authHeader) {
@@ -82,7 +82,8 @@ export async function POST(req: NextRequest) {
       refreshToken: token, 
     };
 
-    cookies().set('authTokens', JSON.stringify(tokens), {
+    const cookieStore = await cookies();
+    cookieStore.set('auth', JSON.stringify(tokens), {
       httpOnly: true,
       secure: true,
       sameSite: 'strict',

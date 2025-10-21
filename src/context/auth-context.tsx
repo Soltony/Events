@@ -335,8 +335,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     if (user.role.name === 'Admin') return true;
     
-    const userPermissions = user.role.permissions.split(',');
-    return userPermissions.includes(permission);
+    try {
+      // Handle both JSON array and comma-separated formats for backward compatibility
+      let userPermissions: string[];
+      if (user.role.permissions.startsWith('[')) {
+        userPermissions = JSON.parse(user.role.permissions);
+      } else {
+        userPermissions = user.role.permissions.split(',');
+      }
+      
+      return userPermissions.includes(permission);
+    } catch (error) {
+      console.error('Failed to parse permissions:', error);
+      return false;
+    }
   };
 
   const isAuthenticated = !isLoading && !!user;
