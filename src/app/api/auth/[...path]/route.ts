@@ -63,18 +63,22 @@ async function proxyRequest(req: NextRequest, path: string[]) {
   }
 }
 
-export async function GET(request: NextRequest, { params }: { params: { path: string[] } }) {
-  return proxyRequest(request, params.path);
+export async function GET(req: NextRequest) {
+  const path = req.nextUrl.pathname.replace('/api/auth/', '').split('/');
+  return proxyRequest(req, path);
 }
 
-export async function POST(request: NextRequest, { params }: { params: { path: string[] } }) {
-  return proxyRequest(request, params.path);
+export async function POST(req: NextRequest) {
+  const path = req.nextUrl.pathname.replace('/api/auth/', '').split('/');
+  return proxyRequest(req, path);
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { path: string[] } }) {
-  return proxyRequest(request, params.path);
+export async function PUT(req: NextRequest) {
+  const path = req.nextUrl.pathname.replace('/api/auth/', '').split('/');
+  return proxyRequest(req, path);
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { path: string[] } }) {
-  return proxyRequest(request, params.path);
+export async function DELETE(req: NextRequest) {
+  const path = req.nextUrl.pathname.replace('/api/auth/', '').split('/');
+  return proxyRequest(req, path);
 }
