@@ -150,7 +150,7 @@ export default function UserManagementPage() {
                   <CardDescription>Assign roles and manage status for users in the system.</CardDescription>
                 </div>
                 {hasPermission('User Registration:Create') && (
-                  <Button asChild>
+                  <Button asChild style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
                     <Link href="/dashboard/settings/users/new">
                       <UserPlus className="mr-2 h-4 w-4" /> Add User
                     </Link>

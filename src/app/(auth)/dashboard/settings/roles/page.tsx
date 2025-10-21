@@ -93,7 +93,7 @@ export default function ManageRolesPage() {
                         <CardTitle>All Roles</CardTitle>
                         <CardDescription>A list of all user roles in the system.</CardDescription>
                     </div>
-                    <Button asChild>
+                    <Button asChild style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
                         <Link href="/dashboard/settings/roles/new">
                             <PlusCircle className="mr-2 h-4 w-4" /> Add New Role
                         </Link>
