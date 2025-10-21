@@ -52,7 +52,7 @@ export default function MyTicketsPage() {
       
       // Merge and deduplicate tickets
       const ticketMap = new Map<number, FullTicket>();
-      fetchedTickets.forEach(ticket => {
+      fetchedTickets.forEach((ticket: FullTicket) => {
         ticketMap.set(ticket.id, ticket);
       });
       setTickets(Array.from(ticketMap.values()));
