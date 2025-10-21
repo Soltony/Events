@@ -83,7 +83,7 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
             id: purchaseState.ticket!.id, 
             quantity: 1, 
             name: purchaseState.ticket!.name, 
-            price: Number(purchaseState.ticket!.price) 
+            price: Number(purchaseState.ticket!.basePrice) 
           }],
           attendeeDetails: {
             name: attendeeName,
