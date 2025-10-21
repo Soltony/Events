@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { randomUUID, createHash } from 'crypto';
+import { randomUUID, createHash, createHmac } from 'crypto';
 import { format } from 'date-fns';
 
 function formatPhoneNumber(phone: string): string {
@@ -139,9 +139,24 @@ export async function POST(req: NextRequest) {
                 data: { arifpaySessionId: transactionId },
             });
 
-            return NextResponse.json({ 
+            const SIGN_SECRET = process.env.PAYMENT_STATUS_SECRET;
+            if (!SIGN_SECRET) {
+                console.error(`[TX:${transactionId}] PAYMENT_STATUS_SECRET not configured`);
+                return NextResponse.json({
+                    error: 'Server configuration error',
+                    detail: 'Missing signing secret. Please contact support.',
+                }, { status: 500 });
+            }
+            const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
+            const dataToSign = `${transactionId}.${expiresAt}`;
+            const signature = createHmac('sha256', SIGN_SECRET).update(dataToSign).digest('hex');
+            const statusToken = `${dataToSign}.${signature}`;
+
+            return NextResponse.json({
                 paymentToken: paymentToken,
                 transactionId: transactionId,
+                statusToken,
+                expiresAt,
             });
         } else {
             console.error(`[TX:${transactionId}] Payment session creation failed. Response Code: ${responseData.responseCode}`);

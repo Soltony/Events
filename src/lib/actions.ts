@@ -31,7 +31,7 @@ const VALID_PERMISSIONS = new Set([
 export async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
   try {
     const cookieStore = await cookies();
-    const tokenCookie = cookieStore.get('authTokens');
+    const tokenCookie = cookieStore.get('auth');
 
     if (!tokenCookie?.value) {
       return null;
@@ -784,7 +784,7 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         }
 
         const cookieStore = await cookies();
-        const tokenCookie = cookieStore.get('authTokens');
+        const tokenCookie = cookieStore.get('auth');
         if (!tokenCookie?.value) {
             throw new Error('Authentication token not found');
         }
@@ -921,8 +921,8 @@ export async function purchaseTickets(request: PurchaseRequest) {
     }
     
     const user = await getCurrentUser();
-    const cookieStore = cookies();
-    const tokenCookie = cookieStore.get('authTokens');
+    const cookieStore = await cookies();
+    const tokenCookie = cookieStore.get('auth');
     const authToken = tokenCookie ? JSON.parse(tokenCookie.value).accessToken : undefined;
     
     const useMockFlow = process.env.NODE_ENV === 'development' || !process.env.BASE_URL || !process.env.ARIFPAY_API_KEY;

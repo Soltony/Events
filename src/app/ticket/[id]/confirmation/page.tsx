@@ -55,13 +55,7 @@ export default function TicketConfirmationPage() {
                 
                 setTicket(ticketDetails);
 
-                // Save ticket to local storage for "My Tickets" page
-                const myTickets = JSON.parse(localStorage.getItem('myTickets') || '[]') as number[];
-                if (!myTickets.includes(ticketDetails.id)) {
-                    myTickets.push(ticketDetails.id);
-                    localStorage.setItem('myTickets', JSON.stringify(myTickets));
-                }
-
+                // Generate QR code data with only minimal identifier
                 const qrCodeData = ticketDetails.id.toString();
 
                 const dataUrl = await QRCode.toDataURL(qrCodeData, {

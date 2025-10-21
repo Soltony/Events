@@ -1,5 +1,17 @@
 
 import type { NextConfig } from "next";
+import path from 'path';
+
+const csp = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: https://placehold.co https://storage.googleapis.com https://picsum.photos",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+].join('; ');
 
 const securityHeaders = [
     {
@@ -21,11 +33,16 @@ const securityHeaders = [
     {
       key: 'Permissions-Policy',
       value: "camera=(), microphone=(), geolocation=(), payment=()",
-    }
+    },
+    {
+      key: 'Content-Security-Policy',
+      value: csp,
+    },
 ];
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  outputFileTracingRoot: path.resolve(__dirname),
   typescript: {
     ignoreBuildErrors: false,
   },
