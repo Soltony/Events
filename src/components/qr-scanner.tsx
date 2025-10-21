@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Html5Qrcode, Html5QrcodeError, Html5QrcodeResult } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { useToast } from '@/hooks/use-toast';
 
 const QR_REGION_ID = "qr-code-reader-view";
@@ -29,7 +29,7 @@ export default function QrScannerComponent({ onScanSuccess, onScanFailure }: QrS
         const html5QrCode = new Html5Qrcode(QR_REGION_ID);
         let isScannerRunning = false;
 
-        const qrCodeSuccessCallback = (decodedText: string, result: Html5QrcodeResult) => {
+        const qrCodeSuccessCallback = (decodedText: string, result: any) => {
             if (isScannerRunning) {
                 onScanSuccess(decodedText);
                 isScannerRunning = false; 
@@ -39,7 +39,7 @@ export default function QrScannerComponent({ onScanSuccess, onScanFailure }: QrS
             }
         };
 
-        const qrCodeErrorCallback = (errorMessage: string, error: Html5QrcodeError) => {
+        const qrCodeErrorCallback = (errorMessage: string, error: any) => {
             // This callback is called frequently, so we can ignore most errors.
         };
 
