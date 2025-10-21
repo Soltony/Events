@@ -17,8 +17,6 @@ export default function SettingsPage() {
       description: 'Register new users for the application. Create new accounts. New users are created without any roles by default.',
       buttonText: 'Go to User Registration',
       href: '/dashboard/settings/users/new',
-      color: '#FBBF24',
-      textColor: '#422006',
       permission: 'User Registration:Read'
     },
     {
@@ -27,8 +25,6 @@ export default function SettingsPage() {
       description: 'Manage user roles and the buildings they are assigned to. Assign roles and buildings to users to control access and responsibilities.',
       buttonText: 'Go to User Management',
       href: '/dashboard/settings/users',
-      color: '#FBBF24',
-      textColor: '#422006',
       permission: 'User Management:Read'
     },
     {
@@ -37,8 +33,6 @@ export default function SettingsPage() {
       description: 'Define roles and their permissions within the application. Create new roles, or edit existing ones to specify what actions users with that role can perform.',
       buttonText: 'Go to Role Management',
       href: '/dashboard/settings/roles',
-      color: '#FBBF24',
-      textColor: '#422006',
       permission: 'Role Management:Read'
     }
   ];
@@ -67,7 +61,7 @@ export default function SettingsPage() {
               <CardDescription>{card.description}</CardDescription>
             </CardContent>
             <CardFooter>
-              <Button asChild className="w-full" style={{ backgroundColor: card.color, color: card.textColor }}>
+              <Button asChild className="w-full">
                 <Link href={card.href}>
                   {card.icon}
                   {card.buttonText}
