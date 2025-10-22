@@ -115,7 +115,7 @@ export default async function PortalConnectPage() {
   const result = await connectUser();
 
   if (result.status === 'success') {
-    redirect('/dashboard');
+    redirect('/');
   }
 
   return (
