@@ -252,11 +252,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               phoneNumber: data.phoneNumber,
           };
           
+          // Store tokens in HTTP-only cookies for security
           await fetch('/api/auth/session', {
             method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
             body: JSON.stringify(newTokens),
+            credentials: 'include' // Include cookies in the request
           });
           
+          // Keep tokens in memory for client-side usage
           setTokens({ accessToken: newTokens.accessToken, refreshToken: newTokens.refreshToken });
           setAuthToken(resolvedAccessToken);
           

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, Suspense } from 'react';
@@ -76,24 +77,17 @@ function ProcessingPaymentContent() {
     );
 }
 
-function LoadingFallback() {
-    return (
-        <div className="container mx-auto p-8 max-w-lg">
-            <div className="bg-card border rounded-xl p-8 text-center space-y-4">
-                <Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" />
-                <h1 className="text-2xl font-semibold">Loading...</h1>
-                <p className="text-muted-foreground">Please wait...</p>
-            </div>
-        </div>
-    );
-}
-
 export default function ProcessingPaymentPage() {
     return (
-        <Suspense fallback={<LoadingFallback />}>
+        <Suspense fallback={
+             <div className="container mx-auto p-8 max-w-lg">
+                <div className="bg-card border rounded-xl p-8 text-center space-y-4">
+                    <Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" />
+                    <h1 className="text-2xl font-semibold">Loading...</h1>
+                </div>
+            </div>
+        }>
             <ProcessingPaymentContent />
         </Suspense>
     );
 }
-
-
