@@ -7,7 +7,7 @@ import prisma from '@/lib/prisma';
 import { encryptSessionPayload } from '@/lib/sessionCrypto';
 
 async function connectUser() {
-  const headerList = headers();
+  const headerList = await headers();
   const authHeader = headerList.get('Authorization');
 
   if (!authHeader) {
@@ -68,7 +68,7 @@ async function connectUser() {
     };
   }
 
-  // --- Session Creation Logic (moved from /api/auth/init) ---
+  // --- Session Creation Logic ---
   try {
     const user = await prisma.user.findUnique({
       where: { phoneNumber: phoneNumber },
