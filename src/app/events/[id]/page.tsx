@@ -125,6 +125,7 @@ export default function PublicEventDetailPage() {
   useEffect(() => {
     // Pre-fill attendee info if user is logged in
     if (user) {
+        console.log('User phone number from auth context:', user.phoneNumber);
         setAttendeeName(`${user.firstName} ${user.lastName}`);
         setAttendeePhone(user.phoneNumber);
     }
