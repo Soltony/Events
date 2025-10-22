@@ -43,7 +43,7 @@ export async function middleware(req: NextRequest) {
   
   // ArifPay URL for connect-src, if available
   const arifPayUrl = process.env.BASE_URL ? new URL(process.env.BASE_URL).origin : '';
-  const nibPreProdUrl = 'http://nib-pre-production.nibbank.com.et:8086';
+  const nibPreProdUrl = process.env.AUTH_VALIDATION_URL || '';
 
   const cspHeader = `
     default-src 'self';
