@@ -1,3 +1,4 @@
+
 'use server';
 
 import { cookies } from 'next/headers';
@@ -19,7 +20,7 @@ export async function setSecureCookie(
     sameSite?: 'strict' | 'lax' | 'none';
   } = {}
 ) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const encrypted = await encryptSessionPayload(
     typeof value === 'string' ? value : JSON.stringify(value)
   );
@@ -40,7 +41,7 @@ export async function setSecureCookie(
  */
 export async function getSecureCookie<T = any>(name: string): Promise<T | null> {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const cookie = cookieStore.get(name);
     
     if (!cookie?.value) {
@@ -65,6 +66,6 @@ export async function getSecureCookie<T = any>(name: string): Promise<T | null> 
  * @param name Cookie name
  */
 export async function deleteSecureCookie(name: string) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   cookieStore.delete(name);
 }
