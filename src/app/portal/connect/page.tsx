@@ -7,7 +7,7 @@ import prisma from '@/lib/prisma';
 import { encryptSessionPayload } from '@/lib/sessionCrypto';
 
 async function connectUser() {
-  const headerList = headers();
+  const headerList = await headers();
   const authHeader = headerList.get('Authorization');
 
   if (!authHeader) {
