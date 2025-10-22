@@ -76,7 +76,7 @@ async function connectUser() {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ phoneNumber: phoneNumber }),
+      body: JSON.stringify({ phoneNumber: phoneNumber, accessToken: token }), // Pass token to be stored
       cache: 'no-store',
     });
 

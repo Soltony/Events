@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const phoneNumber = body.phoneNumber;
+    const { phoneNumber, accessToken } = body;
     
     if (!phoneNumber) {
         return NextResponse.json({ isSuccess: false, error: 'Phone number is required.'}, { status: 400 });
@@ -32,19 +32,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ isSuccess: false, error: 'User not found in local database.'}, { status: 404 });
     }
     
-    // We assume the token is already validated by the caller.
-    // Here, we just need a placeholder or a self-signed token for the cookie if needed.
-    // For simplicity, we'll create a simple payload.
-    const tokens = {
-      // In a real scenario, you might generate a new session token here.
-      // For this flow, we might not even need to store an external token.
-      accessToken: 'internal-session',
-      refreshToken: 'internal-session',
+    // The token has been validated by the caller (/portal/connect).
+    // Now, create the session payload for our application.
+    const sessionPayload = {
+      accessToken: accessToken, // Store the original token if needed later
+      refreshToken: '', // Can be managed separately if needed
       phoneNumber: phoneNumber,
     };
 
     const cookieStore = await cookies();
-    const encrypted = await encryptSessionPayload(JSON.stringify(tokens));
+    const encrypted = await encryptSessionPayload(JSON.stringify(sessionPayload));
 
     // Set the secure, HttpOnly cookie to establish the session
     cookieStore.set('auth', encrypted, {
