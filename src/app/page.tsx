@@ -49,15 +49,15 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 
 const categoryIcons: { [key: string]: React.ReactNode } = {
-    'All': <Ticket className="h-4 w-4 text-primary" />,
-    'Technology': <Presentation className="h-4 w-4 text-blue-500" />,
-    'Music': <Mic className="h-4 w-4 text-purple-500" />,
-    'Art': <Drama className="h-4 w-4 text-pink-500" />,
-    'Community': <MessageSquareHeart className="h-4 w-4 text-green-500" />,
-    'Business': <Gamepad2 className="h-4 w-4 text-indigo-500" />,
-    'Food & Drink': <Utensils className="h-4 w-4 text-orange-500" />,
-    'Food': <Utensils className="h-4 w-4 text-orange-500" />,
-    'Other': <Ticket className="h-4 w-4 text-yellow-500" />
+    'All': <Ticket className="h-4 w-4" style={{ color: '#f59e0b' }} />,
+    'Technology': <Presentation className="h-4 w-4" style={{ color: '#3b82f6' }} />,
+    'Music': <Mic className="h-4 w-4" style={{ color: '#8b5cf6' }} />,
+    'Art': <Drama className="h-4 w-4" style={{ color: '#ec4899' }} />,
+    'Community': <MessageSquareHeart className="h-4 w-4" style={{ color: '#22c55e' }} />,
+    'Business': <Gamepad2 className="h-4 w-4" style={{ color: '#6366f1' }} />,
+    'Food & Drink': <Utensils className="h-4 w-4" style={{ color: '#f97316' }} />,
+    'Food': <Utensils className="h-4 w-4" style={{ color: '#f97316' }} />,
+    'Other': <Ticket className="h-4 w-4" style={{ color: '#f59e0b' }} />
 };
 
 
@@ -66,7 +66,7 @@ const CategoryFilter = ({ categories, selectedCategory, onSelectCategory }: { ca
         <div className="relative">
             <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
                 {categories.map((category) => {
-                    const Icon = categoryIcons[category] || <Ticket className="h-4 w-4" />;
+                    const Icon = categoryIcons[category] || <Ticket className="h-4 w-4" style={{ color: '#f59e0b' }} />;
                     return (
                         <TooltipProvider key={category}>
                             <Tooltip>
@@ -123,6 +123,14 @@ export default function PublicHomePage() {
         return 'bg-gray-100 border-transparent text-black';
     }
   }
+  
+  const getContentGradient = () => {
+    const yellowColor = '#FDE047'; // yellow
+    return {
+      background: `linear-gradient(to top, ${yellowColor}, ${yellowColor}40)`
+    }
+  }
+
 
   useEffect(() => {
     async function fetchData() {
@@ -197,9 +205,11 @@ export default function PublicHomePage() {
     };
   }, [filteredEvents]);
   
+  const navbarStyle = { background: '#fefce5' };
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-       <header className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-sm">
+       <header className="fixed top-0 w-full z-50" style={navbarStyle}>
         <nav className="container mx-auto px-4 sm:px-6 py-2 flex justify-between items-center h-14">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Image
@@ -345,7 +355,7 @@ export default function PublicHomePage() {
                                   <Image src={imageSource} alt={event.name} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
                                </div>
                             </CardItem>
-                            <div className="p-4 flex flex-col flex-grow justify-between rounded-b-xl bg-gradient-to-t from-secondary to-secondary/40">
+                            <div className="p-4 flex flex-col flex-grow justify-between rounded-b-xl" style={getContentGradient()}>
                                 <div className="h-28">
                                   <CardItem as="div" translateZ="40">
                                     <Badge variant="outline" className={cn("text-xs mb-2", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
@@ -408,7 +418,7 @@ export default function PublicHomePage() {
                                   <Image src={imageSource} alt={event.name} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
                                </div>
                             </CardItem>
-                            <div className="p-4 flex flex-col flex-grow justify-between rounded-b-xl bg-gradient-to-t from-secondary to-secondary/40">
+                            <div className="p-4 flex flex-col flex-grow justify-between rounded-b-xl" style={getContentGradient()}>
                                 <div className="h-28">
                                    <CardItem as="div" translateZ="40">
                                     <Badge variant="outline" className={cn("text-xs mb-2", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
@@ -448,26 +458,26 @@ export default function PublicHomePage() {
 
 
 const Footer = () => (
-    <footer className="py-8 bg-gradient-to-r from-yellow-50 to-yellow-200">
+    <footer className="py-8" style={{background: 'linear-gradient(to right, #fefce8, #fde047)'}}>
       <div className="container mx-auto px-4 lg:px-6">
          <div className="flex flex-col items-center justify-center gap-4">
-          <p className="text-sm text-center text-accent-foreground/80">
+          <p className="text-sm text-center text-accent">
             &copy; {new Date().getFullYear()} NibTera Tickets. All rights reserved.
           </p>
            <div className="flex space-x-4 mt-2">
-              <Link href="https://web.facebook.com/nib.intbank" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="text-accent-foreground/80 hover:text-primary transition-colors">
+              <Link href="https://web.facebook.com/nib.intbank" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="text-accent hover:text-primary transition-colors">
                 <Facebook className="h-5 w-5" />
               </Link>
-              <Link href="https://www.linkedin.com/company/nib-internationalbank" target="_blank" rel="noopener noreferrer" aria-label="Linkedin" className="text-accent-foreground/80 hover:text-primary transition-colors">
+              <Link href="https://www.linkedin.com/company/nib-internationalbank" target="_blank" rel="noopener noreferrer" aria-label="Linkedin" className="text-accent hover:text-primary transition-colors">
                 <Linkedin className="h-5 w-5" />
               </Link>
-              <Link href="https://www.instagram.com/nib_internationalbank/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-accent-foreground/80 hover:text-primary transition-colors">
+              <Link href="https://www.instagram.com/nib_internationalbank/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-accent hover:text-primary transition-colors">
                 <Instagram className="h-5 w-5" />
               </Link>
-              <Link href="https://www.youtube.com/channel/UCn_-tUsAPEKdzm_b2BOCOdA" target="_blank" rel="noopener noreferrer" aria-label="Youtube" className="text-accent-foreground/80 hover:text-primary transition-colors">
+              <Link href="https://www.youtube.com/channel/UCn_-tUsAPEKdzm_b2BOCOdA" target="_blank" rel="noopener noreferrer" aria-label="Youtube" className="text-accent hover:text-primary transition-colors">
                 <Youtube className="h-5 w-5" />
               </Link>
-              <Link href="https://t.me/nibinternationalbanksc" target="_blank" rel="noopener noreferrer" aria-label="Telegram" className="text-accent-foreground/80 hover:text-primary transition-colors">
+              <Link href="https://t.me/nibinternationalbanksc" target="_blank" rel="noopener noreferrer" aria-label="Telegram" className="text-accent hover:text-primary transition-colors">
                 <Send className="h-5 w-5" />
               </Link>
             </div>
