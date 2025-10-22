@@ -1,8 +1,10 @@
 
-import { headers } from 'next/headers';
+import { headers, cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import prisma from '@/lib/prisma';
+import { encryptSessionPayload } from '@/lib/sessionCrypto';
 
 async function connectUser() {
   const headerList = headers();
@@ -23,7 +25,6 @@ async function connectUser() {
   }
 
   const token = authHeader.substring(7);
-
   const validationUrl = process.env.AUTH_VALIDATION_URL;
 
   if (!validationUrl) {
@@ -67,35 +68,45 @@ async function connectUser() {
     };
   }
 
-  // Now, create the session using our internal API
-  const appUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`;
-  
+  // --- Session Creation Logic (moved from /api/auth/init) ---
   try {
-    const initResponse = await fetch(`${appUrl}/api/auth/init`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ phoneNumber: phoneNumber, accessToken: token }), // Pass token to be stored
-      cache: 'no-store',
+    const user = await prisma.user.findUnique({
+      where: { phoneNumber: phoneNumber },
+      include: { role: true },
     });
 
-    const initData = await initResponse.json();
-
-    if (!initResponse.ok || !initData.isSuccess) {
-      throw new Error(initData.error || 'Failed to initialize session.');
+    if (!user) {
+      throw new Error('User not found in local database for the provided phone number.');
     }
     
+    const sessionPayload = {
+      accessToken: token, // Store the original token from the super app
+      refreshToken: '', // Can be managed separately if needed
+      phoneNumber: phoneNumber,
+    };
+
+    const cookieStore = cookies();
+    const encrypted = await encryptSessionPayload(JSON.stringify(sessionPayload));
+
+    // Set the secure, HttpOnly cookie to establish the session
+    cookieStore.set('auth', encrypted, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV !== 'development',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 60 * 60 * 24, // 1 day
+    });
+    
+    // Successfully created session, return success status
     return {
         status: 'success',
-        user: initData.user,
     };
 
   } catch (error: any) {
-    console.error("Connect Page - Session Init Error:", error);
+    console.error("Connect Page - Session Creation Error:", error);
     return {
       status: 'error',
-      message: error.message || 'An unexpected error occurred during session initialization.',
+      message: error.message || 'An unexpected error occurred during session creation.',
     };
   }
 }
