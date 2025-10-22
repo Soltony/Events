@@ -68,7 +68,7 @@ async function connectUser() {
     };
   }
 
-  // --- Session Creation Logic (moved from /api/auth/init) ---
+  // --- Session Creation Logic ---
   try {
     const user = await prisma.user.findUnique({
       where: { phoneNumber: phoneNumber },
