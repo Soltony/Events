@@ -2,11 +2,9 @@
 'use client';
 
 import { useEffect, Suspense } from 'react';
-import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 
-function ProcessingPaymentContent() {
 function ProcessingPaymentContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
