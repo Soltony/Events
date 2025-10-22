@@ -272,7 +272,7 @@ export default function PublicEventDetailPage() {
         }
         // If multiple locations, filter by the selected one.
         if (selectedLocation) {
-            return event.ticketTypes.filter(ticket => ticket.name.includes(`- ${selectedLocation}`));
+            return event.ticketTypes.filter(ticket => ticket.name.includes(` - ${selectedLocation}`));
         }
         return [];
     }, [event, selectedLocation, eventLocations]);
