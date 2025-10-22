@@ -24,14 +24,59 @@ async function connectUser() {
 
   const token = authHeader.substring(7);
 
+  const validationUrl = process.env.AUTH_VALIDATION_URL;
+
+  if (!validationUrl) {
+    console.error('AUTH_VALIDATION_URL is not set in environment variables.');
+    return { status: 'error', message: 'Authentication service is not configured.' };
+  }
+  
+  let phoneNumber;
+  try {
+    const externalResponse = await fetch(validationUrl, {
+        method: 'GET',
+        headers: {
+            Authorization: authHeader,
+            Accept: 'application/json',
+        },
+        cache: 'no-store',
+    });
+
+    if (!externalResponse.ok) {
+        const errorText = await externalResponse.text();
+        console.error(`External token validation failed with status ${externalResponse.status}: ${errorText}`);
+        throw new Error('Token validation failed with the authentication service.');
+    }
+    
+    const responseText = await externalResponse.text();
+    if (!responseText) {
+        throw new Error("External authentication service returned an empty response.");
+    }
+    const responseData = JSON.parse(responseText);
+    
+    phoneNumber = responseData.phone;
+    
+    if (!phoneNumber) {
+        throw new Error('External service did not return a phone number.');
+    }
+  } catch (error: any) {
+    console.error("Connect Page - Token Validation Error:", error);
+    return {
+      status: 'error',
+      message: error.message || 'An unexpected error occurred during token validation.',
+    };
+  }
+
+  // Now, create the session using our internal API
   const appUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`;
   
   try {
     const initResponse = await fetch(`${appUrl}/api/auth/init`, {
       method: 'POST',
       headers: {
-        'Authorization': authHeader,
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ phoneNumber: phoneNumber }),
       cache: 'no-store',
     });
 
@@ -41,14 +86,13 @@ async function connectUser() {
       throw new Error(initData.error || 'Failed to initialize session.');
     }
     
-    // If the session is successfully created, redirect to the dashboard.
     return {
         status: 'success',
         user: initData.user,
     };
 
   } catch (error: any) {
-    console.error("Connect Page Error:", error);
+    console.error("Connect Page - Session Init Error:", error);
     return {
       status: 'error',
       message: error.message || 'An unexpected error occurred during session initialization.',
