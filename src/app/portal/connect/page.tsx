@@ -85,7 +85,7 @@ async function connectUser() {
       phoneNumber: phoneNumber,
     };
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const encrypted = await encryptSessionPayload(JSON.stringify(sessionPayload));
 
     // Set the secure, HttpOnly cookie to establish the session
