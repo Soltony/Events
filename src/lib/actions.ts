@@ -926,7 +926,11 @@ export async function purchaseTickets(request: PurchaseRequest) {
     const user = await getCurrentUser();
     const cookieStore = await cookies();
     const tokenCookie = cookieStore.get('auth');
-    const authToken = tokenCookie ? JSON.parse(tokenCookie.value).accessToken : undefined;
+    let authToken;
+    if (tokenCookie?.value) {
+        const decrypted = await decryptSessionPayload(tokenCookie.value);
+        authToken = JSON.parse(decrypted).accessToken;
+    }
     
     const useMockFlow = process.env.NODE_ENV === 'development' || !process.env.BASE_URL || !process.env.ARIFPAY_API_KEY;
 
