@@ -57,6 +57,32 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 
 const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 
+// Function to start polling for payment status
+function startPolling(transactionId: string, api: any) {
+  // Poll for payment status every 2 seconds
+  const pollInterval = setInterval(async () => {
+    try {
+      const response = await api.get(`/api/payment/status/${transactionId}`);
+      if (response.data.status === 'COMPLETED') {
+        clearInterval(pollInterval);
+        // Redirect to success page
+        window.location.href = `/payment/success?transaction_id=${transactionId}`;
+      } else if (response.data.status === 'FAILED') {
+        clearInterval(pollInterval);
+        // Redirect to failure page
+        window.location.href = `/payment/failure?transaction_id=${transactionId}`;
+      }
+    } catch (error) {
+      console.error('Error polling payment status:', error);
+    }
+  }, 2000);
+
+  // Stop polling after 5 minutes (300 seconds)
+  setTimeout(() => {
+    clearInterval(pollInterval);
+  }, 300000);
+}
+
 export default function PublicEventDetailPage() {
   const router = useRouter();
   const params = useParams<{ id:string }>();
@@ -75,6 +101,7 @@ export default function PublicEventDetailPage() {
   const [attendeeName, setAttendeeName] = useState('');
   const [attendeePhone, setAttendeePhone] = useState('');
   const [isPhoneFromSession, setIsPhoneFromSession] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   
   const plugin = useRef(
@@ -285,19 +312,17 @@ export default function PublicEventDetailPage() {
                 const paymentToken = paymentResponse.data.paymentToken;
                 const finalTransactionId = paymentResponse.data.transactionId;
 
-                // Communicate with Super App using myJsChannel if available
+                // Send processed payment token back to NIB Super App
                 if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
                     window.myJsChannel.postMessage({ token: paymentToken });
-                    router.push(`/payment/processing?transaction_id=${finalTransactionId}`);
+                    startPolling(finalTransactionId, api);
                 } else {
                     console.error("NIB Super App channel (window.myJsChannel) not found.");
-                    toast({
-                        variant: "destructive",
-                        title: "Communication Error",
-                        description: "Could not communicate with the payment app.",
-                    });
+                    setError("Could not communicate with the payment app.");
                 }
             } catch (error: any) {
+                console.error('Payment initiation error:', error);
+                setError(error.message || "An unknown error occurred.");
                 toast({
                     variant: "destructive",
                     title: "Payment Initiation Failed",
@@ -385,6 +410,16 @@ export default function PublicEventDetailPage() {
           </div>
         </header>
         <main className="pt-16">
+          {/* Error Display */}
+          {error && (
+            <div className="container mx-auto max-w-5xl py-4 px-4">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Payment Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            </div>
+          )}
           <div 
             className="container mx-auto max-w-5xl py-8 px-4"
           >
