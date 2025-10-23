@@ -10,7 +10,8 @@ import { decryptSessionPayload } from '@/lib/sessionCrypto';
  */
 export async function GET(req: NextRequest) {
   try {
-    const cookie = cookies().get('auth');
+    const cookieStore = await cookies();
+    const cookie = cookieStore.get('auth');
     if (!cookie?.value) {
       return NextResponse.json(
         { success: false, message: 'No authentication data found' },
