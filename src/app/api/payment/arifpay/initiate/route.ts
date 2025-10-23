@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { randomUUID, createHash, createHmac } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
 import { format } from 'date-fns';
 
 export async function POST(req: NextRequest) {
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
                 },
                 promoCode,
                 status: 'PENDING',
-                arifpaySessionId: transactionId, // Use the same ID for simplicity
+                arifpaySessionId: transactionId,
             },
         });
 
