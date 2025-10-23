@@ -5,7 +5,6 @@ import { headers } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import { encryptSessionPayload } from '@/lib/sessionCrypto';
-import prisma from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 
 export async function GET(request: NextRequest) {
@@ -87,20 +86,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ status: 'error', message: 'Phone number not found in validation response.'}, { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { phoneNumber: phoneNumber },
-      include: { role: true },
-    });
-
-    if (!user) {
-        // Handle case where user exists in NIB system but not in your app
-        // For now, we'll deny access. You could also auto-register them here.
-        return NextResponse.json({ status: 'error', message: 'User not registered in this application.' }, { status: 403 });
-    }
-
+    // This is an end-user session, not tied to a registered user in our DB.
+    // The session payload contains the phone number and original token.
     const sessionPayload = {
       accessToken: token,
-      phoneNumber: user.phoneNumber,
+      phoneNumber: phoneNumber,
     };
 
     const encrypted = await encryptSessionPayload(JSON.stringify(sessionPayload));
