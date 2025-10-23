@@ -93,8 +93,7 @@ export default function PublicEventDetailPage() {
         notFound();
     }
     
-    // Redirect to portal/connect for authentication
-    router.push('/portal/connect');
+    
     
     async function fetchEvent() {
         setLoading(true);
@@ -115,7 +114,8 @@ export default function PublicEventDetailPage() {
         setLoading(false);
     }
     fetchEvent();
-  }, [eventId, router]);
+  }, [eventId]);
+
 
   const subtotal = useMemo(() => {
     return Object.values(selectedTickets).reduce((acc, ticket) => acc + ticket.price * ticket.quantity, 0);
