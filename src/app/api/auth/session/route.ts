@@ -17,7 +17,8 @@ export async function POST(req: NextRequest) {
 
     const encryptedData = await encryptSessionPayload(JSON.stringify(payload));
     
-    cookies().set('auth', encryptedData, {
+    const cookieStore = await cookies();
+    cookieStore.set('auth', encryptedData, {
       httpOnly: true,
       secure: process.env.NODE_ENV !== 'development',
       sameSite: 'strict',
@@ -38,7 +39,8 @@ export async function GET(req: NextRequest) {
   }
   
   try {
-    const cookie = cookies().get('auth');
+    const cookieStore = await cookies();
+    const cookie = cookieStore.get('auth');
     if (!cookie?.value) {
       return NextResponse.json({ accessToken: null, phoneNumber: null }, { status: 401 });
     }
@@ -59,6 +61,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
   }
   
-  cookies().delete('auth');
+  const cookieStore = await cookies();
+  cookieStore.delete('auth');
   return NextResponse.json({ success: true });
 }
