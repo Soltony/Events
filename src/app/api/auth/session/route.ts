@@ -10,8 +10,8 @@ export async function POST(req: NextRequest) {
     const payload = await req.json();
     const { accessToken, refreshToken, phoneNumber } = payload;
 
-    if (!accessToken || !refreshToken || !phoneNumber) {
-      return NextResponse.json({ success: false, error: 'Missing tokens or phone number' }, { status: 400 });
+    if (!accessToken || !phoneNumber) {
+      return NextResponse.json({ success: false, error: 'Missing token or phone number' }, { status: 400 });
     }
 
     // Use our new utility function to set the secure cookie

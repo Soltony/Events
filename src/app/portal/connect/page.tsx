@@ -1,8 +1,7 @@
-import { headers, cookies } from 'next/headers';
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { encryptSessionPayload } from '@/lib/sessionCrypto';
 
 async function connectUser() {
   const headerList = await headers();
@@ -69,27 +68,26 @@ async function connectUser() {
     };
   }
 
-  // --- Session Creation Logic (without local DB lookup) ---
+  // --- Session Creation via API Route ---
   try {
-    // ✅ Directly trust the SuperApp's verified token and phone number
     const sessionPayload = {
       accessToken: token,
       phoneNumber,
       source: 'superapp',
-      createdAt: new Date().toISOString(),
     };
 
-    const encrypted = await encryptSessionPayload(JSON.stringify(sessionPayload));
+    const appUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`;
 
-    // ✅ Set the session cookie
-    const cookieStore = await cookies();
-    cookieStore.set('auth', encrypted, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV !== 'development',
-      sameSite: 'strict',
-      path: '/',
-      maxAge: 60 * 60 * 24, // 1 day
+    const sessionResponse = await fetch(`${appUrl}/api/auth/session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sessionPayload)
     });
+
+    if (!sessionResponse.ok) {
+        const errorData = await sessionResponse.json();
+        throw new Error(errorData.error || 'Failed to create session.');
+    }
 
     return { status: 'success' };
   } catch (error: any) {
