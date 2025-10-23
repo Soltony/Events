@@ -27,6 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Autoplay from "embla-carousel-autoplay";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/context/auth-context';
+import axios from 'axios';
 
 
 interface EventWithTickets extends Event {
@@ -74,6 +75,7 @@ export default function PublicEventDetailPage() {
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [attendeeName, setAttendeeName] = useState('');
   const [attendeePhone, setAttendeePhone] = useState('');
+  const [isPhoneFromSession, setIsPhoneFromSession] = useState(false);
   const { toast } = useToast();
   
   const plugin = useRef(
@@ -123,11 +125,29 @@ export default function PublicEventDetailPage() {
   }, [selectedLocation]);
 
   useEffect(() => {
-    // Pre-fill attendee info if user is logged in
-    if (user) {
-        setAttendeeName(`${user.firstName} ${user.lastName}`);
-        setAttendeePhone(user.phoneNumber);
+    // This effect runs once to check for a phone number from any session (logged-in user or SuperApp guest)
+    async function populatePhoneNumber() {
+        // Priority 1: Logged-in user
+        if (user?.phoneNumber) {
+            setAttendeeName(`${user.firstName} ${user.lastName}`);
+            setAttendeePhone(user.phoneNumber);
+            setIsPhoneFromSession(true);
+            return; // Exit if we have the user's phone number
+        }
+
+        // Priority 2: SuperApp guest user from secure cookie
+        try {
+            const response = await axios.get('/api/auth/cookie-data');
+            if (response.data?.success && response.data.data?.phoneNumber) {
+                setAttendeePhone(response.data.data.phoneNumber);
+                setIsPhoneFromSession(true);
+            }
+        } catch (error) {
+            // It's okay if this fails, it just means the user is a true guest
+            console.log('No SuperApp session found. User is a guest.');
+        }
     }
+    populatePhoneNumber();
   }, [user]);
 
   const getCategoryBadgeClass = (category: string) => {
@@ -520,7 +540,14 @@ export default function PublicEventDetailPage() {
               <Label htmlFor="phone">Phone Number</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="phone" placeholder="e.g., 0912345678" value={attendeePhone} onChange={e => setAttendeePhone(e.target.value)} className="pl-10" disabled={!!user} />
+                <Input 
+                    id="phone" 
+                    placeholder="e.g., 0912345678" 
+                    value={attendeePhone} 
+                    onChange={e => setAttendeePhone(e.target.value)} 
+                    className={cn("pl-10", isPhoneFromSession && "bg-muted cursor-not-allowed")}
+                    readOnly={isPhoneFromSession}
+                />
               </div>
             </div>
           </div>
