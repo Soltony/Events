@@ -4,13 +4,6 @@ import prisma from '@/lib/prisma';
 import { randomUUID, createHash, createHmac } from 'crypto';
 import { format } from 'date-fns';
 
-function formatPhoneNumber(phone: string): string {
-    if ((phone.startsWith('09') || phone.startsWith('07')) && phone.length === 10) {
-        return '251' + phone.substring(1);
-    }
-    return phone;
-}
-
 export async function POST(req: NextRequest) {
     if (req.method !== 'POST') {
         return NextResponse.json({
@@ -44,37 +37,29 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const { eventId, tickets, promoCode, attendeeDetails, authToken, mock } = body;
+        const { eventId, tickets, promoCode, attendeeDetails, authToken } = body;
 
-        if (!eventId || !tickets?.length || !attendeeDetails) {
+        if (!eventId || !tickets?.length || !attendeeDetails || !authToken) {
             return NextResponse.json({
                 error: 'Invalid request payload',
-                detail: 'Required fields: eventId, tickets[], attendeeDetails. Make sure at least one ticket is in the cart.'
+                detail: 'Required fields: eventId, tickets[], attendeeDetails, authToken. Make sure at least one ticket is in the cart.'
             }, { status: 400 });
         }
 
         const event = await prisma.event.findUnique({ where: { id: eventId } });
-        if (!event) {
-             return NextResponse.json({ error: 'Event not found' }, { status: 404 });
-        }
-
-        if (!event?.nibBankAccount && !mock) {
-            return NextResponse.json({
-                error: 'Payout account not configured',
+        if (!event || !event.nibBankAccount) {
+             return NextResponse.json({ 
+                error: 'Event not found or payout account not configured',
                 detail: 'The event organizer has not configured a NIB bank account; payment cannot be processed yet.'
-            }, { status: 404 });
+             }, { status: 404 });
         }
 
         const totalAmount = (tickets as Array<{ price: number; quantity: number }>).reduce((sum: number, t) => sum + Number(t.price) * Number(t.quantity), 0);
         const totalQuantity = (tickets as Array<{ quantity: number }>).reduce((sum: number, t) => sum + Number(t.quantity), 0);
         
         const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
-        const callBackURL = process.env.ARIFPAY_CALLBACK_URL || '/api/payment/arifpay/notify';
+        const callBackURL = `${process.env.APP_URL}/api/payment/arifpay/notify`;
         
-        if (!authToken) {
-             return NextResponse.json({ error: 'Authentication token is missing.' }, { status: 401 });
-        }
-
         const pendingOrder = await prisma.pendingOrder.create({
             data: {
                 transactionId: transactionId,
@@ -88,6 +73,7 @@ export async function POST(req: NextRequest) {
                 },
                 promoCode,
                 status: 'PENDING',
+                arifpaySessionId: transactionId, // Use the same ID for simplicity
             },
         });
 
@@ -126,40 +112,20 @@ export async function POST(req: NextRequest) {
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error(`[TX:${transactionId}] NIB Payment Gateway Error. Status: ${response.status}.`);
+            console.error(`[TX:${transactionId}] NIB Payment Gateway Error. Status: ${response.status}. Body: ${errorText}`);
             return NextResponse.json({ error: 'Payment gateway rejected the request.', detail: `Transaction failed. Please contact support with reference: ${transactionId}` }, { status: response.status });
         }
 
         const responseData = await response.json();
         const paymentToken = responseData.token;
 
-        if (responseData.responseCode === '00' && paymentToken) {
-            await prisma.pendingOrder.update({
-                where: { id: pendingOrder.id },
-                data: { arifpaySessionId: transactionId },
-            });
-
-            const SIGN_SECRET = process.env.PAYMENT_STATUS_SECRET;
-            if (!SIGN_SECRET) {
-                console.error(`[TX:${transactionId}] PAYMENT_STATUS_SECRET not configured`);
-                return NextResponse.json({
-                    error: 'Server configuration error',
-                    detail: 'Missing signing secret. Please contact support.',
-                }, { status: 500 });
-            }
-            const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
-            const dataToSign = `${transactionId}.${expiresAt}`;
-            const signature = createHmac('sha256', SIGN_SECRET).update(dataToSign).digest('hex');
-            const statusToken = `${dataToSign}.${signature}`;
-
+        if (paymentToken) {
             return NextResponse.json({
                 paymentToken: paymentToken,
                 transactionId: transactionId,
-                statusToken,
-                expiresAt,
             });
         } else {
-            console.error(`[TX:${transactionId}] Payment session creation failed. Response Code: ${responseData.responseCode}`);
+            console.error(`[TX:${transactionId}] Payment session creation failed. Response: ${JSON.stringify(responseData)}`);
             return NextResponse.json({
                 error: 'Payment session creation failed',
                 detail: `The gateway did not return a valid payment token. Please contact support with reference: ${transactionId}`,
