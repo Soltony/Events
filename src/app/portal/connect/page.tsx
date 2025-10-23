@@ -1,9 +1,7 @@
-
 import { headers, cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import prisma from '@/lib/prisma';
 import { encryptSessionPayload } from '@/lib/sessionCrypto';
 
 async function connectUser() {
@@ -13,7 +11,8 @@ async function connectUser() {
   if (!authHeader) {
     return {
       status: 'error',
-      message: 'Authorization header is missing from the request. This page should be opened from the NIB Super App.',
+      message:
+        'Authorization header is missing from the request. This page should be opened from the NIB Super App.',
     };
   }
 
@@ -31,64 +30,59 @@ async function connectUser() {
     console.error('AUTH_VALIDATION_URL is not set in environment variables.');
     return { status: 'error', message: 'Authentication service is not configured.' };
   }
-  
+
   let phoneNumber;
   try {
     const externalResponse = await fetch(validationUrl, {
-        method: 'GET',
-        headers: {
-            Authorization: authHeader,
-            Accept: 'application/json',
-        },
-        cache: 'no-store',
+      method: 'GET',
+      headers: {
+        Authorization: authHeader,
+        Accept: 'application/json',
+      },
+      cache: 'no-store',
     });
 
     if (!externalResponse.ok) {
-        const errorText = await externalResponse.text();
-        console.error(`External token validation failed with status ${externalResponse.status}: ${errorText}`);
-        throw new Error('Token validation failed with the authentication service.');
+      const errorText = await externalResponse.text();
+      console.error(
+        `External token validation failed with status ${externalResponse.status}: ${errorText}`
+      );
+      throw new Error('Token validation failed with the authentication service.');
     }
-    
+
     const responseText = await externalResponse.text();
     if (!responseText) {
-        throw new Error("External authentication service returned an empty response.");
+      throw new Error('External authentication service returned an empty response.');
     }
+
     const responseData = JSON.parse(responseText);
-    
     phoneNumber = responseData.phone;
-    
+
     if (!phoneNumber) {
-        throw new Error('External service did not return a phone number.');
+      throw new Error('External service did not return a phone number.');
     }
   } catch (error: any) {
-    console.error("Connect Page - Token Validation Error:", error);
+    console.error('Connect Page - Token Validation Error:', error);
     return {
       status: 'error',
       message: error.message || 'An unexpected error occurred during token validation.',
     };
   }
 
-  // --- Session Creation Logic ---
+  // --- Session Creation Logic (without local DB lookup) ---
   try {
-    const user = await prisma.user.findUnique({
-      where: { phoneNumber: phoneNumber },
-      include: { role: true },
-    });
-
-    if (!user) {
-      throw new Error('User not found in local database for the provided phone number.');
-    }
-    
+    // ✅ Directly trust the SuperApp's verified token and phone number
     const sessionPayload = {
-      accessToken: token, // Store the original token from the super app
-      refreshToken: '', // Can be managed separately if needed
-      phoneNumber: phoneNumber,
+      accessToken: token,
+      phoneNumber,
+      source: 'superapp',
+      createdAt: new Date().toISOString(),
     };
 
-    const cookieStore = await cookies();
     const encrypted = await encryptSessionPayload(JSON.stringify(sessionPayload));
 
-    // Set the secure, HttpOnly cookie to establish the session
+    // ✅ Set the session cookie
+    const cookieStore = await cookies();
     cookieStore.set('auth', encrypted, {
       httpOnly: true,
       secure: process.env.NODE_ENV !== 'development',
@@ -96,14 +90,10 @@ async function connectUser() {
       path: '/',
       maxAge: 60 * 60 * 24, // 1 day
     });
-    
-    // Successfully created session, return success status
-    return {
-        status: 'success',
-    };
 
+    return { status: 'success' };
   } catch (error: any) {
-    console.error("Connect Page - Session Creation Error:", error);
+    console.error('Connect Page - Session Creation Error:', error);
     return {
       status: 'error',
       message: error.message || 'An unexpected error occurred during session creation.',
@@ -128,7 +118,9 @@ export default async function PortalConnectPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">Could not connect to your account.</p>
+          <p className="text-muted-foreground">
+            Could not connect to your account.
+          </p>
           <div className="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-md">
             <p className="text-sm text-destructive">{result.message}</p>
           </div>
