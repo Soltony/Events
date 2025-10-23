@@ -25,7 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Autoplay from "embla-carousel-autoplay";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/context/auth-context';
-import axios from 'axios';
+import api from '@/lib/api';
 
 
 interface EventWithTickets extends Event {
@@ -143,7 +143,7 @@ export default function PublicEventDetailPage() {
 
         // Priority 2: SuperApp guest user from secure cookie
         try {
-            const response = await axios.get('/api/auth/cookie-data');
+            const response = await api.get('/api/auth/cookie-data');
             if (response.data?.success && response.data.data?.phoneNumber) {
                 setAttendeePhone(response.data.data.phoneNumber);
                 setIsPhoneFromSession(true);
@@ -247,7 +247,7 @@ export default function PublicEventDetailPage() {
                 // Fetch auth token from session
                 let authToken = '';
                 try {
-                    const sessionRes = await axios.get('/api/auth/session');
+                    const sessionRes = await api.get('/api/auth/session');
                     authToken = sessionRes.data.accessToken;
                     if (!authToken) throw new Error("Not authenticated");
                 } catch {
@@ -295,7 +295,7 @@ export default function PublicEventDetailPage() {
                 };
 
                 // Store pending order before initiating payment
-                await axios.post('/api/payment/pending-order', {
+                await api.post('/api/payment/pending-order', {
                     transactionId: transactionId,
                     eventId,
                     tickets: Object.values(selectedTickets),
