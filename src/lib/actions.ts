@@ -914,63 +914,10 @@ export interface PurchaseRequest {
 }
 
 export async function purchaseTickets(request: PurchaseRequest) {
-    const { eventId, tickets, promoCode, attendeeDetails } = request;
-
-    if (!attendeeDetails.name || !attendeeDetails.phone) {
-        throw new Error("Attendee name and phone number are required.");
-    }
-    if (tickets.length === 0) {
-        throw new Error("No tickets in purchase request.");
-    }
-    
-    const user = await getCurrentUser();
-    const cookieStore = await cookies();
-    const tokenCookie = cookieStore.get('auth');
-    let authToken;
-    if (tokenCookie?.value) {
-        const decrypted = await decryptSessionPayload(tokenCookie.value);
-        authToken = JSON.parse(decrypted).accessToken;
-    }
-    
-    const useMockFlow = process.env.NODE_ENV === 'development' || !process.env.BASE_URL || !process.env.ARIFPAY_API_KEY;
-
-    try {
-        const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_VERCEL_URL;
-        if (!appUrl) {
-            throw new Error("App URL environment variable is not set.");
-        }
-
-        const purchaseData = {
-            eventId,
-            tickets,
-            promoCode,
-            authToken,
-            attendeeDetails: {
-                ...attendeeDetails,
-                userId: user?.id,
-            }
-        };
-
-        const response = await fetch(`${appUrl}/api/payment/arifpay/initiate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(purchaseData),
-        });
-
-        const result = await response.json();
-
-        if (response.ok && (result.paymentUrl || result.paymentToken)) {
-            return result;
-        } else {
-            throw new Error(result.detail || result.error || 'Failed to initiate payment session.');
-        }
-    } catch (error: any) {
-        if (error.digest?.startsWith('NEXT_REDIRECT')) {
-            throw error;
-        }
-        console.error("Payment initiation failed:", error.message);
-        return { error: error.message || 'Failed to initiate payment.' };
-    }
+    // This server action is now deprecated in favor of client-side handling.
+    // The logic is now inside `app/events/[id]/page.tsx`.
+    // We keep this structure to avoid breaking imports, but it does nothing.
+    return { error: 'This function is deprecated.' };
 }
 
 export async function getTicketDetailsForConfirmation(identifier: string) {

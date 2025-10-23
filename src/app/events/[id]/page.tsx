@@ -10,7 +10,6 @@ import { notFound, useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import type { Event, TicketType, PromoCode } from '@prisma/client';
 import { useEffect, useState, useTransition, useMemo, useRef } from 'react';
-import { purchaseTickets, type PurchaseRequest } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -53,6 +52,14 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
       return `${''}${format(new Date(startDate), startDateFormat)} - ${format(new Date(endDate), endDateFormat)}`;
     }
     return format(new Date(startDate), startDateFormat);
+}
+
+async function sha256(message: string) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
 }
 
 const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
@@ -227,35 +234,96 @@ export default function PublicEventDetailPage() {
     }
   }, [appliedPromo, subtotal]);
 
-  const handlePurchase = async () => {
-    if (!attendeeName || !attendeePhone) {
-      toast({ variant: 'destructive', title: "Missing Information", description: "Please enter your name and phone number." });
-      return;
-    }
+    const handlePurchase = async () => {
+        if (!attendeeName || !attendeePhone) {
+            toast({ variant: 'destructive', title: "Missing Information", description: "Please enter your name and phone number." });
+            return;
+        }
 
-    setIsPurchaseModalOpen(false);
+        setIsPurchaseModalOpen(false);
 
-    startTransition(async () => {
-        try {
-            const purchaseRequest: PurchaseRequest = {
-                eventId,
-                tickets: Object.values(selectedTickets),
-                promoCode: appliedPromo?.code,
-                attendeeDetails: {
-                    name: attendeeName,
-                    phone: attendeePhone,
-                },
-            };
-            const result = await purchaseTickets(purchaseRequest);
+        startTransition(async () => {
+            try {
+                // Fetch auth token from session
+                let authToken = '';
+                try {
+                    const sessionRes = await axios.get('/api/auth/session');
+                    authToken = sessionRes.data.accessToken;
+                    if (!authToken) throw new Error("Not authenticated");
+                } catch {
+                    toast({ variant: "destructive", title: "Authentication Error", description: "Your session is invalid. Please reconnect from the Super App." });
+                    return;
+                }
 
-            if (result.error) {
-                throw new Error(result.error);
-            }
+                // Get env variables exposed by Next.js
+                const ACCOUNT_NO = process.env.NEXT_PUBLIC_NIB_ACCOUNT_NO;
+                const COMPANY_NAME = process.env.NEXT_PUBLIC_NIB_COMPANY_NAME;
+                const NIB_PAYMENT_KEY = process.env.NEXT_PUBLIC_NIB_PAYMENT_KEY;
+                const NIB_PAYMENT_URL = process.env.NEXT_PUBLIC_NIB_PAYMENT_URL;
+                const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
 
-            if (result.paymentToken && result.transactionId) {
+                if (!ACCOUNT_NO || !COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL || !APP_URL) {
+                    throw new Error("Payment gateway configuration is missing on the client.");
+                }
+
+                const transactionId = crypto.randomUUID();
+                const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
+                const callBackURL = `${APP_URL}/api/payment/arifpay/notify`;
+
+                const signatureString = [
+                    `accountNo=${ACCOUNT_NO}`,
+                    `amount=${total}`,
+                    `callBackURL=${callBackURL}`,
+                    `companyName=${COMPANY_NAME}`,
+                    `Key=${NIB_PAYMENT_KEY}`,
+                    `token=${authToken}`,
+                    `transactionId=${transactionId}`,
+                    `transactionTime=${transactionTime}`
+                ].join('&');
+
+                const signature = await sha256(signatureString);
+
+                const payload = {
+                    accountNo: ACCOUNT_NO,
+                    amount: String(total),
+                    callBackURL: callBackURL,
+                    companyName: COMPANY_NAME,
+                    token: authToken,
+                    transactionId: transactionId,
+                    transactionTime: transactionTime,
+                    signature: signature
+                };
+
+                // Store pending order before initiating payment
+                await axios.post('/api/payment/pending-order', {
+                    transactionId: transactionId,
+                    eventId,
+                    tickets: Object.values(selectedTickets),
+                    promoCode: appliedPromo?.code,
+                    attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
+                    status: 'PENDING',
+                });
+
+                const response = await fetch(NIB_PAYMENT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(payload),
+                });
+                
+                const responseData = await response.json();
+
+                if (!response.ok || !responseData.token) {
+                    throw new Error(responseData.detail || responseData.error || "Failed to get payment token from gateway.");
+                }
+
+                const paymentToken = responseData.token;
+
                 if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
-                    window.myJsChannel.postMessage({ token: result.paymentToken });
-                    router.push(`/payment/processing?transaction_id=${result.transactionId}`);
+                    window.myJsChannel.postMessage({ token: paymentToken });
+                    router.push(`/payment/processing?transaction_id=${transactionId}`);
                 } else {
                     console.error("NIB Super App channel (window.myJsChannel) not found.");
                     toast({
@@ -264,19 +332,16 @@ export default function PublicEventDetailPage() {
                         description: "Could not communicate with the payment app.",
                     });
                 }
-            } else {
-                 throw new Error("Invalid payment session response.");
+            } catch (error: any) {
+                toast({
+                    variant: "destructive",
+                    title: "Payment Initiation Failed",
+                    description: error.message || "An unknown error occurred.",
+                });
+                router.push(`/payment/failure?event_id=${eventId}`);
             }
-        } catch (error: any) {
-            toast({
-                variant: "destructive",
-                title: "Payment Initiation Failed",
-                description: error.message || "An unknown error occurred.",
-            });
-            router.push(`/payment/failure?event_id=${eventId}`);
-        }
-    });
-  };
+        });
+    };
 
     const eventLocations = useMemo(() => {
         return event?.location ? Array.from(new Set(event.location.split('||').map(l => l.trim()))) : [];

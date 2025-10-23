@@ -1,30 +1,17 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { randomUUID, createHash } from 'crypto';
-import { format } from 'date-fns';
+import { randomUUID } from 'crypto';
 
 export async function POST(req: NextRequest) {
-    if (req.method !== 'POST') {
-        return NextResponse.json({
-            error: 'Method Not Allowed',
-            detail: 'Use HTTP POST to initiate a payment session.'
-        }, { status: 405 });
-    }
-    
-    // This route is no longer used for direct payment processing logic.
-    // It can be kept for other purposes or removed if fully deprecated.
-    // For now, it will act as a creator for pending orders.
-    const transactionId = randomUUID();
-
     try {
         const body = await req.json();
-        const { eventId, tickets, promoCode, attendeeDetails } = body;
+        const { eventId, tickets, promoCode, attendeeDetails, transactionId } = body;
 
-        if (!eventId || !tickets?.length || !attendeeDetails) {
+        if (!eventId || !tickets?.length || !attendeeDetails || !transactionId) {
             return NextResponse.json({
                 error: 'Invalid request payload',
-                detail: 'Required fields: eventId, tickets[], attendeeDetails.'
+                detail: 'Required fields: transactionId, eventId, tickets[], attendeeDetails.'
             }, { status: 400 });
         }
 
@@ -43,16 +30,16 @@ export async function POST(req: NextRequest) {
                 },
                 promoCode,
                 status: 'PENDING',
-                arifpaySessionId: transactionId,
+                arifpaySessionId: transactionId, // Using this field for consistency
             },
         });
 
         return NextResponse.json({ success: true, transactionId: pendingOrder.transactionId });
     } catch (error: any) {
-        console.error(`[TX:${transactionId}] Pending order creation failed:`, error.message);
+        console.error(`Pending order creation failed:`, error.message);
         return NextResponse.json({
             error: 'Unexpected server error',
-            detail: `An unknown error occurred. Please contact support with reference: ${transactionId}`
+            detail: `An unknown error occurred while creating the pending order.`
         }, { status: 500 });
     }
 }

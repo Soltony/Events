@@ -1,3 +1,4 @@
+
 /** @type {import('next').NextConfig} */
 
 const securityHeaders = [
@@ -64,6 +65,13 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: "10mb",
     },
+  },
+  env: {
+    NEXT_PUBLIC_NIB_ACCOUNT_NO: process.env.NIB_ACCOUNT_NO,
+    NEXT_PUBLIC_NIB_COMPANY_NAME: process.env.NIB_COMPANY_NAME,
+    NEXT_PUBLIC_NIB_PAYMENT_KEY: process.env.NIB_PAYMENT_KEY,
+    NEXT_PUBLIC_NIB_PAYMENT_URL: process.env.NIB_PAYMENT_URL,
+    NEXT_PUBLIC_APP_URL: process.env.APP_URL,
   },
 };
 
