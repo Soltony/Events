@@ -26,7 +26,6 @@ import Autoplay from "embla-carousel-autoplay";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/context/auth-context';
 import api from '@/lib/api';
-import crypto from 'crypto';
 
 
 interface EventWithTickets extends Event {
@@ -253,51 +252,12 @@ export default function PublicEventDetailPage() {
                     return;
                 }
 
-                // Get environment variables for NIB payment gateway configuration
-                const ACCOUNT_NO = process.env.NEXT_PUBLIC_NIB_ACCOUNT_NO;
-                const COMPANY_NAME = process.env.NEXT_PUBLIC_NIB_COMPANY_NAME;
-                const NIB_PAYMENT_KEY = process.env.NEXT_PUBLIC_NIB_PAYMENT_KEY;
-                const NIB_PAYMENT_URL = process.env.NEXT_PUBLIC_NIB_PAYMENT_URL;
-                const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
-
-                if (!ACCOUNT_NO || !COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL || !APP_URL) {
-                    throw new Error("Payment gateway configuration is missing on the client.");
-                }
-
-                // NIB Payment Gateway Implementation - Step 3
-                // Generate transaction ID and timestamp as required by NIB payment gateway
-                const transactionId = crypto.randomUUID();
-                const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
-                const callBackURL = `${APP_URL}/api/payment/nib/notify`;
-
-                // Create signature string for data integrity checking using SHA256 hashing algorithm
-                const signatureString = [
-                    `accountNo=${ACCOUNT_NO}`,
-                    `amount=${total}`,
-                    `callBackURL=${callBackURL}`,
-                    `companyName=${COMPANY_NAME}`,
-                    `Key=${NIB_PAYMENT_KEY}`,
-                    `token=${authToken}`,
-                    `transactionId=${transactionId}`,
-                    `transactionTime=${transactionTime}`
-                ].join('&');
-
-                // Generate SHA256 signature for data integrity
-                const signature = crypto.createHash('sha256').update(signatureString, 'utf8').digest('hex');
-
-                // Prepare payload for NIB payment gateway request
-                const payload = {
-                    accountNo: ACCOUNT_NO,
-                    amount: String(total),
-                    callBackURL: callBackURL,
-                    companyName: COMPANY_NAME,
-                    token: authToken,
-                    transactionId: transactionId,
-                    transactionTime: transactionTime,
-                    signature: signature
-                };
-
                 // Store pending order before initiating payment
+                const transactionId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    const r = Math.random() * 16 | 0;
+                    const v = c == 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
                 await api.post('/api/payment/pending-order', {
                     transactionId: transactionId,
                     eventId,
@@ -307,29 +267,28 @@ export default function PublicEventDetailPage() {
                     status: 'PENDING',
                 });
 
-                // Send request to NIB payment gateway to receive money from customer
-                const response = await fetch(NIB_PAYMENT_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: JSON.stringify(payload),
+                // Call server-side API to initiate NIB payment
+                const paymentResponse = await api.post('/api/payment/nib/initiate', {
+                    total,
+                    authToken,
+                    eventId,
+                    selectedTickets: Object.values(selectedTickets),
+                    attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
+                    promoCode: appliedPromo?.code
                 });
-                
-                const responseData = await response.json();
 
-                if (!response.ok || !responseData.token) {
-                    throw new Error(responseData.detail || responseData.error || "Failed to get payment token from gateway.");
+                if (!paymentResponse.data.success) {
+                    throw new Error(paymentResponse.data.error || "Failed to initiate payment.");
                 }
 
                 // Extract payment token from successful response
-                const paymentToken = responseData.token;
+                const paymentToken = paymentResponse.data.paymentToken;
+                const finalTransactionId = paymentResponse.data.transactionId;
 
                 // Communicate with Super App using myJsChannel if available
                 if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
                     window.myJsChannel.postMessage({ token: paymentToken });
-                    router.push(`/payment/processing?transaction_id=${transactionId}`);
+                    router.push(`/payment/processing?transaction_id=${finalTransactionId}`);
                 } else {
                     console.error("NIB Super App channel (window.myJsChannel) not found.");
                     toast({
