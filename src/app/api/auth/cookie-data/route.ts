@@ -1,7 +1,8 @@
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSecureCookie } from '@/lib/cookieUtils';
+import { cookies } from 'next/headers';
+import { decryptSessionPayload } from '@/lib/sessionCrypto';
 
 /**
  * GET endpoint to retrieve authentication data from HTTP-only cookies
@@ -9,17 +10,17 @@ import { getSecureCookie } from '@/lib/cookieUtils';
  */
 export async function GET(req: NextRequest) {
   try {
-    // Get auth data from the secure cookie
-    const authData = await getSecureCookie('auth');
-    
-    if (!authData) {
+    const cookie = cookies().get('auth');
+    if (!cookie?.value) {
       return NextResponse.json(
         { success: false, message: 'No authentication data found' },
         { status: 401 }
       );
     }
     
-    // Extract only the data we want to expose to the client
+    const decrypted = await decryptSessionPayload(cookie.value);
+    const authData = JSON.parse(decrypted);
+    
     const { phoneNumber, accessToken } = authData;
     
     return NextResponse.json({

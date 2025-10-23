@@ -1,6 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { setSecureCookie, getSecureCookie, deleteSecureCookie } from '@/lib/cookieUtils';
+import { cookies } from 'next/headers';
+import { encryptSessionPayload, decryptSessionPayload } from '@/lib/sessionCrypto';
 
 export async function POST(req: NextRequest) {
   if (req.method !== 'POST') {
@@ -8,19 +9,25 @@ export async function POST(req: NextRequest) {
   }
   try {
     const payload = await req.json();
-    const { accessToken, refreshToken, phoneNumber } = payload;
+    const { accessToken, phoneNumber } = payload;
 
     if (!accessToken || !phoneNumber) {
       return NextResponse.json({ success: false, error: 'Missing token or phone number' }, { status: 400 });
     }
 
-    // Use our new utility function to set the secure cookie
-    await setSecureCookie('auth', payload, {
+    const encryptedData = await encryptSessionPayload(JSON.stringify(payload));
+    
+    cookies().set('auth', encryptedData, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV !== 'development',
+      sameSite: 'strict',
+      path: '/',
       maxAge: 60 * 60 * 24, // 1 day
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error("Session creation error:", error);
     return NextResponse.json({ success: false, error: 'Invalid request body' }, { status: 400 });
   }
 }
@@ -31,12 +38,14 @@ export async function GET(req: NextRequest) {
   }
   
   try {
-    const authData = await getSecureCookie('auth');
-    
-    if (!authData) {
+    const cookie = cookies().get('auth');
+    if (!cookie?.value) {
       return NextResponse.json({ accessToken: null, phoneNumber: null }, { status: 401 });
     }
-    
+
+    const decrypted = await decryptSessionPayload(cookie.value);
+    const authData = JSON.parse(decrypted);
+
     const { accessToken, phoneNumber } = authData;
     return NextResponse.json({ accessToken, phoneNumber });
   } catch (error) {
@@ -50,6 +59,6 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
   }
   
-  await deleteSecureCookie('auth');
+  cookies().delete('auth');
   return NextResponse.json({ success: true });
 }
