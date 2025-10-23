@@ -26,6 +26,7 @@ import Autoplay from "embla-carousel-autoplay";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/context/auth-context';
 import api from '@/lib/api';
+import crypto from 'crypto';
 
 
 interface EventWithTickets extends Event {
@@ -54,13 +55,6 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     return format(new Date(startDate), startDateFormat);
 }
 
-async function sha256(message: string) {
-    const msgBuffer = new TextEncoder().encode(message);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    return hashHex;
-}
 
 const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 
@@ -259,7 +253,7 @@ export default function PublicEventDetailPage() {
                     return;
                 }
 
-                // Get env variables exposed by Next.js
+                // Get environment variables for NIB payment gateway configuration
                 const ACCOUNT_NO = process.env.NEXT_PUBLIC_NIB_ACCOUNT_NO;
                 const COMPANY_NAME = process.env.NEXT_PUBLIC_NIB_COMPANY_NAME;
                 const NIB_PAYMENT_KEY = process.env.NEXT_PUBLIC_NIB_PAYMENT_KEY;
@@ -270,10 +264,13 @@ export default function PublicEventDetailPage() {
                     throw new Error("Payment gateway configuration is missing on the client.");
                 }
 
+                // NIB Payment Gateway Implementation - Step 3
+                // Generate transaction ID and timestamp as required by NIB payment gateway
                 const transactionId = crypto.randomUUID();
                 const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
-                const callBackURL = `${APP_URL}/api/payment/arifpay/notify`;
+                const callBackURL = `${APP_URL}/api/payment/nib/notify`;
 
+                // Create signature string for data integrity checking using SHA256 hashing algorithm
                 const signatureString = [
                     `accountNo=${ACCOUNT_NO}`,
                     `amount=${total}`,
@@ -285,8 +282,10 @@ export default function PublicEventDetailPage() {
                     `transactionTime=${transactionTime}`
                 ].join('&');
 
-                const signature = await sha256(signatureString);
+                // Generate SHA256 signature for data integrity
+                const signature = crypto.createHash('sha256').update(signatureString, 'utf8').digest('hex');
 
+                // Prepare payload for NIB payment gateway request
                 const payload = {
                     accountNo: ACCOUNT_NO,
                     amount: String(total),
@@ -308,6 +307,7 @@ export default function PublicEventDetailPage() {
                     status: 'PENDING',
                 });
 
+                // Send request to NIB payment gateway to receive money from customer
                 const response = await fetch(NIB_PAYMENT_URL, {
                     method: 'POST',
                     headers: {
@@ -323,8 +323,10 @@ export default function PublicEventDetailPage() {
                     throw new Error(responseData.detail || responseData.error || "Failed to get payment token from gateway.");
                 }
 
+                // Extract payment token from successful response
                 const paymentToken = responseData.token;
 
+                // Communicate with Super App using myJsChannel if available
                 if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
                     window.myJsChannel.postMessage({ token: paymentToken });
                     router.push(`/payment/processing?transaction_id=${transactionId}`);
