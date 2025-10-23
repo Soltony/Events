@@ -107,9 +107,15 @@ export async function GET(request: NextRequest) {
     // Redirect to the homepage after setting the cookie
     redirect('/');
 
-  } catch (error) {
+  } catch (error: any) {
+    // This is a special Next.js error type used for redirects.
+    // We must re-throw it to allow the redirect to happen.
+    if (error.digest?.startsWith('NEXT_REDIRECT')) {
+      throw error;
+    }
+    
     console.error('Error processing connect request:', error);
-    // Return a generic error page or response
+    // Return a generic error page or response for all other errors
     return NextResponse.json(
       {
         status: 'error',
