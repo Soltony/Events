@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Token validation failed." }, { status: 401 });
   }
 
+<<<<<<< HEAD
   const NIB_PAYMENT_KEY = process.env.NIB_PAYMENT_KEY;
   if (!NIB_PAYMENT_KEY) {
       console.error("NIB_PAYMENT_KEY is not set on the server.");
@@ -57,6 +58,11 @@ export async function POST(request: NextRequest) {
   // Let's create the signature string as per the latest doc.
   const signatureString = [
       `paidAmount=${paidAmount}`,
+=======
+    // Validate signature for data integrity
+    const signatureString = [
+      `paidAmount=${String(paidAmount)}`,
+>>>>>>> a86267531b2ae94f768b745a2b3079c26255e8ea
       `paidByNumber=${paidByNumber}`,
       `txnRef=${txnRef}`,
       `transactionId=${transactionId}`,
