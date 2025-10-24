@@ -1,0 +1,14 @@
+POST http://localhost:3001/api/payment/nib/notify
+Content-Type: application/json
+Authorization: Bearer test-token-123
+
+{
+    "transactionId": "1234567890",
+    "paidAmount": "100",
+    "paidByNumber": "1234567890",
+    "txnRef": "1234567890",
+    "transactionTime": "2021-01-01T00:00:00Z",
+    "accountNo": "1234567890",
+    "token": "test-token-123",
+    "signature": "be202a79c3cf0f282c223bfd5e34c0ede3c5600d76286612789d7adc2a438edf"
+}

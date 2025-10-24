@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     // Validate signature for data integrity
     const signatureString = [
-      `paidAmount=${paidAmount}`,
+      `paidAmount=${String(paidAmount)}`,
       `paidByNumber=${paidByNumber}`,
       `txnRef=${txnRef}`,
       `transactionId=${transactionId}`,
