@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
         }
         
         // --- Fetch auth token from secure session cookie ---
-        const cookieStore = cookies();
+        const cookieStore = await cookies();
         const sessionCookie = cookieStore.get('auth');
         if (!sessionCookie?.value) {
             return NextResponse.json({ error: 'Unauthorized', detail: 'User session not found.' }, { status: 401 });
