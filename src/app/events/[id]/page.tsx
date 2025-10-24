@@ -279,9 +279,25 @@ export default function PublicEventDetailPage() {
                     return;
                 }
 
+                // Store pending order before initiating payment
+                const transactionId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                  const r = Math.random() * 16 | 0;
+                  const v = c == 'x' ? r : (r & 0x3 | 0x8);
+                  return v.toString(16);
+              });
+              await api.post('/api/payment/pending-order', {
+                  transactionId: transactionId,
+                  eventId,
+                  tickets: Object.values(selectedTickets),
+                  promoCode: appliedPromo?.code,
+                  attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
+                  status: 'PENDING',
+              });
+
                 // Call server-side API to initiate NIB payment
                 const paymentResponse = await api.post('/api/payment/nib/initiate', {
                     total,
+                    authToken,
                     eventId,
                     selectedTickets: Object.values(selectedTickets),
                     attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
@@ -294,21 +310,16 @@ export default function PublicEventDetailPage() {
 
                 const { paymentToken, transactionId } = paymentResponse.data;
 
-                 // Store pending order after initiating payment successfully
-                await api.post('/api/payment/pending-order', {
-                    transactionId: transactionId,
-                    eventId,
-                    tickets: Object.values(selectedTickets),
-                    promoCode: appliedPromo?.code,
-                    attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
-                    status: 'PENDING',
-                });
+                 // Extract payment token from successful response
+                 const paymentToken = paymentResponse.data.paymentToken;
+                 const finalTransactionId = paymentResponse.data.transactionId;
+                
 
 
                 // Send processed payment token back to NIB Super App
                 if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
                     window.myJsChannel.postMessage({ token: paymentToken });
-                    startPolling(transactionId, api);
+                    startPolling(finalTransactionId, api);
                 } else {
                     console.error("NIB Super App channel (window.myJsChannel) not found.");
                     setError("Could not communicate with the payment app.");
