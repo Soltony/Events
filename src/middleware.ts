@@ -2,36 +2,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
 
-// --- CSRF Protection Configuration ---
 const CSRF_COOKIE_NAME_SECRET = 'csrf_secret';
 const CSRF_COOKIE_NAME_TOKEN = 'csrf_token';
 const CSRF_HEADER_NAME = 'X-CSRF-Token';
 
-/**
- * Creates a unique, cryptographically-secure token.
- */
 function generateCsrfToken() {
   return nanoid(32);
 }
 
-/**
- * Sets the CSRF cookies on the response.
- * @param res The NextResponse object to modify.
- */
 function setCsrfCookies(res: NextResponse) {
   const token = generateCsrfToken();
-  
-  // The secret is stored in an HttpOnly cookie for server-side validation.
+
   res.cookies.set(CSRF_COOKIE_NAME_SECRET, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
     path: '/',
   });
-  
-  // The value is sent in a separate, readable cookie for the client to use.
+
   res.cookies.set(CSRF_COOKIE_NAME_TOKEN, token, {
-    httpOnly: false, // Must be readable by client-side script
+    httpOnly: false,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
     path: '/',
@@ -39,13 +29,13 @@ function setCsrfCookies(res: NextResponse) {
 }
 
 export async function middleware(req: NextRequest) {
-  // If the request is for the webhook, do nothing and let it pass through.
+  // ✅ Allow NIB webhook to pass through
   if (req.nextUrl.pathname.startsWith('/api/payment/nib/notify')) {
+    console.log('✅ Skipping middleware for NIB webhook');
     return NextResponse.next();
   }
 
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
-  
   const arifPayUrl = process.env.BASE_URL ? new URL(process.env.BASE_URL).origin : '';
   const nibPreProdUrl = process.env.AUTH_VALIDATION_URL || '';
 
@@ -66,11 +56,10 @@ export async function middleware(req: NextRequest) {
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set('x-nonce', nonce);
 
-  // --- Start CSRF Logic ---
   const isApiRequest = req.nextUrl.pathname.startsWith('/api/');
   const isStateChangingMethod = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method);
   const isAuthRequest = req.nextUrl.pathname.startsWith('/api/auth/');
-  
+
   if (isApiRequest && !isAuthRequest && isStateChangingMethod) {
     const csrfTokenFromHeader = req.headers.get(CSRF_HEADER_NAME);
     const csrfSecretFromCookie = req.cookies.get(CSRF_COOKIE_NAME_SECRET)?.value;
@@ -80,17 +69,12 @@ export async function middleware(req: NextRequest) {
       return new NextResponse('CSRF token mismatch', { status: 403 });
     }
   }
-  
-  const res = NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
+
+  const res = NextResponse.next({ request: { headers: requestHeaders } });
 
   if (!req.cookies.has(CSRF_COOKIE_NAME_SECRET) || !req.cookies.has(CSRF_COOKIE_NAME_TOKEN)) {
     setCsrfCookies(res);
   }
-  // --- End CSRF Logic ---
 
   res.headers.set('Content-Security-Policy', cspHeader.replace(/\s{2,}/g, ' ').trim());
   res.headers.set('X-Content-Type-Options', 'nosniff');
@@ -109,14 +93,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api/payment/nib/notify (the webhook)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!api/payment/nib/notify|_next/static|_next/image|favicon.ico).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };
