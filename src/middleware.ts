@@ -24,7 +24,7 @@ function setCsrfCookies(res: NextResponse) {
   // The secret is stored in an HttpOnly cookie for server-side validation.
   res.cookies.set(CSRF_COOKIE_NAME_SECRET, token, {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
     path: '/',
   });
@@ -32,16 +32,20 @@ function setCsrfCookies(res: NextResponse) {
   // The value is sent in a separate, readable cookie for the client to use.
   res.cookies.set(CSRF_COOKIE_NAME_TOKEN, token, {
     httpOnly: false, // Must be readable by client-side script
-    secure: true,
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
     path: '/',
   });
 }
 
 export async function middleware(req: NextRequest) {
+  // If the request is for the webhook, do nothing and let it pass through.
+  if (req.nextUrl.pathname.startsWith('/api/payment/nib/notify')) {
+    return NextResponse.next();
+  }
+
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
   
-  // ArifPay URL for connect-src, if available
   const arifPayUrl = process.env.BASE_URL ? new URL(process.env.BASE_URL).origin : '';
   const nibPreProdUrl = process.env.AUTH_VALIDATION_URL || '';
 
@@ -66,14 +70,11 @@ export async function middleware(req: NextRequest) {
   const isApiRequest = req.nextUrl.pathname.startsWith('/api/');
   const isStateChangingMethod = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method);
   const isAuthRequest = req.nextUrl.pathname.startsWith('/api/auth/');
-
-  // Check if it's a state-changing API request that needs CSRF protection.
-  // We explicitly EXCLUDE auth requests from this check, as they handle session creation.
+  
   if (isApiRequest && !isAuthRequest && isStateChangingMethod) {
     const csrfTokenFromHeader = req.headers.get(CSRF_HEADER_NAME);
     const csrfSecretFromCookie = req.cookies.get(CSRF_COOKIE_NAME_SECRET)?.value;
 
-    // Validate that the token from the header matches the secret in the cookie.
     if (!csrfTokenFromHeader || !csrfSecretFromCookie || csrfTokenFromHeader !== csrfSecretFromCookie) {
       console.warn(`CSRF validation failed for ${req.method} ${req.nextUrl.pathname}`);
       return new NextResponse('CSRF token mismatch', { status: 403 });
@@ -86,23 +87,19 @@ export async function middleware(req: NextRequest) {
     },
   });
 
-  // Set new CSRF cookies on the response if they don't exist.
   if (!req.cookies.has(CSRF_COOKIE_NAME_SECRET) || !req.cookies.has(CSRF_COOKIE_NAME_TOKEN)) {
     setCsrfCookies(res);
   }
-
   // --- End CSRF Logic ---
 
-  // Also set the CSP header on the response
   res.headers.set('Content-Security-Policy', cspHeader.replace(/\s{2,}/g, ' ').trim());
   res.headers.set('X-Content-Type-Options', 'nosniff');
 
-  // Handle theme cookie
   const themeCookie = req.cookies.get('nib-theme');
   if (themeCookie) {
     res.cookies.set('nib-theme', themeCookie.value, {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
     });
@@ -113,14 +110,13 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    // Match all routes except for the ones starting with /api that are GET requests (to avoid running on every poll)
-    // and static files or image optimization.
-    {
-      source: '/((?!api/payment/status|_next/static|_next/image|favicon.ico).*)',
-      missing: [
-        { type: 'header', key: 'next-router-prefetch' },
-        { type: 'header', key: 'purpose', value: 'prefetch' },
-      ],
-    },
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api/payment/nib/notify (the webhook)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api/payment/nib/notify|_next/static|_next/image|favicon.ico).*)',
   ],
 };
