@@ -326,7 +326,7 @@ export default function PublicEventDetailPage() {
                 toast({
                     variant: "destructive",
                     title: "Payment Initiation Failed",
-                    description: error.message || "An unknown error occurred.",
+                    description: error.response?.data?.detail || error.message || "An unknown error occurred.",
                 });
                 router.push(`/payment/failure?event_id=${eventId}`);
             }

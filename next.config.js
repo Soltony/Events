@@ -1,6 +1,6 @@
+/** @type {import('next').NextConfig} */
 
-import type { NextConfig } from "next";
-import path from 'path';
+const path = require('path');
 
 const csp = [
     "default-src 'self'",
@@ -40,7 +40,7 @@ const securityHeaders = [
     },
 ];
 
-const nextConfig: NextConfig = {
+const nextConfig = {
   output: "standalone",
   outputFileTracingRoot: path.resolve(__dirname),
   typescript: {
@@ -92,4 +92,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
