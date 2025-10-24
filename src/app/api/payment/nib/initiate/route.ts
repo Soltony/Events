@@ -1,3 +1,4 @@
+
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -66,15 +67,40 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(payload),
     });
 
-    const responseData = await response.json();
+    // Gracefully handle non-JSON or error responses
+    if (!response.ok) {
+        let errorText = `Failed to get payment token from gateway. Status: ${response.status}`;
+        try {
+            const errorBody = await response.json();
+            errorText = errorBody.detail || errorBody.error || errorText;
+        } catch {
+            // Body is not JSON or is empty, use the status text
+            errorText = response.statusText || errorText;
+        }
+        return NextResponse.json(
+            { error: errorText, status: response.status },
+            { status: response.status }
+        );
+    }
 
-    if (!response.ok || !responseData.token) {
+    // Handle potentially empty success responses
+    const responseText = await response.text();
+    if (!responseText) {
+        return NextResponse.json(
+            { error: "Received an empty success response from the payment gateway.", status: 200 },
+            { status: 502 } // Bad Gateway, as the upstream response was malformed
+        );
+    }
+
+    const responseData = JSON.parse(responseText);
+
+    if (!responseData.token) {
       return NextResponse.json(
         { 
-          error: responseData.detail || responseData.error || "Failed to get payment token from gateway.",
-          status: response.status 
+          error: "Payment gateway did not return a valid payment token.",
+          status: 502
         },
-        { status: response.status }
+        { status: 502 }
       );
     }
 
@@ -83,7 +109,6 @@ export async function POST(req: NextRequest) {
       success: true,
       paymentToken: responseData.token,
       transactionId: transactionId,
-      payload: payload // For debugging purposes
     });
 
   } catch (error: any) {
