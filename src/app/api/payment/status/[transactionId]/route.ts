@@ -4,17 +4,11 @@ import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-type RouteContext = {
-  params: {
-    transactionId: string;
-  };
-};
-
 export async function GET(
   req: NextRequest,
-  context: RouteContext
+  { params }: { params: { transactionId: string } }
 ) {
-  const { transactionId } = context.params;
+  const { transactionId } = params;
 
   if (!transactionId) {
     return NextResponse.json({ error: 'Transaction ID is required.' }, { status: 400 });
