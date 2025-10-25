@@ -279,21 +279,6 @@ export default function PublicEventDetailPage() {
                     return;
                 }
 
-                // Store pending order before initiating payment
-                const transactionId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-                  const r = Math.random() * 16 | 0;
-                  const v = c == 'x' ? r : (r & 0x3 | 0x8);
-                  return v.toString(16);
-              });
-              await api.post('/api/payment/pending-order', {
-                  transactionId: transactionId,
-                  eventId,
-                  tickets: Object.values(selectedTickets),
-                  promoCode: appliedPromo?.code,
-                  attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
-                  status: 'PENDING',
-              });
-
                 // Call server-side API to initiate NIB payment
                 const paymentResponse = await api.post('/api/payment/nib/initiate', {
                     total,
@@ -310,16 +295,10 @@ export default function PublicEventDetailPage() {
 
                 const { paymentToken, transactionId } = paymentResponse.data;
 
-                 // Extract payment token from successful response
-                 const paymentToken = paymentResponse.data.paymentToken;
-                 const finalTransactionId = paymentResponse.data.transactionId;
-                
-
-
                 // Send processed payment token back to NIB Super App
                 if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
                     window.myJsChannel.postMessage({ token: paymentToken });
-                    startPolling(finalTransactionId, api);
+                    startPolling(transactionId, api);
                 } else {
                     console.error("NIB Super App channel (window.myJsChannel) not found.");
                     setError("Could not communicate with the payment app.");
@@ -509,39 +488,36 @@ export default function PublicEventDetailPage() {
                                           return (
                                               <div
                                                   key={ticket.id}
-                                                  className="flex flex-col gap-2 p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md"
+                                                  className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md"
                                               >
-                                                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                                                      <div className="mb-3 sm:mb-0">
-                                                          <h4 className="font-semibold text-lg">{baseName}</h4>
-                                                          <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">
-                                                              {Number(ticket.basePrice).toFixed(2)} ETB
-                                                          </p>
-                                                          <p className="text-sm text-muted-foreground">
-                                                              {!isSoldOut ? `${remaining} remaining` : 'Sold Out'}
-                                                          </p>
-                                                      </div>
-                                                      <div className="flex items-center gap-2">
-                                                          <Button
-                                                              size="icon"
-                                                              variant="outline"
-                                                              onClick={() => updateTicketQuantity(ticket, Math.max(0, selectedQuantity - 1))}
-                                                              disabled={selectedQuantity === 0}
-                                                          >
-                                                              <MinusCircle className="h-4 w-4" />
-                                                          </Button>
-                                                          <span className="w-10 text-center font-bold">{selectedQuantity}</span>
-                                                          <Button
-                                                              size="icon"
-                                                              variant="outline"
-                                                              onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))}
-                                                              disabled={isSoldOut || selectedQuantity >= remaining}
-                                                          >
-                                                              <PlusCircle className="h-4 w-4" />
-                                                          </Button>
-                                                      </div>
+                                                  <div className="mb-3 sm:mb-0">
+                                                      <h4 className="font-semibold text-lg">{baseName}</h4>
+                                                      <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">
+                                                          {Number(ticket.basePrice).toFixed(2)} ETB
+                                                      </p>
+                                                      <p className="text-sm text-muted-foreground">
+                                                          {!isSoldOut ? `${remaining} remaining` : 'Sold Out'}
+                                                      </p>
                                                   </div>
-                                                  {ticket.description && <p className="text-sm text-muted-foreground pt-2 border-t">{ticket.description}</p>}
+                                                  <div className="flex items-center gap-2">
+                                                      <Button
+                                                          size="icon"
+                                                          variant="outline"
+                                                          onClick={() => updateTicketQuantity(ticket, Math.max(0, selectedQuantity - 1))}
+                                                          disabled={selectedQuantity === 0}
+                                                      >
+                                                          <MinusCircle className="h-4 w-4" />
+                                                      </Button>
+                                                      <span className="w-10 text-center font-bold">{selectedQuantity}</span>
+                                                      <Button
+                                                          size="icon"
+                                                          variant="outline"
+                                                          onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))}
+                                                          disabled={isSoldOut || selectedQuantity >= remaining}
+                                                      >
+                                                          <PlusCircle className="h-4 w-4" />
+                                                      </Button>
+                                                  </div>
                                               </div>
                                           );
                                       })

@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
 
         const totalQuantity = (tickets as Array<{ quantity: number }>).reduce((sum: number, t) => sum + Number(t.quantity), 0);
         
+        // Use the transactionId provided by the NIB initiation step
         const pendingOrder = await prisma.pendingOrder.create({
             data: {
                 transactionId: transactionId,

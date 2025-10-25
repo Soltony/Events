@@ -787,7 +787,7 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         }
 
         const cookieStore = await cookies();
-        const tokenCookie = cookieStore.get('auth');
+        const tokenCookie = await cookieStore.get('auth');
         if (!tokenCookie?.value) {
             throw new Error('Authentication token not found');
         }
