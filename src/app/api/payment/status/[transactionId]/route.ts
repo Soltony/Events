@@ -24,7 +24,8 @@ export async function GET(
       },
       select: {
         status: true,
-        transactionId: true
+        transactionId: true,
+        attendeeId: true
       }
     });
 
@@ -35,6 +36,7 @@ export async function GET(
     return NextResponse.json({
       status: order.status,
       transactionId: order.transactionId,
+      attendeeId: order.attendeeId
     });
   } catch (error) {
     console.error(`Failed to get payment status for ${transactionId}:`, error);
