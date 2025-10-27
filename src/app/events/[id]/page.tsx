@@ -57,28 +57,52 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 
 const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 
-// Function to start polling for payment status
+// Function to start polling for payment status after redirecting to NIB SuperApp
 function startPolling(transactionId: string, api: any) {
+  console.log(`Starting payment status polling for transaction: ${transactionId}`);
+  
+  let pollCount = 0;
+  const maxPolls = 150; // 5 minutes at 2-second intervals
+  
   // Poll for payment status every 2 seconds
   const pollInterval = setInterval(async () => {
+    pollCount++;
+    
     try {
+      console.log(`Polling payment status (attempt ${pollCount}/${maxPolls}) for transaction: ${transactionId}`);
       const response = await api.get(`/api/payment/status/${transactionId}`);
+      
       if (response.data.status === 'COMPLETED') {
+        console.log('Payment completed successfully, waiting for Super App to show thank you page before redirecting...');
         clearInterval(pollInterval);
-        // Redirect to success page
-        window.location.href = `/payment/success?transaction_id=${transactionId}`;
+        
+        // Wait 3 seconds to allow Super App to show its thank you page, then redirect to QR success page
+        setTimeout(() => {
+          console.log('Redirecting to success page with QR code...');
+          window.location.href = `/payment/success?transaction_id=${transactionId}`;
+        }, 3000);
       } else if (response.data.status === 'FAILED') {
+        console.log('Payment failed, redirecting to failure page');
         clearInterval(pollInterval);
         // Redirect to failure page
         window.location.href = `/payment/failure?transaction_id=${transactionId}`;
+      } else {
+        console.log(`Payment status: ${response.data.status}, continuing to poll...`);
       }
     } catch (error) {
       console.error('Error polling payment status:', error);
+      
+      // If we've tried many times and still getting errors, stop polling
+      if (pollCount >= maxPolls) {
+        console.error('Max polling attempts reached, stopping polling');
+        clearInterval(pollInterval);
+      }
     }
   }, 2000);
 
-  // Stop polling after 5 minutes (300 seconds)
+  // Stop polling after 5 minutes (300 seconds) as a safety measure
   setTimeout(() => {
+    console.log('Polling timeout reached, stopping polling');
     clearInterval(pollInterval);
   }, 300000);
 }
@@ -279,7 +303,7 @@ export default function PublicEventDetailPage() {
                     return;
                 }
 
-                // Call server-side API to initiate NIB payment
+                // Call server-side API to initiate NIB payment (this creates the pending order)
                 const paymentResponse = await api.post('/api/payment/nib/initiate', {
                     total,
                     authToken,
@@ -293,12 +317,17 @@ export default function PublicEventDetailPage() {
                     throw new Error(paymentResponse.data.error || "Failed to initiate payment.");
                 }
 
-                const { paymentToken, transactionId } = paymentResponse.data;
+                // Extract payment token from successful response
+                const paymentToken = paymentResponse.data.paymentToken;
+                const finalTransactionId = paymentResponse.data.transactionId;
 
                 // Send processed payment token back to NIB Super App
                 if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
+                    console.log('Sending payment token to NIB Super App and starting polling...');
                     window.myJsChannel.postMessage({ token: paymentToken });
-                    startPolling(transactionId, api);
+                    
+                    // Start polling for payment status after redirecting to NIB SuperApp
+                    startPolling(finalTransactionId, api);
                 } else {
                     console.error("NIB Super App channel (window.myJsChannel) not found.");
                     setError("Could not communicate with the payment app.");
@@ -488,36 +517,39 @@ export default function PublicEventDetailPage() {
                                           return (
                                               <div
                                                   key={ticket.id}
-                                                  className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md"
+                                                  className="flex flex-col gap-2 p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md"
                                               >
-                                                  <div className="mb-3 sm:mb-0">
-                                                      <h4 className="font-semibold text-lg">{baseName}</h4>
-                                                      <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">
-                                                          {Number(ticket.basePrice).toFixed(2)} ETB
-                                                      </p>
-                                                      <p className="text-sm text-muted-foreground">
-                                                          {!isSoldOut ? `${remaining} remaining` : 'Sold Out'}
-                                                      </p>
+                                                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                                                      <div className="mb-3 sm:mb-0">
+                                                          <h4 className="font-semibold text-lg">{baseName}</h4>
+                                                          <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">
+                                                              {Number(ticket.basePrice).toFixed(2)} ETB
+                                                          </p>
+                                                          <p className="text-sm text-muted-foreground">
+                                                              {!isSoldOut ? `${remaining} remaining` : 'Sold Out'}
+                                                          </p>
+                                                      </div>
+                                                      <div className="flex items-center gap-2">
+                                                          <Button
+                                                              size="icon"
+                                                              variant="outline"
+                                                              onClick={() => updateTicketQuantity(ticket, Math.max(0, selectedQuantity - 1))}
+                                                              disabled={selectedQuantity === 0}
+                                                          >
+                                                              <MinusCircle className="h-4 w-4" />
+                                                          </Button>
+                                                          <span className="w-10 text-center font-bold">{selectedQuantity}</span>
+                                                          <Button
+                                                              size="icon"
+                                                              variant="outline"
+                                                              onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))}
+                                                              disabled={isSoldOut || selectedQuantity >= remaining}
+                                                          >
+                                                              <PlusCircle className="h-4 w-4" />
+                                                          </Button>
+                                                      </div>
                                                   </div>
-                                                  <div className="flex items-center gap-2">
-                                                      <Button
-                                                          size="icon"
-                                                          variant="outline"
-                                                          onClick={() => updateTicketQuantity(ticket, Math.max(0, selectedQuantity - 1))}
-                                                          disabled={selectedQuantity === 0}
-                                                      >
-                                                          <MinusCircle className="h-4 w-4" />
-                                                      </Button>
-                                                      <span className="w-10 text-center font-bold">{selectedQuantity}</span>
-                                                      <Button
-                                                          size="icon"
-                                                          variant="outline"
-                                                          onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))}
-                                                          disabled={isSoldOut || selectedQuantity >= remaining}
-                                                      >
-                                                          <PlusCircle className="h-4 w-4" />
-                                                      </Button>
-                                                  </div>
+                                                  {ticket.description && <p className="text-sm text-muted-foreground pt-2 border-t">{ticket.description}</p>}
                                               </div>
                                           );
                                       })
