@@ -1,4 +1,5 @@
 
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { randomUUID } from 'crypto';
@@ -6,32 +7,35 @@ import { randomUUID } from 'crypto';
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { eventId, tickets, promoCode, attendeeDetails, transactionId } = body;
+        const { eventId, tickets, promoCode, attendeeDetails } = body;
 
-        if (!eventId || !tickets?.length || !attendeeDetails || !transactionId) {
+        if (!eventId || !tickets?.length || !attendeeDetails) {
             return NextResponse.json({
                 error: 'Invalid request payload',
-                detail: 'Required fields: transactionId, eventId, tickets[], attendeeDetails.'
+                detail: 'Required fields: eventId, tickets[], attendeeDetails.'
             }, { status: 400 });
         }
 
         const totalQuantity = (tickets as Array<{ quantity: number }>).reduce((sum: number, t) => sum + Number(t.quantity), 0);
         
-        // Use the transactionId provided by the NIB initiation step
+        // This transactionId is our internal reference for the entire purchase flow.
+        const transactionId = randomUUID();
+
         const pendingOrder = await prisma.pendingOrder.create({
             data: {
                 transactionId: transactionId,
                 eventId,
-                ticketTypeId: tickets[0].id,
+                ticketTypeId: tickets[0].id, // Store primary ticket type
                 attendeeData: {
                     name: attendeeDetails.name,
                     phoneNumber: attendeeDetails.phone,
                     userId: attendeeDetails.userId,
                     quantity: totalQuantity,
+                    tickets: tickets, // Store all selected ticket details
                 },
                 promoCode,
                 status: 'PENDING',
-                arifpaySessionId: transactionId, // Using this field for consistency
+                arifpaySessionId: transactionId, // Use this field to store our internal transaction ID
             },
         });
 

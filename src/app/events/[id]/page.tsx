@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { getEventById, validatePromoCode } from '@/lib/actions';
@@ -292,42 +293,38 @@ export default function PublicEventDetailPage() {
 
         startTransition(async () => {
             try {
-                // Fetch auth token from session
-                let authToken = '';
-                try {
-                    const sessionRes = await api.get('/api/auth/session');
-                    authToken = sessionRes.data.accessToken;
-                    if (!authToken) throw new Error("Not authenticated");
-                } catch {
-                    toast({ variant: "destructive", title: "Authentication Error", description: "Your session is invalid. Please reconnect from the Super App." });
-                    return;
-                }
+                // Step 1: Create a pending order in our database
+                const pendingOrderResponse = await api.post('/api/payment/pending-order', {
+                    eventId,
+                    tickets: Object.values(selectedTickets),
+                    promoCode: appliedPromo?.code,
+                    attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
+                });
 
-                // Call server-side API to initiate NIB payment (this creates the pending order)
+                if (!pendingOrderResponse.data.success) {
+                    throw new Error(pendingOrderResponse.data.error || 'Failed to create a pending order.');
+                }
+                
+                const { transactionId } = pendingOrderResponse.data;
+
+                // Step 2: Use the transactionId from our DB to initiate payment with NIB
                 const paymentResponse = await api.post('/api/payment/nib/initiate', {
                     total,
-                    authToken,
-                    eventId,
-                    selectedTickets: Object.values(selectedTickets),
-                    attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
-                    promoCode: appliedPromo?.code
+                    transactionId, // Pass our internal transaction ID
                 });
 
                 if (!paymentResponse.data.success) {
                     throw new Error(paymentResponse.data.error || "Failed to initiate payment.");
                 }
 
-                // Extract payment token from successful response
+                // Step 3: Send the payment token back to the NIB Super App
                 const paymentToken = paymentResponse.data.paymentToken;
-                const finalTransactionId = paymentResponse.data.transactionId;
-
-                // Send processed payment token back to NIB Super App
                 if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
                     console.log('Sending payment token to NIB Super App and starting polling...');
                     window.myJsChannel.postMessage({ token: paymentToken });
                     
-                    // Start polling for payment status after redirecting to NIB SuperApp
-                    startPolling(finalTransactionId, api);
+                    // Step 4: Start polling for payment status
+                    startPolling(transactionId, api);
                 } else {
                     console.error("NIB Super App channel (window.myJsChannel) not found.");
                     setError("Could not communicate with the payment app.");
