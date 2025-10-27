@@ -58,49 +58,6 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 
 const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 
-// Function to start polling for payment status after redirecting to NIB SuperApp
-function startPolling(transactionId: string, router: any) {
-  console.log(`Starting payment status polling for transaction: ${transactionId}`);
-  
-  let pollCount = 0;
-  const maxPolls = 150; // 5 minutes at 2-second intervals
-  
-  // Poll for payment status every 2 seconds
-  const pollInterval = setInterval(async () => {
-    pollCount++;
-    
-    try {
-      console.log(`Polling payment status (attempt ${pollCount}/${maxPolls}) for transaction: ${transactionId}`);
-      const response = await api.get(`/api/payment/status/${transactionId}`);
-      
-      if (response.data.status === 'COMPLETED') {
-        console.log('Payment completed successfully, redirecting to success page...');
-        clearInterval(pollInterval);
-        router.push(`/payment/success?transaction_id=${transactionId}`);
-      } else if (response.data.status === 'FAILED') {
-        console.log('Payment failed, redirecting to failure page');
-        clearInterval(pollInterval);
-        router.push(`/payment/failure?transaction_id=${transactionId}`);
-      } else {
-        console.log(`Payment status: ${response.data.status}, continuing to poll...`);
-      }
-    } catch (error) {
-      console.error('Error polling payment status:', error);
-      
-      if (pollCount >= maxPolls) {
-        console.error('Max polling attempts reached, stopping polling');
-        clearInterval(pollInterval);
-      }
-    }
-  }, 2000);
-
-  // Stop polling after 5 minutes (300 seconds) as a safety measure
-  setTimeout(() => {
-    console.log('Polling timeout reached, stopping polling');
-    clearInterval(pollInterval);
-  }, 300000);
-}
-
 export default function PublicEventDetailPage() {
   const router = useRouter();
   const params = useParams<{ id:string }>();
@@ -313,11 +270,11 @@ export default function PublicEventDetailPage() {
                 // Step 3: Send the payment token back to the NIB Super App
                 const paymentToken = paymentResponse.data.paymentToken;
                 if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
-                    console.log('Sending payment token to NIB Super App and starting polling...');
+                    console.log('Sending payment token to NIB Super App and redirecting to processing page...');
                     window.myJsChannel.postMessage({ token: paymentToken });
                     
-                    // Step 4: Start polling for payment status
-                    startPolling(transactionId, router);
+                    // Step 4: Redirect to the processing page
+                    router.push(`/payment/processing?transaction_id=${transactionId}`);
                 } else {
                     console.error("NIB Super App channel (window.myJsChannel) not found.");
                     setError("Could not communicate with the payment app. This feature is only available within the NIB SuperApp.");
