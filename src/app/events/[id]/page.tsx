@@ -59,7 +59,7 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 
 // Function to start polling for payment status after redirecting to NIB SuperApp
-function startPolling(transactionId: string, api: any) {
+function startPolling(transactionId: string, router: any) {
   console.log(`Starting payment status polling for transaction: ${transactionId}`);
   
   let pollCount = 0;
@@ -74,26 +74,19 @@ function startPolling(transactionId: string, api: any) {
       const response = await api.get(`/api/payment/status/${transactionId}`);
       
       if (response.data.status === 'COMPLETED') {
-        console.log('Payment completed successfully, waiting for Super App to show thank you page before redirecting...');
+        console.log('Payment completed successfully, redirecting to success page...');
         clearInterval(pollInterval);
-        
-        // Wait 3 seconds to allow Super App to show its thank you page, then redirect to QR success page
-        setTimeout(() => {
-          console.log('Redirecting to success page with QR code...');
-          window.location.href = `/payment/success?transaction_id=${transactionId}`;
-        }, 3000);
+        router.push(`/payment/success?transaction_id=${transactionId}`);
       } else if (response.data.status === 'FAILED') {
         console.log('Payment failed, redirecting to failure page');
         clearInterval(pollInterval);
-        // Redirect to failure page
-        window.location.href = `/payment/failure?transaction_id=${transactionId}`;
+        router.push(`/payment/failure?transaction_id=${transactionId}`);
       } else {
         console.log(`Payment status: ${response.data.status}, continuing to poll...`);
       }
     } catch (error) {
       console.error('Error polling payment status:', error);
       
-      // If we've tried many times and still getting errors, stop polling
       if (pollCount >= maxPolls) {
         console.error('Max polling attempts reached, stopping polling');
         clearInterval(pollInterval);
@@ -324,10 +317,10 @@ export default function PublicEventDetailPage() {
                     window.myJsChannel.postMessage({ token: paymentToken });
                     
                     // Step 4: Start polling for payment status
-                    startPolling(transactionId, api);
+                    startPolling(transactionId, router);
                 } else {
                     console.error("NIB Super App channel (window.myJsChannel) not found.");
-                    setError("Could not communicate with the payment app.");
+                    setError("Could not communicate with the payment app. This feature is only available within the NIB SuperApp.");
                 }
             } catch (error: any) {
                 console.error('Payment initiation error:', error);

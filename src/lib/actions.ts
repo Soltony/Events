@@ -8,7 +8,7 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { decryptSessionPayload } from './sessionCrypto';
 import type { DateRange } from 'react-day-picker';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -910,14 +910,98 @@ export interface PurchaseRequest {
     name: string;
     phone: string;
     email?: string;
+    userId?: string;
   };
 }
 
 export async function purchaseTickets(request: PurchaseRequest) {
-    // This server action is now deprecated in favor of client-side handling.
-    // The logic is now inside `app/events/[id]/page.tsx`.
-    // We keep this structure to avoid breaking imports, but it does nothing.
-    return { error: 'This function is deprecated.' };
+    const { eventId, tickets, promoCode, attendeeDetails } = request;
+    const user = await getCurrentUser();
+
+    if (!user && !attendeeDetails.phone) {
+        throw new Error("User must be logged in or provide a phone number.");
+    }
+
+    return await prisma.$transaction(async (tx) => {
+        let totalAmount = 0;
+        let discountAmount = 0;
+
+        for (const ticket of tickets) {
+            const ticketType = await tx.ticketType.findUnique({ where: { id: ticket.id } });
+            if (!ticketType) throw new Error(`Ticket type with ID ${ticket.id} not found.`);
+            if ((ticketType.total - ticketType.sold) < ticket.quantity) {
+                throw new Error(`Not enough tickets available for "${ticketType.name}".`);
+            }
+            totalAmount += Number(ticketType.basePrice) * ticket.quantity;
+        }
+
+        if (promoCode) {
+            const validatedPromo = await validatePromoCode(promoCode, eventId);
+            if (!validatedPromo) throw new Error("Invalid or expired promo code.");
+            
+            if (validatedPromo.type === 'PERCENTAGE') {
+                discountAmount = totalAmount * (Number(validatedPromo.value) / 100);
+            } else {
+                discountAmount = Math.min(totalAmount, Number(validatedPromo.value));
+            }
+            totalAmount -= discountAmount;
+
+            await tx.promoCode.update({
+                where: { id: validatedPromo.id },
+                data: { uses: { increment: 1 } }
+            });
+        }
+        
+        const finalAmount = totalAmount;
+        
+        // This is a placeholder for the actual payment gateway interaction
+        console.log(`Initiating payment for ${finalAmount.toFixed(2)} ETB...`);
+        const paymentSessionId = `MOCK_${randomUUID()}`;
+
+        // Create a single attendee record for the entire purchase
+        const firstTicket = tickets[0];
+        const totalQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0);
+
+        const newAttendee = await tx.attendee.create({
+            data: {
+                name: attendeeDetails.name,
+                phoneNumber: attendeeDetails.phone,
+                userId: attendeeDetails.userId || user?.id,
+                eventId: eventId,
+                ticketTypeId: firstTicket.id, // Primary ticket type
+                // You might want a better way to represent multiple ticket purchases
+                // For now, let's assume one attendee record per purchase, even with multiple ticket types.
+            }
+        });
+
+        // Update ticket counts
+        for (const ticket of tickets) {
+             await tx.ticketType.update({
+                where: { id: ticket.id },
+                data: { sold: { increment: ticket.quantity } }
+            });
+        }
+        
+        const order = await tx.pendingOrder.create({
+            data: {
+                arifpaySessionId: paymentSessionId,
+                transactionId: paymentSessionId, // Using the same for simplicity in mock
+                eventId: eventId,
+                attendeeData: {
+                    ...attendeeDetails,
+                    quantity: totalQuantity,
+                    tickets: tickets,
+                },
+                attendeeId: newAttendee.id,
+                status: 'COMPLETED' // Mocking completion
+            }
+        });
+
+        revalidatePath(`/events/${eventId}`);
+        revalidatePath('/dashboard');
+        
+        return serialize({ success: true, redirectUrl: `/payment/success?session_id=${paymentSessionId}` });
+    });
 }
 
 export async function getTicketDetailsForConfirmation(identifier: string) {

@@ -29,8 +29,6 @@ function SuccessContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const transactionId = searchParams.get('transaction_id');
-    const sessionId = searchParams.get('session_id');
-    const idToCheck = sessionId || transactionId;
     
     const [ticket, setTicket] = useState<TicketDetails | null>(null);
     const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
@@ -38,53 +36,16 @@ function SuccessContent() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!idToCheck) {
+        if (!transactionId) {
             setError("Transaction identifier is missing from the URL.");
             setLoading(false);
             return;
         }
 
-        const pollForStatus = async (retries = 12, delay = 2000): Promise<string | null> => {
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const response = await fetch(`/api/payment/status/${idToCheck}`);
-                    if (!response.ok) {
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                        continue;
-                    }
-                    const data = await response.json();
-                    if (data.status === 'COMPLETED') {
-                        // The confirmation is done via transaction ID, which is public.
-                        // We fetch the secure ticket details on the server from there.
-                        return data.transactionId; 
-                    }
-                    if (data.status === 'PENDING' && i > 1) { // After ~4s, assume mock flow might be stuck
-                        const mockResponse = await fetch('/api/payment/arifpay/notify', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ sessionId: idToCheck, transaction: { transactionStatus: 'SUCCESS' }})
-                        });
-                        if (mockResponse.ok) {
-                            // Give DB a moment to update after notification
-                            await new Promise(resolve => setTimeout(resolve, 1500)); 
-                            continue; // Retry fetching status immediately
-                        }
-                    }
-                    if (data.status === 'FAILED') {
-                        throw new Error('Payment failed.');
-                    }
-                } catch (e) {
-                     console.error("Polling error:", e);
-                }
-                await new Promise(resolve => setTimeout(resolve, delay));
-            }
-            return null;
-        };
-
-        const fetchTicketData = async (transactionId: string) => {
+        const fetchTicketData = async () => {
              try {
                 const ticketDetails = await getTicketDetailsForConfirmation(transactionId);
-                if (!ticketDetails) throw new Error("Could not retrieve ticket details.");
+                if (!ticketDetails) throw new Error("Could not retrieve ticket details for this transaction.");
                 setTicket(ticketDetails);
                 
                 const myTickets = JSON.parse(localStorage.getItem('myTickets') || '[]') as number[];
@@ -94,30 +55,20 @@ function SuccessContent() {
                 }
 
                 // The QR code should only contain the attendee's ID (the ticket ID)
-                const qrCodeData = ticketDetails.id.toString();
+                const qrCodeData = JSON.stringify({ ticketId: ticketDetails.id });
                 const dataUrl = await QRCode.toDataURL(qrCodeData, { errorCorrectionLevel: 'H', type: 'image/png', margin: 1 });
                 setQrCodeDataUrl(dataUrl);
-                setLoading(false);
 
             } catch (err: any) {
                 setError(err.message || "Failed to load ticket data.");
+            } finally {
                 setLoading(false);
             }
         };
 
-        pollForStatus().then((finalTransactionId) => {
-            if (finalTransactionId) {
-                fetchTicketData(finalTransactionId);
-            } else {
-                setError("Payment confirmation timed out. Please check 'My Tickets' page later or contact support.");
-                setLoading(false);
-            }
-        }).catch(() => {
-            const eventId = searchParams.get('event_id');
-            router.replace(`/payment/failure?event_id=${eventId}`);
-        });
+        fetchTicketData();
 
-    }, [idToCheck, searchParams, router]);
+    }, [transactionId]);
 
     const handleDownload = () => {
         if (!qrCodeDataUrl || !ticket) return;
@@ -134,14 +85,14 @@ function SuccessContent() {
              <Card className="shadow-lg">
                 <CardHeader className="text-center items-center bg-secondary/30 p-8">
                     <Loader2 className="h-16 w-16 text-primary animate-spin mb-4" />
-                    <CardTitle className="text-3xl">Processing Payment...</CardTitle>
+                    <CardTitle className="text-3xl">Finalizing Your Ticket...</CardTitle>
                     <CardDescription className="text-lg">
-                        Your payment is being confirmed. Please wait a moment.
+                        Please wait a moment while we generate your ticket.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="p-8 text-center">
                     <p className="text-muted-foreground mb-6">
-                        This should only take a few seconds. Please do not close this window.
+                        This should only take a few seconds.
                     </p>
                 </CardContent>
             </Card>
@@ -165,7 +116,7 @@ function SuccessContent() {
     }
 
     if (!ticket) {
-        return null; // Should be handled by error state
+        return null;
     }
 
     return (
