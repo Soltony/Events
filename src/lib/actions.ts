@@ -1049,84 +1049,26 @@ export async function getTicketDetailsForConfirmation(identifier: string) {
 }
 
 export async function getTicketsForUser(userId?: string, phoneNumber?: string) {
-  console.log('getTicketsForUser called with:', { userId, phoneNumber });
-
-  if (!userId && !phoneNumber) {
-    console.log('No userId or phoneNumber provided. Returning empty array.');
-    return [];
-  }
-
-  // --------------------------
-  // Logged-in user
-  // --------------------------
-  if (userId) {
-    console.log('Fetching tickets for logged-in user:', userId);
-    const attendees = await prisma.attendee.findMany({
-      where: { userId },
-      include: { event: true, ticketType: true },
-      orderBy: { createdAt: 'desc' },
-    });
-    console.log(`Found ${attendees.length} tickets for userId ${userId}`);
-    return serialize(attendees);
-  }
-
-  // --------------------------
-  // Guest user (SuperApp)
-  // --------------------------
-  if (phoneNumber) {
-    console.log('Fetching tickets for guest with phoneNumber:', phoneNumber);
-
-    const completedOrders = await prisma.pendingOrder.findMany({
-      where: {
-        status: 'COMPLETED',
-        attendeeData: {
-          path: ['phoneNumber'], // JSON key
-          equals: phoneNumber,   // exact match
+    const findClause: any = {
+        include: {
+            event: true,
+            ticketType: true,
         },
-      },
-    });
+        orderBy: {
+            createdAt: 'desc',
+        },
+    };
 
-    console.log(`Found ${completedOrders.length} completed orders for phoneNumber ${phoneNumber}`);
-
-    if (completedOrders.length === 0) {
-      console.log('No completed orders found. Returning empty array.');
-      return [];
+    if (userId) {
+        findClause.where = { userId: userId };
+    } else if (phoneNumber) {
+        findClause.where = { phoneNumber: phoneNumber };
+    } else {
+        return []; // No identifier provided
     }
 
-    // Transform each order into "Attendee"-like structure
-    const attendees: AttendeeTicket[] = completedOrders.flatMap((order) => {
-      try {
-        const data = typeof order.attendeeData === 'string' ? JSON.parse(order.attendeeData) : order.attendeeData;
-        const tickets = data.tickets || [];
-
-        return tickets.map((ticket: any, index: number) => ({
-          id: `${order.id}-${index}`,       // unique id per ticket
-          userId: null,
-          phoneNumber: data.phoneNumber || null,
-          createdAt: order.createdAt,
-          event: {
-            id: order.id,
-            name: data.name || 'Event',
-            image: null,       // guest orders may not have an image
-            startDate: order.createdAt, // fallback
-            endDate: null,
-          },
-          ticketType: {
-            id: ticket.id?.toString() || `ticket-${index}`,
-            name: ticket.name || 'Ticket',
-          },
-        }));
-      } catch (err) {
-        console.error('Failed to parse attendeeData JSON for order', order.id, err);
-        return [];
-      }
-    });
-
-    console.log(`Returning ${attendees.length} tickets for phoneNumber ${phoneNumber}`);
+    const attendees = await prisma.attendee.findMany(findClause);
     return serialize(attendees);
-  }
-
-  return [];
 }
 
 
