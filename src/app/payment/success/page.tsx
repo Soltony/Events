@@ -29,6 +29,7 @@ function SuccessContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const transactionId = searchParams.get('transaction_id');
+    const attendeeIdFromUrl = searchParams.get('attendee_id');
     
     const [ticket, setTicket] = useState<TicketDetails | null>(null);
     const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
@@ -36,15 +37,16 @@ function SuccessContent() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!transactionId) {
-            setError("Transaction identifier is missing from the URL.");
+        const identifier = transactionId || attendeeIdFromUrl;
+        if (!identifier) {
+            setError("Transaction or ticket identifier is missing from the URL.");
             setLoading(false);
             return;
         }
 
         const fetchTicketData = async () => {
              try {
-                const ticketDetails = await getTicketDetailsForConfirmation(transactionId);
+                const ticketDetails = await getTicketDetailsForConfirmation(identifier);
                 if (!ticketDetails) throw new Error("Could not retrieve ticket details for this transaction.");
                 setTicket(ticketDetails);
                 
@@ -55,7 +57,7 @@ function SuccessContent() {
                 }
 
                 // The QR code should only contain the attendee's ID (the ticket ID)
-                const qrCodeData = JSON.stringify({ ticketId: ticketDetails.id });
+                const qrCodeData = ticketDetails.id.toString();
                 const dataUrl = await QRCode.toDataURL(qrCodeData, { errorCorrectionLevel: 'H', type: 'image/png', margin: 1 });
                 setQrCodeDataUrl(dataUrl);
 
@@ -68,7 +70,7 @@ function SuccessContent() {
 
         fetchTicketData();
 
-    }, [transactionId]);
+    }, [transactionId, attendeeIdFromUrl]);
 
     const handleDownload = () => {
         if (!qrCodeDataUrl || !ticket) return;

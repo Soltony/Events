@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -1031,21 +1032,39 @@ export async function getTicketDetailsForConfirmation(identifier: string) {
 }
 
 export async function getTicketsByUserId(userId: string | null, localTicketIds: number[] = []) {
-    const whereClauses = [];
-    if (userId) {
-        whereClauses.push({ userId: userId });
-    }
-    if (localTicketIds.length > 0) {
-        whereClauses.push({ id: { in: localTicketIds } });
-    }
+    const userWhere = userId ? { userId: userId } : {};
 
-    if (whereClauses.length === 0) {
+    const localWhere = localTicketIds.length > 0 ? { id: { in: localTicketIds } } : {};
+
+    if (!userId && localTicketIds.length === 0) {
         return [];
     }
 
+    // Find pendingOrder IDs for completed payments associated with the user or local tickets
+    const completedOrders = await prisma.pendingOrder.findMany({
+        where: {
+            status: 'COMPLETED',
+            attendee: {
+                OR: [
+                    userWhere,
+                    localWhere
+                ].filter(c => Object.keys(c).length > 0),
+            }
+        },
+        select: {
+            attendeeId: true
+        }
+    });
+
+    const completedAttendeeIds = completedOrders.map(o => o.attendeeId).filter((id): id is number => id !== null);
+
+    if (completedAttendeeIds.length === 0) {
+        return [];
+    }
+    
     const tickets = await prisma.attendee.findMany({
         where: {
-            OR: whereClauses,
+            id: { in: completedAttendeeIds }
         },
         include: {
             event: true,
@@ -1130,3 +1149,4 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+

@@ -48,16 +48,21 @@ export default function MyTicketsPage() {
       
       const localTicketIds = JSON.parse(localStorage.getItem('myTickets') || '[]') as number[];
       
-      const fetchedTickets = await getTicketsByUserId(user?.id ?? null, localTicketIds);
-      
-      // Merge and deduplicate tickets
-      const ticketMap = new Map<number, FullTicket>();
-      fetchedTickets.forEach((ticket: FullTicket) => {
-        ticketMap.set(ticket.id, ticket);
-      });
-      setTickets(Array.from(ticketMap.values()));
-      
-      setLoading(false);
+      try {
+        const fetchedTickets = await getTicketsByUserId(user?.id ?? null, localTicketIds);
+        
+        // Merge and deduplicate tickets
+        const ticketMap = new Map<number, FullTicket>();
+        fetchedTickets.forEach((ticket: FullTicket) => {
+          ticketMap.set(ticket.id, ticket);
+        });
+        setTickets(Array.from(ticketMap.values()));
+      } catch (error) {
+        console.error("Failed to fetch tickets:", error);
+        setTickets([]);
+      } finally {
+        setLoading(false);
+      }
     }
     fetchMyTickets();
   }, [user, isAuthLoading]);
@@ -133,7 +138,7 @@ export default function MyTicketsPage() {
                             </CardContent>
                             <CardFooter className="p-4 pt-0">
                                 <Button asChild className="w-full">
-                                    <Link href={`/ticket/${ticket.id}/confirmation`}>
+                                    <Link href={`/payment/success?transaction_id=${ticket.id}`}>
                                         View QR Code & Details
                                         <ArrowUpRight className="ml-auto h-4 w-4" />
                                     </Link>
