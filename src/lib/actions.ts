@@ -1031,24 +1031,17 @@ export async function getTicketDetailsForConfirmation(identifier: string) {
     return serialize(attendee);
 }
 
-export async function getTicketsByUserId(userId: string | null, localTicketIds: number[] = []) {
-    const userWhere = userId ? { userId: userId } : {};
-
-    const localWhere = localTicketIds.length > 0 ? { id: { in: localTicketIds } } : {};
-
-    if (!userId && localTicketIds.length === 0) {
+export async function getTicketsByUserId(userId: string | null) {
+    if (!userId) {
         return [];
     }
 
-    // Find pendingOrder IDs for completed payments associated with the user or local tickets
+    // Find attendee IDs for completed payments associated with the user
     const completedOrders = await prisma.pendingOrder.findMany({
         where: {
             status: 'COMPLETED',
             attendee: {
-                OR: [
-                    userWhere,
-                    localWhere
-                ].filter(c => Object.keys(c).length > 0),
+                userId: userId,
             }
         },
         select: {
@@ -1149,4 +1142,5 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
 

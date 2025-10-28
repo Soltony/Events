@@ -44,12 +44,17 @@ export default function MyTicketsPage() {
     async function fetchMyTickets() {
       if (isAuthLoading) return;
       
+      // We no longer need local ticket IDs, so the second argument is an empty array.
+      if (!user) {
+        setTickets([]);
+        setLoading(false);
+        return;
+      }
+      
       setLoading(true);
       
-      const localTicketIds = JSON.parse(localStorage.getItem('myTickets') || '[]') as number[];
-      
       try {
-        const fetchedTickets = await getTicketsByUserId(user?.id ?? null, localTicketIds);
+        const fetchedTickets = await getTicketsByUserId(user.id);
         
         // Merge and deduplicate tickets
         const ticketMap = new Map<number, FullTicket>();
@@ -59,18 +64,6 @@ export default function MyTicketsPage() {
 
         const allUserTickets = Array.from(ticketMap.values());
         setTickets(allUserTickets);
-
-        // --- Polling for redirect ---
-        const recentTransactionId = localStorage.getItem('mostRecentTransactionId');
-        if (recentTransactionId) {
-            const correspondingTicket = allUserTickets.find(t => t.id.toString() === recentTransactionId || (t as any).transactionId === recentTransactionId);
-
-            if (correspondingTicket) {
-                // If a ticket matching the recent transaction is found, it means payment is complete.
-                localStorage.removeItem('mostRecentTransactionId'); // Clear the flag
-                router.push(`/payment/success?transaction_id=${correspondingTicket.id}`);
-            }
-        }
 
       } catch (error) {
         console.error("Failed to fetch tickets:", error);
@@ -82,11 +75,15 @@ export default function MyTicketsPage() {
     
     fetchMyTickets();
     
-    // Set up an interval to poll for new tickets
-    const pollInterval = setInterval(fetchMyTickets, 5000);
+    // Set up an interval to poll for new tickets if a user is logged in.
+    const pollInterval = user ? setInterval(fetchMyTickets, 5000) : null;
 
     // Clean up interval on component unmount
-    return () => clearInterval(pollInterval);
+    return () => {
+        if (pollInterval) {
+            clearInterval(pollInterval)
+        };
+    }
 
   }, [user, isAuthLoading, router]);
 
@@ -111,14 +108,17 @@ export default function MyTicketsPage() {
   }
 
   // If not logged in and not loading, check if there are any local tickets
-  if (!user && !loading && tickets.length === 0) {
+  if (!user && !loading) {
      return (
          <div className="flex flex-col items-center justify-center text-center py-16 border-2 border-dashed rounded-lg container mx-auto mt-8">
             <Ticket className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-2xl font-semibold tracking-tight">You don't have any tickets yet</h3>
-            <p className="text-muted-foreground mt-2 mb-6">Your purchased tickets will appear here.</p>
+            <h3 className="text-2xl font-semibold tracking-tight">Login to see your tickets</h3>
+            <p className="text-muted-foreground mt-2 mb-6">Your purchased tickets will appear here once you are logged in.</p>
             <div className="flex gap-4">
                 <Button asChild>
+                    <Link href="/login">Login</Link>
+                </Button>
+                <Button asChild variant="outline">
                     <Link href="/">Explore Events</Link>
                 </Button>
             </div>
@@ -131,7 +131,7 @@ export default function MyTicketsPage() {
         <div className="space-y-2 mb-8">
             <h1 className="text-3xl font-bold tracking-tight">My Tickets</h1>
             <p className="text-muted-foreground">
-                {user ? "Here are the tickets associated with your account and any guest purchases from this device." : "Here are the tickets you've purchased in this session."}
+                {user ? "Here are the tickets associated with your account." : "Please log in to see your tickets."}
             </p>
         </div>
 
