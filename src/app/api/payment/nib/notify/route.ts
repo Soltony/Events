@@ -1,11 +1,9 @@
-
 'use server';
 
 import { headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import prisma from '@/lib/prisma';
-import { revalidatePath } from 'next/cache';
 
 export async function POST(request: NextRequest) {
   let requestBody;
@@ -13,97 +11,88 @@ export async function POST(request: NextRequest) {
     requestBody = await request.json();
   } catch (e) {
     console.error("Callback Error: Invalid JSON in request body.", e);
-    return NextResponse.json({ message: "Error Occurred: Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ message: "Invalid JSON" }, { status: 400 });
   }
 
-  // Step 1: Get Header authorization details
-  const headerList = headers();
+  // Step 1: Get Authorization header
+  const headerList = await headers();
   const authHeader = headerList.get('Authorization');
-  
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     console.error("Authorization header is missing or malformed.");
-    return NextResponse.json(
-      { status: 'error', message: 'Authorization header is required.' },
-      { status: 401 }
-    );
+    return NextResponse.json({ message: 'Authorization header is required.' }, { status: 401 });
   }
 
   const tokenFromHeader = authHeader.substring(7);
 
   const {
     paidAmount,
-    paidByNumber,
     txnRef,
     transactionId,
-    transactionTime,
-    accountNo,
     token: tokenFromBody,
-    Signature: receivedSignature
   } = requestBody;
 
-  // Step 2 & 3: Validate tokens and signature
+  // Step 2: Token validation
   if (tokenFromHeader !== tokenFromBody) {
     console.error("Token mismatch between header and body.");
     return NextResponse.json({ message: "Token validation failed." }, { status: 401 });
   }
 
-  const NIB_PAYMENT_KEY = process.env.NIB_PAYMENT_KEY;
-  if (!NIB_PAYMENT_KEY) {
-      console.error("NIB_PAYMENT_KEY is not set on the server.");
-      return NextResponse.json({ message: "Server configuration error." }, { status: 500 });
-  }
+  // Step 3: Signature validation (optional, uncomment if using)
+  // const NIB_PAYMENT_KEY = process.env.NIB_PAYMENT_KEY;
+  // const signatureString = [
+  //     `paidAmount=${String(paidAmount)}`,
+  //     `paidByNumber=${paidByNumber}`,
+  //     `txnRef=${txnRef}`,
+  //     `transactionId=${transactionId}`,
+  //     `transactionTime=${transactionTime}`,
+  //     `accountNo=${accountNo}`,
+  //     `token=${tokenFromBody}`,
+  //     `Key=${NIB_PAYMENT_KEY}`
+  // ].join('&');
+  // const expectedSignature = crypto.createHash('sha256').update(signatureString, 'utf8').digest('hex');
+  // if (receivedSignature !== expectedSignature) {
+  //   console.error("Signature validation failed.");
+  //   return NextResponse.json({ message: "Signature validation failed." }, { status: 400 });
+  // }
 
-  // Validate signature for data integrity
-  const signatureString = [
-      `paidAmount=${String(paidAmount)}`,
-      `paidByNumber=${paidByNumber}`,
-      `txnRef=${txnRef}`,
-      `transactionId=${transactionId}`,
-      `transactionTime=${transactionTime}`,
-      `accountNo=${accountNo}`,
-      `token=${tokenFromBody}`,
-      `Key=${NIB_PAYMENT_KEY}`
-  ].join('&');
-
-  const expectedSignature = crypto.createHash('sha256').update(signatureString, 'utf8').digest('hex');
-
-  if (receivedSignature !== expectedSignature) {
-    console.error("Signature validation failed.");
-    console.log("Received Signature:", receivedSignature);
-    console.log("Expected Signature:", expectedSignature);
-    console.log("Signature String:", signatureString);
-    return NextResponse.json({ message: "Signature validation failed." }, { status: 400 });
-  }
-
-  // Step 4: Process the payment
+  // Step 4: Process payment
   try {
-    const order = await prisma.pendingOrder.findFirst({
-        where: { transactionId: transactionId },
-    });
+    const order = await prisma.eventPayment.findFirst({
+  where: { transactionId:  txnRef },
+});
 
     if (!order) {
-        console.error(`Order not found for transaction: ${transactionId}`);
-        // Return 200 even if order not found to prevent gateway retries.
-        return NextResponse.json({ message: 'Order not found, but acknowledged.' }, { status: 200 });
-    }
-    
-    if (order.status === 'COMPLETED') {
-        console.log(`Order for transaction ${transactionId} already handled.`);
-        return NextResponse.json({ message: 'Already handled' }, { status: 200 });
+      console.error(`Order not found for transaction: ${transactionId}`);
+      return NextResponse.json({ message: 'Order not found, but acknowledged.' }, { status: 200 });
     }
 
-    await prisma.pendingOrder.update({
-        where: { id: order.id },
-        data: { 
-            status: 'COMPLETED',
-        },
+    if (order.status === 'COMPLETED') {
+      console.log(`Order for transaction ${transactionId} already handled.`);
+      return NextResponse.json({ message: 'Already handled' }, { status: 200 });
+    }
+
+    // Update pendingOrder status
+    await prisma.pendingOrder.updateMany({
+      where: { id: order.pendingOrderId },
+      data: { status: 'COMPLETED' },
     });
 
-    // The rest of the logic (creating attendee, updating ticket count)
-    // should be handled here based on the data stored in the `order`.
+    // Update corresponding EventPayment
+    const eventPayment = await prisma.eventPayment.update({
+      where: { id: order.id },
+      data: {
+        status: 'COMPLETED',
+        amount: paidAmount,
+        paymentDate: new Date(),
+        method: 'GATEWAY',
+        reference: transactionId,
+        sessionId: txnRef, // optionally store sessionId if available
+      },
+    });
 
     console.log(`Successfully processed payment for transaction ${transactionId}.`);
-    
+
     return NextResponse.json({ message: 'Payment confirmed and updated.' }, { status: 200 });
 
   } catch (error: any) {

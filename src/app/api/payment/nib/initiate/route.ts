@@ -1,5 +1,3 @@
-
-
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -7,6 +5,7 @@ import crypto from 'crypto';
 import { format } from 'date-fns';
 import { cookies } from 'next/headers';
 import { decryptSessionPayload } from '@/lib/sessionCrypto';
+import prisma from '@/lib/prisma';
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,21 +13,30 @@ export async function POST(req: NextRequest) {
     const { total, transactionId: pendingOrderTransactionId } = body;
 
     if (!total || !pendingOrderTransactionId) {
-        return NextResponse.json({ error: 'Total amount and transaction ID are required.' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Total amount and transaction ID are required.' },
+        { status: 400 }
+      );
     }
 
     // --- Fetch auth token from secure session cookie ---
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get('auth');
     if (!sessionCookie?.value) {
-        return NextResponse.json({ error: 'Unauthorized', detail: 'User session not found.' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Unauthorized', detail: 'User session not found.' },
+        { status: 401 }
+      );
     }
 
     const decryptedSession = await decryptSessionPayload(sessionCookie.value);
     const { accessToken: authToken } = JSON.parse(decryptedSession);
 
     if (!authToken) {
-        return NextResponse.json({ error: 'Unauthorized', detail: 'Auth token is missing from session.' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Unauthorized', detail: 'Auth token is missing from session.' },
+        { status: 401 }
+      );
     }
 
     const ACCOUNT_NO = process.env.NIB_ACCOUNT_NO;
@@ -43,10 +51,9 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
-    
-    // NIB requires its own unique transaction ID for each API call,
-    // different from our internal one.
-    const nibTransactionId = crypto.randomUUID();
+
+    // --- Generate NIB-specific transaction ID and signature ---
+    const transactionId = crypto.randomUUID();
     const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
     const callBackURL = `${APP_URL}/api/payment/nib/notify`;
 
@@ -57,7 +64,7 @@ export async function POST(req: NextRequest) {
       `companyName=${COMPANY_NAME}`,
       `Key=${NIB_PAYMENT_KEY}`,
       `token=${authToken}`,
-      `transactionId=${nibTransactionId}`,
+      `transactionId=${transactionId}`,
       `transactionTime=${transactionTime}`
     ].join('&');
 
@@ -66,14 +73,40 @@ export async function POST(req: NextRequest) {
     const payload = {
       accountNo: ACCOUNT_NO,
       amount: String(total),
-      callBackURL: callBackURL,
+      callBackURL,
       companyName: COMPANY_NAME,
       token: authToken,
-      transactionId: nibTransactionId, // Use NIB's required transaction ID
-      transactionTime: transactionTime,
-      signature: signature
+      transactionId: transactionId,
+      transactionTime,
+      signature
     };
 
+    // --- Create EventPayment record in the database ---
+    const pendingOrder = await prisma.pendingOrder.findUnique({
+      where: { transactionId: pendingOrderTransactionId },
+      include: { event: true }
+    });
+
+    if (!pendingOrder) {
+      return NextResponse.json(
+        { error: 'Pending order not found.' },
+        { status: 404 }
+      );
+    }
+
+    const eventPayment = await prisma.eventPayment.create({
+      data: {
+        amount: total,
+        method: 'GATEWAY',
+        status: 'PENDING',
+        sessionId: null, // Will be filled if NIB returns a session ID
+        transactionId: transactionId,
+        pendingOrderId: pendingOrder.id,
+        eventId: pendingOrder.eventId,
+      }
+    });
+
+    // --- Call NIB API ---
     const response = await fetch(NIB_PAYMENT_URL, {
       method: 'POST',
       headers: {
@@ -84,49 +117,47 @@ export async function POST(req: NextRequest) {
     });
 
     if (!response.ok) {
-        let errorText = `Failed to get payment token from gateway. Status: ${response.status}`;
-        try {
-            const errorBody = await response.json();
-            errorText = errorBody.detail || errorBody.error || errorText;
-        } catch {
-            errorText = response.statusText || errorText;
-        }
-        return NextResponse.json(
-            { error: errorText, status: response.status },
-            { status: response.status }
-        );
+      let errorText = `Failed to get payment token from gateway. Status: ${response.status}`;
+      try {
+        const errorBody = await response.json();
+        errorText = errorBody.detail || errorBody.error || errorText;
+      } catch {}
+      return NextResponse.json({ error: errorText, status: response.status }, { status: response.status });
     }
 
     const responseText = await response.text();
     if (!responseText) {
-        return NextResponse.json(
-            { error: "Received an empty success response from the payment gateway.", status: 200 },
-            { status: 502 }
-        );
+      return NextResponse.json(
+        { error: "Received empty response from payment gateway.", status: 502 },
+        { status: 502 }
+      );
     }
-    
+
     const responseData = JSON.parse(responseText);
 
     if (!responseData.token) {
       return NextResponse.json(
-        { 
-          error: "Payment gateway did not return a valid payment token.",
-          status: 502
-        },
+        { error: "Payment gateway did not return a valid payment token.", status: 502 },
         { status: 502 }
       );
     }
-    
-    // Return the payment token. The client will continue polling using our internal transaction ID.
+
+    // Optionally update sessionId if NIB provides one
+    await prisma.eventPayment.update({
+      where: { transactionId },
+      data: { sessionId: responseData.token }
+    });
+
     return NextResponse.json({
       success: true,
       paymentToken: responseData.token,
+      paymentId: eventPayment.id
     });
 
   } catch (error: any) {
     console.error('Payment initiation error:', error);
     return NextResponse.json(
-      { error: error.message || 'An unexpected error occurred during payment initiation.' },
+      { error: error.message || 'Unexpected error during payment initiation.' },
       { status: 500 }
     );
   }
