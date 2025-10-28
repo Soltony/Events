@@ -1050,6 +1050,7 @@ export async function getTicketDetailsForConfirmation(identifier: string) {
 
 export async function getTicketsForUser(userId?: string, phoneNumber?: string) {
     const findClause: any = {
+        where: {},
         include: {
             event: true,
             ticketType: true,
@@ -1060,11 +1061,11 @@ export async function getTicketsForUser(userId?: string, phoneNumber?: string) {
     };
 
     if (userId) {
-        findClause.where = { userId: userId };
+        findClause.where.userId = userId;
     } else if (phoneNumber) {
-        findClause.where = { phoneNumber: phoneNumber };
+        findClause.where.phoneNumber = phoneNumber;
     } else {
-        return []; // No identifier provided
+        return []; // No identifier provided, return empty array
     }
 
     const attendees = await prisma.attendee.findMany(findClause);

@@ -50,14 +50,8 @@ function SuccessContent() {
                 if (!ticketDetails) throw new Error("Could not retrieve ticket details for this transaction.");
                 setTicket(ticketDetails);
                 
-                const myTickets = JSON.parse(localStorage.getItem('myTickets') || '[]') as number[];
-                if (!myTickets.includes(ticketDetails.id)) {
-                    myTickets.push(ticketDetails.id);
-                    localStorage.setItem('myTickets', JSON.stringify(myTickets));
-                }
-
-                // Generate QR from the unique eventId for the paid event
-                const qrCodeData = ticketDetails.eventId.toString();
+                // Generate QR code from the unique ID of the paid ticket
+                const qrCodeData = ticketDetails.id.toString();
                 const dataUrl = await QRCode.toDataURL(qrCodeData, { errorCorrectionLevel: 'H', type: 'image/png', margin: 1 });
                 setQrCodeDataUrl(dataUrl);
 
