@@ -17,6 +17,24 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
         : value
 ));
 
+interface AttendeeTicket {
+  id: string;
+  userId: string | null;
+  phoneNumber: string | null;
+  createdAt: Date;
+  event: {
+    id: string;
+    name: string;
+    image: string | null;
+    startDate: Date;
+    endDate: Date | null;
+  };
+  ticketType: {
+    id: string;
+    name: string;
+  };
+}
+
 // --- Permission Definitions ---
 const VALID_PERMISSIONS = new Set([
   'Dashboard:Create', 'Dashboard:Read', 'Dashboard:Update', 'Dashboard:Delete',
@@ -1031,54 +1049,84 @@ export async function getTicketDetailsForConfirmation(identifier: string) {
 }
 
 export async function getTicketsForUser(userId?: string, phoneNumber?: string) {
-  const where: any = {};
+  console.log('getTicketsForUser called with:', { userId, phoneNumber });
 
-  if (userId) {
-    where.userId = userId;
-  } else if (phoneNumber) {
-    where.phoneNumber = phoneNumber;
-  } else {
-    // No identifier provided, return empty array
+  if (!userId && !phoneNumber) {
+    console.log('No userId or phoneNumber provided. Returning empty array.');
     return [];
   }
 
-  const attendees = await prisma.attendee.findMany({
-    where,
-    include: {
-      event: true,
-      ticketType: true,
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
+  // --------------------------
+  // Logged-in user
+  // --------------------------
+  if (userId) {
+    console.log('Fetching tickets for logged-in user:', userId);
+    const attendees = await prisma.attendee.findMany({
+      where: { userId },
+      include: { event: true, ticketType: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    console.log(`Found ${attendees.length} tickets for userId ${userId}`);
+    return serialize(attendees);
+  }
 
-  // This check is crucial for guest users identified by phone number
+  // --------------------------
+  // Guest user (SuperApp)
+  // --------------------------
   if (phoneNumber) {
-    const phoneNumbers = [phoneNumber];
-    
+    console.log('Fetching tickets for guest with phoneNumber:', phoneNumber);
+
     const completedOrders = await prisma.pendingOrder.findMany({
       where: {
         status: 'COMPLETED',
-        OR: phoneNumbers.map((phone) => ({
-          attendeeData: {
-            path: ['phone'],
-            equals: phone,
-          },
-        })),
-      },
-      select: {
-        attendeeId: true,
+        attendeeData: {
+          path: ['phoneNumber'], // JSON key
+          equals: phoneNumber,   // exact match
+        },
       },
     });
-    
-    const completedAttendeeIds = new Set(completedOrders.map(o => o.attendeeId).filter(id => id !== null));
-    const finalTickets = attendees.filter(attendee => completedAttendeeIds.has(attendee.id));
-    return serialize(finalTickets);
+
+    console.log(`Found ${completedOrders.length} completed orders for phoneNumber ${phoneNumber}`);
+
+    if (completedOrders.length === 0) {
+      console.log('No completed orders found. Returning empty array.');
+      return [];
+    }
+
+    // Transform each order into "Attendee"-like structure
+    const attendees: AttendeeTicket[] = completedOrders.flatMap((order) => {
+      try {
+        const data = typeof order.attendeeData === 'string' ? JSON.parse(order.attendeeData) : order.attendeeData;
+        const tickets = data.tickets || [];
+
+        return tickets.map((ticket: any, index: number) => ({
+          id: `${order.id}-${index}`,       // unique id per ticket
+          userId: null,
+          phoneNumber: data.phoneNumber || null,
+          createdAt: order.createdAt,
+          event: {
+            id: order.id,
+            name: data.name || 'Event',
+            image: null,       // guest orders may not have an image
+            startDate: order.createdAt, // fallback
+            endDate: null,
+          },
+          ticketType: {
+            id: ticket.id?.toString() || `ticket-${index}`,
+            name: ticket.name || 'Ticket',
+          },
+        }));
+      } catch (err) {
+        console.error('Failed to parse attendeeData JSON for order', order.id, err);
+        return [];
+      }
+    });
+
+    console.log(`Returning ${attendees.length} tickets for phoneNumber ${phoneNumber}`);
+    return serialize(attendees);
   }
 
-  // For logged-in users, all their tickets are assumed valid
-  return serialize(attendees);
+  return [];
 }
 
 

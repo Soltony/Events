@@ -56,8 +56,8 @@ function SuccessContent() {
                     localStorage.setItem('myTickets', JSON.stringify(myTickets));
                 }
 
-                // The QR code should only contain the attendee's ID (the ticket ID)
-                const qrCodeData = ticketDetails.id.toString();
+                // Generate QR from the unique eventId for the paid event
+                const qrCodeData = ticketDetails.eventId.toString();
                 const dataUrl = await QRCode.toDataURL(qrCodeData, { errorCorrectionLevel: 'H', type: 'image/png', margin: 1 });
                 setQrCodeDataUrl(dataUrl);
 

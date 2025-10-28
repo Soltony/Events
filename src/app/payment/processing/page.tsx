@@ -38,16 +38,20 @@ function ProcessingPaymentContent() {
 
             try {
                 const response = await api.get(`/api/payment/status/${idToUse}`);
-                
+
                 if (response.data.status === 'COMPLETED') {
                     console.log('Payment completed successfully, redirecting to success page...');
                     if (!isCancelled) {
-                        router.replace(`/payment/success?transaction_id=${idToUse}`);
+                        // Ensure we stop any further polling before navigating
+                        isCancelled = true;
+                        const attendeeIdParam = response.data.attendeeId ? `&attendee_id=${response.data.attendeeId}` : '';
+                        router.replace(`/payment/success?transaction_id=${idToUse}${attendeeIdParam}`);
                     }
                     return; // Stop polling
                 } else if (response.data.status === 'FAILED') {
                     console.log('Payment failed, redirecting to failure page');
                     if (!isCancelled) {
+                        isCancelled = true;
                         router.replace(`/payment/failure?transaction_id=${idToUse}`);
                     }
                     return; // Stop polling
