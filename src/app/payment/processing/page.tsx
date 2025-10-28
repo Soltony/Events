@@ -77,8 +77,8 @@ function ProcessingPaymentContent() {
         <div className="container mx-auto p-8 max-w-lg">
             <div className="bg-card border rounded-xl p-8 text-center space-y-4">
                 <Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" />
-                <h1 className="text-2xl font-semibold">Processing Payment</h1>
-                <p className="text-muted-foreground">Please wait while we confirm your payment...</p>
+                <h1 className="text-2xl font-semibold">Finalizing Your Ticket...</h1>
+                <p className="text-muted-foreground">Please wait while we confirm your payment. This should only take a few seconds.</p>
                 <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
                     <CheckCircle2 className="h-4 w-4" />
                     <span>Do not close this window.</span>

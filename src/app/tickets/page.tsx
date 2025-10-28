@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -10,6 +11,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowUpRight, Ticket } from 'lucide-react';
 import api from '@/lib/api';
+import { getTicketsForUser } from '@/lib/actions';
+import { useToast } from '@/hooks/use-toast';
 
 interface Event {
   id: string;
@@ -51,24 +54,32 @@ export default function MyTicketsPage() {
   const [tickets, setTickets] = useState<Attendee[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     async function fetchTickets() {
       setLoading(true);
       try {
-        // Step 1 — Read cookie session to get phone number
         const response = await api.get('/api/auth/cookie-data');
         const phoneNumber = response.data?.data?.phoneNumber;
-        const userId = response.data?.data?.userId;
+        const userId = response.data?.data?.userId; // This would be for registered users
 
-        // Step 2 — Fetch tickets from server API
-        const ticketRes = await api.get(
-          `/api/tickets?${userId ? `userId=${userId}` : `phoneNumber=${phoneNumber || ''}`}`,
-        );
+        if (!phoneNumber && !userId) {
+          console.log("No user session found.");
+          setTickets([]);
+          return;
+        }
 
-        setTickets(ticketRes.data?.data || []);
+        const fetchedTickets = await getTicketsForUser(userId, phoneNumber);
+        setTickets(fetchedTickets);
+
       } catch (error) {
         console.error('❌ Failed to fetch tickets:', error);
+        toast({
+          variant: "destructive",
+          title: "Could not load tickets",
+          description: "There was a problem retrieving your tickets. Please try again later.",
+        });
         setTickets([]);
       } finally {
         setLoading(false);
@@ -76,7 +87,7 @@ export default function MyTicketsPage() {
     }
 
     fetchTickets();
-  }, []);
+  }, [toast]);
 
   if (loading) {
     return (
@@ -138,7 +149,7 @@ export default function MyTicketsPage() {
                 </CardContent>
                 <CardFooter className="p-4 pt-0">
                   <Button asChild className="w-full">
-                    <Link href={`/payment/success?attendee_id=${ticket.id}`}>
+                    <Link href={`/ticket/${ticket.id}/confirmation`}>
                       View QR Code & Details
                       <ArrowUpRight className="ml-auto h-4 w-4" />
                     </Link>
