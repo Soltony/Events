@@ -1031,55 +1031,56 @@ export async function getTicketDetailsForConfirmation(identifier: string) {
 }
 
 export async function getTicketsForUser(userId?: string, phoneNumber?: string) {
-    const where: any = {};
+  const where: any = {};
 
-    if (userId) {
-        where.userId = userId;
-    } else if (phoneNumber) {
-        where.phoneNumber = phoneNumber;
-    } else {
-        // No identifier provided, return empty array
-        return [];
-    }
+  if (userId) {
+    where.userId = userId;
+  } else if (phoneNumber) {
+    where.phoneNumber = phoneNumber;
+  } else {
+    // No identifier provided, return empty array
+    return [];
+  }
 
-    const attendees = await prisma.attendee.findMany({
-        where,
-        include: {
-            event: true,
-            ticketType: true,
-        },
-        orderBy: {
-            createdAt: 'desc',
-        }
-    });
+  const attendees = await prisma.attendee.findMany({
+    where,
+    include: {
+      event: true,
+      ticketType: true,
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
 
-    // To ensure we only get tickets from completed payments, we cross-reference
-    // with the PendingOrder table. This is crucial for guest users identified by phone.
-    const phoneNumbers = attendees.map(a => a.phoneNumber).filter((p): p is string => !!p);
-
-    if (phoneNumbers.length === 0) {
-        return serialize(attendees);
-    }
-
-    const completedOrders = await prisma.pendingOrder.findMany({
-        where: {
-            status: 'COMPLETED',
-            attendeeData: {
-                path: ['phone'],
-                in: phoneNumbers,
-            },
-        },
-        select: {
-            attendeeId: true
-        }
-    });
-
-    const completedAttendeeIds = new Set(completedOrders.map(o => o.attendeeId));
+  // This check is crucial for guest users identified by phone number
+  if (phoneNumber) {
+    const phoneNumbers = [phoneNumber];
     
+    const completedOrders = await prisma.pendingOrder.findMany({
+      where: {
+        status: 'COMPLETED',
+        OR: phoneNumbers.map((phone) => ({
+          attendeeData: {
+            path: ['phone'],
+            equals: phone,
+          },
+        })),
+      },
+      select: {
+        attendeeId: true,
+      },
+    });
+    
+    const completedAttendeeIds = new Set(completedOrders.map(o => o.attendeeId).filter(id => id !== null));
     const finalTickets = attendees.filter(attendee => completedAttendeeIds.has(attendee.id));
-
     return serialize(finalTickets);
+  }
+
+  // For logged-in users, all their tickets are assumed valid
+  return serialize(attendees);
 }
+
 
 export async function getTicketsByUserId(userId: string | null) {
   if (!userId) {
