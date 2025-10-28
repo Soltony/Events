@@ -43,13 +43,16 @@ export default function MyTicketsPage() {
     async function fetchGuestTickets() {
       setLoading(true);
       try {
+        // This endpoint securely reads the HTTP-only cookie and returns the phone number if available.
         const response = await api.get('/api/auth/cookie-data');
         const phoneNumber = response.data?.data?.phoneNumber;
 
         if (phoneNumber) {
+          // Pass the phone number to the server action to fetch tickets.
           const fetchedTickets = await getTicketsForUser(undefined, phoneNumber);
           setTickets(fetchedTickets);
         } else {
+          // No phone number in session, so the user is a true guest with no tickets yet.
           setTickets([]);
         }
       } catch (error) {

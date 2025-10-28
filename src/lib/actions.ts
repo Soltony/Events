@@ -1031,47 +1031,19 @@ export async function getTicketDetailsForConfirmation(identifier: string) {
 }
 
 export async function getTicketsForUser(userId?: string, phoneNumber?: string) {
-    if (!userId && !phoneNumber) {
-        return [];
-    }
-
-    const whereClause: any = {
-        attendee: {}
-    };
+    const where: any = {};
 
     if (userId) {
-        whereClause.attendee.userId = userId;
+        where.userId = userId;
     } else if (phoneNumber) {
-        // The phone number is stored in the attendeeData JSON field.
-        // We need to use a JSON query.
-        whereClause.attendeeData = {
-            path: ['phone'],
-            equals: phoneNumber,
-        };
-    }
-
-    const completedOrders = await prisma.pendingOrder.findMany({
-        where: {
-            status: 'COMPLETED',
-            ...whereClause
-        },
-        select: {
-            attendeeId: true
-        }
-    });
-
-    const completedAttendeeIds = completedOrders
-        .map(o => o.attendeeId)
-        .filter((id): id is number => id !== null);
-
-    if (completedAttendeeIds.length === 0) {
+        where.phoneNumber = phoneNumber;
+    } else {
+        // No identifier provided, return empty array
         return [];
     }
 
-    const tickets = await prisma.attendee.findMany({
-        where: {
-            id: { in: completedAttendeeIds }
-        },
+    const attendees = await prisma.attendee.findMany({
+        where,
         include: {
             event: true,
             ticketType: true,
@@ -1081,7 +1053,32 @@ export async function getTicketsForUser(userId?: string, phoneNumber?: string) {
         }
     });
 
-    return serialize(tickets);
+    // To ensure we only get tickets from completed payments, we cross-reference
+    // with the PendingOrder table. This is crucial for guest users identified by phone.
+    const phoneNumbers = attendees.map(a => a.phoneNumber).filter((p): p is string => !!p);
+
+    if (phoneNumbers.length === 0) {
+        return serialize(attendees);
+    }
+
+    const completedOrders = await prisma.pendingOrder.findMany({
+        where: {
+            status: 'COMPLETED',
+            attendeeData: {
+                path: ['phone'],
+                in: phoneNumbers,
+            },
+        },
+        select: {
+            attendeeId: true
+        }
+    });
+
+    const completedAttendeeIds = new Set(completedOrders.map(o => o.attendeeId));
+    
+    const finalTickets = attendees.filter(attendee => completedAttendeeIds.has(attendee.id));
+
+    return serialize(finalTickets);
 }
 
 export async function getTicketsByUserId(userId: string | null) {
