@@ -257,6 +257,11 @@ export default function PublicEventDetailPage() {
                 
                 const { transactionId } = pendingOrderResponse.data;
 
+                 // Store the transaction ID to check for completion on the tickets page
+                if (typeof window !== 'undefined') {
+                    localStorage.setItem('mostRecentTransactionId', transactionId);
+                }
+
                 // Step 2: Use the transactionId from our DB to initiate payment with NIB
                 const paymentResponse = await api.post('/api/payment/nib/initiate', {
                     total,
@@ -273,8 +278,8 @@ export default function PublicEventDetailPage() {
                     console.log('Sending payment token to NIB Super App and redirecting to processing page...');
                     window.myJsChannel.postMessage({ token: paymentToken });
                     
-                    // Step 4: Redirect to the processing page
-                    router.push(`/payment/processing?transaction_id=${transactionId}`);
+                    // Step 4: Redirect to the My Tickets page for polling
+                    router.push(`/tickets`);
                 } else {
                     console.error("NIB Super App channel (window.myJsChannel) not found.");
                     setError("Could not communicate with the payment app. This feature is only available within the NIB SuperApp.");

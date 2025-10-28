@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -7,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { format } from 'date-fns';
 import type { Attendee, Event, TicketType } from '@prisma/client';
+import { useRouter } from 'next/navigation';
 
 import { getTicketsByUserId } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowUpRight, Ticket } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 interface FullTicket extends Attendee {
   event: Event;
@@ -39,6 +38,7 @@ export default function MyTicketsPage() {
   const [tickets, setTickets] = useState<FullTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const { user, isLoading: isAuthLoading } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchMyTickets() {
@@ -56,7 +56,22 @@ export default function MyTicketsPage() {
         fetchedTickets.forEach((ticket: FullTicket) => {
           ticketMap.set(ticket.id, ticket);
         });
-        setTickets(Array.from(ticketMap.values()));
+
+        const allUserTickets = Array.from(ticketMap.values());
+        setTickets(allUserTickets);
+
+        // --- Polling for redirect ---
+        const recentTransactionId = localStorage.getItem('mostRecentTransactionId');
+        if (recentTransactionId) {
+            const correspondingTicket = allUserTickets.find(t => t.id.toString() === recentTransactionId || (t as any).transactionId === recentTransactionId);
+
+            if (correspondingTicket) {
+                // If a ticket matching the recent transaction is found, it means payment is complete.
+                localStorage.removeItem('mostRecentTransactionId'); // Clear the flag
+                router.push(`/payment/success?transaction_id=${correspondingTicket.id}`);
+            }
+        }
+
       } catch (error) {
         console.error("Failed to fetch tickets:", error);
         setTickets([]);
@@ -64,8 +79,16 @@ export default function MyTicketsPage() {
         setLoading(false);
       }
     }
+    
     fetchMyTickets();
-  }, [user, isAuthLoading]);
+    
+    // Set up an interval to poll for new tickets
+    const pollInterval = setInterval(fetchMyTickets, 5000);
+
+    // Clean up interval on component unmount
+    return () => clearInterval(pollInterval);
+
+  }, [user, isAuthLoading, router]);
 
   if (isAuthLoading) {
      return (
