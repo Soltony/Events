@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -1031,30 +1030,44 @@ export async function getTicketDetailsForConfirmation(identifier: string) {
     return serialize(attendee);
 }
 
-export async function getTicketsByUserId(userId: string | null) {
-    if (!userId) {
+export async function getTicketsForUser(userId?: string, phoneNumber?: string) {
+    if (!userId && !phoneNumber) {
         return [];
     }
 
-    // Find attendee IDs for completed payments associated with the user
+    const whereClause: any = {
+        attendee: {}
+    };
+
+    if (userId) {
+        whereClause.attendee.userId = userId;
+    } else if (phoneNumber) {
+        // The phone number is stored in the attendeeData JSON field.
+        // We need to use a JSON query.
+        whereClause.attendeeData = {
+            path: ['phone'],
+            equals: phoneNumber,
+        };
+    }
+
     const completedOrders = await prisma.pendingOrder.findMany({
         where: {
             status: 'COMPLETED',
-            attendee: {
-                userId: userId,
-            }
+            ...whereClause
         },
         select: {
             attendeeId: true
         }
     });
 
-    const completedAttendeeIds = completedOrders.map(o => o.attendeeId).filter((id): id is number => id !== null);
+    const completedAttendeeIds = completedOrders
+        .map(o => o.attendeeId)
+        .filter((id): id is number => id !== null);
 
     if (completedAttendeeIds.length === 0) {
         return [];
     }
-    
+
     const tickets = await prisma.attendee.findMany({
         where: {
             id: { in: completedAttendeeIds }
@@ -1069,6 +1082,23 @@ export async function getTicketsByUserId(userId: string | null) {
     });
 
     return serialize(tickets);
+}
+
+export async function getTicketsByUserId(userId: string | null) {
+  if (!userId) {
+    return [];
+  }
+  const tickets = await prisma.attendee.findMany({
+    where: { userId },
+    include: {
+      event: true,
+      ticketType: true,
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+  return serialize(tickets);
 }
 
 export async function validatePromoCode(code: string, eventId: number, location?: string | null, ticketTypesInCart?: { id: number; name: string }[]): Promise<PromoCode | null> {
@@ -1142,5 +1172,3 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
-
-

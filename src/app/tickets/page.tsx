@@ -8,12 +8,12 @@ import { format } from 'date-fns';
 import type { Attendee, Event, TicketType } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 
-import { getTicketsByUserId } from '@/lib/actions';
+import { getTicketsForUser } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowUpRight, Ticket } from 'lucide-react';
-import { useAuth } from '@/context/auth-context';
+import api from '@/lib/api';
 
 interface FullTicket extends Attendee {
   event: Event;
@@ -37,57 +37,33 @@ const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 export default function MyTicketsPage() {
   const [tickets, setTickets] = useState<FullTicket[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    async function fetchMyTickets() {
-      if (isAuthLoading) return;
-      
-      // We no longer need local ticket IDs, so the second argument is an empty array.
-      if (!user) {
-        setTickets([]);
-        setLoading(false);
-        return;
-      }
-      
+    async function fetchGuestTickets() {
       setLoading(true);
-      
       try {
-        const fetchedTickets = await getTicketsByUserId(user.id);
-        
-        // Merge and deduplicate tickets
-        const ticketMap = new Map<number, FullTicket>();
-        fetchedTickets.forEach((ticket: FullTicket) => {
-          ticketMap.set(ticket.id, ticket);
-        });
+        const response = await api.get('/api/auth/cookie-data');
+        const phoneNumber = response.data?.data?.phoneNumber;
 
-        const allUserTickets = Array.from(ticketMap.values());
-        setTickets(allUserTickets);
-
+        if (phoneNumber) {
+          const fetchedTickets = await getTicketsForUser(undefined, phoneNumber);
+          setTickets(fetchedTickets);
+        } else {
+          setTickets([]);
+        }
       } catch (error) {
-        console.error("Failed to fetch tickets:", error);
+        console.error("Failed to fetch guest tickets:", error);
         setTickets([]);
       } finally {
         setLoading(false);
       }
     }
     
-    fetchMyTickets();
-    
-    // Set up an interval to poll for new tickets if a user is logged in.
-    const pollInterval = user ? setInterval(fetchMyTickets, 5000) : null;
+    fetchGuestTickets();
+  }, []);
 
-    // Clean up interval on component unmount
-    return () => {
-        if (pollInterval) {
-            clearInterval(pollInterval)
-        };
-    }
-
-  }, [user, isAuthLoading, router]);
-
-  if (isAuthLoading) {
+  if (loading) {
      return (
         <div className="container mx-auto py-8">
             <div className="space-y-2 mb-8">
@@ -107,45 +83,16 @@ export default function MyTicketsPage() {
      )
   }
 
-  // If not logged in and not loading, check if there are any local tickets
-  if (!user && !loading) {
-     return (
-         <div className="flex flex-col items-center justify-center text-center py-16 border-2 border-dashed rounded-lg container mx-auto mt-8">
-            <Ticket className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-2xl font-semibold tracking-tight">Login to see your tickets</h3>
-            <p className="text-muted-foreground mt-2 mb-6">Your purchased tickets will appear here once you are logged in.</p>
-            <div className="flex gap-4">
-                <Button asChild>
-                    <Link href="/login">Login</Link>
-                </Button>
-                <Button asChild variant="outline">
-                    <Link href="/">Explore Events</Link>
-                </Button>
-            </div>
-        </div>
-     )
-  }
-
   return (
     <div className="container mx-auto py-8">
         <div className="space-y-2 mb-8">
             <h1 className="text-3xl font-bold tracking-tight">My Tickets</h1>
             <p className="text-muted-foreground">
-                {user ? "Here are the tickets associated with your account." : "Please log in to see your tickets."}
+                Here are the tickets you've purchased.
             </p>
         </div>
 
-        {loading ? (
-             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {[...Array(3)].map((_, i) => (
-                    <Card key={i}>
-                        <CardHeader className="p-0"><Skeleton className="w-full aspect-video rounded-t-lg" /></CardHeader>
-                        <CardContent className="p-4 space-y-2"><Skeleton className="h-5 w-3/4" /><Skeleton className="h-4 w-1/2" /></CardContent>
-                        <CardFooter className="p-4 pt-0"><Skeleton className="h-10 w-full" /></CardFooter>
-                    </Card>
-                ))}
-            </div>
-        ) : tickets.length > 0 ? (
+        {tickets.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {tickets.map((ticket) => {
                      const imageSource = ticket.event.image || DEFAULT_IMAGE_PLACEHOLDER;
@@ -161,7 +108,7 @@ export default function MyTicketsPage() {
                             </CardContent>
                             <CardFooter className="p-4 pt-0">
                                 <Button asChild className="w-full">
-                                    <Link href={`/payment/success?transaction_id=${ticket.id}`}>
+                                    <Link href={`/payment/success?attendee_id=${ticket.id}`}>
                                         View QR Code & Details
                                         <ArrowUpRight className="ml-auto h-4 w-4" />
                                     </Link>
