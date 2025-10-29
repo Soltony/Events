@@ -33,7 +33,6 @@ export default function TicketConfirmationPage() {
     const [ticket, setTicket] = useState<TicketDetails | null>(null);
     const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
     const [loading, setLoading] = useState(true);
-    const qrCodeRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (isNaN(attendeeId)) {
@@ -132,8 +131,8 @@ export default function TicketConfirmationPage() {
                         <p className="text-center text-muted-foreground">
                             Present this QR code at the event entrance for scanning.
                         </p>
-                        <div ref={qrCodeRef} className="p-4 border-4 border-muted rounded-lg bg-white">
-                             {qrCodeDataUrl && <img src={qrCodeDataUrl} alt="Ticket QR Code" className="h-64 w-64" />}
+                        <div className="p-4 border-4 border-muted rounded-lg bg-white">
+                             {qrCodeDataUrl && <img id="qr-code-image" src={qrCodeDataUrl} alt="Ticket QR Code" className="h-64 w-64" />}
                         </div>
                         <Button onClick={handleDownload}>
                             <Download className="mr-2 h-4 w-4" />
