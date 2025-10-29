@@ -666,17 +666,23 @@ export default function PublicEventDetailPage() {
                 </div>
             )}
             {paymentStatus === 'success' && confirmedTicket && (
-                <div className="p-6 text-center">
+                <div className="flex flex-col items-center justify-center p-6 text-center">
                     <div className="mx-auto w-16 h-16 mb-4 flex items-center justify-center rounded-full bg-green-100">
                         <CheckCircle2 className="h-10 w-10 text-green-600" />
                     </div>
-                    <DialogTitle className="text-2xl font-bold">Purchase Successful!</DialogTitle>
-                    <DialogDescription className="mt-2">Thank you! Your ticket is confirmed.</DialogDescription>
-                    <div className="my-6 space-y-2">
+                    <h2 className="text-2xl font-bold">Purchase Successful!</h2>
+                    <p className="text-muted-foreground mt-2">Thank you! Your ticket is confirmed.</p>
+                    
+                    <div className="space-y-4 my-6 w-full">
                         <p className="text-sm text-muted-foreground">Present this QR code at the event entrance for scanning.</p>
-                         {qrCodeDataUrl && <img src={qrCodeDataUrl} alt="Ticket QR Code" className="h-48 w-48 mx-auto border-4 border-muted p-2 rounded-lg bg-white" />}
+                        {qrCodeDataUrl && 
+                            <div className="p-2 border-4 border-muted rounded-lg bg-white inline-block">
+                                <img src={qrCodeDataUrl} alt="Ticket QR Code" className="h-48 w-48 mx-auto" />
+                            </div>
+                        }
                     </div>
-                     <div className="flex flex-col gap-2">
+
+                    <div className="flex flex-col gap-3 w-full">
                         <Button onClick={() => {
                             const link = document.createElement('a');
                             link.href = qrCodeDataUrl;
@@ -687,7 +693,7 @@ export default function PublicEventDetailPage() {
                             Download QR Code
                         </Button>
                         <Button variant="outline" onClick={() => setPaymentStatus('idle')}>
-                            Close
+                            Done
                         </Button>
                     </div>
                 </div>
