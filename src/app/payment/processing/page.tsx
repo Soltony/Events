@@ -40,10 +40,14 @@ function ProcessingPaymentContent() {
                 const response = await api.get(`/api/payment/status/${idToUse}`);
 
                 if (response.data.status === 'COMPLETED') {
-                    console.log('Payment completed successfully, redirecting to success page...');
-                    if (!isCancelled) {
-                        // Ensure we stop any further polling before navigating
+                    console.log('Payment completed successfully, redirecting to ticket page...');
+                    if (!isCancelled && response.data.attendeeId) {
                         isCancelled = true;
+                        // Redirect directly to the final ticket confirmation page
+                        router.replace(`/ticket/${response.data.attendeeId}/confirmation`);
+                    } else {
+                        // Fallback to old success page if attendeeId is missing for some reason
+                        console.warn("Attendee ID not found in payment status response, falling back to success page.");
                         const attendeeIdParam = response.data.attendeeId ? `&attendee_id=${response.data.attendeeId}` : '';
                         router.replace(`/payment/success?transaction_id=${idToUse}${attendeeIdParam}`);
                     }
@@ -62,7 +66,9 @@ function ProcessingPaymentContent() {
             }
 
             // If not completed or failed, schedule the next poll
-            setTimeout(pollStatus, 2000);
+            if (!isCancelled) {
+                setTimeout(pollStatus, 2000);
+            }
         };
 
         // Start the first poll
