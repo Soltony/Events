@@ -377,6 +377,16 @@ export default function PublicEventDetailPage() {
         return [];
     }, [event, selectedLocation, eventLocations]);
 
+    const handleDownloadQRCode = () => {
+        if (qrCodeDataUrl && confirmedTicket) {
+            const link = document.createElement('a');
+            link.href = qrCodeDataUrl;
+            link.download = `ticket-qr-${confirmedTicket.event.name.replace(/\s+/g, '_')}-${confirmedTicket.id}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    };
   
   if (loading || !event) {
     return (
@@ -677,18 +687,17 @@ export default function PublicEventDetailPage() {
                         <p className="text-sm text-muted-foreground">Present this QR code at the event entrance for scanning.</p>
                         {qrCodeDataUrl && 
                             <div className="p-2 border-4 border-muted rounded-lg bg-white inline-block">
-                                <img src={qrCodeDataUrl} alt="Ticket QR Code" className="h-48 w-48 mx-auto" />
+                                <img id="qr-code-image" src={qrCodeDataUrl} alt="Ticket QR Code" className="h-48 w-48 mx-auto" />
                             </div>
                         }
                     </div>
 
                     <div className="flex flex-col gap-3 w-full">
-                        <Button onClick={() => {
-                            const link = document.createElement('a');
-                            link.href = qrCodeDataUrl;
-                            link.download = `ticket-qr-${confirmedTicket.event.name.replace(/\s+/g, '_')}-${confirmedTicket.id}.png`;
-                            link.click();
-                        }}>
+                        <Button 
+                            onClick={handleDownloadQRCode}
+                            style={{ backgroundColor: '#f59e0b', color: '#422006' }} 
+                            className="hover:bg-yellow-400/90"
+                        >
                             <Download className="mr-2 h-4 w-4" />
                             Download QR Code
                         </Button>
@@ -715,3 +724,4 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
+
