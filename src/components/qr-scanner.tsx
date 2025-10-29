@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useEffect } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { useEffect, useRef } from 'react';
+import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
 import { useToast } from '@/hooks/use-toast';
 
 const QR_REGION_ID = "qr-code-reader-view";
@@ -10,13 +10,22 @@ const QR_REGION_ID = "qr-code-reader-view";
 interface QrScannerProps {
     onScanSuccess: (text: string) => void;
     onScanFailure: (error: string) => void;
+    isScanning: boolean;
+    stopScanner: () => void;
 }
 
-export default function QrScannerComponent({ onScanSuccess, onScanFailure }: QrScannerProps) {
+// This component is now deprecated in favor of the implementation directly in the page.
+// It is kept here to avoid breaking imports, but it is no longer used.
+// The logic has been moved to `src/app/(auth)/dashboard/scan/page.tsx` for better state management.
+export default function QrScannerComponent({ onScanSuccess, onScanFailure, isScanning, stopScanner }: QrScannerProps) {
     const { toast } = useToast();
+    const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
 
     useEffect(() => {
-        if (typeof window === 'undefined') {
+        if (!isScanning) {
+            if (html5QrCodeRef.current?.isScanning) {
+                html5QrCodeRef.current.stop().catch(err => console.error("Failed to stop scanner", err));
+            }
             return;
         }
 
@@ -26,22 +35,8 @@ export default function QrScannerComponent({ onScanSuccess, onScanFailure }: QrS
             return;
         }
 
-        const html5QrCode = new Html5Qrcode(QR_REGION_ID);
-        let isScannerRunning = false;
-
-        const qrCodeSuccessCallback = (decodedText: string, result: any) => {
-            if (isScannerRunning) {
-                onScanSuccess(decodedText);
-                isScannerRunning = false; 
-                 html5QrCode.stop().catch(err => {
-                    console.error("Failed to stop scanner after success", err);
-                });
-            }
-        };
-
-        const qrCodeErrorCallback = (errorMessage: string, error: any) => {
-            // This callback is called frequently, so we can ignore most errors.
-        };
+        const newScanner = new Html5Qrcode(QR_REGION_ID);
+        html5QrCodeRef.current = newScanner;
 
         const config = {
             fps: 10,
@@ -50,31 +45,35 @@ export default function QrScannerComponent({ onScanSuccess, onScanFailure }: QrS
             disableFlip: false,
         };
         
-        html5QrCode.start(
+        newScanner.start(
             { facingMode: "environment" },
             config,
-            qrCodeSuccessCallback,
-            qrCodeErrorCallback
-        ).then(() => {
-            isScannerRunning = true;
-        }).catch(err => {
-            console.error("Unable to start QR Code scanner.", err);
-            onScanFailure(err.message || 'Could not access camera. Please check permissions.');
-            toast({
-                variant: 'destructive',
-                title: 'Camera Error',
-                description: err.message || 'Could not access camera. Please check permissions.'
+            (decodedText) => {
+                onScanSuccess(decodedText);
+                stopScanner();
+            },
+            (errorMessage) => {
+                // This callback is called frequently, so we can ignore most errors.
+            })
+            .catch(err => {
+                console.error("Unable to start QR Code scanner.", err);
+                onScanFailure(err.message || 'Could not access camera. Please check permissions.');
+                toast({
+                    variant: 'destructive',
+                    title: 'Camera Error',
+                    description: err.message || 'Could not access camera. Please check permissions.'
+                });
+                stopScanner();
             });
-        });
 
         return () => {
-            if (isScannerRunning && html5QrCode.isScanning) {
-                html5QrCode.stop().catch(err => {
+            if (newScanner && newScanner.isScanning) {
+                newScanner.stop().catch(err => {
                     console.error("Error stopping the scanner on cleanup.", err);
                 });
             }
         };
-    }, [onScanSuccess, onScanFailure, toast]);
+    }, [isScanning, onScanSuccess, onScanFailure, stopScanner, toast]);
 
     return <div id={QR_REGION_ID} className="w-full h-full" />;
 }
