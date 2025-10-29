@@ -327,7 +327,10 @@ export default function PublicEventDetailPage() {
 
         const poll = async () => {
             if (isCancelled || pollCount >= maxPolls) {
-                if (!isCancelled) setPaymentStatus('failed');
+                if (!isCancelled) {
+                    setError("Payment confirmation timed out. Please check 'My Tickets' later or contact support if the issue persists.");
+                    setPaymentStatus('failed');
+                }
                 return;
             }
             pollCount++;
@@ -342,7 +345,7 @@ export default function PublicEventDetailPage() {
                         setQrCodeDataUrl(qrUrl);
                         setPaymentStatus('success');
                     } else {
-                        setPaymentStatus('failed');
+                        throw new Error("Could not retrieve ticket details after confirmation.");
                     }
                     isCancelled = true; // Stop polling
                 } else {
@@ -378,9 +381,10 @@ export default function PublicEventDetailPage() {
     }, [event, selectedLocation, eventLocations]);
 
     const handleDownloadQRCode = () => {
-        if (qrCodeDataUrl && confirmedTicket) {
+        const qrImage = document.getElementById('qr-code-image') as HTMLImageElement;
+        if (qrImage && confirmedTicket) {
             const link = document.createElement('a');
-            link.href = qrCodeDataUrl;
+            link.href = qrImage.src;
             link.download = `ticket-qr-${confirmedTicket.event.name.replace(/\s+/g, '_')}-${confirmedTicket.id}.png`;
             document.body.appendChild(link);
             link.click();
@@ -724,3 +728,4 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
+
