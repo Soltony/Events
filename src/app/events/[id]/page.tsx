@@ -2,35 +2,54 @@
 
 'use client';
 
-import { getEventById, validatePromoCode } from '@/lib/actions';
+import { getEventById, validatePromoCode, getTicketDetailsForConfirmation } from '@/lib/actions';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone, ArrowLeft, X, UserCircle, GripVertical, AlertCircle } from 'lucide-react';
+import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone, ArrowLeft, X, UserCircle, GripVertical, AlertCircle, CheckCircle2, Download } from 'lucide-react';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import type { Event, TicketType, PromoCode } from '@prisma/client';
+import type { Event, TicketType, PromoCode, Attendee } from '@prisma/client';
 import { useEffect, useState, useTransition, useMemo, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import CartSheet from '@/components/cart-sheet';
 import { cn } from '@/lib/utils';
-import { AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Autoplay from "embla-carousel-autoplay";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/context/auth-context';
 import api from '@/lib/api';
+import QRCode from 'qrcode';
 
 
 interface EventWithTickets extends Event {
     ticketTypes: (TicketType & { basePrice: number })[];
+}
+
+interface TicketDetails extends Attendee {
+    event: Event;
+    ticketType: TicketType;
 }
 
 export type SelectedTicket = {
@@ -78,6 +97,11 @@ export default function PublicEventDetailPage() {
   const [isPhoneFromSession, setIsPhoneFromSession] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'failed'>('idle');
+  const [paymentTransactionId, setPaymentTransactionId] = useState<string | null>(null);
+  const [confirmedTicket, setConfirmedTicket] = useState<TicketDetails | null>(null);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   
   const plugin = useRef(
     Autoplay({ delay: 3000, stopOnInteraction: true, stopOnMouseEnter: true })
@@ -87,8 +111,6 @@ export default function PublicEventDetailPage() {
     if (isNaN(eventId)) {
         notFound();
     }
-    
-    
     
     async function fetchEvent() {
         setLoading(true);
@@ -240,6 +262,7 @@ export default function PublicEventDetailPage() {
         }
 
         setIsPurchaseModalOpen(false);
+        setPaymentStatus('processing'); 
 
         startTransition(async () => {
             try {
@@ -256,11 +279,8 @@ export default function PublicEventDetailPage() {
                 }
                 
                 const { transactionId } = pendingOrderResponse.data;
+                setPaymentTransactionId(transactionId);
 
-                 // Store the transaction ID to check for completion on the tickets page
-                if (typeof window !== 'undefined') {
-                    localStorage.setItem('mostRecentTransactionId', transactionId);
-                }
 
                 // Step 2: Use the transactionId from our DB to initiate payment with NIB
                 const paymentResponse = await api.post('/api/payment/nib/initiate', {
@@ -275,14 +295,12 @@ export default function PublicEventDetailPage() {
                 // Step 3: Send the payment token back to the NIB Super App
                 const paymentToken = paymentResponse.data.paymentToken;
                 if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
-                    console.log('Sending payment token to NIB Super App and redirecting to processing page...');
+                    console.log('Sending payment token to NIB Super App...');
                     window.myJsChannel.postMessage({ token: paymentToken });
-                    
-                    // Step 4: Redirect to the My Tickets page for polling
-                    router.push(`/tickets`);
                 } else {
                     console.error("NIB Super App channel (window.myJsChannel) not found.");
                     setError("Could not communicate with the payment app. This feature is only available within the NIB SuperApp.");
+                    setPaymentStatus('failed');
                 }
             } catch (error: any) {
                 console.error('Payment initiation error:', error);
@@ -292,10 +310,55 @@ export default function PublicEventDetailPage() {
                     title: "Payment Initiation Failed",
                     description: error.response?.data?.detail || error.message || "An unknown error occurred.",
                 });
-                router.push(`/payment/failure?event_id=${eventId}`);
+                setPaymentStatus('failed');
             }
         });
     };
+
+    // This effect handles polling for payment status
+    useEffect(() => {
+        if (paymentStatus !== 'processing' || !paymentTransactionId) {
+            return;
+        }
+
+        let isCancelled = false;
+        let pollCount = 0;
+        const maxPolls = 20; // Poll for 40 seconds
+
+        const poll = async () => {
+            if (isCancelled || pollCount >= maxPolls) {
+                if (!isCancelled) setPaymentStatus('failed');
+                return;
+            }
+            pollCount++;
+            
+            try {
+                const response = await api.get(`/api/payment/status/${paymentTransactionId}`);
+                if (response.data.status === 'COMPLETED') {
+                    const ticketDetails = await getTicketDetailsForConfirmation(paymentTransactionId);
+                    if (ticketDetails) {
+                        setConfirmedTicket(ticketDetails);
+                        const qrUrl = await QRCode.toDataURL(ticketDetails.id.toString(), { errorCorrectionLevel: 'H', type: 'image/png', margin: 1 });
+                        setQrCodeDataUrl(qrUrl);
+                        setPaymentStatus('success');
+                    } else {
+                        setPaymentStatus('failed');
+                    }
+                    isCancelled = true; // Stop polling
+                } else {
+                    setTimeout(poll, 2000);
+                }
+            } catch (error) {
+                console.error("Polling error", error);
+                setTimeout(poll, 2000);
+            }
+        };
+
+        poll();
+
+        return () => { isCancelled = true; };
+    }, [paymentStatus, paymentTransactionId]);
+
 
     const eventLocations = useMemo(() => {
         return event?.location ? Array.from(new Set(event.location.split('||').map(l => l.trim()))) : [];
@@ -588,6 +651,61 @@ export default function PublicEventDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={paymentStatus !== 'idle'} onOpenChange={(open) => !open && setPaymentStatus('idle')}>
+        <DialogContent className="sm:max-w-md p-0" hideCloseButton>
+            {paymentStatus === 'processing' && (
+                 <div className="flex flex-col items-center justify-center p-8 text-center space-y-4">
+                    <Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" />
+                    <DialogTitle className="text-2xl font-semibold">Finalizing Your Ticket...</DialogTitle>
+                    <DialogDescription>Please wait while we confirm your payment. This may take a few moments.</DialogDescription>
+                    <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm pt-4">
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span>Do not close this window.</span>
+                    </div>
+                </div>
+            )}
+            {paymentStatus === 'success' && confirmedTicket && (
+                <div className="p-6 text-center">
+                    <div className="mx-auto w-16 h-16 mb-4 flex items-center justify-center rounded-full bg-green-100">
+                        <CheckCircle2 className="h-10 w-10 text-green-600" />
+                    </div>
+                    <DialogTitle className="text-2xl font-bold">Purchase Successful!</DialogTitle>
+                    <DialogDescription className="mt-2">Thank you! Your ticket is confirmed.</DialogDescription>
+                    <div className="my-6 space-y-2">
+                        <p className="text-sm text-muted-foreground">Present this QR code at the event entrance for scanning.</p>
+                         {qrCodeDataUrl && <img src={qrCodeDataUrl} alt="Ticket QR Code" className="h-48 w-48 mx-auto border-4 border-muted p-2 rounded-lg bg-white" />}
+                    </div>
+                     <div className="flex flex-col gap-2">
+                        <Button onClick={() => {
+                            const link = document.createElement('a');
+                            link.href = qrCodeDataUrl;
+                            link.download = `ticket-qr-${confirmedTicket.event.name.replace(/\s+/g, '_')}-${confirmedTicket.id}.png`;
+                            link.click();
+                        }}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Download QR Code
+                        </Button>
+                        <Button variant="outline" onClick={() => setPaymentStatus('idle')}>
+                            Close
+                        </Button>
+                    </div>
+                </div>
+            )}
+             {paymentStatus === 'failed' && (
+                <div className="flex flex-col items-center justify-center p-8 text-center space-y-4">
+                    <div className="mx-auto w-16 h-16 mb-4 flex items-center justify-center rounded-full bg-red-100">
+                        <X className="h-10 w-10 text-red-600" />
+                    </div>
+                    <DialogTitle className="text-2xl font-bold">Payment Failed</DialogTitle>
+                    <DialogDescription className="mt-2">{error || "We couldn't process your payment. Please try again."}</DialogDescription>
+                    <Button variant="outline" className="mt-4" onClick={() => setPaymentStatus('idle')}>
+                        Close
+                    </Button>
+                </div>
+            )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
