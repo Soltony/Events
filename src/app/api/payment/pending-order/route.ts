@@ -28,8 +28,8 @@ export async function POST(req: NextRequest) {
                 ticketTypeId: tickets[0].id, // Store primary ticket type
                 attendeeData: {
                     name: attendeeDetails.name,
-                    phone: attendeeDetails.phone, // Ensure phone is stored under 'phone' key
-                    userId: attendeeDetails.userId, // Store optional userId
+                    phoneNumber: attendeeDetails.phone,
+                    userId: attendeeDetails.userId,
                     quantity: totalQuantity,
                     tickets: tickets, // Store all selected ticket details
                 },

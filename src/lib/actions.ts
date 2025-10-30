@@ -1030,13 +1030,8 @@ export async function getTicketDetailsForConfirmation(identifier: string) {
         whereClause = { id: parseInt(identifier, 10) };
     } else {
         // If it's not numeric, assume it's a transactionId from the payment success page
-        const order = await prisma.pendingOrder.findFirst({
-            where: { 
-                OR: [
-                    { transactionId: identifier },
-                    { arifpaySessionId: identifier }
-                ]
-             },
+        const order = await prisma.pendingOrder.findUnique({
+            where: { transactionId: identifier },
         });
         if (!order || !order.attendeeId) return null;
         whereClause = { id: order.attendeeId };
@@ -1053,23 +1048,8 @@ export async function getTicketDetailsForConfirmation(identifier: string) {
     return serialize(attendee);
 }
 
-export async function getTicketsForUser(userId?: string, phoneNumbers?: string[]) {
-    if (!userId && (!phoneNumbers || phoneNumbers.length === 0)) {
-        return [];
-    }
-
-    const whereClauses = [];
-    if (userId) {
-        whereClauses.push({ userId: userId });
-    }
-    if (phoneNumbers && phoneNumbers.length > 0) {
-        whereClauses.push({ phoneNumber: { in: phoneNumbers } });
-    }
-
-    const attendees = await prisma.attendee.findMany({
-        where: {
-            OR: whereClauses,
-        },
+export async function getTicketsForUser(userId?: string, phoneNumber?: string) {
+    const findClause: any = {
         include: {
             event: true,
             ticketType: true,
@@ -1077,8 +1057,17 @@ export async function getTicketsForUser(userId?: string, phoneNumbers?: string[]
         orderBy: {
             createdAt: 'desc',
         },
-    });
+    };
 
+    if (userId) {
+        findClause.where = { userId: userId };
+    } else if (phoneNumber) {
+        findClause.where = { phoneNumber: phoneNumber };
+    } else {
+        return []; // No identifier provided
+    }
+
+    const attendees = await prisma.attendee.findMany(findClause);
     return serialize(attendees);
 }
 

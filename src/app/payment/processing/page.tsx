@@ -49,16 +49,14 @@ function ProcessingPaymentContent() {
                         // Fallback to old success page if attendeeId is missing for some reason
                         console.warn("Attendee ID not found in payment status response, falling back to success page.");
                         const attendeeIdParam = response.data.attendeeId ? `&attendee_id=${response.data.attendeeId}` : '';
-                        router.replace(`/payment/success?transaction_id=${idToUse}${attendeeIdParam}`);
+                        // Redirect to confirmation page using transaction identifier; it will poll until ready
+                        router.replace(`/ticket/0/confirmation?transaction_id=${idToUse}${attendeeIdParam}`);
                     }
                     return; // Stop polling
                 } else if (response.data.status === 'FAILED') {
-                    console.log('Payment failed, redirecting to failure page');
-                    if (!isCancelled) {
-                        isCancelled = true;
-                        router.replace(`/payment/failure?transaction_id=${idToUse}`);
-                    }
-                    return; // Stop polling
+                    console.log('Payment failed');
+                    // Stay on this page and show processing UI; user can navigate away
+                    return; // Stop polling for now
                 }
             } catch (error) {
                 console.error('Error polling payment status:', error);
