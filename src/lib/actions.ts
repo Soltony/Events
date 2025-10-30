@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -7,8 +6,9 @@ import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee, EventStatus, UserStatus } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
+import { decryptSessionPayload } from './sessionCrypto';
 import type { DateRange } from 'react-day-picker';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -17,16 +17,48 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
         : value
 ));
 
+interface AttendeeTicket {
+  id: string;
+  userId: string | null;
+  phoneNumber: string | null;
+  createdAt: Date;
+  event: {
+    id: string;
+    name: string;
+    image: string | null;
+    startDate: Date;
+    endDate: Date | null;
+  };
+  ticketType: {
+    id: string;
+    name: string;
+  };
+}
+
+// --- Permission Definitions ---
+const VALID_PERMISSIONS = new Set([
+  'Dashboard:Create', 'Dashboard:Read', 'Dashboard:Update', 'Dashboard:Delete',
+  'Scan QR:Create', 'Scan QR:Read', 'Scan QR:Update', 'Scan QR:Delete',
+  'Events:Create', 'Events:Read', 'Events:Update', 'Events:Delete',
+  'Reports:Create', 'Reports:Read', 'Reports:Update', 'Reports:Delete',
+  'User Registration:Create', 'User Registration:Read', 'User Registration:Update', 'User Registration:Delete',
+  'User Management:Create', 'User Management:Read', 'User Management:Update', 'User Management:Delete',
+  'Role Management:Create', 'Role Management:Read', 'Role Management:Update', 'Role Management:Delete',
+]);
+
+
 export async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
   try {
     const cookieStore = await cookies();
-    const tokenCookie = cookieStore.get('authTokens');
+    const tokenCookie = cookieStore.get('auth');
 
     if (!tokenCookie?.value) {
       return null;
     }
     
-    const tokenData = JSON.parse(tokenCookie.value);
+    // Cookie is encrypted; decrypt before parsing JSON
+    const decrypted = await decryptSessionPayload(tokenCookie.value);
+    const tokenData = JSON.parse(decrypted);
     const token = tokenData.accessToken;
 
     if (!token) {
@@ -624,7 +656,8 @@ export async function addUser(data: any) {
       throw new Error('Auth API URL not configured.');
     }
     
-    const password = "User@123";
+    // Generate a secure, random password. e.g., "UserA1b2C3d4@"
+    const password = `User${randomBytes(4).toString('hex')}@`;
     
     try {
         const authServiceEmail = email || `${phoneNumber}@nibtickets.com`;
@@ -772,7 +805,7 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         }
 
         const cookieStore = await cookies();
-        const tokenCookie = cookieStore.get('authTokens');
+        const tokenCookie = await cookieStore.get('auth');
         if (!tokenCookie?.value) {
             throw new Error('Authentication token not found');
         }
@@ -828,11 +861,15 @@ export async function getRoleById(id: string) {
 
 export async function createRole(data: { name: string; description: string; permissions: string[] }) {
     const { name, description, permissions } = data;
+
+    // Filter incoming permissions against the valid list
+    const sanitizedPermissions = permissions.filter(p => VALID_PERMISSIONS.has(p));
+
     const role = await prisma.role.create({
         data: {
             name,
             description,
-            permissions: permissions.join(','),
+            permissions: sanitizedPermissions.join(','),
         },
     });
     revalidatePath('/dashboard/settings/roles');
@@ -840,15 +877,27 @@ export async function createRole(data: { name: string; description: string; perm
     return serialize(role);
 }
 
-export async function updateRole(id: string, data: Partial<Role>) {
+export async function updateRole(id: string, data: Partial<Role> & { permissions: string }) {
+    const permissionsArray = Array.isArray(data.permissions) 
+        ? data.permissions 
+        : (data.permissions || '').split(',');
+
+    // Filter incoming permissions against the valid list
+    const sanitizedPermissions = permissionsArray.filter(p => VALID_PERMISSIONS.has(p));
+
     const role = await prisma.role.update({
         where: { id },
-        data: data,
+        data: {
+            name: data.name,
+            description: data.description,
+            permissions: sanitizedPermissions.join(','),
+        },
     });
     revalidatePath('/dashboard/settings/roles');
     revalidatePath(`/dashboard/settings/roles/${id}/edit`);
     return serialize(role);
 }
+
 
 export async function deleteRole(id: string) {
     const usersWithRole = await prisma.user.count({ where: { roleId: id } });
@@ -871,7 +920,7 @@ export async function updatePasswordFlag(userId: string, passwordChangeRequired:
 
 
 // Ticket/Attendee Actions
-interface PurchaseRequest {
+export interface PurchaseRequest {
   eventId: number;
   tickets: { id: number; quantity: number, name: string; price: number }[];
   promoCode?: string;
@@ -879,92 +928,117 @@ interface PurchaseRequest {
     name: string;
     phone: string;
     email?: string;
+    userId?: string;
   };
 }
 
 export async function purchaseTickets(request: PurchaseRequest) {
-    'use server';
     const { eventId, tickets, promoCode, attendeeDetails } = request;
-
-    if (!attendeeDetails.name || !attendeeDetails.phone) {
-        throw new Error("Attendee name and phone number are required.");
-    }
-    if (tickets.length === 0) {
-        throw new Error("No tickets in purchase request.");
-    }
-    
     const user = await getCurrentUser();
-    
-    const useMockFlow = process.env.NODE_ENV === 'development' || !process.env.BASE_URL || !process.env.ARIFPAY_API_KEY;
 
-    try {
-        if (useMockFlow) {
-            console.log("Using mock payment flow.");
-            const totalQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0);
-            const transactionId = randomBytes(16).toString('hex');
+    if (!user && !attendeeDetails.phone) {
+        throw new Error("User must be logged in or provide a phone number.");
+    }
 
-            const pendingOrder = await prisma.pendingOrder.create({
-                data: {
-                    transactionId: transactionId,
-                    arifpaySessionId: transactionId, // Use the same ID for mock session
-                    eventId,
-                    ticketTypeId: tickets[0].id,
-                    attendeeData: {
-                        name: attendeeDetails.name,
-                        phoneNumber: attendeeDetails.phone,
-                        userId: user?.id,
-                        quantity: totalQuantity,
-                    },
-                    promoCode,
-                    status: 'PENDING',
-                },
-            });
+    return await prisma.$transaction(async (tx) => {
+        let totalAmount = 0;
+        let discountAmount = 0;
 
-            redirect(`/payment/success?session_id=${pendingOrder.arifpaySessionId}`);
-            return;
-        }
-
-        // Production flow with real payment gateway
-        const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_VERCEL_URL;
-        if (!appUrl) {
-            throw new Error("App URL environment variable is not set.");
-        }
-
-        const purchaseData = {
-            eventId,
-            tickets,
-            promoCode,
-            attendeeDetails: {
-                ...attendeeDetails,
-                userId: user?.id,
+        for (const ticket of tickets) {
+            const ticketType = await tx.ticketType.findUnique({ where: { id: ticket.id } });
+            if (!ticketType) throw new Error(`Ticket type with ID ${ticket.id} not found.`);
+            if ((ticketType.total - ticketType.sold) < ticket.quantity) {
+                throw new Error(`Not enough tickets available for "${ticketType.name}".`);
             }
-        };
+            totalAmount += Number(ticketType.basePrice) * ticket.quantity;
+        }
 
-        const response = await fetch(`${appUrl}/api/payment/arifpay/initiate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(purchaseData),
+        if (promoCode) {
+            const validatedPromo = await validatePromoCode(promoCode, eventId);
+            if (!validatedPromo) throw new Error("Invalid or expired promo code.");
+            
+            if (validatedPromo.type === 'PERCENTAGE') {
+                discountAmount = totalAmount * (Number(validatedPromo.value) / 100);
+            } else {
+                discountAmount = Math.min(totalAmount, Number(validatedPromo.value));
+            }
+            totalAmount -= discountAmount;
+
+            await tx.promoCode.update({
+                where: { id: validatedPromo.id },
+                data: { uses: { increment: 1 } }
+            });
+        }
+        
+        const finalAmount = totalAmount;
+        
+        // This is a placeholder for the actual payment gateway interaction
+        console.log(`Initiating payment for ${finalAmount.toFixed(2)} ETB...`);
+        const paymentSessionId = `MOCK_${randomUUID()}`;
+
+        // Create a single attendee record for the entire purchase
+        const firstTicket = tickets[0];
+        const totalQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0);
+
+        const newAttendee = await tx.attendee.create({
+            data: {
+                name: attendeeDetails.name,
+                phoneNumber: attendeeDetails.phone,
+                userId: attendeeDetails.userId || user?.id,
+                eventId: eventId,
+                ticketTypeId: firstTicket.id, // Primary ticket type
+                // You might want a better way to represent multiple ticket purchases
+                // For now, let's assume one attendee record per purchase, even with multiple ticket types.
+            }
         });
 
-        const result = await response.json();
+        // Update ticket counts
+        for (const ticket of tickets) {
+             await tx.ticketType.update({
+                where: { id: ticket.id },
+                data: { sold: { increment: ticket.quantity } }
+            });
+        }
+        
+        const order = await tx.pendingOrder.create({
+            data: {
+                arifpaySessionId: paymentSessionId,
+                transactionId: paymentSessionId, // Using the same for simplicity in mock
+                eventId: eventId,
+                attendeeData: {
+                    ...attendeeDetails,
+                    quantity: totalQuantity,
+                    tickets: tickets,
+                },
+                attendeeId: newAttendee.id,
+                status: 'COMPLETED' // Mocking completion
+            }
+        });
 
-        if (response.ok && result.paymentUrl) {
-            redirect(result.paymentUrl);
-        } else {
-            throw new Error(result.error || 'Failed to initiate payment session.');
-        }
-    } catch (error: any) {
-        if (error.digest?.startsWith('NEXT_REDIRECT')) {
-            throw error;
-        }
-        console.error("Payment initiation failed:", error.message);
-        redirect(`/payment/failure?event_id=${eventId}`);
-    }
+        revalidatePath(`/events/${eventId}`);
+        revalidatePath('/dashboard');
+        
+        return serialize({ success: true, redirectUrl: `/payment/success?session_id=${paymentSessionId}` });
+    });
 }
 
-export async function getTicketDetailsForConfirmation(attendeeId: number) {
+export async function getTicketDetailsForConfirmation(identifier: string) {
+    const isNumericId = /^\d+$/.test(identifier);
+
+    let whereClause;
+    if (isNumericId) {
+        whereClause = { id: parseInt(identifier, 10) };
+    } else {
+        // If it's not numeric, assume it's a transactionId from the payment success page
+        const order = await prisma.pendingOrder.findUnique({
+            where: { transactionId: identifier },
+        });
+        if (!order || !order.attendeeId) return null;
+        whereClause = { id: order.attendeeId };
+    }
+
     const attendee = await prisma.attendee.findUnique({
-        where: { id: attendeeId },
+        where: whereClause,
         include: {
             event: true,
             ticketType: true,
@@ -974,33 +1048,45 @@ export async function getTicketDetailsForConfirmation(attendeeId: number) {
     return serialize(attendee);
 }
 
-export async function getTicketsByUserId(userId: string | null, localTicketIds: number[] = []) {
-    const whereClauses = [];
-    if (userId) {
-        whereClauses.push({ userId: userId });
-    }
-    if (localTicketIds.length > 0) {
-        whereClauses.push({ id: { in: localTicketIds } });
-    }
-
-    if (whereClauses.length === 0) {
-        return [];
-    }
-
-    const tickets = await prisma.attendee.findMany({
-        where: {
-            OR: whereClauses,
-        },
+export async function getTicketsForUser(userId?: string, phoneNumber?: string) {
+    const findClause: any = {
         include: {
             event: true,
             ticketType: true,
         },
         orderBy: {
             createdAt: 'desc',
-        }
-    });
+        },
+    };
 
-    return serialize(tickets);
+    if (userId) {
+        findClause.where = { userId: userId };
+    } else if (phoneNumber) {
+        findClause.where = { phoneNumber: phoneNumber };
+    } else {
+        return []; // No identifier provided
+    }
+
+    const attendees = await prisma.attendee.findMany(findClause);
+    return serialize(attendees);
+}
+
+
+export async function getTicketsByUserId(userId: string | null) {
+  if (!userId) {
+    return [];
+  }
+  const tickets = await prisma.attendee.findMany({
+    where: { userId },
+    include: {
+      event: true,
+      ticketType: true,
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+  return serialize(tickets);
 }
 
 export async function validatePromoCode(code: string, eventId: number, location?: string | null, ticketTypesInCart?: { id: number; name: string }[]): Promise<PromoCode | null> {

@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import api, { setAuthToken } from '@/lib/api';
 import { getUserByPhoneNumber } from '@/lib/actions';
 import type { User, Role } from '@prisma/client';
+import Cookies from 'js-cookie';
 
 interface AuthTokens {
   accessToken: string;
@@ -30,21 +31,50 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SESSION_TIMEOUT_DURATION = 15 * 60 * 1000; 
+const SESSION_TIMEOUT_DURATION = 15 * 60 * 1000;
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION = 30 * 1000; // 30 seconds
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [user, setUser] = useState<UserWithRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
+
+  // Initialize failed attempts and lockout from localStorage
+  useEffect(() => {
+    const storedFailedAttempts = localStorage.getItem('failedLoginAttempts');
+    const storedLockoutUntil = localStorage.getItem('lockoutUntil');
+    
+    if (storedFailedAttempts) {
+      setFailedAttempts(parseInt(storedFailedAttempts, 10));
+    }
+    
+    if (storedLockoutUntil) {
+      const lockoutTime = parseInt(storedLockoutUntil, 10);
+      // Only set lockout if it hasn't expired yet
+      if (Date.now() < lockoutTime) {
+        setLockoutUntil(lockoutTime);
+      } else {
+        // Clear expired lockout
+        localStorage.removeItem('lockoutUntil');
+        localStorage.removeItem('failedLoginAttempts');
+      }
+    }
+  }, []);
 
   const clearAuthData = useCallback(async () => {
     setUser(null);
     setTokens(null);
     setAuthToken(null);
     localStorage.removeItem('authUser');
+    // Clear CSRF cookies on logout
+    Cookies.remove('csrf_token');
+    Cookies.remove('csrf_secret');
     await fetch('/api/auth/session', { method: 'DELETE' });
   }, []);
 
@@ -92,31 +122,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function initializeAuth() {
-        try {
-            const storedUser = localStorage.getItem('authUser');
-            const response = await fetch('/api/auth/session');
+      try {
+        const sessionResponse = await fetch('/api/auth/session');
 
-            if (storedUser && response.ok) {
-                const { accessToken } = await response.json();
-                if (accessToken) {
-                    setAuthToken(accessToken);
+        if (sessionResponse.ok) {
+            const sessionData = await sessionResponse.json();
+            if (sessionData.accessToken) {
+                setTokens({ accessToken: sessionData.accessToken, refreshToken: sessionData.refreshToken || '' });
+                setAuthToken(sessionData.accessToken);
+                const storedUser = localStorage.getItem('authUser');
+                if (storedUser) {
                     const parsedUser = JSON.parse(storedUser);
-                    setUser(parsedUser);
+                    // Verify that the user in localStorage matches the phone number from the session
+                    if (parsedUser.phoneNumber === sessionData.phoneNumber) {
+                        setUser(parsedUser);
+                    } else {
+                        // If mismatch, the user in local storage is stale, refetch it
+                        await refreshUser();
+                    }
                 } else {
-                    await clearAuthData();
+                    // If no user in local storage, try to fetch it
+                    await refreshUser();
                 }
             } else {
                  await clearAuthData();
             }
-        } catch (error) {
-            console.error("Failed to initialize auth state", error);
-            await clearAuthData();
-        } finally {
-            setIsLoading(false);
+        } else {
+             // Fallback to header-based initialization if session cookie is not found/valid
+            const initResponse = await fetch('/api/auth/init', { method: 'POST' });
+            if (initResponse.ok) {
+                const { user: initializedUser, isSuccess } = await initResponse.json();
+                if (isSuccess && initializedUser) {
+                    setUser(initializedUser);
+                    localStorage.setItem('authUser', JSON.stringify(initializedUser));
+                    const newSessionResponse = await fetch('/api/auth/session');
+                    if (newSessionResponse.ok) {
+                        const newSessionData = await newSessionResponse.json();
+                        setAuthToken(newSessionData.accessToken);
+                    }
+                }
+            } else {
+                await clearAuthData();
+            }
         }
+      } catch (error) {
+        console.error("Failed to initialize auth state", error);
+        await clearAuthData();
+      } finally {
+        setIsLoading(false);
+      }
     }
     initializeAuth();
-}, [clearAuthData]);
+  }, [clearAuthData, refreshUser]);
 
 
   useEffect(() => {
@@ -149,6 +206,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, logout]);
 
   const login = async (data: any) => {
+    if (lockoutUntil && Date.now() < lockoutUntil) {
+        const timeLeft = Math.ceil((lockoutUntil - Date.now()) / 1000);
+        toast({
+            variant: 'destructive',
+            title: 'Login Locked',
+            description: `Too many failed attempts. Please try again in ${timeLeft} seconds.`,
+        });
+        return;
+    }
+
     setIsLoading(true);
     try {
       const requestData = {
@@ -158,6 +225,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await api.post('/api/auth/login', requestData);
 
       if (response.data && response.data.isSuccess) {
+        setFailedAttempts(0);
+        setLockoutUntil(null);
+        // Clear stored failed attempts and lockout on successful login
+        localStorage.removeItem('failedLoginAttempts');
+        localStorage.removeItem('lockoutUntil');
+
         const { accessToken, refreshToken, AccessToken, RefreshToken } = response.data;
         const resolvedAccessToken = accessToken || AccessToken;
         const resolvedRefreshToken = refreshToken || RefreshToken;
@@ -173,14 +246,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             throw new Error('Your account is inactive. Please contact an administrator.');
           }
           
-          const newTokens = { accessToken: resolvedAccessToken, refreshToken: resolvedRefreshToken };
+          const newTokens = { 
+              accessToken: resolvedAccessToken, 
+              refreshToken: resolvedRefreshToken,
+              phoneNumber: data.phoneNumber,
+          };
           
+          // Store tokens in HTTP-only cookies for security
           await fetch('/api/auth/session', {
             method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
             body: JSON.stringify(newTokens),
+            credentials: 'include' // Include cookies in the request
           });
           
-          setTokens(newTokens);
+          // Keep tokens in memory for client-side usage
+          setTokens({ accessToken: newTokens.accessToken, refreshToken: newTokens.refreshToken });
           setAuthToken(resolvedAccessToken);
           
           setUser(userData);
@@ -207,17 +290,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
       } else {
-        const errorMessage = response.data.errors?.join(', ') || 'Login failed. Please check your credentials.';
-        throw new Error(errorMessage);
+        const currentFailed = failedAttempts + 1;
+        setFailedAttempts(currentFailed);
+        // Persist failed attempts to localStorage
+        localStorage.setItem('failedLoginAttempts', currentFailed.toString());
+
+        if (currentFailed >= MAX_LOGIN_ATTEMPTS) {
+            const newLockoutUntil = Date.now() + LOCKOUT_DURATION;
+            setLockoutUntil(newLockoutUntil);
+            setFailedAttempts(0);
+            // Persist lockout state to localStorage
+            localStorage.setItem('lockoutUntil', newLockoutUntil.toString());
+            localStorage.removeItem('failedLoginAttempts'); // Reset failed attempts after lockout
+            toast({
+                variant: 'destructive',
+                title: 'Login Locked',
+                description: `Too many failed attempts. Please try again in ${LOCKOUT_DURATION / 1000} seconds.`,
+            });
+        } else {
+            const errorMessage = response.data.errors?.join(', ') || 'Login failed. Please check your credentials.';
+            throw new Error(errorMessage);
+        }
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'An error occurred during login.';
-      toast({
-        variant: 'destructive',
-        title: 'Login Failed',
-        description: errorMessage,
-      });
-      console.error('Login error:', error);
+      // Handle failed attempts for network errors or other exceptions
+      const currentFailed = failedAttempts + 1;
+      setFailedAttempts(currentFailed);
+      localStorage.setItem('failedLoginAttempts', currentFailed.toString());
+
+      if (currentFailed >= MAX_LOGIN_ATTEMPTS) {
+          const newLockoutUntil = Date.now() + LOCKOUT_DURATION;
+          setLockoutUntil(newLockoutUntil);
+          setFailedAttempts(0);
+          localStorage.setItem('lockoutUntil', newLockoutUntil.toString());
+          localStorage.removeItem('failedLoginAttempts');
+          toast({
+              variant: 'destructive',
+              title: 'Login Locked',
+              description: `Too many failed attempts. Please try again in ${LOCKOUT_DURATION / 1000} seconds.`,
+          });
+      } else {
+          const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'An error occurred during login.';
+          toast({
+            variant: 'destructive',
+            title: 'Login Failed',
+            description: errorMessage,
+          });
+          console.error('Login error:', error);
+      }
     } finally {
         setIsLoading(false);
     }
@@ -229,8 +349,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     if (user.role.name === 'Admin') return true;
     
-    const userPermissions = user.role.permissions.split(',');
-    return userPermissions.includes(permission);
+    try {
+      // Handle both JSON array and comma-separated formats for backward compatibility
+      let userPermissions: string[];
+      if (user.role.permissions.startsWith('[')) {
+        userPermissions = JSON.parse(user.role.permissions);
+      } else {
+        userPermissions = user.role.permissions.split(',');
+      }
+      
+      return userPermissions.includes(permission);
+    } catch (error) {
+      console.error('Failed to parse permissions:', error);
+      return false;
+    }
   };
 
   const isAuthenticated = !isLoading && !!user;

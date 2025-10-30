@@ -60,7 +60,7 @@ export default function UserManagementPage() {
             !loading && setLoading(true);
             const { users: allUsers, roles: allRoles } = await getUsersAndRoles();
             
-            const filteredUsers = allUsers.filter(user => {
+            const filteredUsers = allUsers.filter((user: UserWithRole) => {
                 // The current user should always see themselves.
                 if (user.id === currentUser.id) {
                     return true;

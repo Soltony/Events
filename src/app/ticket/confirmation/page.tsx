@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -25,7 +26,7 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
       const endDateFormat = format(new Date(endDate), 'LLL dd, y') === format(new Date(startDate), 'LLL dd, y') 
         ? 'hh:mm a'
         : startDateFormat;
-      return `${format(new Date(startDate), startDateFormat)} - ${format(new Date(endDate), endDateFormat)}`;
+      return `${''}${format(new Date(startDate), startDateFormat)} - ${format(new Date(endDate), endDateFormat)}`;
     }
     return format(new Date(startDate), startDateFormat);
 }
@@ -49,7 +50,7 @@ export default function TicketConfirmationPage() {
         async function fetchTicketAndGenerateQR() {
             try {
                 setLoading(true);
-                const ticketDetails = await getTicketDetailsForConfirmation(attendeeId);
+                const ticketDetails = await getTicketDetailsForConfirmation(attendeeId.toString());
                 
                 if (!ticketDetails) {
                     setLoading(false);
@@ -66,16 +67,11 @@ export default function TicketConfirmationPage() {
                     localStorage.setItem('myTickets', JSON.stringify(myTickets));
                 }
 
-                const qrCodeData = JSON.stringify({
-                    ticketId: ticketDetails.id,
-                    eventId: ticketDetails.eventId,
-                    attendeeName: ticketDetails.name,
-                });
+                const qrCodeData = ticketDetails.id.toString();
 
                 const dataUrl = await QRCode.toDataURL(qrCodeData, {
                     errorCorrectionLevel: 'H',
                     type: 'image/png',
-                    quality: 0.92,
                     margin: 1,
                     color: {
                         dark: '#0D1A2E',

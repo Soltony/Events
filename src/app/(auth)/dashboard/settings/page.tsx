@@ -67,7 +67,7 @@ export default function SettingsPage() {
               <CardDescription>{card.description}</CardDescription>
             </CardContent>
             <CardFooter>
-              <Button asChild className="w-full" style={{ backgroundColor: card.color, color: card.textColor }}>
+                <Button asChild className="w-full" style={{ backgroundColor: card.color, color: card.textColor }}>
                 <Link href={card.href}>
                   {card.icon}
                   {card.buttonText}

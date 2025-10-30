@@ -9,10 +9,11 @@ import { Calendar, MapPin, Ticket, Loader2, X, User, Phone } from 'lucide-react'
 import type { Event, TicketType } from '@prisma/client';
 import { format } from 'date-fns';
 import { ScrollArea } from './ui/scroll-area';
-import React, { useTransition, useState } from 'react';
+import React, { useTransition, useState, useEffect } from 'react';
 import { purchaseTickets } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
+import axios from 'axios';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,6 +52,7 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
   const { user } = useAuth();
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [loadingTicketId, setLoadingTicketId] = useState<number | null>(null);
+  const [phoneFromCookie, setPhoneFromCookie] = useState<string | null>(null);
 
   // Initialize selected location when event changes
   React.useEffect(() => {
@@ -59,9 +61,26 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
     }
   }, [event]);
   
+  // Fetch phone number from HTTP-only cookie via server endpoint
+  useEffect(() => {
+    const fetchPhoneNumber = async () => {
+      try {
+        const response = await axios.get('/api/auth/cookie-data');
+        if (response.data && response.data.phoneNumber) {
+          setPhoneFromCookie(response.data.phoneNumber);
+          setAttendeePhone(response.data.phoneNumber);
+        }
+      } catch (error) {
+        console.error('Failed to fetch phone number from cookie:', error);
+      }
+    };
+    
+    fetchPhoneNumber();
+  }, []);
+  
   const [purchaseState, setPurchaseState] = useState<{ ticket: TicketType | null; isOpen: boolean }>({ ticket: null, isOpen: false });
   const [attendeeName, setAttendeeName] = useState(user ? `${user.firstName} ${user.lastName}` : '');
-  const [attendeePhone, setAttendeePhone] = useState(user ? user.phoneNumber : '');
+  const [attendeePhone, setAttendeePhone] = useState('');
 
 
   if (!event) return null;
@@ -83,7 +102,7 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
             id: purchaseState.ticket!.id, 
             quantity: 1, 
             name: purchaseState.ticket!.name, 
-            price: Number(purchaseState.ticket!.price) 
+            price: Number(purchaseState.ticket!.basePrice) 
           }],
           attendeeDetails: {
             name: attendeeName,
@@ -224,8 +243,18 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
                     <Label htmlFor="phone">Phone Number</Label>
                     <div className="relative">
                         <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input id="phone" placeholder="e.g., 0912345678" value={attendeePhone} onChange={e => setAttendeePhone(e.target.value)} className="pl-10" />
+                        <Input 
+                            id="phone" 
+                            placeholder="e.g., 0912345678" 
+                            value={attendeePhone} 
+                            onChange={e => !phoneFromCookie && setAttendeePhone(e.target.value)} 
+                            className={`pl-10 ${phoneFromCookie ? 'bg-muted cursor-not-allowed' : ''}`}
+                            readOnly={!!phoneFromCookie}
+                        />
                     </div>
+                    {phoneFromCookie && (
+                        <p className="text-xs text-muted-foreground">Phone number retrieved from your account</p>
+                    )}
                 </div>
             </div>
             <AlertDialogFooter>

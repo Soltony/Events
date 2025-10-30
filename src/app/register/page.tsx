@@ -66,20 +66,15 @@ export default function RegisterPage() {
          throw new Error(response.data.errors?.join(', ') || 'Registration failed');
       }
     } catch (error: any) {
-      let errorMessage = 'An unknown error occurred.';
-      if (error.response?.data?.errors) {
-        const errors = error.response.data.errors;
-        if (Array.isArray(errors)) {
-          errorMessage = errors.join(', ');
-        } else {
-          errorMessage = String(errors);
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
+      let errorMessage = 'An unknown error occurred during registration.';
+      const rawError = error.response?.data?.errors?.[0] || error.message || '';
 
-      if (errorMessage.toLowerCase().includes('phone number is already registered')) {
-        errorMessage = 'This phone number is already registered.';
+      if (typeof rawError === 'string') {
+        if (rawError.toLowerCase().includes('phone number is already registered')) {
+          errorMessage = 'This phone number is already registered.';
+        } else if (rawError.toLowerCase().includes('email is already registered')) {
+          errorMessage = 'This email address is already registered.';
+        }
       }
 
        toast({

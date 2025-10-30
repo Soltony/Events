@@ -117,10 +117,10 @@ export default function ReportsPage() {
                     { key: 'name', label: 'Product' },
                     { key: 'event.name', label: 'Event' },
                     { key: 'sold', label: 'Quantity Sold' },
-                    { key: 'price', label: 'Price (ETB)' },
+                    { key: 'basePrice', label: 'Price (ETB)' },
                     { key: 'revenue', label: 'Revenue (ETB)' },
                 ];
-                const productData = data.productSales.map(p => ({ ...p, revenue: p.sold * Number(p.price) }));
+                const productData = data.productSales.map(p => ({ ...p, revenue: p.sold * Number(p.basePrice) }));
                 csvContent = convertToCSV(productData, headers);
             } else if (reportType === 'daily' && data.dailySales) {
                 filename = 'daily_sales_report.csv';
@@ -281,8 +281,8 @@ export default function ReportsPage() {
                         <TableCell className="font-medium">{ticket.name}</TableCell>
                         <TableCell className="text-muted-foreground">{ticket.event?.name || 'N/A'}</TableCell>
                         <TableCell className="text-right">{ticket.sold}</TableCell>
-                        <TableCell className="text-right">ETB {Number(ticket.price).toFixed(2)}</TableCell>
-                        <TableCell className="text-right">ETB {(ticket.sold * Number(ticket.price)).toLocaleString()}</TableCell>
+                        <TableCell className="text-right">ETB {Number(ticket.basePrice).toFixed(2)}</TableCell>
+                        <TableCell className="text-right">ETB {(ticket.sold * Number(ticket.basePrice)).toLocaleString()}</TableCell>
                         </TableRow>
                     ))}
                     {data?.productSales.length === 0 && (

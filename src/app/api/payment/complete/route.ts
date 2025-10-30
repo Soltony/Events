@@ -9,16 +9,13 @@ export async function POST(req: NextRequest) {
         if (!id) {
             return NextResponse.json({
                 error: 'Invalid request',
-                detail: 'Body must include the ArifPay session ID or our transaction ID as "id".'
+                detail: 'Body must include the transaction ID as "id".'
             }, { status: 400 });
         }
 
         const order = await prisma.pendingOrder.findFirst({
             where: {
-                OR: [
-                    { transactionId: id },
-                    { arifpaySessionId: id },
-                ]
+                transactionId: id
             }
         });
 

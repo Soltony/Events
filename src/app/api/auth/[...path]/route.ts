@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 
@@ -62,35 +63,22 @@ async function proxyRequest(req: NextRequest, path: string[]) {
   }
 }
 
-// ✅ Corrected functions
-export async function GET(req: NextRequest, context: any) {
-  if (req.method !== 'GET') {
-    return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
-  }
-  const { path } = await context.params;
+export async function GET(req: NextRequest) {
+  const path = req.nextUrl.pathname.replace('/api/auth/', '').split('/');
   return proxyRequest(req, path);
 }
 
-export async function POST(req: NextRequest, context: any) {
-  if (req.method !== 'POST') {
-    return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
-  }
-  const { path } = await context.params;
+export async function POST(req: NextRequest) {
+  const path = req.nextUrl.pathname.replace('/api/auth/', '').split('/');
   return proxyRequest(req, path);
 }
 
-export async function PUT(req: NextRequest, context: any) {
-  if (req.method !== 'PUT') {
-    return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
-  }
-  const { path } = await context.params;
+export async function PUT(req: NextRequest) {
+  const path = req.nextUrl.pathname.replace('/api/auth/', '').split('/');
   return proxyRequest(req, path);
 }
 
-export async function DELETE(req: NextRequest, context: any) {
-  if (req.method !== 'DELETE') {
-    return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
-  }
-  const { path } = await context.params;
+export async function DELETE(req: NextRequest) {
+  const path = req.nextUrl.pathname.replace('/api/auth/', '').split('/');
   return proxyRequest(req, path);
 }

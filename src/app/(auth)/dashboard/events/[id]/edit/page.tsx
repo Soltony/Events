@@ -355,9 +355,9 @@ export default function EditEventPage() {
                   />
               </div>
 
-                 <div className="space-y-4">
-                  <FormLabel>Location</FormLabel>
-                  <FormDescription>Edit the single location for your event.</FormDescription>
+                <div className="space-y-4">
+                  <FormLabel>Locations</FormLabel>
+                  <FormDescription>Add one or more locations for your event. Start typing to search for a location in Ethiopia.</FormDescription>
                   <FormMessage>{form.formState.errors.locations?.message}</FormMessage>
 
                   {locationFields.map((field, index) => (
@@ -382,14 +382,21 @@ export default function EditEventPage() {
                               variant="outline"
                               size="icon"
                               onClick={() => removeLocation(index)}
-                              disabled={true}
+                              disabled={locationFields.length <= 1}
                           >
                               <Trash2 className="h-4 w-4" />
                               <span className="sr-only">Remove location</span>
                           </Button>
                       </div>
                   ))}
-                  {/* Multiple locations disabled intentionally */}
+                  <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => appendLocation({ value: '' })}
+                  >
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Add Location
+                  </Button>
                 </div>
 
 

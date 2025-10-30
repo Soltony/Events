@@ -14,20 +14,20 @@ datasource db {
 }
 
 model User {
-  id                      String       @id @default(uuid())
-  firstName               String
-  lastName                String
-  phoneNumber             String       @unique
-  email                   String?      @unique
-  roleId                  String
-  role                    Role         @relation(fields: [roleId], references: [id])
-  status                  UserStatus   @default(ACTIVE)
-  passwordChangeRequired  Boolean      @default(true)
-  nibBankAccount          String?
-  events                  Event[]
-  attendees               Attendee[]
-  createdAt               DateTime     @default(now())
-  updatedAt               DateTime     @updatedAt
+  id                     String     @id @default(uuid())
+  firstName              String
+  lastName               String
+  phoneNumber            String     @unique
+  email                  String?    @unique
+  roleId                 String
+  role                   Role       @relation(fields: [roleId], references: [id])
+  status                 UserStatus @default(ACTIVE)
+  passwordChangeRequired Boolean    @default(true)
+  nibBankAccount         String?
+  events                 Event[]
+  attendees              Attendee[]
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
 }
 
 model Role {
@@ -41,58 +41,59 @@ model Role {
 }
 
 model Event {
-  id               Int          @id @default(autoincrement())
-  name             String
-  description      String
-  startDate        DateTime
-  endDate          DateTime?
-  location         String
-  hint             String?
-  category         String
-  image            String?
-  color            String?
-  status           EventStatus  @default(PENDING)
-  rejectionReason  String?
-  organizerId      String
-  organizer        User         @relation(fields: [organizerId], references: [id])
-  nibBankAccount   String
-  ticketTypes      TicketType[]
-  attendees        Attendee[]
-  promoCodes       PromoCode[]
-  pendingOrders    PendingOrder[]
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  id              Int            @id @default(autoincrement())
+  name            String
+  description     String
+  startDate       DateTime
+  endDate         DateTime?
+  location        String
+  hint            String?
+  category        String
+  image           String?
+  color           String?
+  status          EventStatus    @default(PENDING)
+  rejectionReason String?
+  organizerId     String
+  organizer       User           @relation(fields: [organizerId], references: [id])
+  nibBankAccount  String
+  ticketTypes     TicketType[]
+  attendees       Attendee[]
+  promoCodes      PromoCode[]
+  pendingOrders   PendingOrder[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  EventPayment    EventPayment[]
 }
 
 model TicketType {
-  id             Int        @id @default(autoincrement())
+  id             Int            @id @default(autoincrement())
   name           String
   description    String?
-  basePrice      Decimal    @db.Decimal(10, 2)
+  basePrice      Decimal        @db.Decimal(10, 2)
   locationPrices Json?
   total          Int
-  sold           Int        @default(0)
+  sold           Int            @default(0)
   eventId        Int
-  event          Event      @relation(fields: [eventId], references: [id])
+  event          Event          @relation(fields: [eventId], references: [id])
   attendees      Attendee[]
   pendingOrders  PendingOrder[]
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 }
 
 model Attendee {
-  id           Int       @id @default(autoincrement())
-  name         String
-  phoneNumber  String?
-  eventId      Int
-  event        Event     @relation(fields: [eventId], references: [id])
-  ticketTypeId Int
-  ticketType   TicketType @relation(fields: [ticketTypeId], references: [id])
-  userId       String?
-  user         User?     @relation(fields: [userId], references: [id])
-  checkedIn    Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id            Int            @id @default(autoincrement())
+  name          String
+  phoneNumber   String?
+  eventId       Int
+  event         Event          @relation(fields: [eventId], references: [id])
+  ticketTypeId  Int
+  ticketType    TicketType     @relation(fields: [ticketTypeId], references: [id])
+  userId        String?
+  user          User?          @relation(fields: [userId], references: [id])
+  checkedIn     Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   pendingOrders PendingOrder[]
 }
 
@@ -112,20 +113,41 @@ model PromoCode {
 }
 
 model PendingOrder {
-  id                String    @id @default(uuid())
-  transactionId     String    @unique
-  arifpaySessionId  String?   @unique
-  eventId           Int
-  event             Event     @relation(fields: [eventId], references: [id])
-  ticketTypeId      Int?
-  ticketType        TicketType? @relation(fields: [ticketTypeId], references: [id])
-  attendeeId        Int?      @unique
-  attendee          Attendee? @relation(fields: [attendeeId], references: [id])
-  attendeeData      Json
-  promoCode         String?
-  status            String    @default("PENDING") // PENDING, COMPLETED, FAILED
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id               String         @id @default(uuid())
+  transactionId    String         @unique
+  arifpaySessionId String?        @unique
+  eventId          Int
+  event            Event          @relation(fields: [eventId], references: [id])
+  ticketTypeId     Int?
+  ticketType       TicketType?    @relation(fields: [ticketTypeId], references: [id])
+  attendeeId       Int?           @unique
+  attendee         Attendee?      @relation(fields: [attendeeId], references: [id])
+  attendeeData     Json
+  promoCode        String?
+  status           String         @default("PENDING") // PENDING, COMPLETED, FAILED
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  eventPayments    EventPayment[]
+}
+
+model EventPayment {
+  id            String   @id @default(uuid())
+  amount        Decimal  @db.Decimal(10, 2)
+  paymentDate   DateTime @default(now())
+  method        String // CASH, BANK_TRANSFER, CARD, GATEWAY
+  reference     String? // Transaction ID, check number, etc.
+  status        String   @default("PENDING") // PENDING, COMPLETED, FAILED
+  sessionId     String?  @unique // Online payment gateway session tracking
+  transactionId String?  @unique // From payment provider
+
+  pendingOrderId String
+  pendingOrder   PendingOrder @relation(fields: [pendingOrderId], references: [id])
+
+  eventId Int
+  event   Event @relation(fields: [eventId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum PromoCodeType {

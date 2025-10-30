@@ -122,7 +122,7 @@ export default function ManageRolesPage() {
                         <TableCell className="font-mono uppercase">{role.name}</TableCell>
                         <TableCell className="text-muted-foreground">{role.description || '-'}</TableCell>
                         <TableCell>
-                            <Badge variant="secondary" style={{ backgroundColor: '#FEF9C3', color: '#713F12' }}>
+                            <Badge variant="secondary">
                                 {getPermissionCount(role.permissions)} assigned
                             </Badge>
                         </TableCell>

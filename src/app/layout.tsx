@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
+import PaymentStatusWatcher from '@/components/payment/payment-status-watcher';
 import { AuthProvider } from '@/context/auth-context';
 import { ConditionalFooter } from '@/components/conditional-footer';
 import { headers } from 'next/headers'
@@ -19,7 +20,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const nonce = headers().get('x-nonce') ?? ""
+  const headersList = await headers();
+  const nonce = headersList.get('x-nonce') ?? ""
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -37,6 +39,8 @@ export default async function RootLayout({
         <AuthProvider>
             <div className="flex flex-col min-h-screen relative">
               <main className="flex-1 bg-background">
+                {/** Lightweight global watcher to auto-redirect to confirmation for guests */}
+                <PaymentStatusWatcher />
                 {children}
               </main>
               <ConditionalFooter />

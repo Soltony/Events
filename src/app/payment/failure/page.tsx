@@ -61,12 +61,4 @@ function FailureContent() {
 }
 
 
-export default function PaymentFailurePage() {
-    return (
-        <div className="container mx-auto py-12 max-w-2xl">
-            <Suspense fallback={<div>Loading...</div>}>
-                <FailureContent />
-            </Suspense>
-        </div>
-    );
-}
+export default function Removed() { return null; }
