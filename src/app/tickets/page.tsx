@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -62,7 +61,7 @@ export default function MyTicketsPage() {
       try {
         const response = await api.get('/api/auth/cookie-data');
         const phoneNumber = response.data?.data?.phoneNumber;
-        const userId = response.data?.data?.userId; // This would be for registered users
+        const userId = response.data?.data?.userId;
 
         if (!phoneNumber && !userId) {
           console.log("No user session found.");
@@ -72,7 +71,6 @@ export default function MyTicketsPage() {
 
         const fetchedTickets = await getTicketsForUser(userId, phoneNumber);
         setTickets(fetchedTickets);
-
       } catch (error) {
         console.error('❌ Failed to fetch tickets:', error);
         toast({
@@ -91,14 +89,10 @@ export default function MyTicketsPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto py-8">
-        <div className="space-y-2 mb-8">
-          <Skeleton className="h-9 w-48" />
-          <Skeleton className="h-5 w-96" />
-        </div>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="min-h-screen bg-white flex items-center justify-center p-6">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 w-full max-w-6xl">
           {[...Array(3)].map((_, i) => (
-            <Card key={i}>
+            <Card key={i} className="overflow-hidden rounded-2xl shadow-md border border-gray-200">
               <CardHeader className="p-0">
                 <Skeleton className="w-full aspect-video rounded-t-lg" />
               </CardHeader>
@@ -117,24 +111,27 @@ export default function MyTicketsPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="space-y-2 mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">My Tickets</h1>
-        <p className="text-muted-foreground">Here are the tickets you've purchased.</p>
+    <div className="min-h-screen bg-white py-10 px-4">
+      <div className="max-w-5xl mx-auto text-center mb-10">
+        <h1 className="text-4xl font-extrabold text-[#864b20]">🎟️ My Tickets</h1>
+        <p className="text-gray-600 mt-2">View and manage your purchased event tickets.</p>
       </div>
 
       {tickets.length > 0 ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
           {tickets.map((ticket) => {
             const imageSource = ticket.event.image || DEFAULT_IMAGE_PLACEHOLDER;
             return (
-              <Card key={ticket.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
+              <Card
+                key={ticket.id}
+                className="bg-white shadow-md hover:shadow-lg transition-all rounded-2xl overflow-hidden border border-gray-200"
+              >
                 <CardHeader className="p-0 relative aspect-video">
                   <Image
                     src={imageSource}
                     alt={ticket.event.name}
                     fill
-                    className="object-cover rounded-t-lg"
+                    className="object-cover rounded-t-2xl"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.src = DEFAULT_IMAGE_PLACEHOLDER;
@@ -142,16 +139,21 @@ export default function MyTicketsPage() {
                     }}
                   />
                 </CardHeader>
-                <CardContent className="p-4 flex-1 space-y-1">
-                  <CardTitle className="text-xl">{ticket.event.name}</CardTitle>
-                  <CardDescription>{formatEventDate(ticket.event.startDate, ticket.event.endDate)}</CardDescription>
-                  <p className="font-semibold pt-2">{ticket.ticketType.name}</p>
+                <CardContent className="p-5 text-left">
+                  <CardTitle className="text-xl font-bold text-[#864b20]">{ticket.event.name}</CardTitle>
+                  <CardDescription className="text-sm text-gray-500 mt-1">
+                    {formatEventDate(ticket.event.startDate, ticket.event.endDate)}
+                  </CardDescription>
+                  <p className="font-semibold mt-3 text-[#f6b313]">{ticket.ticketType.name}</p>
                 </CardContent>
-                <CardFooter className="p-4 pt-0">
-                  <Button asChild className="w-full">
+                <CardFooter className="p-5 pt-0">
+                  <Button
+                    asChild
+                    className="w-full bg-[#864b20] hover:bg-[#6e3f1b] text-white font-semibold rounded-xl"
+                  >
                     <Link href={`/ticket/${ticket.id}/confirmation`}>
                       View QR Code & Details
-                      <ArrowUpRight className="ml-auto h-4 w-4" />
+                      <ArrowUpRight className="ml-2 h-4 w-4" />
                     </Link>
                   </Button>
                 </CardFooter>
@@ -160,11 +162,14 @@ export default function MyTicketsPage() {
           })}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center text-center py-16 border-2 border-dashed rounded-lg">
-          <Ticket className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-2xl font-semibold tracking-tight">You don't have any tickets yet</h3>
-          <p className="text-muted-foreground mt-2 mb-6">Your purchased tickets will appear here.</p>
-          <Button asChild>
+        <div className="flex flex-col items-center justify-center text-center py-20 border-2 border-dashed border-gray-300 rounded-2xl bg-gray-50 max-w-xl mx-auto">
+          <Ticket className="h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-2xl font-bold text-[#864b20]">No Tickets Yet</h3>
+          <p className="text-gray-500 mt-2 mb-6">Your purchased tickets will appear here once available.</p>
+          <Button
+            asChild
+            className="bg-[#864b20] hover:bg-[#6e3f1b] text-white rounded-xl px-6"
+          >
             <Link href="/">Explore Events</Link>
           </Button>
         </div>
