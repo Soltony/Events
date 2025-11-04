@@ -567,7 +567,22 @@ export default function PublicEventDetailPage() {
                                                           >
                                                               <MinusCircle className="h-4 w-4" />
                                                           </Button>
-                                                          <span className="w-10 text-center font-bold">{selectedQuantity}</span>
+                                                          <Input
+                                                              type="number"
+                                                              className="w-16 h-10 text-center font-bold"
+                                                              value={selectedQuantity}
+                                                              onChange={(e) => {
+                                                                  const value = e.target.value;
+                                                                  const newQuantity = value === '' ? 0 : parseInt(value, 10);
+                                                                  if (!isNaN(newQuantity)) {
+                                                                      updateTicketQuantity(ticket, Math.min(remaining, Math.max(0, newQuantity)));
+                                                                  }
+                                                              }}
+                                                              onFocus={(e) => e.target.select()}
+                                                              min={0}
+                                                              max={remaining}
+                                                              disabled={isSoldOut}
+                                                          />
                                                           <Button
                                                               size="icon"
                                                               variant="outline"
