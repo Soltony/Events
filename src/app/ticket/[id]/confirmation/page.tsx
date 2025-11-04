@@ -178,8 +178,8 @@ export default function TicketConfirmationPage() {
           </div>
         </div>
       </div>
-
-      {/* Fullscreen QR Modal */}
+{/* Fullscreen QR Modal */}
+    
       {showFullQR && (
         <div className="fixed inset-0 bg-black bg-opacity-90 flex flex-col justify-center items-center z-50">
           <button
