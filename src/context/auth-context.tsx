@@ -35,15 +35,30 @@ const SESSION_TIMEOUT_DURATION = 15 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_DURATION = 30 * 1000; // 30 seconds
 
+export async function ensureCsrfToken() {
+  if (!Cookies.get('csrf_token') || !Cookies.get('csrf_secret')) {
+    try {
+      await api.get('/api/csrf-token');
+    } catch (error) {
+      console.error('Failed to obtain CSRF token:', error);
+      throw error; // Re-throw to be caught by the caller
+    }
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [user, setUser] = useState<UserWithRole | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isCsrfReady, setIsCsrfReady] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
+
+  // Combined loading state
+  const isLoading = isAuthLoading || !isCsrfReady;
 
   // Initialize failed attempts and lockout from localStorage
   useEffect(() => {
@@ -123,6 +138,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function initializeAuth() {
       try {
+        await ensureCsrfToken();
+        setIsCsrfReady(true);
+      } catch {
+        // If CSRF token fetching fails, we're in a bad state.
+        // You might want to show a global error message here.
+        setIsCsrfReady(false);
+        setIsAuthLoading(false);
+        return;
+      }
+      
+      try {
         const sessionResponse = await fetch('/api/auth/session');
 
         if (sessionResponse.ok) {
@@ -148,28 +174,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                  await clearAuthData();
             }
         } else {
-             // Fallback to header-based initialization if session cookie is not found/valid
-            const initResponse = await fetch('/api/auth/init', { method: 'POST' });
-            if (initResponse.ok) {
-                const { user: initializedUser, isSuccess } = await initResponse.json();
-                if (isSuccess && initializedUser) {
-                    setUser(initializedUser);
-                    localStorage.setItem('authUser', JSON.stringify(initializedUser));
-                    const newSessionResponse = await fetch('/api/auth/session');
-                    if (newSessionResponse.ok) {
-                        const newSessionData = await newSessionResponse.json();
-                        setAuthToken(newSessionData.accessToken);
-                    }
-                }
-            } else {
-                await clearAuthData();
-            }
+            await clearAuthData();
         }
       } catch (error) {
         console.error("Failed to initialize auth state", error);
         await clearAuthData();
       } finally {
-        setIsLoading(false);
+        setIsAuthLoading(false);
       }
     }
     initializeAuth();
@@ -206,6 +217,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, logout]);
 
   const login = async (data: any) => {
+    if (!isCsrfReady) {
+        toast({
+            variant: 'destructive',
+            title: 'Initialization Error',
+            description: 'The application is not ready. Please wait a moment and try again.',
+        });
+        return;
+    }
+
     if (lockoutUntil && Date.now() < lockoutUntil) {
         const timeLeft = Math.ceil((lockoutUntil - Date.now()) / 1000);
         toast({
@@ -216,8 +236,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
     }
 
-    setIsLoading(true);
+    setIsAuthLoading(true);
     try {
+      await ensureCsrfToken(); // Ensure token exists before login attempt
+      
       const requestData = {
         phoneNumber: data.phoneNumber,
         password: data.password,
@@ -339,7 +361,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error('Login error:', error);
       }
     } finally {
-        setIsLoading(false);
+        setIsAuthLoading(false);
     }
   };
   
@@ -381,3 +403,5 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
+    

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useToast } from '@/hooks/use-toast';
 
@@ -9,72 +9,58 @@ const QR_REGION_ID = "qr-code-reader-view";
 
 interface QrScannerProps {
     onScanSuccess: (text: string) => void;
-    onScanFailure: (error: string) => void;
+    isScanning: boolean;
 }
 
-export default function QrScannerComponent({ onScanSuccess, onScanFailure }: QrScannerProps) {
+// This component is now deprecated in favor of the implementation directly in the page.
+// It is kept here to avoid breaking imports, but it is no longer used.
+// The logic has been moved to `src/app/(auth)/dashboard/scan/page.tsx` for better state management.
+export default function QrScannerComponent({ onScanSuccess, isScanning }: QrScannerProps) {
     const { toast } = useToast();
+    const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
 
     useEffect(() => {
-        if (typeof window === 'undefined') {
-            return;
-        }
-
-        const containerElement = document.getElementById(QR_REGION_ID);
-        if (!containerElement) {
-            console.error(`QR Code reader element with ID ${QR_REGION_ID} not found.`);
-            return;
-        }
-
-        const html5QrCode = new Html5Qrcode(QR_REGION_ID);
-        let isScannerRunning = false;
-
-        const qrCodeSuccessCallback = (decodedText: string, result: any) => {
-            if (isScannerRunning) {
-                onScanSuccess(decodedText);
-                isScannerRunning = false; 
-                 html5QrCode.stop().catch(err => {
-                    console.error("Failed to stop scanner after success", err);
-                });
+        if (!isScanning) {
+            if (html5QrCodeRef.current?.isScanning) {
+                html5QrCodeRef.current.stop().catch(err => console.error("Failed to stop scanner", err));
             }
-        };
+            return;
+        }
 
-        const qrCodeErrorCallback = (errorMessage: string, error: any) => {
-            // This callback is called frequently, so we can ignore most errors.
-        };
+        const newScanner = new Html5Qrcode(QR_REGION_ID);
+        html5QrCodeRef.current = newScanner;
 
         const config = {
             fps: 10,
             qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0,
-            disableFlip: false,
         };
         
-        html5QrCode.start(
+        newScanner.start(
             { facingMode: "environment" },
             config,
-            qrCodeSuccessCallback,
-            qrCodeErrorCallback
-        ).then(() => {
-            isScannerRunning = true;
-        }).catch(err => {
-            console.error("Unable to start QR Code scanner.", err);
-            onScanFailure(err.message || 'Could not access camera. Please check permissions.');
-            toast({
-                variant: 'destructive',
-                title: 'Camera Error',
-                description: err.message || 'Could not access camera. Please check permissions.'
+            (decodedText) => {
+                onScanSuccess(decodedText);
+            },
+            (errorMessage) => {
+                // This callback is called frequently, so we can ignore most errors.
+            })
+            .catch(err => {
+                console.error("Unable to start QR Code scanner.", err);
+                toast({
+                    variant: 'destructive',
+                    title: 'Camera Error',
+                    description: err.message || 'Could not access camera. Please check permissions.'
+                });
             });
-        });
 
         return () => {
-            if (isScannerRunning && html5QrCode.isScanning) {
-                html5QrCode.stop().catch(err => {
+            if (newScanner && newScanner.isScanning) {
+                newScanner.stop().catch(err => {
                     console.error("Error stopping the scanner on cleanup.", err);
                 });
             }
         };
-    }, [onScanSuccess, onScanFailure, toast]);
+    }, [isScanning, onScanSuccess, toast]);
 
     return <div id={QR_REGION_ID} className="w-full h-full" />;
 }

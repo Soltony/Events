@@ -16,12 +16,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, ArrowUpRight, Pencil, Trash2, MapPin, CheckCircle2, XCircle, Loader2, Eye } from "lucide-react";
+import { PlusCircle, ArrowUpRight, Pencil, Trash2, MapPin, CheckCircle2, XCircle, Loader2, Eye, User } from "lucide-react";
 import Link from 'next/link';
 import Image from 'next/image';
 import { getEvents, deleteEvent, updateEventStatus } from '@/lib/actions';
 import { Badge } from '@/components/ui/badge';
-import type { Event, EventStatus } from '@prisma/client';
+import type { Event as EventType, EventStatus, User as UserType } from '@prisma/client';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +32,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useSearchParams, useRouter } from 'next/navigation';
+
+interface EventWithOrganizer extends EventType {
+  organizer?: UserType;
+}
+
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
     const startDateFormat = 'LLL dd, y, hh:mm a';
@@ -62,7 +67,7 @@ const getCategoryBadgeClass = (category: string) => {
     }
 }
 
-const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolean, onDelete: (e: Event) => void }) => {
+const EventCard = ({ event, isAdmin, onDelete }: { event: EventWithOrganizer, isAdmin: boolean, onDelete: (e: EventWithOrganizer) => void }) => {
     const displayImage = event.image || '/image/nibtickets.jpg';
 
     const statusBadge = (status: string) => {
@@ -89,16 +94,22 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolea
                 <Badge variant="outline" className={cn("text-xs", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
                 <CardTitle className="text-lg leading-tight">{event.name}</CardTitle>
                 <div className="space-y-1 pt-1">
-                <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
-                <CardDescription className="flex items-center gap-1.5 pt-1 text-xs">
-                    <MapPin className="h-3 w-3" />
-                    {event.location}
-                </CardDescription>
-                {event.status === 'REJECTED' && event.rejectionReason && (
-                    <CardDescription className="text-xs text-red-600 pt-1 italic">
-                        Reason: {event.rejectionReason}
-                    </CardDescription>
-                )}
+                  <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
+                  <CardDescription className="flex items-center gap-1.5 pt-1 text-xs">
+                      <MapPin className="h-3 w-3" />
+                      {event.location}
+                  </CardDescription>
+                  {isAdmin && event.organizer && (
+                      <CardDescription className="flex items-center gap-1.5 pt-1 text-xs">
+                          <User className="h-3 w-3" />
+                          Creator: {event.organizer.firstName} {event.organizer.lastName}
+                      </CardDescription>
+                  )}
+                  {event.status === 'REJECTED' && event.rejectionReason && (
+                      <CardDescription className="text-xs text-red-600 pt-1 italic">
+                          Reason: {event.rejectionReason}
+                      </CardDescription>
+                  )}
                 </div>
             </CardContent>
             <CardFooter className="p-2 border-t flex justify-end gap-1 bg-card rounded-b-lg">
@@ -138,7 +149,7 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: Event, isAdmin: boolea
 };
 
 
-const EventGrid = ({ events, isLoading, isAdmin, onDelete }: { events: Event[], isLoading: boolean, isAdmin: boolean, onDelete: (e: Event) => void }) => {
+const EventGrid = ({ events, isLoading, isAdmin, onDelete }: { events: EventWithOrganizer[], isLoading: boolean, isAdmin: boolean, onDelete: (e: EventWithOrganizer) => void }) => {
     if (isLoading) {
         return (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -190,17 +201,17 @@ function ManageEventsPageContent() {
   const tabFromUrl = searchParams.get('tab');
   
   const [loading, setLoading] = useState(true);
-  const [eventToModify, setEventToModify] = useState<Event | null>(null);
+  const [eventToModify, setEventToModify] = useState<EventWithOrganizer | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const { toast } = useToast();
 
-  const [pendingEvents, setPendingEvents] = useState<Event[]>([]);
-  const [approvedEvents, setApprovedEvents] = useState<Event[]>([]);
-  const [rejectedEvents, setRejectedEvents] = useState<Event[]>([]);
-  const [allEvents, setAllEvents] = useState<Event[]>([]);
+  const [pendingEvents, setPendingEvents] = useState<EventWithOrganizer[]>([]);
+  const [approvedEvents, setApprovedEvents] = useState<EventWithOrganizer[]>([]);
+  const [rejectedEvents, setRejectedEvents] = useState<EventWithOrganizer[]>([]);
+  const [allEvents, setAllEvents] = useState<EventWithOrganizer[]>([]);
   
   const isAdmin = user?.role?.name === 'Admin';
   const [activeTab, setActiveTab] = useState(tabFromUrl || (isAdmin ? 'pending' : 'all'));
@@ -241,12 +252,12 @@ function ManageEventsPageContent() {
     fetchAllEvents();
   }, [fetchAllEvents]);
   
-  const handleOpenDeleteDialog = (event: Event) => {
+  const handleOpenDeleteDialog = (event: EventWithOrganizer) => {
     setEventToModify(event);
     setIsAlertOpen(true);
   };
 
-  const handleOpenRejectDialog = (event: Event) => {
+  const handleOpenRejectDialog = (event: EventWithOrganizer) => {
     setEventToModify(event);
     setIsRejectDialogOpen(true);
   };
@@ -275,7 +286,7 @@ function ManageEventsPageContent() {
     }
   };
 
-  const handleApprove = async (event: Event) => {
+  const handleApprove = async (event: EventWithOrganizer) => {
     setActionLoading(true);
     try {
       await updateEventStatus(event.id, 'APPROVED');

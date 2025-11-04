@@ -6,11 +6,11 @@ import { getEventById, validatePromoCode, getTicketDetailsForConfirmation } from
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Ticket as TicketIcon, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone, ArrowLeft, X, UserCircle, GripVertical, AlertCircle, CheckCircle2, Download, XCircle } from 'lucide-react';
+import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone, ArrowLeft, X, UserCircle, GripVertical, AlertCircle, CheckCircle2, Download } from 'lucide-react';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import type { Event, TicketType, PromoCode, Attendee } from '@prisma/client';
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useTransition, useMemo, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -62,8 +62,6 @@ export type SelectedTicket = {
   description?: string | null;
 }
 
-type PaymentStatus = 'idle' | 'processing' | 'success' | 'failed';
-
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
     const startDateFormat = 'LLL dd, y, hh:mm a';
     
@@ -83,7 +81,7 @@ export default function PublicEventDetailPage() {
   const router = useRouter();
   const params = useParams<{ id:string }>();
   const eventId = params ? parseInt(params.id, 10) : NaN;
-  const [isPending, setIsPending] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const { user } = useAuth();
   const [event, setEvent] = useState<EventWithTickets | null>(null);
   const [loading, setLoading] = useState(true);
@@ -98,11 +96,12 @@ export default function PublicEventDetailPage() {
   const [attendeePhone, setAttendeePhone] = useState('');
   const [isPhoneFromSession, setIsPhoneFromSession] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('idle');
+  const { toast } = useToast();
+
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'failed'>('idle');
   const [paymentTransactionId, setPaymentTransactionId] = useState<string | null>(null);
   const [confirmedTicket, setConfirmedTicket] = useState<TicketDetails | null>(null);
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
-  const { toast } = useToast();
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   
   const plugin = useRef(
     Autoplay({ delay: 3000, stopOnInteraction: true, stopOnMouseEnter: true })
@@ -121,6 +120,7 @@ export default function PublicEventDetailPage() {
         }
         setEvent(eventData as EventWithTickets);
 
+        // --- Set default location ---
         if (eventData?.location) {
             const locations = eventData.location.split('||').map((l: string) => l.trim());
             if (locations.length > 0) {
@@ -132,6 +132,7 @@ export default function PublicEventDetailPage() {
     }
     fetchEvent();
   }, [eventId]);
+
 
   const subtotal = useMemo(() => {
     return Object.values(selectedTickets).reduce((acc, ticket) => acc + ticket.price * ticket.quantity, 0);
@@ -146,18 +147,22 @@ export default function PublicEventDetailPage() {
   }, [selectedTickets]);
   
   useEffect(() => {
+    // When location changes, clear the cart to avoid price mismatches
     setSelectedTickets({});
   }, [selectedLocation]);
 
   useEffect(() => {
+    // This effect runs once to check for a phone number from any session (logged-in user or SuperApp guest)
     async function populatePhoneNumber() {
+        // Priority 1: Logged-in user
         if (user?.phoneNumber) {
             setAttendeeName(`${user.firstName} ${user.lastName}`);
             setAttendeePhone(user.phoneNumber);
             setIsPhoneFromSession(true);
-            return;
+            return; // Exit if we have the user's phone number
         }
 
+        // Priority 2: SuperApp guest user from secure cookie
         try {
             const response = await api.get('/api/auth/cookie-data');
             if (response.data?.success && response.data.data?.phoneNumber) {
@@ -165,69 +170,12 @@ export default function PublicEventDetailPage() {
                 setIsPhoneFromSession(true);
             }
         } catch (error) {
+            // It's okay if this fails, it just means the user is a true guest
             console.log('No SuperApp session found. User is a guest.');
         }
     }
     populatePhoneNumber();
   }, [user]);
-
-  // Polling logic for payment status
-  useEffect(() => {
-    if (paymentStatus !== 'processing' || !paymentTransactionId) return;
-
-    let isCancelled = false;
-    let pollCount = 0;
-    const maxPolls = 20; // 40 seconds total
-
-    const pollStatus = async () => {
-        if (isCancelled || pollCount >= maxPolls) {
-            if (!isCancelled) {
-                console.log('Polling timeout reached, setting status to failed.');
-                setPaymentStatus('failed');
-            }
-            return;
-        }
-
-        pollCount++;
-        console.log(`Polling payment status... attempt ${pollCount}`);
-
-        try {
-            const response = await api.get(`/api/payment/status/${paymentTransactionId}`);
-             console.log('API response:', response.data);
-
-            if (response.data.status === 'COMPLETED') {
-                isCancelled = true;
-                const ticketDetails = await getTicketDetailsForConfirmation(paymentTransactionId);
-                 console.log('Ticket details after payment:', ticketDetails);
-
-                if (ticketDetails) {
-                    setConfirmedTicket(ticketDetails);
-                    const qrUrl = await QRCode.toDataURL(ticketDetails.id.toString(), { errorCorrectionLevel: 'H', type: 'image/png', margin: 1 });
-                    console.log('Generated QR code URL:', qrUrl);
-                    setQrCodeDataUrl(qrUrl);
-                    setPaymentStatus('success');
-                } else {
-                    console.error("Payment completed but failed to fetch ticket details.");
-                    setPaymentStatus('failed');
-                }
-                return;
-            }
-        } catch (error) {
-            console.error('Error polling payment status:', error);
-        }
-
-        if (!isCancelled) {
-            setTimeout(pollStatus, 2000);
-        }
-    };
-
-    pollStatus();
-
-    return () => {
-        isCancelled = true;
-    };
-  }, [paymentStatus, paymentTransactionId]);
-
 
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
@@ -314,72 +262,106 @@ export default function PublicEventDetailPage() {
         }
 
         setIsPurchaseModalOpen(false);
-        setPaymentStatus('processing');
-        setIsPending(true);
+        setPaymentStatus('processing'); 
 
-        try {
-            const pendingOrderResponse = await api.post('/api/payment/pending-order', {
-                eventId,
-                tickets: Object.values(selectedTickets),
-                promoCode: appliedPromo?.code,
-                attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
-            });
+        startTransition(async () => {
+            try {
+                // Step 1: Create a pending order in our database
+                const pendingOrderResponse = await api.post('/api/payment/pending-order', {
+                    eventId,
+                    tickets: Object.values(selectedTickets),
+                    promoCode: appliedPromo?.code,
+                    attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
+                });
 
-            if (!pendingOrderResponse.data.success) {
-                throw new Error(pendingOrderResponse.data.error || 'Failed to create a pending order.');
-            }
-            
-            const { transactionId } = pendingOrderResponse.data;
-            setPaymentTransactionId(transactionId);
+                if (!pendingOrderResponse.data.success) {
+                    throw new Error(pendingOrderResponse.data.error || 'Failed to create a pending order.');
+                }
+                
+                const { transactionId } = pendingOrderResponse.data;
+                setPaymentTransactionId(transactionId);
 
-            const paymentResponse = await api.post('/api/payment/nib/initiate', {
-                total,
-                transactionId,
-            });
 
-            if (!paymentResponse.data.success) {
-                throw new Error(paymentResponse.data.error || "Failed to initiate payment.");
-            }
+                // Step 2: Use the transactionId from our DB to initiate payment with NIB
+                const paymentResponse = await api.post('/api/payment/nib/initiate', {
+                    total,
+                    transactionId, // Pass our internal transaction ID
+                });
 
-            const paymentToken = paymentResponse.data.paymentToken;
-            if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
-                console.log('Sending payment token to NIB Super App...');
-                window.myJsChannel.postMessage({ token: paymentToken });
-            } else {
-                console.error("NIB Super App channel (window.myJsChannel) not found.");
-                if (process.env.NODE_ENV === 'development') {
-                   console.log("DEV MODE: Simulating payment completion for browser testing.");
-                   // Simulate webhook call for browser testing
-                    setTimeout(async () => {
-                        try {
-                            await api.post(`/api/payment/nib/notify`, {
-                                paidAmount: total,
-                                txnRef: paymentResponse.data.paymentId, 
-                                transactionId: `MOCK_NIB_${Date.now()}`,
-                                token: paymentToken,
-                            });
-                        } catch (simError) {
-                            console.error("Error in DEV payment simulation:", simError);
-                        }
-                    }, 3000);
+                if (!paymentResponse.data.success) {
+                    throw new Error(paymentResponse.data.error || "Failed to initiate payment.");
+                }
+
+                // Step 3: Send the payment token back to the NIB Super App
+                const paymentToken = paymentResponse.data.paymentToken;
+                if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
+                    console.log('Sending payment token to NIB Super App...');
+                    window.myJsChannel.postMessage({ token: paymentToken });
                 } else {
+                    console.error("NIB Super App channel (window.myJsChannel) not found.");
                     setError("Could not communicate with the payment app. This feature is only available within the NIB SuperApp.");
                     setPaymentStatus('failed');
                 }
+            } catch (error: any) {
+                console.error('Payment initiation error:', error);
+                setError(error.message || "An unknown error occurred.");
+                toast({
+                    variant: "destructive",
+                    title: "Payment Initiation Failed",
+                    description: error.response?.data?.detail || error.message || "An unknown error occurred.",
+                });
+                setPaymentStatus('failed');
             }
-        } catch (error: any) {
-            console.error('Payment initiation error:', error);
-            setError(error.message || "An unknown error occurred.");
-            setPaymentStatus('failed');
-            toast({
-                variant: "destructive",
-                title: "Payment Initiation Failed",
-                description: error.response?.data?.detail || error.message || "An unknown error occurred.",
-            });
-        } finally {
-            setIsPending(false);
-        }
+        });
     };
+
+    // This effect handles polling for payment status
+    useEffect(() => {
+        if (paymentStatus !== 'processing' || !paymentTransactionId) {
+            return;
+        }
+
+        let isCancelled = false;
+        let pollCount = 0;
+        const maxPolls = 20; // Poll for 40 seconds
+
+        const poll = async () => {
+            if (isCancelled || pollCount >= maxPolls) {
+                if (!isCancelled) {
+                    setError("Payment confirmation timed out. Please check 'My Tickets' later or contact support if the issue persists.");
+                    setPaymentStatus('failed');
+                }
+                return;
+            }
+            pollCount++;
+            
+            try {
+                const response = await api.get(`/api/payment/status/${paymentTransactionId}`);
+                if (response.data.status === 'COMPLETED') {
+                    const ticketDetails = await getTicketDetailsForConfirmation(paymentTransactionId);
+                    if (ticketDetails) {
+                        setConfirmedTicket(ticketDetails);
+                        const qrUrl = await QRCode.toDataURL(ticketDetails.id.toString(), { errorCorrectionLevel: 'H', type: 'image/png', margin: 1 });
+                        setQrCodeDataUrl(qrUrl);
+                        setPaymentStatus('success');
+                    } else {
+                        throw new Error("Could not retrieve ticket details after confirmation.");
+                    }
+                    isCancelled = true; // Stop polling
+                } else {
+                    setTimeout(poll, 2000);
+                }
+            } catch (error) {
+                console.error("Polling error", error);
+                setTimeout(poll, 2000);
+            }
+        };
+
+        poll();
+
+        return () => { isCancelled = true; };
+    }, [paymentStatus, paymentTransactionId]);
+
 
     const eventLocations = useMemo(() => {
         return event?.location ? Array.from(new Set(event.location.split('||').map(l => l.trim()))) : [];
@@ -387,24 +369,28 @@ export default function PublicEventDetailPage() {
 
     const locationSpecificTickets = useMemo(() => {
         if (!event) return [];
+        // If there's only one location or no location selector is needed, show all tickets.
         if (eventLocations.length <= 1) {
             return event.ticketTypes;
         }
+        // If multiple locations, filter by the selected one.
         if (selectedLocation) {
             return event.ticketTypes.filter(ticket => ticket.name.includes(` - ${selectedLocation}`));
         }
         return [];
     }, [event, selectedLocation, eventLocations]);
-  
-  const handleDownload = () => {
-      if (!qrCodeDataUrl || !confirmedTicket) return;
-      const link = document.createElement('a');
-      link.href = qrCodeDataUrl;
-      link.download = `ticket-qr-${confirmedTicket.event.name.replace(/\s+/g, '_')}-${confirmedTicket.id}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-  };
+
+    const handleDownloadQRCode = () => {
+        const qrImage = document.getElementById('qr-code-image') as HTMLImageElement;
+        if (qrImage && confirmedTicket) {
+            const link = document.createElement('a');
+            link.href = qrImage.src;
+            link.download = `ticket-qr-${confirmedTicket.event.name.replace(/\s+/g, '_')}-${confirmedTicket.id}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    };
   
   if (loading || !event) {
     return (
@@ -449,7 +435,7 @@ export default function PublicEventDetailPage() {
   }
   
   const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-  const organizerName = event.color;
+  const organizerName = event.color; // Using color field for organizer name
 
   return (
     <>
@@ -465,6 +451,16 @@ export default function PublicEventDetailPage() {
           </div>
         </header>
         <main className="pt-16">
+          {/* Error Display */}
+          {error && (
+            <div className="container mx-auto max-w-5xl py-4 px-4">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Payment Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            </div>
+          )}
           <div 
             className="container mx-auto max-w-5xl py-8 px-4"
           >
@@ -550,36 +546,39 @@ export default function PublicEventDetailPage() {
                                           return (
                                               <div
                                                   key={ticket.id}
-                                                  className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md"
+                                                  className="flex flex-col gap-2 p-4 rounded-lg border bg-secondary/30 backdrop-blur-sm shadow-md"
                                               >
-                                                  <div className="mb-3 sm:mb-0">
-                                                      <h4 className="font-semibold text-lg">{baseName}</h4>
-                                                      <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">
-                                                          {Number(ticket.basePrice).toFixed(2)} ETB
-                                                      </p>
-                                                      <p className="text-sm text-muted-foreground">
-                                                          {!isSoldOut ? `${remaining} remaining` : 'Sold Out'}
-                                                      </p>
+                                                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                                                      <div className="mb-3 sm:mb-0">
+                                                          <h4 className="font-semibold text-lg">{baseName}</h4>
+                                                          <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">
+                                                              {Number(ticket.basePrice) === 0 ? 'Free' : `${Number(ticket.basePrice).toFixed(2)} ETB`}
+                                                          </p>
+                                                          <p className="text-sm text-muted-foreground">
+                                                              {!isSoldOut ? `${remaining} remaining` : 'Sold Out'}
+                                                          </p>
+                                                      </div>
+                                                      <div className="flex items-center gap-2">
+                                                          <Button
+                                                              size="icon"
+                                                              variant="outline"
+                                                              onClick={() => updateTicketQuantity(ticket, Math.max(0, selectedQuantity - 1))}
+                                                              disabled={selectedQuantity === 0}
+                                                          >
+                                                              <MinusCircle className="h-4 w-4" />
+                                                          </Button>
+                                                          <span className="w-10 text-center font-bold">{selectedQuantity}</span>
+                                                          <Button
+                                                              size="icon"
+                                                              variant="outline"
+                                                              onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))}
+                                                              disabled={isSoldOut || selectedQuantity >= remaining}
+                                                          >
+                                                              <PlusCircle className="h-4 w-4" />
+                                                          </Button>
+                                                      </div>
                                                   </div>
-                                                  <div className="flex items-center gap-2">
-                                                      <Button
-                                                          size="icon"
-                                                          variant="outline"
-                                                          onClick={() => updateTicketQuantity(ticket, Math.max(0, selectedQuantity - 1))}
-                                                          disabled={selectedQuantity === 0}
-                                                      >
-                                                          <MinusCircle className="h-4 w-4" />
-                                                      </Button>
-                                                      <span className="w-10 text-center font-bold">{selectedQuantity}</span>
-                                                      <Button
-                                                          size="icon"
-                                                          variant="outline"
-                                                          onClick={() => updateTicketQuantity(ticket, Math.min(remaining, selectedQuantity + 1))}
-                                                          disabled={isSoldOut || selectedQuantity >= remaining}
-                                                      >
-                                                          <PlusCircle className="h-4 w-4" />
-                                                      </Button>
-                                                  </div>
+                                                  {ticket.description && <p className="text-sm text-muted-foreground pt-2 border-t">{ticket.description}</p>}
                                               </div>
                                           );
                                       })
@@ -667,52 +666,61 @@ export default function PublicEventDetailPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-       <Dialog open={paymentStatus !== 'idle'} onOpenChange={(open) => !open && setPaymentStatus('idle')}>
-        <DialogContent className="sm:max-w-md p-0">
+      <Dialog open={paymentStatus !== 'idle'} onOpenChange={(open) => !open && setPaymentStatus('idle')}>
+        <DialogContent className="sm:max-w-md p-0" hideCloseButton>
             {paymentStatus === 'processing' && (
                  <div className="flex flex-col items-center justify-center p-8 text-center space-y-4">
                     <Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" />
-                    <h1 className="text-2xl font-semibold">Finalizing Your Ticket...</h1>
-                    <p className="text-muted-foreground">Please wait while we confirm your payment. Do not close this window.</p>
+                    <DialogTitle className="text-2xl font-semibold">Finalizing Your Ticket...</DialogTitle>
+                    <DialogDescription>Please wait while we confirm your payment. This may take a few moments.</DialogDescription>
+                    <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm pt-4">
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span>Do not close this window.</span>
+                    </div>
                 </div>
             )}
             {paymentStatus === 'success' && confirmedTicket && (
-                <div className="flex flex-col">
-                    <div className="bg-green-50 dark:bg-green-900/10 p-6 text-center">
-                        <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                        <h1 className="text-2xl font-bold">Purchase Successful!</h1>
-                        <p className="text-muted-foreground">Your ticket is confirmed.</p>
+                <div className="flex flex-col items-center justify-center p-6 text-center">
+                    <div className="mx-auto w-16 h-16 mb-4 flex items-center justify-center rounded-full bg-green-100">
+                        <CheckCircle2 className="h-10 w-10 text-green-600" />
                     </div>
-                    <div className="p-6 space-y-4">
-                        <div className="flex flex-col items-center">
-                            <p className="text-sm text-muted-foreground text-center mb-2">Present this QR code at the event entrance.</p>
-                            {qrCodeDataUrl && 
-                                <div className="p-2 border-4 border-muted rounded-lg bg-white inline-block">
-                                    <img id="qr-code-image" src={qrCodeDataUrl} alt="Ticket QR Code" className="h-48 w-48 mx-auto" />
-                                </div>
-                            }
-                            <Button onClick={handleDownload} variant="ghost" className="mt-4">
-                                <Download className="mr-2 h-4 w-4" />
-                                Download QR Code
-                            </Button>
-                        </div>
-                        <div className="border-t pt-4 space-y-2">
-                             <h3 className="font-semibold">{confirmedTicket.event.name}</h3>
-                             <div className="text-sm text-muted-foreground flex items-center gap-2"><TicketIcon className="h-4 w-4 text-primary" /> <span>{confirmedTicket.ticketType.name} for {confirmedTicket.name}</span></div>
-                             <div className="text-sm text-muted-foreground flex items-center gap-2"><Calendar className="h-4 w-4 text-primary" /> <span>{format(new Date(confirmedTicket.event.startDate), 'LLL dd, y')}</span></div>
-                        </div>
-                         <Button asChild className="w-full">
-                            <Link href="/tickets">View All My Tickets</Link>
+                    <h2 className="text-2xl font-bold">Purchase Successful!</h2>
+                    <p className="text-muted-foreground mt-2">Thank you! Your ticket is confirmed.</p>
+                    
+                    <div className="space-y-4 my-6 w-full">
+                        <p className="text-sm text-muted-foreground">Present this QR code at the event entrance for scanning.</p>
+                        {qrCodeDataUrl && 
+                            <div className="p-2 border-4 border-muted rounded-lg bg-white inline-block">
+                                <img id="qr-code-image" src={qrCodeDataUrl} alt="Ticket QR Code" className="h-48 w-48 mx-auto" />
+                            </div>
+                        }
+                    </div>
+
+                    <div className="flex flex-col gap-3 w-full">
+                        <Button 
+                            onClick={handleDownloadQRCode}
+                            style={{ backgroundColor: '#f59e0b', color: '#422006' }} 
+                            className="hover:bg-yellow-400/90"
+                        >
+                            <Download className="mr-2 h-4 w-4" />
+                            Download QR Code
+                        </Button>
+                        <Button variant="outline" onClick={() => setPaymentStatus('idle')}>
+                            Done
                         </Button>
                     </div>
                 </div>
             )}
              {paymentStatus === 'failed' && (
                 <div className="flex flex-col items-center justify-center p-8 text-center space-y-4">
-                    <XCircle className="h-10 w-10 mx-auto text-destructive" />
-                    <h1 className="text-2xl font-semibold">Payment Failed</h1>
-                    <p className="text-muted-foreground">{error || "An unknown error occurred. Please try again."}</p>
-                    <Button onClick={() => setPaymentStatus('idle')}>Try Again</Button>
+                    <div className="mx-auto w-16 h-16 mb-4 flex items-center justify-center rounded-full bg-red-100">
+                        <X className="h-10 w-10 text-red-600" />
+                    </div>
+                    <DialogTitle className="text-2xl font-bold">Payment Failed</DialogTitle>
+                    <DialogDescription className="mt-2">{error || "We couldn't process your payment. Please try again."}</DialogDescription>
+                    <Button variant="outline" className="mt-4" onClick={() => setPaymentStatus('idle')}>
+                        Close
+                    </Button>
                 </div>
             )}
         </DialogContent>
@@ -720,9 +728,3 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
-
-
-
-
-
-

@@ -34,7 +34,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Loader2, ArrowLeft, UserPlus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast"
-import { getRoles, addUser } from '@/lib/actions';
+import { getRoles } from '@/lib/actions';
+import { addUser } from '@/app/(auth)/dashboard/settings/users/actions';
 import { useAuth } from '@/context/auth-context';
 
 const addUserFormSchema = z.object({
@@ -44,10 +45,9 @@ const addUserFormSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }).optional().or(z.literal('')),
   roleId: z.string({ required_error: "Please select a role." }),
   nibBankAccount: z.string()
-    .optional()
-    .or(z.literal(''))
-    .refine(val => !val || (val.length >= 13 && val.length <= 15), { message: "NIB Account must be between 13 and 15 digits." })
-    .refine(val => !val || val.startsWith('70'), { message: "NIB Account must start with 70." })
+    .min(13, { message: "NIB Account must be between 13 and 15 digits." })
+    .max(15, { message: "NIB Account must be between 13 and 15 digits." })
+    .refine(val => val.startsWith('70'), { message: "NIB Account must start with 70." })
 });
 
 type AddUserFormValues = z.infer<typeof addUserFormSchema>;
@@ -96,14 +96,29 @@ export default function UserRegistrationPage() {
     async function onAddUserSubmit(data: AddUserFormValues) {
         setIsSubmitting(true);
         try {
-            await addUser(data);
+            const result = await addUser(data);
+
+            if (result.success) {
+                toast({
+                    title: "User Added",
+                    description: `Successfully added ${data.firstName} ${data.lastName}.`,
+                });
+                router.push('/dashboard/settings/users');
+            } else {
+                toast({
+                    variant: 'destructive',
+                    title: 'Failed to Add User',
+                    description: result.error || 'An unknown error occurred.',
+                });
+            }
+        } catch (error) {
+            // This is a fallback for unexpected client-side errors
+            console.error('User registration failed on client:', error);
             toast({
-                title: "User Added",
-                description: `Successfully added ${data.firstName} ${data.lastName}.`,
+                variant: 'destructive',
+                title: 'Client Error',
+                description: 'Something went wrong before the request could be completed.',
             });
-            router.push('/dashboard/settings/users');
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to add user.' });
         } finally {
             setIsSubmitting(false);
         }
@@ -125,7 +140,7 @@ export default function UserRegistrationPage() {
         <Card>
             <CardHeader>
                 <CardTitle>New User Details</CardTitle>
-                <CardDescription>Fill out the form to register a new user. The temporary password will be "user@123".</CardDescription>
+                <CardDescription>Fill out the form to register a new user. The temporary password will be "User@123".</CardDescription>
             </CardHeader>
             <CardContent>
                 <Form {...addUserForm}>
@@ -147,7 +162,7 @@ export default function UserRegistrationPage() {
                         <FormField control={addUserForm.control} name="nibBankAccount" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>
-                                    NIB Account <span className="text-muted-foreground">(Optional)</span>
+                                    NIB Account
                                 </FormLabel>
                                 <FormControl><Input placeholder="700***********" {...field} /></FormControl>
                                 <FormMessage />

@@ -2,39 +2,44 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { decryptSessionPayload } from '@/lib/sessionCrypto';
+import { encryptSessionPayload } from '@/lib/sessionCrypto';
 
-/**
- * GET endpoint to retrieve authentication data from HTTP-only cookies
- * This allows client-side code to access data stored in HTTP-only cookies
- */
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const cookie = cookieStore.get('auth');
-    if (!cookie?.value) {
+    const body = await req.json();
+    const { phoneNumber, accessToken } = body;
+
+    if (!phoneNumber || !accessToken) {
       return NextResponse.json(
-        { success: false, message: 'No authentication data found' },
-        { status: 401 }
+        { success: false, message: 'Missing authentication data' },
+        { status: 400 }
       );
     }
-    
-    const decrypted = await decryptSessionPayload(cookie.value);
-    const authData = JSON.parse(decrypted);
-    
-    const { phoneNumber, accessToken } = authData;
-    
+
+    // Encrypt the session data before storing
+    const payload = JSON.stringify({ phoneNumber, accessToken });
+    const encrypted = await encryptSessionPayload(payload);
+
+    // Set cookie
+    const cookieStore = await cookies();
+    cookieStore.set({
+      name: 'auth',
+      value: encrypted,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7 // 7 days
+    });
+
     return NextResponse.json({
       success: true,
-      data: {
-        phoneNumber,
-        isAuthenticated: !!accessToken
-      }
+      message: 'Authentication cookie set successfully'
     });
   } catch (error) {
-    console.error('Error retrieving cookie data:', error);
+    console.error('Error setting auth cookie:', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to retrieve authentication data' },
+      { success: false, message: 'Failed to set auth cookie' },
       { status: 500 }
     );
   }

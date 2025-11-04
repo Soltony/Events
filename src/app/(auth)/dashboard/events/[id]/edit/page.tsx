@@ -31,6 +31,9 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import LocationInput from '@/components/location-input';
 import { DateTimePicker } from '@/components/datetime-picker';
+import { ensureCsrfToken } from '@/context/auth-context';
+import api from '@/lib/api';
+import { Switch } from '@/components/ui/switch';
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
@@ -173,7 +176,8 @@ export default function EditEventPage() {
         const reader = new FileReader();
         reader.onloadend = async () => {
           try {
-            const response = await axios.post('/api/upload', { file: reader.result });
+            await ensureCsrfToken();
+            const response = await api.post('/api/upload', { file: reader.result });
             if (response.data.success) {
               // Replace the existing image instead of adding to array
               form.setValue('images', [response.data.url]);

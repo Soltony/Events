@@ -29,7 +29,9 @@ import { addEvent } from '@/lib/actions';
 import { Separator } from '@/components/ui/separator';
 import LocationInput from '@/components/location-input';
 import { DateTimePicker } from '@/components/datetime-picker';
-import { useAuth } from '@/context/auth-context';
+import { useAuth, ensureCsrfToken } from '@/context/auth-context';
+import api from '@/lib/api';
+import { Switch } from '@/components/ui/switch';
 
 const locationPriceSchema = z.object({
   location: z.string().min(1, "Location is required."),
@@ -78,12 +80,16 @@ const TicketTierCard = ({
   remove,
   totalTickets,
   watchedLocations,
+  getValues,
+  setValue,
 }: {
   ticketIndex: number;
   control: Control<EventFormValues>;
   remove: (index: number) => void;
   totalTickets: number;
   watchedLocations: { value: string }[];
+  getValues: Function;
+  setValue: Function;
 }) => {
   const { fields: locationPriceFields, append: appendLocationPrice, remove: removeLocationPrice } = useFieldArray({
     control,
@@ -139,51 +145,53 @@ const TicketTierCard = ({
           render={() => <FormMessage />}
         />
 
-        {locationPriceFields.map((field, priceIndex) => (
-          <div key={field.id} className="grid grid-cols-12 gap-2 items-end">
-            <FormField
-              control={control}
-              name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.location`}
-              render={({ field }) => (
-                <FormItem className="col-span-4">
-                  <FormLabel className="text-xs">Location</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger></FormControl>
-                    <SelectContent>{watchedLocations.map(l => l.value).filter(Boolean).map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={control}
-              name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.price`}
-              render={({ field }) => (
-                <FormItem className="col-span-3">
-                  <FormLabel className="text-xs">Price</FormLabel>
-                  <FormControl><Input type="number" placeholder="500" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={control}
-              name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.quantity`}
-              render={({ field }) => (
-                <FormItem className="col-span-3">
-                  <FormLabel className="text-xs">Quantity</FormLabel>
-                  <FormControl><Input type="number" placeholder="100" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="col-span-2 flex items-center">
-              <Button type="button" variant="outline" size="icon" onClick={() => removeLocationPrice(priceIndex)} disabled={locationPriceFields.length <= 1}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        ))}
+        {locationPriceFields.map((field, priceIndex) => {
+            return (
+              <div key={field.id} className="grid grid-cols-12 gap-2 items-end">
+                <FormField
+                  control={control}
+                  name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.location`}
+                  render={({ field }) => (
+                    <FormItem className="col-span-4">
+                      <FormLabel className="text-xs">Location</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger></FormControl>
+                        <SelectContent>{watchedLocations.map(l => l.value).filter(Boolean).map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}</SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={control}
+                  name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.price`}
+                  render={({ field }) => (
+                    <FormItem className="col-span-3">
+                      <FormLabel className="text-xs">Price</FormLabel>
+                      <FormControl><Input type="number" placeholder="500" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={control}
+                  name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.quantity`}
+                  render={({ field }) => (
+                    <FormItem className="col-span-3">
+                      <FormLabel className="text-xs">Quantity</FormLabel>
+                      <FormControl><Input type="number" placeholder="100" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="col-span-2 flex items-center">
+                  <Button type="button" variant="outline" size="icon" onClick={() => removeLocationPrice(priceIndex)} disabled={locationPriceFields.length <= 1}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )
+        })}
         <Button
           type="button"
           variant="outline"
@@ -225,7 +233,7 @@ export default function CreateEventPage() {
     },
   });
 
-  const { control } = form;
+  const { control, getValues, setValue } = form;
 
   const watchedImages = form.watch('images');
   const watchedCategory = form.watch('category');
@@ -298,7 +306,8 @@ export default function CreateEventPage() {
         const reader = new FileReader();
         reader.onloadend = async () => {
           try {
-            const response = await axios.post('/api/upload', { file: reader.result });
+            await ensureCsrfToken();
+            const response = await api.post('/api/upload', { file: reader.result });
             if (response.data.success) {
               // Replace the existing image instead of adding to array
               form.setValue('images', [response.data.url]);
@@ -597,6 +606,8 @@ export default function CreateEventPage() {
                         remove={removeTicket}
                         totalTickets={ticketFields.length}
                         watchedLocations={watchedLocations}
+                        getValues={getValues}
+                        setValue={setValue}
                       />
                     ))}
 
@@ -628,5 +639,3 @@ export default function CreateEventPage() {
     </div>
   );
 }
-
-    

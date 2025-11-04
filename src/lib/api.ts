@@ -7,6 +7,7 @@ import Cookies from 'js-cookie';
 const api = axios.create({
   baseURL: '/', // All requests will go to the Next.js server
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true, // ✅ Include cookies with every request
 });
 
 export const setAuthToken = (token: string | null) => {

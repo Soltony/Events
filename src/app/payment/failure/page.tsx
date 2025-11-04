@@ -7,15 +7,28 @@ import { XCircle } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
+import { getEventForTransaction } from '@/lib/actions';
+
 
 function FailureContent() {
     const searchParams = useSearchParams();
-    const eventId = searchParams.get('event_id');
+    const transactionId = searchParams.get('transaction_id');
+    const [eventId, setEventId] = useState<number | null>(null);
     const [countdown, setCountdown] = useState(10);
 
     useEffect(() => {
+      async function fetchEventId() {
+        if(transactionId) {
+          const id = await getEventForTransaction(transactionId);
+          setEventId(id);
+        }
+      }
+      fetchEventId();
+    }, [transactionId]);
+
+    useEffect(() => {
         const countdownInterval = setInterval(() => {
-            setCountdown(prev => prev - 1);
+            setCountdown(prev => prev > 0 ? prev - 1 : 0);
         }, 1000);
 
         const redirectTimeout = setTimeout(() => {
@@ -43,16 +56,16 @@ function FailureContent() {
             </CardHeader>
             <CardContent className="p-8 text-center">
                 <p className="text-muted-foreground mb-6">
-                    Please try again. You will be redirected back to the event page in {countdown} seconds.
+                    You will be redirected in {countdown} seconds.
                 </p>
                 <div className="flex justify-center gap-4">
                     <Button asChild>
                         <Link href={eventId ? `/events/${eventId}` : '/'}>
-                            Back to Event Page
+                            Try Again
                         </Link>
                     </Button>
                     <Button asChild variant="outline">
-                        <Link href="/">Back to All Events</Link>
+                        <Link href="/">Back to Homepage</Link>
                     </Button>
                 </div>
             </CardContent>
@@ -61,4 +74,12 @@ function FailureContent() {
 }
 
 
-export default function Removed() { return null; }
+export default function PaymentFailurePage() {
+    return (
+        <div className="container mx-auto py-12 max-w-2xl">
+            <Suspense fallback={<div>Loading...</div>}>
+                <FailureContent />
+            </Suspense>
+        </div>
+    );
+}

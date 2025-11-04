@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -38,9 +39,9 @@ interface AttendeeTicket {
 // --- Permission Definitions ---
 const VALID_PERMISSIONS = new Set([
   'Dashboard:Create', 'Dashboard:Read', 'Dashboard:Update', 'Dashboard:Delete',
-  'Scan QR:Create', 'Scan QR:Read', 'Scan QR:Update', 'Scan QR:Delete',
+  'Scan QR:Create', 'Scan QR:Read', 'Scan QR:Update', 'Dashboard:Delete',
   'Events:Create', 'Events:Read', 'Events:Update', 'Events:Delete',
-  'Reports:Create', 'Reports:Read', 'Reports:Update', 'Reports:Delete',
+  'Reports:Create', 'Reports:Read', 'Reports:Update', 'Dashboard:Delete',
   'User Registration:Create', 'User Registration:Read', 'User Registration:Update', 'User Registration:Delete',
   'User Management:Create', 'User Management:Read', 'User Management:Update', 'User Management:Delete',
   'Role Management:Create', 'Role Management:Read', 'Role Management:Update', 'Role Management:Delete',
@@ -113,6 +114,9 @@ export async function getEvents(status?: EventStatus | 'all') {
 
     const events = await prisma.event.findMany({
         where: whereClause,
+        include: {
+            organizer: isAdmin, // Only include organizer if the user is an admin
+        },
         orderBy: { startDate: 'asc' },
     });
 
@@ -178,6 +182,19 @@ export async function getEventById(id: number) {
     return serialize(event);
 }
 
+export async function getEventForTransaction(transactionId: string) {
+    const order = await prisma.pendingOrder.findFirst({
+        where: {
+            OR: [
+                { transactionId: transactionId },
+                { arifpaySessionId: transactionId }
+            ]
+        },
+        select: { eventId: true }
+    });
+    return order?.eventId ?? null;
+}
+
 export async function getEventDetails(id: number) {
     const user = await getCurrentUser();
     if (!user) {
@@ -228,10 +245,6 @@ export async function addEvent(data: any) {
         }
     }
 
-    if (user.role.name !== 'Admin' && !nibBankAccount) {
-        throw new Error('You must have a NIB Account set in your profile to create an event.');
-    }
-
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
     
     const locationString = locations.map((l: { value: string }) => l.value).join('||');
@@ -257,7 +270,7 @@ export async function addEvent(data: any) {
       for (const ticket of tickets) {
         if (ticket.locationPrices && ticket.locationPrices.length > 0) {
             for (const config of ticket.locationPrices) {
-                if (config.location && config.price >= 0 && config.quantity >= 0) {
+                if (config.location && config.price > 0 && config.quantity >= 0) {
                      await prisma.ticketType.create({
                         data: {
                             name: `${ticket.name} - ${config.location}`,
@@ -289,13 +302,13 @@ export async function updateEvent(id: number, data: any) {
 
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
 
+    // This is the fix: Remove properties that don't exist in the Event model
     const eventDataForUpdate = { ...eventData };
     delete eventDataForUpdate.otherCategory;
     delete eventDataForUpdate.tickets; 
-
+    
     const locationString = locations.map((l: { value: string }) => l.value).join('||');
     
-    // Get the first image from the array (since we only allow one image now)
     const imageString = Array.isArray(images) && images.length > 0
         ? images[0]
         : null;
@@ -381,15 +394,17 @@ export async function deleteEvent(id: number) {
 
 export async function addTicketType(eventId: number, data: { name: string; description?: string; locationPrices: { location: string; price: number; quantity: number }[] }) {
     for (const config of data.locationPrices) {
-        await prisma.ticketType.create({
-            data: {
-                name: `${data.name} - ${config.location}`,
-                description: data.description,
-                basePrice: config.price,
-                total: config.quantity,
-                eventId: eventId,
-            }
-        });
+        if (config.location && config.price > 0 && config.quantity >= 0) {
+            await prisma.ticketType.create({
+                data: {
+                    name: `${data.name} - ${config.location}`,
+                    description: data.description,
+                    basePrice: config.price,
+                    total: config.quantity,
+                    eventId: eventId,
+                }
+            });
+        }
     }
     revalidatePath(`/dashboard/events/${eventId}`);
 }
@@ -642,115 +657,6 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
     return serialize(user);
 }
 
-
-export async function addUser(data: any) {
-    const { firstName, lastName, phoneNumber, email, roleId, nibBankAccount } = data;
-
-    const phoneRegex = /^(09|07)\d{8}$/;
-    if (!phoneRegex.test(phoneNumber)) {
-        throw new Error("Phone number must start with 09 or 07 followed by 8 digits.");
-    }
-    
-    const authApiUrl = process.env.AUTH_API_BASE_URL;
-    if (!authApiUrl) {
-      throw new Error('Auth API URL not configured.');
-    }
-    
-    // Generate a secure, random password. e.g., "UserA1b2C3d4@"
-    const password = `User${randomBytes(4).toString('hex')}@`;
-    
-    try {
-        const authServiceEmail = email || `${phoneNumber}@nibtickets.com`;
-
-        const registrationResponse = await fetch(`${authApiUrl}/api/Auth/register`, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                firstName,
-                lastName,
-                phoneNumber,
-                email: authServiceEmail,
-                password,
-            }),
-        });
-        
-        const responseData = await registrationResponse.json();
-                                              
-        if (!responseData || !responseData.isSuccess) {
-            let errorMessage = 'Failed to register user with auth service.';
-            if (responseData.errors) {
-              if (Array.isArray(responseData.errors)) {
-                errorMessage = responseData.errors.join(', ');
-              } else if (typeof responseData.errors === 'string') {
-                errorMessage = responseData.errors;
-              } else if (typeof responseData.errors === 'object') {
-                errorMessage = Object.values(responseData.errors).flat().join(' ');
-              }
-            }
-            throw new Error(errorMessage);
-        }
-        
-        let newUserId;
-
-        if (responseData.accessToken) {
-            const token = responseData.accessToken;
-            const payloadBase64 = token.split('.')[1];
-            if (payloadBase64) {
-                const decodedJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
-                const decoded = JSON.parse(decodedJson);
-                if (decoded && decoded.sub) {
-                    newUserId = decoded.sub;
-                }
-            }
-        }
-        
-        if (!newUserId) {
-            console.error("Auth service response did not contain a user ID. Full response:", JSON.stringify(responseData, null, 2));
-            throw new Error("Auth service did not return a user ID.");
-        }
-        
-        const createData: any = {
-            id: newUserId,
-            firstName,
-            lastName,
-            phoneNumber,
-            roleId,
-            passwordChangeRequired: true,
-            nibBankAccount: nibBankAccount || null,
-        };
-
-        if (email) {
-            createData.email = email;
-        }
-
-        const user = await prisma.user.create({
-            data: createData,
-        });
-    
-        revalidatePath('/dashboard/settings/users');
-        return serialize(user);
-
-    } catch (error: any) {
-        console.error("Error creating user:", error.message);
-        
-        if (error.code === 'P2002' && error.meta?.target?.includes('phoneNumber')) {
-             throw new Error(`A user with this phone number already exists in the local database.`);
-        }
-
-        if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
-            throw new Error('A user with this email address already exists in the local database.');
-        }
-        
-        if (error.message.includes('already taken')) {
-            throw new Error(error.message);
-        }
-
-        throw new Error(error.message || 'Failed to create user.');
-    }
-}
-
 export async function updateUser(userId: string, data: Partial<User>) {
     const { firstName, lastName, phoneNumber, roleId, nibBankAccount, email } = data;
     const updatedUser = await prisma.user.update({
@@ -761,7 +667,7 @@ export async function updateUser(userId: string, data: Partial<User>) {
             phoneNumber,
             roleId,
             nibBankAccount: nibBankAccount || null,
-            email,
+            email: email || null,
         },
     });
 
@@ -848,8 +754,13 @@ export async function deleteUser(userId: string, phoneNumber: string) {
 
 
 export async function getRoles() {
-    const roles = await prisma.role.findMany();
-    return serialize(roles);
+    try {
+        const roles = await prisma.role.findMany();
+        return serialize(roles);
+    } catch (error: any) {
+        console.error("Failed to fetch roles from database:", error);
+        throw new Error("Could not load roles. Please check the database connection and try again.");
+    }
 }
 
 export async function getRoleById(id: string) {
@@ -1030,8 +941,13 @@ export async function getTicketDetailsForConfirmation(identifier: string) {
         whereClause = { id: parseInt(identifier, 10) };
     } else {
         // If it's not numeric, assume it's a transactionId from the payment success page
-        const order = await prisma.pendingOrder.findUnique({
-            where: { transactionId: identifier },
+        const order = await prisma.pendingOrder.findFirst({
+            where: { 
+                OR: [
+                    { transactionId: identifier },
+                    { arifpaySessionId: identifier }
+                ]
+             },
         });
         if (!order || !order.attendeeId) return null;
         whereClause = { id: order.attendeeId };
@@ -1049,7 +965,23 @@ export async function getTicketDetailsForConfirmation(identifier: string) {
 }
 
 export async function getTicketsForUser(userId?: string, phoneNumber?: string) {
-    const findClause: any = {
+    if (!userId && !phoneNumber) {
+        return [];
+    }
+
+    const whereClauses = [];
+    if (userId) {
+        whereClauses.push({ userId: userId });
+    }
+    if (phoneNumber) {
+        // The `in` operator expects an array.
+        whereClauses.push({ phoneNumber: { in: [phoneNumber] } });
+    }
+
+    const attendees = await prisma.attendee.findMany({
+        where: {
+            OR: whereClauses,
+        },
         include: {
             event: true,
             ticketType: true,
@@ -1057,17 +989,8 @@ export async function getTicketsForUser(userId?: string, phoneNumber?: string) {
         orderBy: {
             createdAt: 'desc',
         },
-    };
+    });
 
-    if (userId) {
-        findClause.where = { userId: userId };
-    } else if (phoneNumber) {
-        findClause.where = { phoneNumber: phoneNumber };
-    } else {
-        return []; // No identifier provided
-    }
-
-    const attendees = await prisma.attendee.findMany(findClause);
     return serialize(attendees);
 }
 
@@ -1160,3 +1083,4 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
+
