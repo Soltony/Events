@@ -22,10 +22,12 @@ import { FileDown, Loader2 } from 'lucide-react';
 import { getReportsData } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
-import type { TicketType, PromoCode } from '@prisma/client';
+import type { TicketType, PromoCode, Event } from '@prisma/client';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DateRangePicker } from '@/components/date-range-picker';
 import type { DateRange } from 'react-day-picker';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 interface DailySale {
     date: Date;
@@ -47,6 +49,7 @@ interface ReportsData {
     productSales: ProductSale[];
     dailySales: DailySale[];
     promoCodes: PromoCodeReport[];
+    events: Event[];
 }
 
 function convertToCSV(data: any[], headers: { key: string, label: string }[]): string {
@@ -85,11 +88,12 @@ export default function ReportsPage() {
     const [loading, setLoading] = useState(true);
     const [downloading, setDownloading] = useState<string | null>(null);
     const [dailySalesDateRange, setDailySalesDateRange] = useState<DateRange | undefined>();
+    const [selectedEventId, setSelectedEventId] = useState<string>('all');
 
-    const fetchData = async (dateRange?: DateRange) => {
+    const fetchData = async (dateRange?: DateRange, eventId?: string) => {
         try {
             setLoading(true);
-            const reportsData = await getReportsData(dateRange);
+            const reportsData = await getReportsData(dateRange, eventId);
             setData(reportsData);
         } catch (error) {
             console.error("Failed to fetch reports data:", error);
@@ -99,8 +103,8 @@ export default function ReportsPage() {
     }
 
     useEffect(() => {
-        fetchData(dailySalesDateRange);
-    }, [dailySalesDateRange]);
+        fetchData(dailySalesDateRange, selectedEventId);
+    }, [dailySalesDateRange, selectedEventId]);
 
     const handleDownload = (reportType: 'product' | 'daily' | 'promo') => {
         if (!data) return;
@@ -191,11 +195,27 @@ export default function ReportsPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
-        <p className="text-muted-foreground">
-          View and download reports for your events. Only completed orders are included.
-        </p>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
+            <p className="text-muted-foreground">
+            View and download reports for your events. Only completed orders are included.
+            </p>
+        </div>
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+            <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                    <SelectValue placeholder="Filter by event" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Events</SelectItem>
+                    {data?.events?.map(event => (
+                        <SelectItem key={event.id} value={event.id.toString()}>{event.name}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            <DateRangePicker date={dailySalesDateRange} setDate={setDailySalesDateRange} />
+        </div>
       </div>
 
       <div className="space-y-8">
@@ -205,18 +225,15 @@ export default function ReportsPage() {
               <CardTitle>Daily Sales Report</CardTitle>
               <CardDescription>A summary of sales for each event date.</CardDescription>
             </div>
-            <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
-                <DateRangePicker date={dailySalesDateRange} setDate={setDailySalesDateRange} />
-                <Button 
-                    variant="outline" 
-                    onClick={() => handleDownload('daily')} 
-                    disabled={downloading === 'daily' || loading}
-                    className="w-full sm:w-auto"
-                >
-                    {downloading === 'daily' || loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
-                    Download Report
-                </Button>
-            </div>
+            <Button 
+                variant="outline" 
+                onClick={() => handleDownload('daily')} 
+                disabled={downloading === 'daily' || loading}
+                className="w-full md:w-auto"
+            >
+                {downloading === 'daily' || loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+                Download Report
+            </Button>
           </CardHeader>
           <CardContent>
              <ScrollArea className="h-[300px]">

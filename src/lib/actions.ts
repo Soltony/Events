@@ -555,13 +555,14 @@ export async function getDashboardData() {
 
 
 // Reports Actions
-export async function getReportsData(dateRange?: DateRange) {
+export async function getReportsData(dateRange?: DateRange, eventId?: string) {
     const user = await getCurrentUser();
     if (!user) {
         return {
             productSales: [],
             dailySales: [],
             promoCodes: [],
+            events: [],
         };
     }
 
@@ -578,6 +579,10 @@ export async function getReportsData(dateRange?: DateRange) {
         whereClause.startDate = { ...whereClause.startDate, lte: dateRange.to };
     }
 
+    if (eventId && eventId !== 'all') {
+        whereClause.id = parseInt(eventId, 10);
+    }
+    
     const events = await prisma.event.findMany({
         where: whereClause,
         include: {
@@ -585,6 +590,11 @@ export async function getReportsData(dateRange?: DateRange) {
             promoCodes: true,
         },
         orderBy: { startDate: 'asc' }
+    });
+
+    const allEventsForFilter = await prisma.event.findMany({
+        where: user.role.name === 'Admin' ? {} : { organizerId: user.id },
+        orderBy: { name: 'asc' }
     });
 
     const ticketTypes = events.flatMap(e => e.ticketTypes.map(tt => ({ ...tt, event: { name: e.name }, basePrice: tt.basePrice })));
@@ -618,7 +628,8 @@ export async function getReportsData(dateRange?: DateRange) {
     return serialize({
         productSales: ticketTypes.map(p => ({...p, price: p.basePrice, revenue: p.sold * Number(p.basePrice)})),
         dailySales: dailySalesData,
-        promoCodes: promoCodeData
+        promoCodes: promoCodeData,
+        events: allEventsForFilter,
     });
 }
 
@@ -1083,4 +1094,3 @@ export async function checkInAttendee(attendeeId: number) {
         return { error: 'An unexpected error occurred during check-in.' };
     }
 }
-
