@@ -30,20 +30,10 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     const startDateFormat = 'LLL dd, y, hh:mm a';
     
     if (endDate) {
-      const endDay = format(new Date(endDate), 'dd');
-      const startDay = format(new Date(startDate), 'dd');
-      const endMonthYear = format(new Date(endDate), 'LLL, y');
-      const startMonthYear = format(new Date(startDate), 'LLL, y');
-
-      if (startMonthYear !== endMonthYear) {
-         return `${format(new Date(startDate), 'LLL dd, y, hh:mm a')} - ${format(new Date(endDate), 'LLL dd, y, hh:mm a')}`;
-      }
-      
-      if (startDay !== endDay) {
-        return `${format(new Date(startDate), 'LLL dd, hh:mm a')} - ${format(new Date(endDate), 'dd, hh:mm a')}`;
-      }
+      const endDateFormat = 'LLL dd, y, hh:mm a';
+      return `Start Date: ${format(new Date(startDate), startDateFormat)}\nEnd Date: ${format(new Date(endDate), endDateFormat)}`;
     }
-    return format(new Date(startDate), startDateFormat);
+    return `Date: ${format(new Date(startDate), startDateFormat)}`;
 }
 
 const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
@@ -360,7 +350,7 @@ export default function PublicHomePage() {
                                   <CardItem as="div" translateZ="40">
                                     <Badge variant="outline" className={cn("text-xs mb-2", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
                                     <h3 className="font-bold text-lg text-black truncate">{event.name}</h3>
-                                    <p className="text-xs text-black mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
+                                    <p className="text-xs text-black mt-1 whitespace-pre-line">{formatEventDate(event.startDate, event.endDate)}</p>
                                   </CardItem>
                                 </div>
                                 <CardItem translateZ="30" className="mt-auto pt-4">
@@ -423,7 +413,7 @@ export default function PublicHomePage() {
                                    <CardItem as="div" translateZ="40">
                                     <Badge variant="outline" className={cn("text-xs mb-2", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
                                     <h3 className="font-bold text-lg text-black truncate">{event.name}</h3>
-                                    <p className="text-xs text-black mt-1">{formatEventDate(event.startDate, event.endDate)}</p>
+                                    <p className="text-xs text-black mt-1 whitespace-pre-line">{formatEventDate(event.startDate, event.endDate)}</p>
                                   </CardItem>
                                 </div>
                                  <CardItem translateZ="30" className="mt-auto pt-4">

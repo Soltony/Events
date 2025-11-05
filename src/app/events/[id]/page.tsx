@@ -66,12 +66,10 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     const startDateFormat = 'LLL dd, y, hh:mm a';
     
     if (endDate) {
-      const endDateFormat = format(new Date(endDate), 'LLL dd, y') === format(new Date(startDate), 'LLL dd, y') 
-        ? 'hh:mm a'
-        : startDateFormat;
-      return `${''}${format(new Date(startDate), startDateFormat)} - ${format(new Date(endDate), endDateFormat)}`;
+      const endDateFormat = 'LLL dd, y, hh:mm a';
+      return `Start Date: ${format(new Date(startDate), startDateFormat)}\nEnd Date: ${format(new Date(endDate), endDateFormat)}`;
     }
-    return format(new Date(startDate), startDateFormat);
+    return `Date: ${format(new Date(startDate), startDateFormat)}`;
 }
 
 
@@ -485,7 +483,7 @@ export default function PublicEventDetailPage() {
                               <div className="text-lg text-muted-foreground space-y-2 pt-4">
                                   <div className="flex items-center gap-3">
                                       <Calendar className="h-5 w-5" />
-                                      <span>{formatEventDate(event.startDate, event.endDate)}</span>
+                                      <span className="whitespace-pre-line">{formatEventDate(event.startDate, event.endDate)}</span>
                                   </div>
                                   {eventLocations.length <= 1 && (
                                       <div className="flex items-start gap-3">
@@ -743,5 +741,3 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
-
-    
