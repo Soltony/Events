@@ -56,8 +56,8 @@ export async function POST(request: NextRequest) {
     // Use a transaction to ensure atomicity
     const createdAttendee = await prisma.$transaction(async (tx) => {
       // 1. Get attendee data from pending order
-      const attendeeData = eventPayment.pendingOrder.attendeeData as { name: string, phone: string, userId?: string, tickets: any[] };
-      const { name, phone, userId, tickets } = attendeeData;
+      const attendeeData = eventPayment.pendingOrder.attendeeData as { name: string, phoneNumber: string, userId?: string, tickets: any[] };
+      const { name, phoneNumber, userId, tickets } = attendeeData;
 
       if (!tickets || tickets.length === 0) {
         throw new Error('No ticket information found in pending order.');
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
 
         const attendeesToCreate = Array.from({ length: quantity }).map(() => ({
           name,
-          phoneNumber: phone,
+          phoneNumber: phoneNumber,
           userId: userId,
           eventId: eventPayment.eventId,
           ticketTypeId: ticketTypeId,
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
 
         // Get the last created attendee for this batch
         lastAttendee = await tx.attendee.findFirst({
-            where: { eventId: eventPayment.eventId, name, phoneNumber: phone, userId, ticketTypeId: ticketTypeId },
+            where: { eventId: eventPayment.eventId, name, phoneNumber: phoneNumber, userId, ticketTypeId: ticketTypeId },
             orderBy: { createdAt: 'desc' }
         });
 
