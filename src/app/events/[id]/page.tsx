@@ -743,3 +743,5 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
+
+    
