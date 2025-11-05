@@ -213,6 +213,7 @@ export default function UserManagementPage() {
                       const isEditable = (canUpdate && !isTargetAdmin) || isSelf;
                       const canChangeRole = canUpdate && !isSelf && !isTargetAdmin;
                       const canChangeStatus = canUpdate && !isSelf && !isTargetAdmin;
+                      const canDelete = hasPermission('User Management:Delete') && !isSelf && !isTargetAdmin;
 
                       return (
                         <TableRow key={user.id}>
@@ -244,27 +245,28 @@ export default function UserManagementPage() {
                                 </div>
                             </TableCell>
                           <TableCell className="text-right">
-                            {isEditable && (
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon">
-                                            <MoreHorizontal className="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                         <DropdownMenuItem onSelect={() => router.push(`/dashboard/settings/users/${user.id}/edit`)}>
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" disabled={!isEditable && !canDelete}>
+                                        <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    {isEditable && (
+                                        <DropdownMenuItem onSelect={() => router.push(`/dashboard/settings/users/${user.id}/edit`)}>
                                             <Edit className="mr-2 h-4 w-4" /> Edit
                                         </DropdownMenuItem>
+                                    )}
+                                    {canDelete && (
                                         <DropdownMenuItem
                                             className="text-destructive"
                                             onSelect={() => setUserToDelete(user)}
-                                            disabled={!canUpdate || isSelf}
                                         >
                                             <Trash2 className="mr-2 h-4 w-4" /> Delete
                                         </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            )}
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       );

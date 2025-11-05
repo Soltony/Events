@@ -726,8 +726,13 @@ export async function deleteUser(userId: string, phoneNumber: string) {
         if (!tokenCookie?.value) {
             throw new Error('Authentication token not found');
         }
-        const tokenData = JSON.parse(tokenCookie.value);
-        const token = tokenData.accessToken;
+        
+        const decrypted = await decryptSessionPayload(tokenCookie.value);
+        const { accessToken: token } = JSON.parse(decrypted);
+
+        if (!token) {
+             throw new Error('Auth token is missing from session.');
+        }
        
         const response = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
             method: 'POST',
