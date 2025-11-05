@@ -27,11 +27,27 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useRouter } from 'next/navigation';
-import { UserPlus, ArrowLeft, Pencil } from 'lucide-react';
+import { UserPlus, ArrowLeft, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast"
 import { Skeleton } from '@/components/ui/skeleton';
-import { getUsersAndRoles, updateUserRole, updateUserStatus } from '@/lib/actions';
+import { getUsersAndRoles, updateUserRole, updateUserStatus, deleteUser } from '@/lib/actions';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
 import { Switch } from '@/components/ui/switch';
@@ -49,6 +65,7 @@ export default function UserManagementPage() {
     const [users, setUsers] = useState<UserWithRole[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [loading, setLoading] = useState(true);
+    const [userToDelete, setUserToDelete] = useState<UserWithRole | null>(null);
 
     const fetchData = async () => {
         if (!currentUser) {
@@ -61,17 +78,14 @@ export default function UserManagementPage() {
             const { users: allUsers, roles: allRoles } = await getUsersAndRoles();
             
             const filteredUsers = allUsers.filter((user: UserWithRole) => {
-                // The current user should always see themselves.
                 if (user.id === currentUser.id) {
                     return true;
                 }
                 
-                // Hide Admins from non-Admins
                 if (currentUser.role.name !== 'Admin' && user.role.name === 'Admin') {
                     return false;
                 }
                 
-                // Hide users with the same role (peers) from sub-admins
                 if (currentUser.role.name !== 'Admin' && user.role.name === currentUser.role.name) {
                     return false;
                 }
@@ -120,8 +134,29 @@ export default function UserManagementPage() {
         }
     }
 
+    const handleDelete = async () => {
+        if (!userToDelete) return;
+        try {
+            await deleteUser(userToDelete.id, userToDelete.phoneNumber);
+            toast({
+                title: "User Deleted",
+                description: `Successfully deleted ${userToDelete.firstName} ${userToDelete.lastName}.`
+            });
+            fetchData();
+        } catch(error: any) {
+             toast({
+                variant: 'destructive',
+                title: 'Error Deleting User',
+                description: error.message || "An unexpected error occurred."
+            });
+        } finally {
+            setUserToDelete(null);
+        }
+    }
+
 
   return (
+    <>
     <div className="flex flex-1 justify-center p-4">
       <div className="w-full max-w-4xl">
         <div className="flex flex-1 flex-col gap-4 md:gap-8">
@@ -209,16 +244,27 @@ export default function UserManagementPage() {
                                 </div>
                             </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              {canUpdate && (
-                                <Button variant="ghost" size="icon" asChild disabled={!isEditable}>
-                                  <Link href={`/dashboard/settings/users/${user.id}/edit`}>
-                                    <Pencil className="h-4 w-4" />
-                                    <span className="sr-only">Edit</span>
-                                  </Link>
-                                </Button>
-                              )}
-                            </div>
+                            {isEditable && (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon">
+                                            <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                         <DropdownMenuItem onSelect={() => router.push(`/dashboard/settings/users/${user.id}/edit`)}>
+                                            <Edit className="mr-2 h-4 w-4" /> Edit
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            className="text-destructive"
+                                            onSelect={() => setUserToDelete(user)}
+                                            disabled={!canUpdate || isSelf}
+                                        >
+                                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
                           </TableCell>
                         </TableRow>
                       );
@@ -231,5 +277,22 @@ export default function UserManagementPage() {
         </div>
       </div>
     </div>
+    <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will permanently delete the user <strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong>. This action cannot be undone.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                    Delete
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
