@@ -555,7 +555,7 @@ export async function getDashboardData() {
 
 
 // Reports Actions
-export async function getReportsData(dateRange?: DateRange, eventId?: string) {
+export async function getReportsData(dateRange?: DateRange, eventNameSearch?: string) {
     const user = await getCurrentUser();
     if (!user) {
         return {
@@ -579,8 +579,8 @@ export async function getReportsData(dateRange?: DateRange, eventId?: string) {
         whereClause.startDate = { ...whereClause.startDate, lte: dateRange.to };
     }
 
-    if (eventId && eventId !== 'all') {
-        whereClause.id = parseInt(eventId, 10);
+    if (eventNameSearch) {
+        whereClause.name = { contains: eventNameSearch, mode: 'insensitive' };
     }
     
     const events = await prisma.event.findMany({

@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { FileDown, Loader2 } from 'lucide-react';
+import { FileDown, Loader2, Search } from 'lucide-react';
 import { getReportsData } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
@@ -26,7 +26,8 @@ import type { TicketType, PromoCode, Event } from '@prisma/client';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DateRangePicker } from '@/components/date-range-picker';
 import type { DateRange } from 'react-day-picker';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { useDebounce } from '@/hooks/use-debounce';
 
 
 interface DailySale {
@@ -87,13 +88,14 @@ export default function ReportsPage() {
     const [data, setData] = useState<ReportsData | null>(null);
     const [loading, setLoading] = useState(true);
     const [downloading, setDownloading] = useState<string | null>(null);
-    const [dailySalesDateRange, setDailySalesDateRange] = useState<DateRange | undefined>();
-    const [selectedEventId, setSelectedEventId] = useState<string>('all');
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
+    const [searchQuery, setSearchQuery] = useState('');
+    const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-    const fetchData = async (dateRange?: DateRange, eventId?: string) => {
+    const fetchData = async (dateRange?: DateRange, search?: string) => {
         try {
             setLoading(true);
-            const reportsData = await getReportsData(dateRange, eventId);
+            const reportsData = await getReportsData(dateRange, search);
             setData(reportsData);
         } catch (error) {
             console.error("Failed to fetch reports data:", error);
@@ -103,8 +105,8 @@ export default function ReportsPage() {
     }
 
     useEffect(() => {
-        fetchData(dailySalesDateRange, selectedEventId);
-    }, [dailySalesDateRange, selectedEventId]);
+        fetchData(dateRange, debouncedSearchQuery);
+    }, [dateRange, debouncedSearchQuery]);
 
     const handleDownload = (reportType: 'product' | 'daily' | 'promo') => {
         if (!data) return;
@@ -203,18 +205,16 @@ export default function ReportsPage() {
             </p>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-            <Select value={selectedEventId} onValueChange={setSelectedEventId}>
-                <SelectTrigger className="w-full sm:w-[200px]">
-                    <SelectValue placeholder="Filter by event" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">All Events</SelectItem>
-                    {data?.events?.map(event => (
-                        <SelectItem key={event.id} value={event.id.toString()}>{event.name}</SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-            <DateRangePicker date={dailySalesDateRange} setDate={setDailySalesDateRange} />
+             <div className="relative w-full sm:w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder="Search by event name"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                />
+            </div>
+            <DateRangePicker date={dateRange} setDate={setDateRange} />
         </div>
       </div>
 
