@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -8,7 +9,7 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { decryptSessionPayload } from './sessionCrypto';
 import type { DateRange } from 'react-day-picker';
-import { randomBytes, randomUUID } from 'crypto';
+import { randomUUID } from 'crypto';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -110,11 +111,16 @@ export async function getEvents(status?: EventStatus | 'all') {
     if (!isAdmin) {
         whereClause.organizerId = user.id;
     }
-
+    
     const events = await prisma.event.findMany({
         where: whereClause,
         include: {
-            organizer: isAdmin, // Only include organizer if the user is an admin
+            organizer: isAdmin ? {
+                select: {
+                    firstName: true,
+                    lastName: true,
+                }
+            } : false,
         },
         orderBy: { startDate: 'asc' },
     });
@@ -417,7 +423,6 @@ export async function updateTicketType(ticketTypeId: number, data: any) {
         name: data.name,
         description: data.description,
         basePrice: data.price,
-        locationPrices: data.locationPrices || {},
         total: data.total,
     },
   });

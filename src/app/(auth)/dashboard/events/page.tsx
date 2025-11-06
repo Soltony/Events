@@ -34,7 +34,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { useSearchParams, useRouter } from 'next/navigation';
 
 interface EventWithOrganizer extends EventType {
-  organizer?: UserType;
+  organizer?: Partial<UserType>;
 }
 
 
