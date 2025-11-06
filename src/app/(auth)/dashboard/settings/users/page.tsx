@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -56,6 +55,7 @@ import { cn } from '@/lib/utils';
 
 interface UserWithRole extends User {
     role: Role;
+    roleId: string;
 }
 
 export default function UserManagementPage() {
@@ -313,7 +313,7 @@ export default function UserManagementPage() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This will permanently delete the user strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong>. This action cannot be undone.
+                    This will permanently delete the user <strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong>. This action cannot be undone.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
