@@ -115,12 +115,14 @@ export async function getEvents(status?: EventStatus | 'all') {
     const events = await prisma.event.findMany({
         where: whereClause,
         include: {
-            organizer: isAdmin ? {
-                select: {
-                    firstName: true,
-                    lastName: true,
-                }
-            } : false,
+            ...(isAdmin && {
+              organizer: {
+                  select: {
+                      firstName: true,
+                      lastName: true,
+                  }
+              }
+            }),
         },
         orderBy: { startDate: 'asc' },
     });
@@ -929,8 +931,6 @@ export async function purchaseTickets(request: PurchaseRequest) {
                 eventId: eventId,
                 ticketTypeId: firstTicket.id, // Primary ticket type
                 qrCode: randomUUID(),
-                // You might want a better way to represent multiple ticket purchases
-                // For now, let's assume one attendee record per purchase, even with multiple ticket types.
             }
         });
 
