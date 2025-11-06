@@ -1,6 +1,8 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { randomUUID } from 'crypto';
 
 export async function POST(req: NextRequest) {
     try {
@@ -49,6 +51,7 @@ export async function POST(req: NextRequest) {
                 ticketTypeId: ticketType.id,
                 userId,
                 checkedIn: false,
+                qrCode: randomUUID(),
             }));
             await tx.attendee.createMany({ data: attendees });
             await tx.ticketType.update({ where: { id: ticketType.id }, data: { sold: { increment: qty } } });
@@ -79,5 +82,3 @@ export async function POST(req: NextRequest) {
         }, { status: 500 });
     }
 }
-
-
