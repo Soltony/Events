@@ -16,7 +16,27 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { getDistricts, getBranches, createDistrict, createBranch } from '@/lib/actions';
-import type { District, Branch } from '@prisma/client';
+
+// Define types locally since they are not in prisma schema yet.
+type District = {
+  id: string;
+  name: string;
+  contactPersonName: string;
+  contactPersonPhone: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type Branch = {
+  id: string;
+  name: string;
+  districtId: string;
+  contactPersonName: string;
+  contactPersonPhone: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 
 interface DistrictWithBranches extends District {
   branches: Branch[];
