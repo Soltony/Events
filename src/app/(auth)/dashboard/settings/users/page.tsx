@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { User, Role, UserStatus } from '@prisma/client';
+import type { User, Role, UserStatus, Branch, District } from '@prisma/client';
 import {
   Card,
   CardContent,
@@ -53,8 +53,9 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-interface UserWithRole extends User {
+interface UserWithDetails extends User {
     role: Role;
+    branch?: (Branch & { district: District }) | null;
     roleId: string;
 }
 
@@ -62,11 +63,11 @@ export default function UserManagementPage() {
     const { toast } = useToast();
     const router = useRouter();
     const { user: currentUser, hasPermission } = useAuth();
-    const [users, setUsers] = useState<UserWithRole[]>([]);
+    const [users, setUsers] = useState<UserWithDetails[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
-    const [userToDelete, setUserToDelete] = useState<UserWithRole | null>(null);
+    const [userToDelete, setUserToDelete] = useState<UserWithDetails | null>(null);
 
     const fetchData = async () => {
         if (!currentUser) {
@@ -78,7 +79,7 @@ export default function UserManagementPage() {
             !loading && setLoading(true);
             const { users: allUsers, roles: allRoles } = await getUsersAndRoles();
             
-            const filteredUsers = allUsers.filter((user: UserWithRole) => {
+            const filteredUsers = allUsers.filter((user: UserWithDetails) => {
                 if (user.id === currentUser.id) {
                     return true;
                 }
@@ -168,7 +169,7 @@ export default function UserManagementPage() {
         }
     }
 
-    const handleDecline = async (userToDecline: UserWithRole) => {
+    const handleDecline = async (userToDecline: UserWithDetails) => {
         setActionLoading(userToDecline.id);
         try {
             await deleteUser(userToDecline.id, userToDecline.phoneNumber);
@@ -192,7 +193,7 @@ export default function UserManagementPage() {
   return (
     <>
     <div className="flex flex-1 justify-center p-4">
-      <div className="w-full max-w-4xl">
+      <div className="w-full max-w-6xl">
         <div className="flex flex-1 flex-col gap-4 md:gap-8">
           <div className="flex items-center gap-4">
             <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
@@ -232,6 +233,7 @@ export default function UserManagementPage() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Phone Number</TableHead>
+                      <TableHead>Branch / District</TableHead>
                       <TableHead className="w-[180px]">Role</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -253,6 +255,16 @@ export default function UserManagementPage() {
                         <TableRow key={user.id}>
                           <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
                           <TableCell>{user.phoneNumber}</TableCell>
+                           <TableCell>
+                            {user.branch ? (
+                              <div>
+                                <p className="font-medium">{user.branch.name}</p>
+                                <p className="text-xs text-muted-foreground">{user.branch.district.name}</p>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <Select
                               value={user.roleId ?? ''}

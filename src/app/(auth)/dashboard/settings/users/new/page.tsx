@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import type { Role } from '@prisma/client';
+import type { Role, Branch } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 
 import {
@@ -34,7 +34,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Loader2, ArrowLeft, UserPlus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast"
-import { getRoles } from '@/lib/actions';
+import { getRoles, getBranches } from '@/lib/actions';
 import { addUser } from '@/app/(auth)/dashboard/settings/users/actions';
 import { useAuth } from '@/context/auth-context';
 
@@ -44,6 +44,7 @@ const addUserFormSchema = z.object({
   phoneNumber: z.string().min(10, { message: "Phone number must be at least 10 digits." }),
   email: z.string().email({ message: "Invalid email address." }).optional().or(z.literal('')),
   roleId: z.string({ required_error: "Please select a role." }),
+  branchId: z.string().optional(),
   nibBankAccount: z.string()
     .min(13, { message: "NIB Account must be between 13 and 15 digits." })
     .max(15, { message: "NIB Account must be between 13 and 15 digits." })
@@ -57,29 +58,32 @@ export default function UserRegistrationPage() {
     const router = useRouter();
     const { user: currentUser } = useAuth();
     const [roles, setRoles] = useState<Role[]>([]);
+    const [branches, setBranches] = useState<Branch[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
-        const fetchRolesData = async () => {
+        const fetchData = async () => {
             if (!currentUser) return;
             try {
-                let fetchedRoles = await getRoles();
+                const [fetchedRoles, fetchedBranches] = await Promise.all([
+                  getRoles(),
+                  getBranches()
+                ]);
                 
-                // Always filter out the Admin role
                 let filteredRoles = fetchedRoles.filter((role: Role) => role.name !== 'Admin');
 
-                // Exclude the current user's own role from the list
                 if (currentUser.role?.name) {
                     filteredRoles = filteredRoles.filter((role: Role) => role.name !== currentUser.role.name);
                 }
                 
                 setRoles(filteredRoles);
+                setBranches(fetchedBranches);
             } catch (error) {
-                console.error("Failed to fetch roles:", error);
-                toast({ variant: 'destructive', title: 'Error', description: 'Could not load roles.' });
+                console.error("Failed to fetch roles or branches:", error);
+                toast({ variant: 'destructive', title: 'Error', description: 'Could not load roles or branches.' });
             }
         };
-        fetchRolesData();
+        fetchData();
     }, [toast, currentUser]);
     
     const addUserForm = useForm<AddUserFormValues>({
@@ -168,15 +172,26 @@ export default function UserRegistrationPage() {
                                 <FormMessage />
                             </FormItem>
                         )}/>
-                        <FormField control={addUserForm.control} name="roleId" render={({ field }) => (
-                        <FormItem><FormLabel>Role</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
-                                <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                        )}/>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField control={addUserForm.control} name="roleId" render={({ field }) => (
+                                <FormItem><FormLabel>Role</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
+                                        <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}/>
+                            <FormField control={addUserForm.control} name="branchId" render={({ field }) => (
+                                <FormItem><FormLabel>Branch <span className="text-muted-foreground">(Optional)</span></FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a branch" /></SelectTrigger></FormControl>
+                                        <SelectContent>{branches.map((branch) => (<SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>))}</SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}/>
+                        </div>
                     <div className="flex justify-end gap-2 pt-4">
                         <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
                         <Button type="submit" disabled={isSubmitting} style={{ backgroundColor: '#FBBF24', color: '#422006' }}>

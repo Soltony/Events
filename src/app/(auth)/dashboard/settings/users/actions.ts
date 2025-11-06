@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 
 export async function addUser(data: any) {
-    const { firstName, lastName, phoneNumber, email, roleId, nibBankAccount } = data;
+    const { firstName, lastName, phoneNumber, email, roleId, nibBankAccount, branchId } = data;
 
     const phoneRegex = /^(09|07)\d{8}$/;
     if (!phoneRegex.test(phoneNumber)) {
@@ -82,12 +82,16 @@ export async function addUser(data: any) {
             phoneNumber,
             roleId,
             passwordChangeRequired: true,
-            status: 'INACTIVE', // New users are INACTIVE and require password change to be considered PENDING
+            status: 'INACTIVE', 
             nibBankAccount: nibBankAccount || null,
         };
 
         if (email) {
             createData.email = email;
+        }
+
+        if (branchId) {
+            createData.branchId = branchId;
         }
 
         const user = await prisma.user.create({

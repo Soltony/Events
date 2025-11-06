@@ -1,12 +1,11 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import type { Role, User } from '@prisma/client';
+import type { Role, User, Branch } from '@prisma/client';
 import { useRouter, useParams } from 'next/navigation';
 
 import {
@@ -35,7 +34,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Loader2, ArrowLeft, Save, Mail } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast"
-import { getRoles, getUserById, updateUser } from '@/lib/actions';
+import { getRoles, getUserById, updateUser, getBranches } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/auth-context';
 
@@ -45,6 +44,7 @@ const editUserFormSchema = z.object({
   phoneNumber: z.string().min(10, { message: "Phone number must be at least 10 digits." }),
   email: z.string().email({ message: "Invalid email address." }).optional().or(z.literal('')),
   roleId: z.string({ required_error: "Please select a role." }),
+  branchId: z.string().optional().nullable(),
   nibBankAccount: z.string()
     .optional()
     .or(z.literal(''))
@@ -73,6 +73,7 @@ export default function EditUserPage() {
 
     const [user, setUser] = useState<UserWithRole | null>(null);
     const [roles, setRoles] = useState<Role[]>([]);
+    const [branches, setBranches] = useState<Branch[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -84,6 +85,7 @@ export default function EditUserPage() {
             phoneNumber: '',
             email: '',
             roleId: '',
+            branchId: null,
             nibBankAccount: '',
         }
     });
@@ -96,9 +98,10 @@ export default function EditUserPage() {
             }
             try {
                 setLoading(true);
-                const [userData, rolesData] = await Promise.all([
+                const [userData, rolesData, branchesData] = await Promise.all([
                     getUserById(userId),
                     getRoles(),
+                    getBranches(),
                 ]);
 
                 if (userData) {
@@ -108,7 +111,6 @@ export default function EditUserPage() {
                     const isEditingSelf = currentUser.id === userData.id;
                     const isCurrentUserAdmin = currentUser.role?.name === 'Admin';
 
-                    // Deny access if a user tries to edit someone with an equal or higher role, unless it's their own profile or they are an admin.
                     if (!isEditingSelf && !isCurrentUserAdmin && currentUserRoleRank <= targetUserRoleRank) {
                         toast({ variant: 'destructive', title: 'Access Denied', description: "You don't have permission to edit this user." });
                         router.push('/dashboard/settings/users');
@@ -117,12 +119,14 @@ export default function EditUserPage() {
 
                     setUser(userData);
                     setRoles(rolesData);
+                    setBranches(branchesData);
                     form.reset({
                         firstName: userData.firstName,
                         lastName: userData.lastName,
                         phoneNumber: userData.phoneNumber,
                         email: userData.email || '',
                         roleId: userData.roleId,
+                        branchId: userData.branchId,
                         nibBankAccount: userData.nibBankAccount || '',
                     });
                 } else {
@@ -257,19 +261,33 @@ export default function EditUserPage() {
                             )}
                         />
                     
-                        <FormField control={form.control} name="roleId" render={({ field }) => (
-                            <FormItem><FormLabel>Role</FormLabel>
-                                <Select 
-                                    onValueChange={field.onChange} 
-                                    value={field.value}
-                                    disabled={currentUser?.id === userId}
-                                >
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
-                                    <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                        )}/>
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField control={form.control} name="roleId" render={({ field }) => (
+                                <FormItem><FormLabel>Role</FormLabel>
+                                    <Select 
+                                        onValueChange={field.onChange} 
+                                        value={field.value}
+                                        disabled={currentUser?.id === userId}
+                                    >
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
+                                        <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}/>
+                             <FormField control={form.control} name="branchId" render={({ field }) => (
+                                <FormItem><FormLabel>Branch</FormLabel>
+                                    <Select onValueChange={(value) => field.onChange(value === 'none' ? null : value)} value={field.value ?? 'none'}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a branch" /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="none">No Branch</SelectItem>
+                                            {branches.map((branch) => (<SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}/>
+                        </div>
                         <div className="flex justify-end gap-2 pt-4">
                             <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
                             <Button type="submit" disabled={isSubmitting} style={{ backgroundColor: '#FBBF24', color: '#422006' }}>

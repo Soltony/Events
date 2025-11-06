@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -641,7 +640,14 @@ export async function getUsersAndRoles() {
     }
     
     const users = await prisma.user.findMany({
-      include: { role: true },
+      include: { 
+          role: true,
+          branch: {
+              include: {
+                  district: true
+              }
+          }
+      },
       orderBy: { createdAt: 'desc'}
     });
     
@@ -669,7 +675,7 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
 }
 
 export async function updateUser(userId: string, data: Partial<User>) {
-    const { firstName, lastName, phoneNumber, roleId, nibBankAccount, email } = data;
+    const { firstName, lastName, phoneNumber, roleId, nibBankAccount, email, branchId } = data;
     const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: {
@@ -677,6 +683,7 @@ export async function updateUser(userId: string, data: Partial<User>) {
             lastName,
             phoneNumber,
             roleId,
+            branchId: branchId || null,
             nibBankAccount: nibBankAccount || null,
             email: email || null,
         },
@@ -1131,6 +1138,6 @@ export async function getDistricts(): Promise<District[]> {
 }
 
 export async function getBranches(): Promise<Branch[]> {
-  const branches = await prisma.branch.findMany();
+  const branches = await prisma.branch.findMany({ include: { district: true }});
   return serialize(branches);
 }
