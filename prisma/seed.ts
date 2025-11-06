@@ -39,6 +39,7 @@ async function main() {
     where: { phoneNumber: '0900000000' },
     update: {},
     create: {
+      id: '00000000-0000-0000-0000-000000000000', // Placeholder ID for seed user
       firstName: 'Admin',
       lastName: 'User',
       phoneNumber: '0900000000',
@@ -78,9 +79,9 @@ async function main() {
           nibBankAccount: '7000000000001',
           ticketTypes: {
             create: [
-              { name: 'General Admission', basePrice: 299.00, total: 1000, sold: 450, description: 'Access to all keynotes and general sessions.' },
-              { name: 'VIP Pass', basePrice: 799.00, total: 150, sold: 120, description: 'Includes VIP lounge access, exclusive networking events, and premium seating.' },
-              { name: 'Student Pass', basePrice: 99.00, total: 200, sold: 85, description: 'For currently enrolled students. Valid student ID required.' },
+              { name: 'General Admission', basePrice: 299.00, total: 1000, sold: 450, description: 'Access to all keynotes and general sessions.', locationPrices: {} },
+              { name: 'VIP Pass', basePrice: 799.00, total: 150, sold: 120, description: 'Includes VIP lounge access, exclusive networking events, and premium seating.', locationPrices: {} },
+              { name: 'Student Pass', basePrice: 99.00, total: 200, sold: 85, description: 'For currently enrolled students. Valid student ID required.', locationPrices: {} },
             ]
           },
           promoCodes: {
@@ -108,10 +109,10 @@ async function main() {
           nibBankAccount: '7000000000002',
           ticketTypes: {
             create: [
-              { name: 'Weekend Pass', description: 'Full access for both Saturday and Sunday.', basePrice: 180.00, total: 5000, sold: 2100 },
-              { name: 'VIP Weekend', description: 'VIP area access, private bars, and premium viewing.', basePrice: 450.00, total: 500, sold: 450 },
-              { name: 'Saturday Pass', description: 'Access to all shows on Saturday.', basePrice: 95.00, total: 1500, sold: 800 },
-              { name: 'Sunday Pass', description: 'Access to all shows on Sunday.', basePrice: 95.00, total: 1500, sold: 650 },
+              { name: 'Weekend Pass', description: 'Full access for both Saturday and Sunday.', basePrice: 180.00, total: 5000, sold: 2100, locationPrices: {} },
+              { name: 'VIP Weekend', description: 'VIP area access, private bars, and premium viewing.', basePrice: 450.00, total: 500, sold: 450, locationPrices: {} },
+              { name: 'Saturday Pass', description: 'Access to all shows on Saturday.', basePrice: 95.00, total: 1500, sold: 800, locationPrices: {} },
+              { name: 'Sunday Pass', description: 'Access to all shows on Sunday.', basePrice: 95.00, total: 1500, sold: 650, locationPrices: {} },
             ]
           }
         }
@@ -133,7 +134,7 @@ async function main() {
           nibBankAccount: '7000000000003',
           ticketTypes: {
             create: [
-              { name: 'Standard Entry', basePrice: 25.00, total: 500, sold: 120, description: 'General entry to the exhibition.' },
+              { name: 'Standard Entry', basePrice: 25.00, total: 500, sold: 120, description: 'General entry to the exhibition.', locationPrices: {} },
             ]
           }
         }
@@ -189,5 +190,7 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
+
+    
 
     
