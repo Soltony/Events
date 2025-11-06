@@ -135,7 +135,7 @@ export default function UserManagementPage() {
         }
     }
     
-    const handleApproval = async (userId: string, newStatus: UserStatus) => {
+    const handleApproval = async (userId: string, newStatus: 'ACTIVE' | 'INACTIVE') => {
         setActionLoading(userId);
         try {
             await updateUserStatus(userId, newStatus);
@@ -165,6 +165,26 @@ export default function UserManagementPage() {
             });
         } finally {
             setUserToDelete(null);
+        }
+    }
+
+    const handleDecline = async (userToDecline: UserWithRole) => {
+        setActionLoading(userToDecline.id);
+        try {
+            await deleteUser(userToDecline.id, userToDecline.phoneNumber);
+            toast({
+                title: "User Declined",
+                description: `Registration for ${userToDecline.firstName} ${userToDecline.lastName} has been declined and the user has been deleted.`,
+            });
+            fetchData();
+        } catch(error: any) {
+             toast({
+                variant: 'destructive',
+                title: 'Error Declining User',
+                description: error.message || "An unexpected error occurred.",
+            });
+        } finally {
+            setActionLoading(null);
         }
     }
 
@@ -227,7 +247,7 @@ export default function UserManagementPage() {
                       const canChangeRole = canUpdate && !isSelf && !isTargetAdmin;
                       const canChangeStatus = canUpdate && !isSelf && !isTargetAdmin;
                       const canDelete = hasPermission('User Management:Delete') && !isSelf && !isTargetAdmin;
-                      const isPendingApproval = (user.status as any) === 'INACTIVE' && user.passwordChangeRequired;
+                      const isPendingApproval = user.status === 'INACTIVE' && user.passwordChangeRequired;
 
                       return (
                         <TableRow key={user.id}>
@@ -250,11 +270,12 @@ export default function UserManagementPage() {
                                 <div className="flex items-center gap-2">
                                      <Button size="sm" variant="outline" onClick={() => handleApproval(user.id, 'ACTIVE')} disabled={actionLoading === user.id}>
                                         {actionLoading === user.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-green-600" />}
+                                        <span className="ml-2">Approve</span>
                                     </Button>
-                                    <Button size="sm" variant="destructive" onClick={() => handleApproval(user.id, 'INACTIVE')} disabled={actionLoading === user.id}>
+                                    <Button size="sm" variant="destructive" onClick={() => handleDecline(user)} disabled={actionLoading === user.id}>
                                          {actionLoading === user.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                                          <span className="ml-2">Decline</span>
                                     </Button>
-                                    <Badge variant="outline" className="border-yellow-500 text-yellow-700">PENDING</Badge>
                                 </div>
                             ) : (
                                 <div className="flex items-center space-x-2">
@@ -266,9 +287,10 @@ export default function UserManagementPage() {
                                     />
                                     <Badge variant="outline" className={cn(
                                         user.status === 'ACTIVE' && "border-green-500 text-green-700",
-                                        user.status === 'INACTIVE' && "border-red-500 text-red-700"
+                                        (user.status === 'INACTIVE' && user.passwordChangeRequired) && "border-yellow-500 text-yellow-700",
+                                        (user.status === 'INACTIVE' && !user.passwordChangeRequired) && "border-red-500 text-red-700"
                                     )}>
-                                        {user.status}
+                                        {isPendingApproval ? 'PENDING' : user.status}
                                     </Badge>
                                 </div>
                             )}
