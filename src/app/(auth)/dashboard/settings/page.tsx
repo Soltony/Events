@@ -45,7 +45,7 @@ export default function SettingsPage() {
       title: 'Branch and District Registration',
       icon: <Building className="h-5 w-5" />,
       description: 'Add new branch and district information to the system. This information can be used for organizing events or users.',
-      buttonText: 'Go to Branch/District Registration',
+      buttonText: 'Go to Registration',
       href: '/dashboard/settings/branch-district-registration',
       color: '#FBBF24',
       textColor: '#422006',
