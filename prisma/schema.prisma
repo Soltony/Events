@@ -1,8 +1,6 @@
+
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
   provider = "prisma-client-js"
@@ -14,140 +12,180 @@ datasource db {
 }
 
 model User {
-  id                     String     @id @default(uuid())
-  firstName              String
-  lastName               String
-  phoneNumber            String     @unique
-  email                  String?    @unique
-  roleId                 String
-  role                   Role       @relation(fields: [roleId], references: [id])
-  status                 UserStatus @default(ACTIVE)
-  passwordChangeRequired Boolean    @default(true)
-  nibBankAccount         String?
-  events                 Event[]
-  attendees              Attendee[]
-  createdAt              DateTime   @default(now())
-  updatedAt              DateTime   @updatedAt
+  id                      String    @id @default(uuid())
+  firstName               String
+  lastName                String
+  phoneNumber             String    @unique
+  email                   String?   @unique
+  password                String?
+  passwordChangeRequired  Boolean   @default(false)
+  nibBankAccount          String?
+  roleId                  String
+  status                  UserStatus @default(ACTIVE)
+  role                    Role      @relation(fields: [roleId], references: [id])
+  events                  Event[]
+  attendees               Attendee[]
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  
+  // Relation to Branch (a user can belong to one branch)
+  branchId                String?
+  branch                  Branch?   @relation(fields: [branchId], references: [id])
 }
 
 model Role {
   id          String   @id @default(uuid())
   name        String   @unique
   description String?
-  permissions String?
+  permissions String? // Comma-separated list of permissions
   users       User[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
 model Event {
-  id              Int            @id @default(autoincrement())
+  id              Int          @id @default(autoincrement())
   name            String
   description     String
   startDate       DateTime
   endDate         DateTime?
   location        String
-  hint            String?
   category        String
+  status          EventStatus  @default(PENDING)
   image           String?
+  hint            String?
   color           String?
-  status          EventStatus    @default(PENDING)
-  rejectionReason String?
   organizerId     String
-  organizer       User           @relation(fields: [organizerId], references: [id])
+  organizer       User         @relation(fields: [organizerId], references: [id])
+  rejectionReason String?
   nibBankAccount  String
   ticketTypes     TicketType[]
   attendees       Attendee[]
   promoCodes      PromoCode[]
   pendingOrders   PendingOrder[]
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  EventPayment    EventPayment[]
+  payments        EventPayment[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 }
 
 model TicketType {
-  id             Int            @id @default(autoincrement())
-  name           String
-  description    String?
-  basePrice      Decimal        @db.Decimal(10, 2)
-  locationPrices Json?
-  total          Int
-  sold           Int            @default(0)
-  eventId        Int
-  event          Event          @relation(fields: [eventId], references: [id])
-  attendees      Attendee[]
-  pendingOrders  PendingOrder[]
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  id           Int        @id @default(autoincrement())
+  name         String
+  description  String?
+  basePrice    Decimal    @db.Decimal(10, 2)
+  total        Int
+  sold         Int        @default(0)
+  eventId      Int
+  event        Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  attendees    Attendee[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  
+  @@index([eventId])
 }
 
 model Attendee {
-  id            Int            @id @default(autoincrement())
+  id            Int        @id @default(autoinew())
   name          String
   phoneNumber   String?
-  eventId       Int
-  event         Event          @relation(fields: [eventId], references: [id])
-  ticketTypeId  Int
-  ticketType    TicketType     @relation(fields: [ticketTypeId], references: [id])
   userId        String?
-  user          User?          @relation(fields: [userId], references: [id])
-  checkedIn     Boolean        @default(false)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  user          User?      @relation(fields: [userId], references: [id])
+  eventId       Int
+  event         Event      @relation(fields: [eventId], references: [id])
+  ticketTypeId  Int
+  ticketType    TicketType @relation(fields: [ticketTypeId], references: [id])
+  checkedIn     Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
   pendingOrders PendingOrder[]
+
+  @@index([eventId])
+  @@index([userId])
 }
 
 model PromoCode {
-  id        Int           @id @default(autoincrement())
-  code      String
-  type      PromoCodeType
-  value     Decimal       @db.Decimal(10, 2)
-  maxUses   Int
-  uses      Int           @default(0)
-  eventId   Int
-  event     Event         @relation(fields: [eventId], references: [id])
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id       Int         @id @default(autoincrement())
+  code     String      @unique
+  type     PromoCodeType
+  value    Decimal     @db.Decimal(10, 2)
+  maxUses  Int
+  uses     Int         @default(0)
+  eventId  Int
+  event    Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@unique([code, eventId])
+  @@index([eventId])
 }
 
 model PendingOrder {
-  id               String         @id @default(uuid())
-  transactionId    String         @unique
-  arifpaySessionId String?        @unique
+  id               Int      @id @default(autoincrement())
+  arifpaySessionId String?  @unique
+  transactionId    String   @unique
   eventId          Int
-  event            Event          @relation(fields: [eventId], references: [id])
+  event            Event    @relation(fields: [eventId], references: [id])
   ticketTypeId     Int?
-  ticketType       TicketType?    @relation(fields: [ticketTypeId], references: [id])
-  attendeeId       Int?           @unique
-  attendee         Attendee?      @relation(fields: [attendeeId], references: [id])
   attendeeData     Json
+  attendeeId       Int?     @unique
+  attendee         Attendee? @relation(fields: [attendeeId], references: [id])
   promoCode        String?
-  status           String         @default("PENDING") // PENDING, COMPLETED, FAILED
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  eventPayments    EventPayment[]
+  status           OrderStatus @default(PENDING)
+  createdAt        DateTime @default(now())
+  payments         EventPayment[]
+
+  @@index([eventId])
 }
 
 model EventPayment {
-  id            String   @id @default(uuid())
-  amount        Decimal  @db.Decimal(10, 2)
-  paymentDate   DateTime @default(now())
-  method        String // CASH, BANK_TRANSFER, CARD, GATEWAY
-  reference     String? // Transaction ID, check number, etc.
-  status        String   @default("PENDING") // PENDING, COMPLETED, FAILED
-  sessionId     String?  @unique // Online payment gateway session tracking
-  transactionId String?  @unique // From payment provider
-
-  pendingOrderId String
+  id             String    @id @default(uuid())
+  amount         Float
+  method         PaymentMethod
+  status         PaymentStatus
+  sessionId      String?   @unique
+  transactionId  String?   @unique
+  paymentDate    DateTime?
+  reference      String?
+  pendingOrderId Int
   pendingOrder   PendingOrder @relation(fields: [pendingOrderId], references: [id])
+  eventId        Int
+  event          Event     @relation(fields: [eventId], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  eventId Int
-  event   Event @relation(fields: [eventId], references: [id])
+  @@index([pendingOrderId])
+  @@index([eventId])
+}
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// New District Model
+model District {
+  id                  String   @id @default(uuid())
+  name                String   @unique
+  contactPersonName   String
+  contactPersonPhone  String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  branches            Branch[] // Relation to many branches
+}
+
+// New Branch Model
+model Branch {
+  id                  String   @id @default(uuid())
+  name                String
+  districtId          String
+  district            District @relation(fields: [districtId], references: [id])
+  contactPersonName   String
+  contactPersonPhone  String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  users               User[]   // Relation to many users
+  
+  @@unique([name, districtId])
+}
+
+
+enum EventStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
 }
 
 enum PromoCodeType {
@@ -155,13 +193,25 @@ enum PromoCodeType {
   FIXED
 }
 
-enum EventStatus {
+enum OrderStatus {
   PENDING
-  APPROVED
-  REJECTED
+  COMPLETED
+  FAILED
+  CANCELLED
 }
 
 enum UserStatus {
   ACTIVE
   INACTIVE
+}
+
+enum PaymentMethod {
+  ARIFPAY
+  GATEWAY
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
 }
