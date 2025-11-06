@@ -1,10 +1,12 @@
 
+
 'use server';
 
 import { headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import crypto from 'crypto';
 
 export async function POST(request: NextRequest) {
   let requestBody;
@@ -54,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Use a transaction to ensure atomicity
-    const createdAttendee = await prisma.$transaction(async (tx) => {
+    const createdAttendees = await prisma.$transaction(async (tx) => {
       // 1. Get attendee data from pending order
       const attendeeData = eventPayment.pendingOrder.attendeeData as { name: string, phoneNumber: string, userId?: string, tickets: any[] };
       const { name, phoneNumber, userId, tickets } = attendeeData;
@@ -63,7 +65,7 @@ export async function POST(request: NextRequest) {
         throw new Error('No ticket information found in pending order.');
       }
       
-      let lastAttendee = null;
+      let allCreatedAttendees: any[] = [];
 
       // 2. Create Attendee record(s)
       for (const ticketInfo of tickets) {
@@ -85,15 +87,24 @@ export async function POST(request: NextRequest) {
           eventId: eventPayment.eventId,
           ticketTypeId: ticketTypeId,
           checkedIn: false,
+          qrCode: crypto.randomUUID(), // unique for each ticket
         }));
 
         await tx.attendee.createMany({ data: attendeesToCreate });
 
-        // Get the last created attendee for this batch
-        lastAttendee = await tx.attendee.findFirst({
-            where: { eventId: eventPayment.eventId, name, phoneNumber: phoneNumber, userId, ticketTypeId: ticketTypeId },
-            orderBy: { createdAt: 'desc' }
+        // Fetch the attendees just created for this ticket type
+        const justCreated = await tx.attendee.findMany({
+            where: {
+                eventId: eventPayment.eventId,
+                name,
+                phoneNumber,
+                userId,
+                ticketTypeId,
+            },
+            orderBy: { createdAt: 'desc' },
+            take: quantity,
         });
+        allCreatedAttendees = allCreatedAttendees.concat(justCreated);
 
         // 3. Update ticket stock
         await tx.ticketType.update({
@@ -114,10 +125,10 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // 5. Update PendingOrder status and link to the created attendee
+      // 5. Update PendingOrder status
       await tx.pendingOrder.update({
         where: { id: eventPayment.pendingOrderId },
-        data: { status: 'COMPLETED', attendeeId: lastAttendee?.id },
+        data: { status: 'COMPLETED' },
       });
 
       // 6. Update EventPayment status
@@ -131,7 +142,7 @@ export async function POST(request: NextRequest) {
         },
       });
       
-      return lastAttendee;
+      return allCreatedAttendees;
     });
 
     // Revalidate paths to show updated data
@@ -142,7 +153,7 @@ export async function POST(request: NextRequest) {
 
     console.log(`Successfully processed payment for transaction ${txnRef}.`);
 
-    return NextResponse.json({ message: 'Payment confirmed and updated.', attendeeId: createdAttendee?.id }, { status: 200 });
+    return NextResponse.json({ message: 'Payment confirmed and updated.', attendees: createdAttendees }, { status: 200 });
 
   } catch (error: any) {
     console.error('Webhook processing error:', error);
