@@ -278,6 +278,7 @@ export async function addEvent(data: any) {
                             total: config.quantity,
                             sold: 0,
                             eventId: newEvent.id,
+                            locationPrices: ticket.locationPrices,
                         }
                     });
                 }
@@ -401,6 +402,7 @@ export async function addTicketType(eventId: number, data: { name: string; descr
                     basePrice: config.price,
                     total: config.quantity,
                     eventId: eventId,
+                    locationPrices: data.locationPrices,
                 }
             });
         }
@@ -921,6 +923,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
                 userId: attendeeDetails.userId || user?.id,
                 eventId: eventId,
                 ticketTypeId: firstTicket.id, // Primary ticket type
+                qrCode: randomUUID(),
                 // You might want a better way to represent multiple ticket purchases
                 // For now, let's assume one attendee record per purchase, even with multiple ticket types.
             }
