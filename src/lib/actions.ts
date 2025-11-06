@@ -115,12 +115,12 @@ export async function getEvents(status?: EventStatus | 'all') {
     const events = await prisma.event.findMany({
         where: whereClause,
         include: {
-            organizer: isAdmin ? {
-              select: {
-                  firstName: true,
-                  lastName: true,
-              }
-            } : undefined,
+          organizer: isAdmin ? {
+            select: {
+              firstName: true,
+              lastName: true,
+            },
+          } : undefined,
         },
         orderBy: { startDate: 'asc' },
     });

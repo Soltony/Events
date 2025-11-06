@@ -99,7 +99,7 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: EventWithOrganizer, is
                       <MapPin className="h-3 w-3" />
                       {event.location}
                   </CardDescription>
-                  {isAdmin && event.organizer && (
+                  {isAdmin && event.organizer?.firstName && (
                       <CardDescription className="flex items-center gap-1.5 pt-1 text-xs">
                           <User className="h-3 w-3" />
                           Creator: {event.organizer.firstName} {event.organizer.lastName}
