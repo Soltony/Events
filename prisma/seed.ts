@@ -1,6 +1,7 @@
 
 import { PrismaClient } from '@prisma/client'
 import { addDays } from 'date-fns';
+import crypto from 'crypto';
 
 const prisma = new PrismaClient()
 
@@ -155,6 +156,7 @@ async function main() {
                   ticketTypeId: generalTicketId,
                   userId: adminUser.id,
                   checkedIn: true,
+                  qrCode: crypto.randomUUID(),
               },
               {
                   name: 'Jane Smith',
@@ -163,6 +165,7 @@ async function main() {
                   ticketTypeId: vipTicketId,
                   userId: adminUser.id,
                   checkedIn: false,
+                  qrCode: crypto.randomUUID(),
               }
             ]
         });
@@ -186,3 +189,5 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
+
+    
