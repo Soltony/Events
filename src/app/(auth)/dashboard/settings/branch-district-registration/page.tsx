@@ -10,16 +10,23 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
-import { Save, Loader2, ArrowLeft } from 'lucide-react';
+import { Save, Loader2, ArrowLeft, Building, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 
 // Mock data and functions - replace with actual API calls
 // In a real app, you'd fetch districts and post new data.
 interface District {
   id: string;
   name: string;
+}
+
+interface Branch {
+  id: string;
+  name: string;
+  districtId: string;
 }
 
 const getDistricts = async (): Promise<District[]> => {
@@ -29,6 +36,17 @@ const getDistricts = async (): Promise<District[]> => {
     { id: '2', name: 'Northern District' },
     { id: '3', name: 'Southern District' },
   ];
+};
+
+const getBranches = async (): Promise<Branch[]> => {
+    // Replace with actual API call
+    return [
+        { id: '101', name: 'Main Branch', districtId: '1' },
+        { id: '102', name: 'Westside Branch', districtId: '1' },
+        { id: '201', name: 'Northgate Branch', districtId: '2' },
+        { id: '301', name: 'Bole Branch', districtId: '3' },
+        { id: '302', name: 'CMC Branch', districtId: '3' },
+    ];
 };
 
 const saveDistrict = async (data: any) => {
@@ -66,13 +84,18 @@ export default function BranchDistrictRegistrationPage() {
   const [isSubmittingDistrict, setIsSubmittingDistrict] = useState(false);
   const [isSubmittingBranch, setIsSubmittingBranch] = useState(false);
   const [districts, setDistricts] = useState<District[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
 
   useEffect(() => {
-    async function loadDistricts() {
-      const fetchedDistricts = await getDistricts();
+    async function loadData() {
+      const [fetchedDistricts, fetchedBranches] = await Promise.all([
+          getDistricts(),
+          getBranches()
+      ]);
       setDistricts(fetchedDistricts);
+      setBranches(fetchedBranches);
     }
-    loadDistricts();
+    loadData();
   }, []);
 
   const districtForm = useForm<DistrictFormValues>({
@@ -104,6 +127,8 @@ export default function BranchDistrictRegistrationPage() {
         });
         districtForm.reset();
         // You might want to refresh the districts list here
+        const fetchedDistricts = await getDistricts();
+        setDistricts(fetchedDistricts);
     } catch (error) {
         toast({
             variant: 'destructive',
@@ -124,6 +149,9 @@ export default function BranchDistrictRegistrationPage() {
             description: `The branch "${data.branchName}" has been successfully saved.`,
         });
         branchForm.reset();
+        // You might want to refresh the branches list here
+        const fetchedBranches = await getBranches();
+        setBranches(fetchedBranches);
     } catch (error) {
         toast({
             variant: 'destructive',
@@ -134,20 +162,25 @@ export default function BranchDistrictRegistrationPage() {
         setIsSubmittingBranch(false);
     }
   };
+  
+  const districtsWithBranches = districts.map(district => ({
+      ...district,
+      branches: branches.filter(branch => branch.districtId === district.id),
+  }));
 
   return (
-    <div className="flex flex-1 items-center justify-center p-4">
-        <div className="w-full max-w-4xl">
-             <div className="flex items-center gap-4 mb-4 md:mb-8">
-                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
-                <ArrowLeft className="h-4 w-4" />
-                <span className="sr-only">Back</span>
-                </Button>
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Branch and District Management</h1>
-                    <p className="text-muted-foreground">Add new districts first, then add branches under them.</p>
-                </div>
+    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <div className="flex items-center gap-4">
+            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4" />
+            <span className="sr-only">Back</span>
+            </Button>
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight">Branch and District Management</h1>
+                <p className="text-muted-foreground">Add new districts first, then add branches under them.</p>
             </div>
+        </div>
+        <div className="grid gap-8 md:grid-cols-2">
             <Tabs defaultValue="district" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="district">District Registration</TabsTrigger>
@@ -258,7 +291,46 @@ export default function BranchDistrictRegistrationPage() {
                 </Card>
               </TabsContent>
             </Tabs>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Registered Districts and Branches</CardTitle>
+                    <CardDescription>A hierarchical view of all registered entities.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-6">
+                        {districtsWithBranches.length > 0 ? (
+                            districtsWithBranches.map((district, index) => (
+                                <div key={district.id}>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                            <Building className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-lg font-semibold">{district.name}</h3>
+                                    </div>
+                                    {district.branches.length > 0 ? (
+                                        <ul className="mt-2 ml-6 space-y-2 border-l-2 border-dashed pl-6">
+                                            {district.branches.map(branch => (
+                                                <li key={branch.id} className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                  <Users className="h-4 w-4" />
+                                                  <span>{branch.name}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="mt-2 ml-12 text-sm text-muted-foreground italic">No branches registered for this district.</p>
+                                    )}
+                                    {index < districtsWithBranches.length - 1 && <Separator className="mt-6" />}
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-center text-muted-foreground">No districts have been registered yet.</p>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     </div>
   );
 }
+
+    
