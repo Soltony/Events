@@ -208,9 +208,6 @@ function ManageEventsPageContent() {
   const [actionLoading, setActionLoading] = useState(false);
   const { toast } = useToast();
 
-  const [pendingEvents, setPendingEvents] = useState<EventWithOrganizer[]>([]);
-  const [approvedEvents, setApprovedEvents] = useState<EventWithOrganizer[]>([]);
-  const [rejectedEvents, setRejectedEvents] = useState<EventWithOrganizer[]>([]);
   const [allEvents, setAllEvents] = useState<EventWithOrganizer[]>([]);
   
   const isAdmin = user?.role?.name === 'Admin';
@@ -225,28 +222,20 @@ function ManageEventsPageContent() {
   const fetchAllEvents = useCallback(async () => {
     setLoading(true);
     try {
-        if (isAdmin) {
-            const [pending, approved, rejected, all] = await Promise.all([
-                getEvents('PENDING'),
-                getEvents('APPROVED'),
-                getEvents('REJECTED'),
-                getEvents('all'),
-            ]);
-            setPendingEvents(pending);
-            setApprovedEvents(approved);
-            setRejectedEvents(rejected);
-            setAllEvents(all);
-        } else {
-            const allUserEvents = await getEvents('all');
-            setAllEvents(allUserEvents);
-        }
+        const allUserEvents = await getEvents('all');
+        setAllEvents(allUserEvents);
     } catch (error) {
         console.error("Failed to fetch events:", error);
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to load events.' });
     } finally {
         setLoading(false);
     }
-  }, [isAdmin, toast]);
+  }, [toast]);
+  
+  const pendingEvents = allEvents.filter(e => e.status === 'PENDING');
+  const approvedEvents = allEvents.filter(e => e.status === 'APPROVED');
+  const rejectedEvents = allEvents.filter(e => e.status === 'REJECTED');
+
 
   useEffect(() => {
     fetchAllEvents();
