@@ -44,7 +44,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from 'next/navigation';
-import { UserPlus, ArrowLeft, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { UserPlus, ArrowLeft, MoreHorizontal, Edit, Trash2, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast"
 import { Skeleton } from '@/components/ui/skeleton';
 import { getUsersAndRoles, updateUserRole, updateUserStatus, deleteUser } from '@/lib/actions';
@@ -65,6 +65,7 @@ export default function UserManagementPage() {
     const [users, setUsers] = useState<UserWithRole[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [loading, setLoading] = useState(true);
+    const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [userToDelete, setUserToDelete] = useState<UserWithRole | null>(null);
 
     const fetchData = async () => {
@@ -122,7 +123,7 @@ export default function UserManagementPage() {
     };
 
     const handleStatusChange = async (userId: string, newStatus: UserStatus) => {
-         const oldUsers = [...users];
+        const oldUsers = [...users];
         const newUsers = users.map(user => user.id === userId ? { ...user, status: newStatus } : user);
         setUsers(newUsers);
         try {
@@ -131,6 +132,19 @@ export default function UserManagementPage() {
         } catch (error) {
             setUsers(oldUsers);
             toast({ variant: 'destructive', title: 'Error', description: 'Failed to update user status.' });
+        }
+    }
+    
+    const handleApproval = async (userId: string, newStatus: 'ACTIVE' | 'INACTIVE') => {
+        setActionLoading(userId);
+        try {
+            await updateUserStatus(userId, newStatus);
+            toast({ title: 'User status updated successfully.'});
+            fetchData();
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to update user status.' });
+        } finally {
+            setActionLoading(null);
         }
     }
 
@@ -206,7 +220,6 @@ export default function UserManagementPage() {
                   <TableBody>
                     {users.map((user) => {
                       const canUpdate = hasPermission('User Management:Update');
-                      
                       const isSelf = user.id === currentUser?.id;
                       const isTargetAdmin = user.role?.name === 'Admin';
                       
@@ -232,6 +245,17 @@ export default function UserManagementPage() {
                             </Select>
                           </TableCell>
                            <TableCell>
+                            {user.status === 'PENDING' && canUpdate ? (
+                                <div className="flex items-center gap-2">
+                                     <Button size="sm" variant="outline" onClick={() => handleApproval(user.id, 'ACTIVE')} disabled={actionLoading === user.id}>
+                                        {actionLoading === user.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-green-600" />}
+                                    </Button>
+                                    <Button size="sm" variant="destructive" onClick={() => handleApproval(user.id, 'INACTIVE')} disabled={actionLoading === user.id}>
+                                         {actionLoading === user.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                                    </Button>
+                                    <Badge variant="outline" className="border-yellow-500 text-yellow-700">PENDING</Badge>
+                                </div>
+                            ) : (
                                 <div className="flex items-center space-x-2">
                                     <Switch
                                         id={`status-switch-${user.id}`}
@@ -239,10 +263,15 @@ export default function UserManagementPage() {
                                         onCheckedChange={(checked) => handleStatusChange(user.id, checked ? 'ACTIVE' : 'INACTIVE')}
                                         disabled={!canChangeStatus}
                                     />
-                                    <Badge variant="outline" className={cn(user.status === 'ACTIVE' ? "border-green-500 text-green-700" : "border-red-500 text-red-700")}>
+                                    <Badge variant="outline" className={cn(
+                                        user.status === 'ACTIVE' && "border-green-500 text-green-700",
+                                        user.status === 'INACTIVE' && "border-red-500 text-red-700",
+                                        user.status === 'PENDING' && "border-yellow-500 text-yellow-700"
+                                    )}>
                                         {user.status}
                                     </Badge>
                                 </div>
+                            )}
                             </TableCell>
                           <TableCell className="text-right">
                              <DropdownMenu>
@@ -284,7 +313,7 @@ export default function UserManagementPage() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This will permanently delete the user <strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong>. This action cannot be undone.
+                    This will permanently delete the user strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong>. This action cannot be undone.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import prisma from '@/lib/prisma';
@@ -82,6 +83,7 @@ export async function addUser(data: any) {
             phoneNumber,
             roleId,
             passwordChangeRequired: true,
+            status: 'PENDING',
             nibBankAccount: nibBankAccount || null,
         };
 

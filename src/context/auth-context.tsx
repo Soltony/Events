@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -247,9 +248,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await api.post('/api/auth/login', requestData);
 
       if (response.data && response.data.isSuccess) {
+        const userData = await getUserByPhoneNumber(data.phoneNumber);
+        if (!userData) {
+          throw new Error('Failed to retrieve user data after login.');
+        }
+
+        if (userData.status === 'PENDING') {
+            throw new Error('Your account is pending approval. Please contact an administrator.');
+        }
+        
+        if (userData.status === 'INACTIVE') {
+          throw new Error('Your account is inactive. Please contact an administrator.');
+        }
+
         setFailedAttempts(0);
         setLockoutUntil(null);
-        // Clear stored failed attempts and lockout on successful login
         localStorage.removeItem('failedLoginAttempts');
         localStorage.removeItem('lockoutUntil');
 
@@ -258,33 +271,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const resolvedRefreshToken = refreshToken || RefreshToken;
 
         if (resolvedAccessToken) {
-          
-          const userData = await getUserByPhoneNumber(data.phoneNumber);
-          if (!userData) {
-            throw new Error('Failed to retrieve user data after login.');
-          }
-
-          if (userData.status === 'INACTIVE') {
-            throw new Error('Your account is inactive. Please contact an administrator.');
-          }
-          
           const newTokens = { 
               accessToken: resolvedAccessToken, 
               refreshToken: resolvedRefreshToken,
               phoneNumber: data.phoneNumber,
           };
           
-          // Store tokens in HTTP-only cookies for security
           await fetch('/api/auth/session', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify(newTokens),
-            credentials: 'include' // Include cookies in the request
+            credentials: 'include'
           });
           
-          // Keep tokens in memory for client-side usage
           setTokens({ accessToken: newTokens.accessToken, refreshToken: newTokens.refreshToken });
           setAuthToken(resolvedAccessToken);
           
@@ -314,16 +315,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         const currentFailed = failedAttempts + 1;
         setFailedAttempts(currentFailed);
-        // Persist failed attempts to localStorage
         localStorage.setItem('failedLoginAttempts', currentFailed.toString());
 
         if (currentFailed >= MAX_LOGIN_ATTEMPTS) {
             const newLockoutUntil = Date.now() + LOCKOUT_DURATION;
             setLockoutUntil(newLockoutUntil);
             setFailedAttempts(0);
-            // Persist lockout state to localStorage
             localStorage.setItem('lockoutUntil', newLockoutUntil.toString());
-            localStorage.removeItem('failedLoginAttempts'); // Reset failed attempts after lockout
+            localStorage.removeItem('failedLoginAttempts');
             toast({
                 variant: 'destructive',
                 title: 'Login Locked',
@@ -335,7 +334,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch (error: any) {
-      // Handle failed attempts for network errors or other exceptions
       const currentFailed = failedAttempts + 1;
       setFailedAttempts(currentFailed);
       localStorage.setItem('failedLoginAttempts', currentFailed.toString());
@@ -403,5 +401,3 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
-
-    
