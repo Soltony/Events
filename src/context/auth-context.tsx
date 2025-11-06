@@ -253,7 +253,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error('Failed to retrieve user data after login.');
         }
 
-        if (userData.status === 'PENDING') {
+        if (userData.status === 'INACTIVE' && userData.passwordChangeRequired) {
             throw new Error('Your account is pending approval. Please contact an administrator.');
         }
         

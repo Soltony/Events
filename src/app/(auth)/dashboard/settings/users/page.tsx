@@ -227,6 +227,7 @@ export default function UserManagementPage() {
                       const canChangeRole = canUpdate && !isSelf && !isTargetAdmin;
                       const canChangeStatus = canUpdate && !isSelf && !isTargetAdmin;
                       const canDelete = hasPermission('User Management:Delete') && !isSelf && !isTargetAdmin;
+                      const isPendingApproval = user.status === 'INACTIVE' && user.passwordChangeRequired;
 
                       return (
                         <TableRow key={user.id}>
@@ -245,7 +246,7 @@ export default function UserManagementPage() {
                             </Select>
                           </TableCell>
                            <TableCell>
-                            {(user.status as any) === 'PENDING' && canUpdate ? (
+                            {isPendingApproval && canUpdate ? (
                                 <div className="flex items-center gap-2">
                                      <Button size="sm" variant="outline" onClick={() => handleApproval(user.id, 'ACTIVE')} disabled={actionLoading === user.id}>
                                         {actionLoading === user.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-green-600" />}
@@ -265,8 +266,7 @@ export default function UserManagementPage() {
                                     />
                                     <Badge variant="outline" className={cn(
                                         user.status === 'ACTIVE' && "border-green-500 text-green-700",
-                                        user.status === 'INACTIVE' && "border-red-500 text-red-700",
-                                        (user.status as any) === 'PENDING' && "border-yellow-500 text-yellow-700"
+                                        user.status === 'INACTIVE' && "border-red-500 text-red-700"
                                     )}>
                                         {user.status}
                                     </Badge>

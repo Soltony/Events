@@ -83,7 +83,7 @@ export async function addUser(data: any) {
             phoneNumber,
             roleId,
             passwordChangeRequired: true,
-            status: 'PENDING' as any,
+            status: 'INACTIVE',
             nibBankAccount: nibBankAccount || null,
         };
 
