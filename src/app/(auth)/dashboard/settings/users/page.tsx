@@ -135,7 +135,7 @@ export default function UserManagementPage() {
         }
     }
     
-    const handleApproval = async (userId: string, newStatus: 'ACTIVE' | 'INACTIVE') => {
+    const handleApproval = async (userId: string, newStatus: UserStatus) => {
         setActionLoading(userId);
         try {
             await updateUserStatus(userId, newStatus);
