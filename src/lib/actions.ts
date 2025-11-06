@@ -4,7 +4,7 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
-import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee, EventStatus, UserStatus } from '@prisma/client';
+import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee, EventStatus, UserStatus, District, Branch } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { decryptSessionPayload } from './sessionCrypto';
@@ -1098,4 +1098,39 @@ export async function checkInAttendee(attendeeId: number) {
         console.error("Check-in error:", error);
         return { error: 'An unexpected error occurred during check-in.' };
     }
+}
+
+// Branch and District Actions
+export async function createDistrict(data: { districtName: string; contactPersonName: string; contactPersonPhone: string; }) {
+  const { districtName, ...rest } = data;
+  const district = await prisma.district.create({
+    data: {
+      name: districtName,
+      ...rest,
+    },
+  });
+  revalidatePath('/dashboard/settings/branch-district-registration');
+  return serialize(district);
+}
+
+export async function createBranch(data: { branchName: string; districtId: string; contactPersonName: string; contactPersonPhone: string; }) {
+  const { branchName, ...rest } = data;
+  const branch = await prisma.branch.create({
+    data: {
+      name: branchName,
+      ...rest,
+    },
+  });
+  revalidatePath('/dashboard/settings/branch-district-registration');
+  return serialize(branch);
+}
+
+export async function getDistricts(): Promise<District[]> {
+  const districts = await prisma.district.findMany();
+  return serialize(districts);
+}
+
+export async function getBranches(): Promise<Branch[]> {
+  const branches = await prisma.branch.findMany();
+  return serialize(branches);
 }
