@@ -227,7 +227,7 @@ export default function UserManagementPage() {
                       const canChangeRole = canUpdate && !isSelf && !isTargetAdmin;
                       const canChangeStatus = canUpdate && !isSelf && !isTargetAdmin;
                       const canDelete = hasPermission('User Management:Delete') && !isSelf && !isTargetAdmin;
-                      const isPendingApproval = user.status === 'INACTIVE' && user.passwordChangeRequired;
+                      const isPendingApproval = (user.status as any) === 'INACTIVE' && user.passwordChangeRequired;
 
                       return (
                         <TableRow key={user.id}>
