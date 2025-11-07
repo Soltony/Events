@@ -107,11 +107,13 @@ export async function addUser(data: any) {
         });
 
         // Send email with credentials
-        await sendTempPassword({
-            email: user.email,
-            phoneNumber: user.phoneNumber,
-            tempPassword: tempPassword,
-        });
+        if (user.email) {
+            await sendTempPassword({
+                email: user.email,
+                phoneNumber: user.phoneNumber,
+                tempPassword: tempPassword,
+            });
+        }
     
         revalidatePath('/dashboard/settings/users');
         return { success: true, user: JSON.parse(JSON.stringify(user)) };
