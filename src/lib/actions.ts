@@ -407,6 +407,7 @@ export async function addTicketType(eventId: number, data: { name: string; descr
                     description: data.description,
                     basePrice: config.price,
                     total: config.quantity,
+                    sold: 0,
                     eventId: eventId,
                     locationPrices: data.locationPrices,
                 }
