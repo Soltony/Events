@@ -32,11 +32,12 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Loader2, ArrowLeft, UserPlus } from 'lucide-react';
+import { Loader2, ArrowLeft, UserPlus, Copy, Check } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast"
 import { getRoles, getBranches } from '@/lib/actions';
 import { addUser } from '@/app/(auth)/dashboard/settings/users/actions';
 import { useAuth } from '@/context/auth-context';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const addUserFormSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required." }),
@@ -60,6 +61,8 @@ export default function UserRegistrationPage() {
     const [roles, setRoles] = useState<Role[]>([]);
     const [branches, setBranches] = useState<Branch[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
+    const [isCopied, setIsCopied] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -99,15 +102,17 @@ export default function UserRegistrationPage() {
 
     async function onAddUserSubmit(data: AddUserFormValues) {
         setIsSubmitting(true);
+        setGeneratedPassword(null);
         try {
             const result = await addUser(data);
 
-            if (result.success) {
+            if (result.success && result.tempPassword) {
                 toast({
                     title: "User Added",
                     description: `Successfully added ${data.firstName} ${data.lastName}.`,
                 });
-                router.push('/dashboard/settings/users');
+                setGeneratedPassword(result.tempPassword);
+                // Don't redirect immediately, show the password.
             } else {
                 toast({
                     variant: 'destructive',
@@ -116,7 +121,6 @@ export default function UserRegistrationPage() {
                 });
             }
         } catch (error) {
-            // This is a fallback for unexpected client-side errors
             console.error('User registration failed on client:', error);
             toast({
                 variant: 'destructive',
@@ -126,6 +130,52 @@ export default function UserRegistrationPage() {
         } finally {
             setIsSubmitting(false);
         }
+    }
+    
+    const handleCopyToClipboard = () => {
+        if (generatedPassword) {
+            navigator.clipboard.writeText(generatedPassword).then(() => {
+                setIsCopied(true);
+                setTimeout(() => setIsCopied(false), 2000);
+            });
+        }
+    };
+
+    if (generatedPassword) {
+        return (
+             <div className="flex flex-1 items-center justify-center p-4">
+                <Card className="w-full max-w-2xl">
+                    <CardHeader>
+                        <CardTitle>User Registered Successfully!</CardTitle>
+                        <CardDescription>
+                            Please securely share the temporary password with the new user.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                         <Alert>
+                            <AlertTitle className="mb-2">Temporary Password</AlertTitle>
+                            <AlertDescription className="flex items-center justify-between gap-4">
+                                <code className="font-mono text-lg font-bold p-2 bg-muted rounded-md flex-grow">
+                                    {generatedPassword}
+                                </code>
+                                <Button size="icon" variant="outline" onClick={handleCopyToClipboard}>
+                                    {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                                    <span className="sr-only">Copy password</span>
+                                </Button>
+                            </AlertDescription>
+                        </Alert>
+                        <p className="text-sm text-muted-foreground">
+                            The user will be required to change this password upon their first login.
+                        </p>
+                        <div className="flex justify-end gap-2 pt-4">
+                            <Button onClick={() => router.push('/dashboard/settings/users')}>
+                                Done
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        )
     }
 
   return (
@@ -144,7 +194,7 @@ export default function UserRegistrationPage() {
         <Card>
             <CardHeader>
                 <CardTitle>New User Details</CardTitle>
-                <CardDescription>Fill out the form to register a new user. The temporary password will be "User@123".</CardDescription>
+                <CardDescription>A secure temporary password will be generated for the user.</CardDescription>
             </CardHeader>
             <CardContent>
                 <Form {...addUserForm}>

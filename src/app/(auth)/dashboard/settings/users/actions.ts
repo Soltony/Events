@@ -3,6 +3,17 @@
 
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import crypto from 'crypto';
+
+function generateTempPassword(length = 12) {
+  // Generate a random password with mixed characters, ensuring it's URL-safe and easy to copy.
+  return crypto.randomBytes(length)
+    .toString('base64')
+    .slice(0, length)
+    .replace(/\+/g, 'A') 
+    .replace(/\//g, 'B'); 
+}
+
 
 export async function addUser(data: any) {
     const { firstName, lastName, phoneNumber, email, roleId, nibBankAccount, branchId } = data;
@@ -17,7 +28,7 @@ export async function addUser(data: any) {
       return { success: false, error: 'Auth API URL not configured.' };
     }
     
-    const password = 'User@123';
+    const tempPassword = generateTempPassword();
     
     try {
         const registrationResponse = await fetch(`${authApiUrl}/api/Auth/register`, {
@@ -30,7 +41,7 @@ export async function addUser(data: any) {
                 lastName,
                 phoneNumber,
                 email,
-                password,
+                password: tempPassword, // Use the generated temporary password
             }),
         });
         
@@ -83,6 +94,7 @@ export async function addUser(data: any) {
             status: 'INACTIVE', 
             nibBankAccount: nibBankAccount || null,
             email: email,
+            tempPass: tempPassword, // Store the temporary password
         };
 
         if (branchId) {
@@ -94,7 +106,7 @@ export async function addUser(data: any) {
         });
     
         revalidatePath('/dashboard/settings/users');
-        return { success: true, user: JSON.parse(JSON.stringify(user)) };
+        return { success: true, user: JSON.parse(JSON.stringify(user)), tempPassword };
 
     } catch (error: any) {
         console.error("Error creating user:", error.message);
