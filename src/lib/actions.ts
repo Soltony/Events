@@ -120,7 +120,7 @@ export async function getEvents(status?: EventStatus | 'all') {
               firstName: true,
               lastName: true,
             },
-          } : false,
+          } : undefined,
         },
         orderBy: { startDate: 'asc' },
     });
