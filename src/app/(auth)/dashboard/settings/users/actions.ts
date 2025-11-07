@@ -4,6 +4,7 @@
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import crypto from 'crypto';
+import { sendTempPassword } from '@/lib/email';
 
 function generateTempPassword(length = 12) {
   // Generate a random password with mixed characters, ensuring it's URL-safe and easy to copy.
@@ -104,9 +105,16 @@ export async function addUser(data: any) {
         const user = await prisma.user.create({
             data: createData,
         });
+
+        // Send email with credentials
+        await sendTempPassword({
+            email: user.email,
+            phoneNumber: user.phoneNumber,
+            tempPassword: tempPassword,
+        });
     
         revalidatePath('/dashboard/settings/users');
-        return { success: true, user: JSON.parse(JSON.stringify(user)), tempPassword };
+        return { success: true, user: JSON.parse(JSON.stringify(user)) };
 
     } catch (error: any) {
         console.error("Error creating user:", error.message);
