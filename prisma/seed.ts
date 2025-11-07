@@ -39,7 +39,6 @@ async function main() {
     where: { phoneNumber: '0900000000' },
     update: {},
     create: {
-      id: '6700eb96-ac20-40f3-81b7-0f16bbbc0f6c', // Placeholder ID for seed user
       firstName: 'Admin',
       lastName: 'User',
       phoneNumber: '0900000000',
@@ -196,3 +195,4 @@ main()
     
 
     
+
