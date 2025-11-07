@@ -36,12 +36,13 @@ async function main() {
 
   // Create Users
   const adminUser = await prisma.user.upsert({
-    where: { phoneNumber: '0900000000' },
+    where: { phoneNumber: '0912345678' },
     update: {},
     create: {
+      id: '6700eb96-ac20-40f3-81b7-0f16bbbc0f6c', // Placeholder ID for seed user
       firstName: 'Admin',
       lastName: 'User',
-      phoneNumber: '0900000000',
+      phoneNumber: '0912345678',
       roleId: adminRole.id,
       nibBankAccount: '7000000000000'
     },
@@ -195,4 +196,5 @@ main()
     
 
     
+
 
