@@ -20,8 +20,6 @@ export async function addUser(data: any) {
     const password = 'User@123';
     
     try {
-        const authServiceEmail = email || `${phoneNumber}@nibtickets.com`;
-
         const registrationResponse = await fetch(`${authApiUrl}/api/Auth/register`, {
             method: 'POST',
             headers: { 
@@ -31,7 +29,7 @@ export async function addUser(data: any) {
                 firstName,
                 lastName,
                 phoneNumber,
-                email: authServiceEmail,
+                email,
                 password,
             }),
         });
@@ -84,11 +82,8 @@ export async function addUser(data: any) {
             passwordChangeRequired: true,
             status: 'INACTIVE', 
             nibBankAccount: nibBankAccount || null,
+            email: email,
         };
-
-        if (email) {
-            createData.email = email;
-        }
 
         if (branchId) {
             createData.branchId = branchId;

@@ -42,7 +42,7 @@ const editUserFormSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required." }),
   lastName: z.string().min(1, { message: "Last name is required." }),
   phoneNumber: z.string().min(10, { message: "Phone number must be at least 10 digits." }),
-  email: z.string().email({ message: "Invalid email address." }).optional().or(z.literal('')),
+  email: z.string().email({ message: "Invalid email address." }),
   roleId: z.string({ required_error: "Please select a role." }),
   branchId: z.string().optional().nullable(),
   nibBankAccount: z.string()
@@ -236,7 +236,7 @@ export default function EditUserPage() {
                             name="email"
                             render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Email <span className="text-muted-foreground">(Optional)</span></FormLabel>
+                                <FormLabel>Email</FormLabel>
                                 <FormControl>
                                     <Input placeholder="john.doe@example.com" {...field} />
                                 </FormControl>
