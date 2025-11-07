@@ -280,7 +280,7 @@ export default function UserManagementPage() {
                             </Select>
                           </TableCell>
                            <TableCell>
-                            {isPendingApproval && isAdmin ? (
+                            {isPendingApproval && isAdmin && !isTargetAdmin ? (
                                 <div className="flex items-center gap-2">
                                      <Button size="sm" variant="outline" onClick={() => handleApproval(user.id, 'ACTIVE')} disabled={actionLoading === user.id}>
                                         {actionLoading === user.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-green-600" />}
@@ -297,14 +297,14 @@ export default function UserManagementPage() {
                                         id={`status-switch-${user.id}`}
                                         checked={user.status === 'ACTIVE'}
                                         onCheckedChange={(checked) => handleStatusChange(user.id, checked ? 'ACTIVE' : 'INACTIVE')}
-                                        disabled={!canChangeStatus}
+                                        disabled={!canChangeStatus || isTargetAdmin}
                                     />
                                     <Badge variant="outline" className={cn(
                                         user.status === 'ACTIVE' && "border-green-500 text-green-700",
                                         (user.status === 'INACTIVE' && user.passwordChangeRequired) && "border-yellow-500 text-yellow-700",
                                         (user.status === 'INACTIVE' && !user.passwordChangeRequired) && "border-red-500 text-red-700"
                                     )}>
-                                        {isPendingApproval ? 'PENDING' : user.status}
+                                        {isTargetAdmin ? 'ACTIVE' : (isPendingApproval ? 'PENDING' : user.status)}
                                     </Badge>
                                 </div>
                             )}
