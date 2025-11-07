@@ -69,6 +69,8 @@ export default function UserManagementPage() {
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [userToDelete, setUserToDelete] = useState<UserWithDetails | null>(null);
 
+    const isAdmin = currentUser?.role?.name === 'Admin';
+
     const fetchData = async () => {
         if (!currentUser) {
             setLoading(false);
@@ -278,7 +280,7 @@ export default function UserManagementPage() {
                             </Select>
                           </TableCell>
                            <TableCell>
-                            {isPendingApproval && canUpdate ? (
+                            {isPendingApproval && isAdmin ? (
                                 <div className="flex items-center gap-2">
                                      <Button size="sm" variant="outline" onClick={() => handleApproval(user.id, 'ACTIVE')} disabled={actionLoading === user.id}>
                                         {actionLoading === user.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-green-600" />}
