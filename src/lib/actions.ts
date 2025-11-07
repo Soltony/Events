@@ -120,7 +120,7 @@ export async function getEvents(status?: EventStatus | 'all') {
               firstName: true,
               lastName: true,
             },
-          } : undefined,
+          } : false,
         },
         orderBy: { startDate: 'asc' },
     });
@@ -400,7 +400,7 @@ export async function deleteEvent(id: number) {
 
 export async function addTicketType(eventId: number, data: { name: string; description?: string; locationPrices: { location: string; price: number; quantity: number }[] }) {
     for (const config of data.locationPrices) {
-        if (config.location && config.price > 0 && config.quantity >= 0) {
+        if (config.location && config.price >= 0 && config.quantity >= 0) {
             await prisma.ticketType.create({
                 data: {
                     name: `${data.name} - ${config.location}`,
