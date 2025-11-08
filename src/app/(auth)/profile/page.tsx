@@ -57,7 +57,8 @@ export default function ProfilePage() {
             newPassword: data.newPassword,
         });
         
-        if (response.data && response.data.isSuccess) {
+        // The API returns 200 OK on success without a body, so we check the status.
+        if (response.status === 200) {
             const wasFirstTime = user.passwordChangeRequired;
             
             if (wasFirstTime) {
@@ -68,17 +69,16 @@ export default function ProfilePage() {
 
             toast({
                 title: 'Success!',
-                description: 'Your password has been changed successfully.'
+                description: 'Your password has been changed successfully. You will be logged out for security.'
             });
             
-            if (!wasFirstTime) {
-                setTimeout(() => {
-                    logout();
-                }, 500);
-            } else {
-                 window.location.href = '/dashboard';
-            }
+            // Always log out after a password change for security
+            setTimeout(() => {
+                logout();
+            }, 1500);
+
         } else {
+             // This block will now correctly handle explicit failures from the API.
              throw new Error(response.data.errors?.join(', ') || 'Password change failed. Please check your current password and try again.');
         }
 
@@ -87,7 +87,7 @@ export default function ProfilePage() {
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: error.message || "Password change failed. Please try again.",
+            description: error.response?.data?.errors?.join(', ') || error.message || "Password change failed. Please try again.",
         });
     } finally {
         setIsSubmitting(false);
