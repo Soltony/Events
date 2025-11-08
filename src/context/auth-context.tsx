@@ -154,8 +154,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (sessionResponse.ok) {
             const sessionData = await sessionResponse.json();
             if (sessionData.accessToken) {
-                setTokens({ accessToken: sessionData.accessToken, refreshToken: sessionData.refreshToken || '' });
-                setAuthToken(sessionData.accessToken);
+                const newTokens = { accessToken: sessionData.accessToken, refreshToken: sessionData.refreshToken || '' };
+                setTokens(newTokens);
+                setAuthToken(newTokens.accessToken); // Set token for API calls
+                
                 const storedUser = localStorage.getItem('authUser');
                 if (storedUser) {
                     const parsedUser = JSON.parse(storedUser);
