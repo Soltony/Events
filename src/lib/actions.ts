@@ -45,10 +45,11 @@ const VALID_PERMISSIONS = new Set([
   'User Registration:Create', 'User Registration:Read', 'User Registration:Update', 'User Registration:Delete',
   'User Management:Create', 'User Management:Read', 'User Management:Update', 'User Management:Delete',
   'Role Management:Create', 'Role Management:Read', 'Role Management:Update', 'Role Management:Delete',
+  'Staff Management:Create', 'Staff Management:Read', 'Staff Management:Update', 'Staff Management:Delete',
 ]);
 
 
-export async function getCurrentUser(): Promise<(User & { role: Role }) | null> {
+export async function getCurrentUser(): Promise<(User & { role: Role, branch: Branch | null }) | null> {
   try {
     const cookieStore = await cookies();
     const tokenCookie = cookieStore.get('auth');
@@ -82,7 +83,10 @@ export async function getCurrentUser(): Promise<(User & { role: Role }) | null> 
 
     const user = await prisma.user.findUnique({
         where: { id: userId },
-        include: { role: true },
+        include: { 
+            role: true,
+            branch: true 
+        },
     });
     
     return serialize(user);
