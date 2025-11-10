@@ -45,6 +45,7 @@ import QRCode from 'qrcode';
 
 interface EventWithTickets extends Event {
     ticketTypes: (TicketType & { basePrice: number })[];
+    organizerName?: string;
 }
 
 interface TicketDetails extends Attendee {
@@ -433,7 +434,7 @@ export default function PublicEventDetailPage() {
   }
   
   const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-  const organizerName = event.color; // Using color field for organizer name
+  const organizerName = event.organizerName;
 
   return (
     <>

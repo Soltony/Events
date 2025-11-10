@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -166,29 +165,41 @@ export async function getEventById(id: number) {
         where: { id },
         include: {
             ticketTypes: true,
+            organizer: {
+                select: {
+                    firstName: true,
+                    lastName: true,
+                },
+            },
         },
     });
 
     if (event) {
-        event.ticketTypes = event.ticketTypes.map(tt => {
-            const ticketType = { ...tt } as any;
-            if (ticketType.locationPrices && typeof ticketType.locationPrices === 'object') {
+        const serializedEvent = serialize(event) as any;
+         // Manually construct the organizer name from the fetched fields
+        if (serializedEvent.organizer) {
+            serializedEvent.organizerName = `${serializedEvent.organizer.firstName || ''} ${serializedEvent.organizer.lastName || ''}`.trim();
+        }
+
+        serializedEvent.ticketTypes = serializedEvent.ticketTypes.map((tt: any) => {
+            if (tt.locationPrices && typeof tt.locationPrices === 'object') {
                  const normalizedPrices: Record<string, number> = {};
-                 for (const [loc, price] of Object.entries(ticketType.locationPrices)) {
+                 for (const [loc, price] of Object.entries(tt.locationPrices)) {
                      if (price !== null && price !== undefined) {
                          normalizedPrices[loc] = parseFloat(price as string);
                      }
                  }
-                 ticketType.locationPrices = normalizedPrices;
+                 tt.locationPrices = normalizedPrices;
             } else {
-                 ticketType.locationPrices = {};
+                 tt.locationPrices = {};
             }
-            ticketType.basePrice = parseFloat(ticketType.basePrice as any);
-            return ticketType;
+            tt.basePrice = parseFloat(tt.basePrice as any);
+            return tt;
         });
+        return serializedEvent;
     }
 
-    return serialize(event);
+    return null;
 }
 
 export async function getEventForTransaction(transactionId: string) {
