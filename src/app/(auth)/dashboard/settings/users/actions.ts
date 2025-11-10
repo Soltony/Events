@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import crypto from 'crypto';
 import { sendTempPassword } from '@/lib/email';
 import { getRoles } from '@/lib/actions';
+import type { Role } from '@prisma/client';
 
 function generateTempPassword(length = 12) {
   // Generate a random password with mixed characters, ensuring it's URL-safe and easy to copy.
@@ -89,7 +90,7 @@ export async function addUser(data: any, isStaffRegistration: boolean = false) {
         let finalRoleId = requestedRoleId;
         if (isStaffRegistration) {
             const roles = await getRoles();
-            const staffRole = roles.find(r => r.name === 'Staff');
+            const staffRole = roles.find((r: Role) => r.name === 'Staff');
             if (!staffRole) {
                 throw new Error("The 'Staff' role has not been created in the system. Please seed the database.");
             }
