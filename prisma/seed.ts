@@ -76,6 +76,8 @@ async function main() {
     await prisma.attendee.deleteMany({});
     await prisma.promoCode.deleteMany({});
     await prisma.ticketType.deleteMany({});
+    // FIX: Delete EventPayment records before PendingOrder records
+    await prisma.eventPayment.deleteMany({});
     await prisma.pendingOrder.deleteMany({}); 
     await prisma.event.deleteMany({});
 
@@ -209,3 +211,5 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
+
+    
