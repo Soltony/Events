@@ -303,7 +303,7 @@ export default function UserManagementPage() {
                                         id={`status-switch-${user.id}`}
                                         checked={user.status === 'ACTIVE'}
                                         onCheckedChange={(checked) => handleStatusChange(user.id, checked ? 'ACTIVE' : 'INACTIVE')}
-                                        disabled={!canChangeStatus || isTargetAdmin}
+                                        disabled={!isAdmin}
                                     />
                                     <Badge variant="outline" className={cn(
                                         user.status === 'ACTIVE' && "border-green-500 text-green-700",
