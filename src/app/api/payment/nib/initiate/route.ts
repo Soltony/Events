@@ -1,5 +1,3 @@
-
-
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -30,7 +28,7 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
-    
+
     const decryptedSession = await decryptSessionPayload(sessionCookie.value);
     const { accessToken: authToken } = JSON.parse(decryptedSession);
 
@@ -40,36 +38,14 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
-    
-    // --- Find pending order and event details ---
-    const pendingOrder = await prisma.pendingOrder.findUnique({
-      where: { transactionId: pendingOrderTransactionId },
-      include: { event: true },
-    });
 
-    if (!pendingOrder) {
-      return NextResponse.json(
-        { error: 'Pending order not found.' },
-        { status: 404 }
-      );
-    }
-
-    // --- DYNAMICALLY GET ACCOUNT NUMBER FROM EVENT ---
-    const ACCOUNT_NO = pendingOrder.event.nibBankAccount;
-    if (!ACCOUNT_NO) {
-      return NextResponse.json(
-        { error: 'Event organizer account not configured.', detail: 'The organizer for this event has not set up a bank account for payouts.' },
-        { status: 500 }
-      );
-    }
-
-    // --- Environment setup ---
+    const ACCOUNT_NO = process.env.NIB_ACCOUNT_NO;
     const COMPANY_NAME = process.env.NIB_COMPANY_NAME;
     const NIB_PAYMENT_KEY = process.env.NIB_PAYMENT_KEY;
     const NIB_PAYMENT_URL = process.env.NIB_PAYMENT_URL;
     const APP_URL = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL;
 
-    if (!COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL || !APP_URL) {
+    if (!ACCOUNT_NO || !COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL || !APP_URL) {
       return NextResponse.json(
         { error: 'Payment gateway configuration is missing on the server.' },
         { status: 500 }
@@ -80,7 +56,7 @@ export async function POST(req: NextRequest) {
     const transactionId = crypto.randomUUID();
     const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
     const callBackURL = `${APP_URL}/api/payment/nib/notify`;
-    
+
     const signatureString = [
       `accountNo=${ACCOUNT_NO}`,
       `amount=${total}`,
@@ -105,13 +81,25 @@ export async function POST(req: NextRequest) {
       signature
     };
 
-    // --- Create EventPayment record ---
+    // --- Create EventPayment record in the database ---
+    const pendingOrder = await prisma.pendingOrder.findUnique({
+      where: { transactionId: pendingOrderTransactionId },
+      include: { event: true }
+    });
+
+    if (!pendingOrder) {
+      return NextResponse.json(
+        { error: 'Pending order not found.' },
+        { status: 404 }
+      );
+    }
+
     const eventPayment = await prisma.eventPayment.create({
       data: {
         amount: total,
         method: 'GATEWAY',
         status: 'PENDING',
-        sessionId: null,
+        sessionId: null, // Will be filled if NIB returns a session ID
         transactionId: transactionId,
         pendingOrderId: pendingOrder.id,
         eventId: pendingOrder.eventId,
@@ -154,6 +142,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Optionally update sessionId if NIB provides one
     await prisma.eventPayment.update({
       where: { transactionId },
       data: { sessionId: responseData.token }
