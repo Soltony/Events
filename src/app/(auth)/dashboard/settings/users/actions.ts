@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import crypto from 'crypto';
 import { sendTempPassword } from '@/lib/email';
+import { getRoles } from '@/lib/actions';
 
 function generateTempPassword(length = 12) {
   // Generate a random password with mixed characters, ensuring it's URL-safe and easy to copy.
@@ -16,8 +17,8 @@ function generateTempPassword(length = 12) {
 }
 
 
-export async function addUser(data: any) {
-    const { firstName, lastName, phoneNumber, email, roleId, nibBankAccount, branchId } = data;
+export async function addUser(data: any, isStaffRegistration: boolean = false) {
+    const { firstName, lastName, phoneNumber, email, roleId: requestedRoleId, nibBankAccount, branchId } = data;
 
     const phoneRegex = /^(09|07)\d{8}$/;
     if (!phoneRegex.test(phoneNumber)) {
@@ -85,12 +86,22 @@ export async function addUser(data: any) {
             return { success: false, error: "Auth service did not return a user ID." };
         }
         
+        let finalRoleId = requestedRoleId;
+        if (isStaffRegistration) {
+            const roles = await getRoles();
+            const staffRole = roles.find(r => r.name === 'Staff');
+            if (!staffRole) {
+                throw new Error("The 'Staff' role has not been created in the system. Please seed the database.");
+            }
+            finalRoleId = staffRole.id;
+        }
+
         const createData: any = {
             id: newUserId,
             firstName,
             lastName,
             phoneNumber,
-            roleId,
+            roleId: finalRoleId,
             passwordChangeRequired: true,
             status: 'INACTIVE', 
             nibBankAccount: nibBankAccount || null,
@@ -116,6 +127,9 @@ export async function addUser(data: any) {
         }
     
         revalidatePath('/dashboard/settings/users');
+        if (isStaffRegistration) {
+            revalidatePath('/dashboard/settings/staff');
+        }
         return { success: true, user: JSON.parse(JSON.stringify(user)) };
 
     } catch (error: any) {

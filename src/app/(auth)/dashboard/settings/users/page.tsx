@@ -90,6 +90,12 @@ export default function UserManagementPage() {
                     return false;
                 }
                 
+                // Organizers should not see other organizers or admins
+                if (currentUser.role.name === 'Organizer' && (user.role.name === 'Admin' || user.role.name === 'Organizer')) {
+                    return false;
+                }
+
+                // If not admin, only show users of a lower role
                 if (currentUser.role.name !== 'Admin' && user.role.name === currentUser.role.name) {
                     return false;
                 }
@@ -98,7 +104,7 @@ export default function UserManagementPage() {
             });
 
             setUsers(filteredUsers);
-            setRoles(allRoles.filter((role: Role) => role.name !== 'Admin')); 
+            setRoles(allRoles.filter((role: Role) => role.name !== 'Admin' && role.name !== 'Staff')); 
         } catch (error) {
             console.error("Failed to fetch settings data:", error);
             toast({ variant: 'destructive', title: 'Error', description: 'Could not load users and roles.' });
@@ -248,8 +254,8 @@ export default function UserManagementPage() {
                       const isTargetAdmin = user.role?.name === 'Admin';
                       
                       const isEditable = (canUpdate && !isTargetAdmin) || isSelf;
-                      const canChangeRole = canUpdate && !isSelf && !isTargetAdmin;
-                      const canChangeStatus = canUpdate && !isSelf && !isTargetAdmin;
+                      const canChangeRole = canUpdate && !isSelf && !isTargetAdmin && isAdmin;
+                      const canChangeStatus = canUpdate && !isSelf && !isTargetAdmin && isAdmin;
                       const canDelete = hasPermission('User Management:Delete') && !isSelf && !isTargetAdmin;
                       const isPendingApproval = user.status === 'INACTIVE' && user.passwordChangeRequired;
 

@@ -4,7 +4,7 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Settings, UserPlus, Users, ShieldCheck, Building } from 'lucide-react';
+import { Settings, UserPlus, Users, ShieldCheck, Building, UserCog } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
 export default function SettingsPage() {
@@ -14,17 +14,17 @@ export default function SettingsPage() {
     {
       title: 'User Registration',
       icon: <UserPlus className="h-5 w-5" />,
-      description: 'Register new users for the application. Create new accounts. New users are created without any roles by default.',
+      description: 'Register new high-level users for the application, such as Admins or Organizers. New users are created with roles you assign.',
       buttonText: 'Go to User Registration',
       href: '/dashboard/settings/users/new',
       color: '#FBBF24',
       textColor: '#422006',
-      permission: 'User Registration:Read'
+      permission: 'User Registration:Create'
     },
     {
       title: 'User Management',
       icon: <Users className="h-5 w-5" />,
-      description: 'Manage user roles and the buildings they are assigned to. Assign roles and buildings to users to control access and responsibilities.',
+      description: 'Manage all user accounts, roles, and status. Assign roles and manage access levels across the application.',
       buttonText: 'Go to User Management',
       href: '/dashboard/settings/users',
       color: '#FBBF24',
@@ -32,9 +32,19 @@ export default function SettingsPage() {
       permission: 'User Management:Read'
     },
     {
+      title: 'Staff Management',
+      icon: <UserCog className="h-5 w-5" />,
+      description: 'Register and manage your own staff members. Staff have limited permissions to scan tickets and view event dashboards.',
+      buttonText: 'Go to Staff Management',
+      href: '/dashboard/settings/staff',
+      color: '#FBBF24',
+      textColor: '#422006',
+      permission: 'Staff Management:Create' 
+    },
+    {
       title: 'Role Management',
       icon: <ShieldCheck className="h-5 w-5" />,
-      description: 'Define roles and their permissions within the application. Create new roles, or edit existing ones to specify what actions users with that role can perform.',
+      description: 'Define roles and their permissions. Create new roles or edit existing ones to control what users can do.',
       buttonText: 'Go to Role Management',
       href: '/dashboard/settings/roles',
       color: '#FBBF24',

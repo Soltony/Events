@@ -16,6 +16,12 @@ async function main() {
     'User Registration:Create', 'User Registration:Read', 'User Registration:Update', 'User Registration:Delete',
     'User Management:Create', 'User Management:Read', 'User Management:Update', 'User Management:Delete',
     'Role Management:Create', 'Role Management:Read', 'Role Management:Update', 'Role Management:Delete',
+    'Staff Management:Create', 'Staff Management:Read', 'Staff Management:Update', 'Staff Management:Delete',
+  ];
+
+  const staffPermissions = [
+    'Dashboard:Read',
+    'Scan QR:Read',
   ];
 
   // Create Roles with granular permissions
@@ -31,8 +37,21 @@ async function main() {
         permissions: JSON.stringify(adminPermissions),
     }
   });
+
+  const staffRole = await prisma.role.upsert({
+    where: { name: 'Staff' },
+    update: {
+      description: 'Staff member with limited permissions for event operations like scanning tickets.',
+      permissions: JSON.stringify(staffPermissions),
+    },
+    create: {
+        name: 'Staff',
+        description: 'Staff member with limited permissions for event operations like scanning tickets.',
+        permissions: JSON.stringify(staffPermissions),
+    }
+  });
   
-  console.log(`Created role: ${adminRole.name}`);
+  console.log(`Created/updated roles: ${adminRole.name}, ${staffRole.name}`);
 
   // Create Users
   const adminUser = await prisma.user.upsert({
@@ -190,11 +209,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect()
   })
-
-    
-
-    
-
-    
-
-
