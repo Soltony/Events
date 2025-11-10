@@ -678,7 +678,10 @@ export async function getUserById(userId: string) {
 export async function getUserByPhoneNumber(phoneNumber: string) {
     const user = await prisma.user.findUnique({
         where: { phoneNumber },
-        include: { role: true },
+        include: {
+            role: true,
+            branch: true
+        },
     });
     return serialize(user);
 }
