@@ -51,36 +51,35 @@ export default function ProfilePage() {
 
     setIsSubmitting(true);
     try {
-        // We make the API call from the client to ensure the auth header is attached by the api instance
-        await api.post('/api/auth/change-password', {
+        const response = await api.post('/api/auth/change-password', {
             phoneNumber: user.phoneNumber,
             currentPassword: data.currentPassword,
             newPassword: data.newPassword,
         });
         
-        const wasFirstTime = user.passwordChangeRequired;
-        
-        // If it was a mandatory change, update the flag in our DB via server action
-        if (wasFirstTime) {
-            await updatePasswordFlag(user.id, false);
-        }
+        if (response.data && response.data.isSuccess) {
+            const wasFirstTime = user.passwordChangeRequired;
+            
+            if (wasFirstTime) {
+                await updatePasswordFlag(user.id, false);
+            }
 
-        // Manually refresh user context after password change to update the UI
-        await refreshUser();
+            await refreshUser();
 
-        toast({
-            title: 'Success!',
-            description: 'Your password has been changed successfully.'
-        });
-        
-        // Only force logout if it was not a mandatory first-time change
-        if (!wasFirstTime) {
-            setTimeout(() => {
-                logout();
-            }, 500);
+            toast({
+                title: 'Success!',
+                description: 'Your password has been changed successfully.'
+            });
+            
+            if (!wasFirstTime) {
+                setTimeout(() => {
+                    logout();
+                }, 500);
+            } else {
+                 window.location.href = '/dashboard';
+            }
         } else {
-             // Use a full page reload to ensure the new session state is properly loaded.
-             window.location.href = '/dashboard';
+             throw new Error(response.data.errors?.join(', ') || 'Password change failed. Please check your current password and try again.');
         }
 
     } catch (error: any) {
@@ -88,7 +87,7 @@ export default function ProfilePage() {
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: "Password change failed. Please try again.",
+            description: error.message || "Password change failed. Please try again.",
         });
     } finally {
         setIsSubmitting(false);
