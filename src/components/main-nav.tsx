@@ -15,13 +15,20 @@ export function MainNav() {
   const { hasPermission } = useAuth();
   const isCollapsed = state === 'collapsed';
 
+  const settingsPermissions = [
+    'User Registration:Read',
+    'User Management:Read',
+    'Role Management:Read',
+    'Staff Management:Read',
+  ];
+
   const navItems = [
     { href: "/dashboard", icon: <Home className="h-5 w-5" />, label: "Dashboard", active: pathname === '/dashboard', permission: 'Dashboard:Read' },
     { href: "/dashboard/scan", icon: <QrCode className="h-5 w-5" />, label: "Scan QR", active: pathname === '/dashboard/scan', permission: 'Scan QR:Read' },
     { href: "/dashboard/events/new", icon: <PlusCircle className="h-5 w-5" />, label: "Create Event", active: pathname === '/dashboard/events/new', permission: 'Events:Create' },
     { href: "/dashboard/events", icon: <Ticket className="h-5 w-5" />, label: "Manage Events", active: (pathname === '/dashboard/events' || pathname.startsWith('/dashboard/events/')) && pathname !== '/dashboard/events/new', permission: 'Events:Read' },
     { href: "/dashboard/reports", icon: <LineChart className="h-5 w-5" />, label: "Reports", active: pathname === '/dashboard/reports', permission: 'Reports:Read' },
-    { href: "/dashboard/settings", icon: <Settings className="h-5 w-5" />, label: "Settings", active: pathname.startsWith('/dashboard/settings'), permission: ['User Registration:Read', 'User Management:Read', 'Role Management:Read'] },
+    { href: "/dashboard/settings", icon: <Settings className="h-5 w-5" />, label: "Settings", active: pathname.startsWith('/dashboard/settings'), permission: settingsPermissions },
   ];
   
   const hasAnyPermission = (permissions: string | string[]) => {
