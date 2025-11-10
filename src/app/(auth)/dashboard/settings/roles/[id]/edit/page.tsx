@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -51,6 +50,7 @@ const settingsPermissionCategories = {
     'User Registration': ['Create', 'Read', 'Update', 'Delete'],
     'User Management': ['Create', 'Read', 'Update', 'Delete'],
     'Role Management': ['Create', 'Read', 'Update', 'Delete'],
+    'Staff Management': ['Create', 'Read', 'Update', 'Delete'],
 };
 
 
