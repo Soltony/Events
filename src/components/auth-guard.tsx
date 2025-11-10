@@ -15,7 +15,7 @@ const pagePermissions: Record<string, string | string[]> = {
     '/dashboard/events/[id]': 'Events:Read',
     '/dashboard/events/[id]/edit': 'Events:Update',
     '/dashboard/reports': 'Reports:Read',
-    '/dashboard/settings': ['User Registration:Read', 'User Management:Read', 'Role Management:Read'],
+    '/dashboard/settings': ['User Registration:Read', 'User Management:Read', 'Role Management:Read', 'Staff Management:Read'],
     '/dashboard/settings/users': 'User Management:Read',
     '/dashboard/settings/users/new': 'User Registration:Create',
     '/dashboard/settings/users/[id]/edit': 'User Management:Update',
