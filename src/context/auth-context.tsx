@@ -6,7 +6,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import api, { setAuthToken } from '@/lib/api';
 import { getUserByPhoneNumber } from '@/lib/actions';
-import type { User, Role } from '@prisma/client';
+import type { User, Role, Branch } from '@prisma/client';
 import Cookies from 'js-cookie';
 
 interface AuthTokens {
@@ -16,6 +16,7 @@ interface AuthTokens {
 
 interface UserWithRole extends User {
   role: Role;
+  branch?: Branch | null;
 }
 
 interface AuthContextType {
@@ -112,27 +113,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   }, [router, toast, clearAuthData, pathname]);
 
-  const refreshUser = useCallback(async () => {
-    const storedUser = localStorage.getItem('authUser');
-    if (!storedUser) return;
-    
-    const parsedUser = JSON.parse(storedUser) as UserWithRole;
+  const refreshUser = useCallback(async (phoneNumber?: string) => {
+    const phoneToFetch = phoneNumber || user?.phoneNumber;
+    if (!phoneToFetch) return;
 
-    if (parsedUser?.phoneNumber) {
-        try {
-            const freshUserData = await getUserByPhoneNumber(parsedUser.phoneNumber);
-            if (freshUserData) {
-                setUser(freshUserData);
-                localStorage.setItem('authUser', JSON.stringify(freshUserData));
-            } else {
-                 logout({ reason: 'Your session could not be verified. Please log in again.' });
-            }
-        } catch (error) {
-            console.error("Failed to refresh user data", error);
-            logout({ reason: 'Could not verify your session. Please log in again.' });
+    try {
+        const freshUserData = await getUserByPhoneNumber(phoneToFetch);
+        if (freshUserData) {
+            setUser(freshUserData);
+            localStorage.setItem('authUser', JSON.stringify(freshUserData));
+        } else {
+            await logout({ reason: 'Your session could not be verified. Please log in again.' });
         }
+    } catch (error) {
+        console.error("Failed to refresh user data", error);
+        await logout({ reason: 'Could not verify your session. Please log in again.' });
     }
-  }, [logout]);
+  }, [user?.phoneNumber, logout]);
 
 
   useEffect(() => {
@@ -153,25 +150,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (sessionResponse.ok) {
             const sessionData = await sessionResponse.json();
-            if (sessionData.accessToken) {
+            if (sessionData.accessToken && sessionData.phoneNumber) {
                 const newTokens = { accessToken: sessionData.accessToken, refreshToken: sessionData.refreshToken || '' };
                 setTokens(newTokens);
                 setAuthToken(newTokens.accessToken); // Set token for API calls
                 
-                const storedUser = localStorage.getItem('authUser');
-                if (storedUser) {
-                    const parsedUser = JSON.parse(storedUser);
-                    // Verify that the user in localStorage matches the phone number from the session
-                    if (parsedUser.phoneNumber === sessionData.phoneNumber) {
-                        setUser(parsedUser);
-                    } else {
-                        // If mismatch, the user in local storage is stale, refetch it
-                        await refreshUser();
-                    }
-                } else {
-                    // If no user in local storage, try to fetch it
-                    await refreshUser();
-                }
+                await refreshUser(sessionData.phoneNumber);
+
             } else {
                  await clearAuthData();
             }
@@ -389,7 +374,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = !isLoading && !!user;
 
   return (
-    <AuthContext.Provider value={{ tokens, user, isAuthenticated, isLoading, hasPermission, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ tokens, user, isAuthenticated, isLoading, hasPermission, login, logout, refreshUser: () => refreshUser() }}>
       {children}
     </AuthContext.Provider>
   );
