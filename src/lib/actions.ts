@@ -389,6 +389,7 @@ export async function deleteEvent(id: number) {
     prisma.attendee.deleteMany({ where: { eventId: id } }),
     prisma.promoCode.deleteMany({ where: { eventId: id } }),
     prisma.ticketType.deleteMany({ where: { eventId: id } }),
+    prisma.eventPayment.deleteMany({ where: { eventId: id } }),
     prisma.pendingOrder.deleteMany({ where: { eventId: id } }),
     prisma.event.delete({ where: { id } }),
   ]);
@@ -680,6 +681,38 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
         include: { role: true },
     });
     return serialize(user);
+}
+
+export async function getStaffForUser(organizerId: string) {
+    const organizer = await prisma.user.findUnique({
+        where: { id: organizerId },
+    });
+
+    if (!organizer || !organizer.branchId) {
+        return [];
+    }
+
+    const staff = await prisma.user.findMany({
+        where: {
+            branchId: organizer.branchId,
+            role: {
+                name: 'Staff'
+            },
+            id: {
+                not: organizerId
+            }
+        },
+        include: {
+            role: true,
+            branch: {
+                include: {
+                    district: true
+                }
+            }
+        }
+    });
+
+    return serialize(staff);
 }
 
 export async function updateUser(userId: string, data: Partial<User>) {
