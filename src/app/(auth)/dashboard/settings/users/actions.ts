@@ -103,8 +103,9 @@ export async function addUser(data: any, isStaffRegistration: boolean = false) {
             lastName,
             phoneNumber,
             roleId: finalRoleId,
-            passwordChangeRequired: true,
-            status: 'INACTIVE', 
+            // Staff are active by default, others require approval/password change.
+            passwordChangeRequired: !isStaffRegistration,
+            status: isStaffRegistration ? 'ACTIVE' : 'INACTIVE', 
             nibBankAccount: nibBankAccount || null,
             email: email,
             tempPass: tempPassword, // Store the temporary password

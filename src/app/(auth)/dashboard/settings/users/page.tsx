@@ -82,6 +82,11 @@ export default function UserManagementPage() {
             const { users: allUsers, roles: allRoles } = await getUsersAndRoles();
             
             const filteredUsers = allUsers.filter((user: UserWithDetails) => {
+                // Exclude staff from this list entirely
+                if (user.role.name === 'Staff') {
+                    return false;
+                }
+
                 if (user.id === currentUser.id) {
                     return true;
                 }

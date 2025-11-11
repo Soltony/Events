@@ -37,7 +37,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Loader2, ArrowLeft, UserPlus, Check, Trash2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast"
-import { getBranches, getStaffForUser, deleteUser } from '@/lib/actions';
+import { getStaffForUser, deleteUser } from '@/lib/actions';
 import { addUser } from '@/app/(auth)/dashboard/settings/users/actions';
 import { useAuth } from '@/context/auth-context';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -245,7 +245,7 @@ export default function StaffRegistrationPage() {
                                 <TableRow>
                                     <TableHead>Name</TableHead>
                                     <TableHead>Phone Number</TableHead>
-                                    <TableHead>Status</TableHead>
+                                    <TableHead>Email</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -257,14 +257,7 @@ export default function StaffRegistrationPage() {
                                         <TableRow key={staff.id}>
                                             <TableCell className="font-medium">{staff.firstName} {staff.lastName}</TableCell>
                                             <TableCell>{staff.phoneNumber}</TableCell>
-                                            <TableCell>
-                                                 <Badge variant="outline" className={cn(
-                                                    staff.status === 'ACTIVE' && "border-green-500 text-green-700",
-                                                    staff.status === 'INACTIVE' && "border-red-500 text-red-700"
-                                                )}>
-                                                    {staff.status}
-                                                 </Badge>
-                                            </TableCell>
+                                            <TableCell>{staff.email}</TableCell>
                                             <TableCell className="text-right">
                                                 <Button variant="ghost" size="icon" onClick={() => setUserToDelete(staff)}>
                                                     <Trash2 className="h-4 w-4 text-destructive" />
