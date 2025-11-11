@@ -434,7 +434,6 @@ export default function PublicEventDetailPage() {
   }
   
   const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-  const organizerName = event.organizerName;
 
   return (
     <>
@@ -475,10 +474,10 @@ export default function PublicEventDetailPage() {
                           <div className="rounded-lg p-0">
                               <Badge variant="outline" className={`mb-2 w-min whitespace-nowrap ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
                               <h1 className="text-4xl font-bold tracking-tight text-card-foreground">{event.name}</h1>
-                              {organizerName && (
+                              {event.organizerName && (
                                   <div className="flex items-center gap-2 text-lg text-muted-foreground pt-3">
                                   <UserCircle className="h-5 w-5" />
-                                  <span>By {organizerName}</span>
+                                  <span>By {event.organizerName}</span>
                                   </div>
                               )}
                               <div className="text-lg text-muted-foreground space-y-2 pt-4">

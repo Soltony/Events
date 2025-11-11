@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -265,11 +266,6 @@ export async function addEvent(data: any) {
         }
     }
     
-    // Remove color property if it exists
-    if (eventData.color) {
-        delete eventData.color;
-    }
-
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
     
     const locationString = locations.map((l: { value: string }) => l.value).join('||');
@@ -332,9 +328,6 @@ export async function updateEvent(id: number, data: any) {
     const eventDataForUpdate = { ...eventData };
     delete eventDataForUpdate.otherCategory;
     delete eventDataForUpdate.tickets;
-    if (eventDataForUpdate.color) {
-        delete eventDataForUpdate.color;
-    }
     
     const locationString = locations.map((l: { value: string }) => l.value).join('||');
     
@@ -997,6 +990,8 @@ export async function purchaseTickets(request: PurchaseRequest) {
 
         // Create a single attendee record for the entire purchase
         const firstTicket = tickets[0];
+        if (!firstTicket) throw new Error("No tickets in purchase request.");
+
         const totalQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0);
 
         const newAttendee = await tx.attendee.create({
