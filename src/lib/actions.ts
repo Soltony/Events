@@ -264,6 +264,11 @@ export async function addEvent(data: any) {
             console.warn("Admin event creation: Default admin has no NIB account. Event will be created without a bank account, but this may cause payout issues.");
         }
     }
+    
+    // Remove color property if it exists
+    if (eventData.color) {
+        delete eventData.color;
+    }
 
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
     
@@ -326,7 +331,10 @@ export async function updateEvent(id: number, data: any) {
     // This is the fix: Remove properties that don't exist in the Event model
     const eventDataForUpdate = { ...eventData };
     delete eventDataForUpdate.otherCategory;
-    delete eventDataForUpdate.tickets; 
+    delete eventDataForUpdate.tickets;
+    if (eventDataForUpdate.color) {
+        delete eventDataForUpdate.color;
+    }
     
     const locationString = locations.map((l: { value: string }) => l.value).join('||');
     

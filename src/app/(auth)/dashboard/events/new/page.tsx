@@ -47,7 +47,6 @@ const ticketSchema = z.object({
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
-  color: z.string().optional(), // This field will now store the organizer name
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   locations: z.array(z.object({
     value: z.string().min(3, { message: "Location can't be empty."}),
@@ -218,7 +217,6 @@ export default function CreateEventPage() {
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
       name: '',
-      color: '', // organizer name
       description: '',
       locations: [{ value: '' }],
       hint: '',
@@ -346,22 +344,6 @@ export default function CreateEventPage() {
                       </FormControl>
                       <FormDescription>
                         This is the public name of your event.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={control}
-                  name="color" // <-- Now using 'color' field
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Organizer Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Acme Inc. or John Doe" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        Optional: The name that will be publicly displayed as the event organizer.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

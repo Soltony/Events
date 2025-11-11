@@ -37,7 +37,6 @@ import { Switch } from '@/components/ui/switch';
 
 const eventFormSchema = z.object({
   name: z.string().min(3, { message: 'Event name must be at least 3 characters.' }),
-  color: z.string().optional(), // organizer name
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   locations: z.array(z.object({
     value: z.string().min(3, { message: "Location can't be empty."}),
@@ -78,7 +77,6 @@ export default function EditEventPage() {
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
       name: '',
-      color: '', // organizer name
       description: '',
       locations: [{ value: '' }],
       hint: '',
@@ -115,7 +113,6 @@ export default function EditEventPage() {
           
           form.reset({
             name: event.name,
-            color: event.color || '', // organizer name
             description: event.description,
             locations: eventLocations,
             hint: event.hint || '',
@@ -249,22 +246,6 @@ export default function EditEventPage() {
                     <FormControl>
                       <Input placeholder="e.g., Tech Conference 2025" {...field} />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="color" // organizer name
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Organizer Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Acme Inc. or John Doe" {...field} />
-                    </FormControl>
-                     <FormDescription>
-                        Optional: The name that will be publicly displayed as the event organizer.
-                      </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
