@@ -2,7 +2,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, useFieldArray, Control } from 'react-hook-form';
+import { useForm, useFieldArray, Control, useWatch } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, Trash2, UploadCloud, Loader2, X } from 'lucide-react';
@@ -35,8 +35,9 @@ import { Switch } from '@/components/ui/switch';
 
 const locationPriceSchema = z.object({
   location: z.string().min(1, "Location is required."),
-  price: z.coerce.number().min(0, 'Price must be a positive number.'),
+  price: z.coerce.number().min(0, 'Price must be a positive number or zero.'),
   quantity: z.coerce.number().int().min(1, 'Quantity must be at least 1.'),
+  isFree: z.boolean().default(false),
 });
 
 const ticketSchema = z.object({
@@ -145,6 +146,17 @@ const TicketTierCard = ({
         />
 
         {locationPriceFields.map((field, priceIndex) => {
+            const isFree = useWatch({
+              control,
+              name: `tickets.${ticketIndex}.locationPrices.${priceIndex}.isFree`,
+            });
+            
+            useEffect(() => {
+                if (isFree) {
+                    setValue(`tickets.${ticketIndex}.locationPrices.${priceIndex}.price`, 0, { shouldValidate: true });
+                }
+            }, [isFree, ticketIndex, priceIndex, setValue]);
+            
             return (
               <div key={field.id} className="grid grid-cols-12 gap-2 items-end">
                 <FormField
@@ -167,8 +179,25 @@ const TicketTierCard = ({
                   render={({ field }) => (
                     <FormItem className="col-span-3">
                       <FormLabel className="text-xs">Price</FormLabel>
-                      <FormControl><Input type="number" placeholder="500" {...field} /></FormControl>
+                      <FormControl><Input type="number" placeholder="500" {...field} disabled={isFree} required={!isFree} /></FormControl>
                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={control}
+                  name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.isFree`}
+                  render={({ field }) => (
+                    <FormItem className="col-span-2 flex flex-col items-center justify-center pt-5">
+                      <FormControl>
+                          <div className="flex items-center space-x-2">
+                             <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                             <FormLabel htmlFor="is-free" className="text-xs">Free</FormLabel>
+                          </div>
+                      </FormControl>
                     </FormItem>
                   )}
                 />
@@ -183,11 +212,6 @@ const TicketTierCard = ({
                     </FormItem>
                   )}
                 />
-                <div className="col-span-2 flex items-center">
-                  <Button type="button" variant="outline" size="icon" onClick={() => removeLocationPrice(priceIndex)} disabled={locationPriceFields.length <= 1}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
               </div>
             )
         })}
@@ -195,7 +219,7 @@ const TicketTierCard = ({
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => appendLocationPrice({ location: watchedLocations[0]?.value || '', price: 0, quantity: 100 })}
+          onClick={() => appendLocationPrice({ location: watchedLocations[0]?.value || '', price: 0, quantity: 100, isFree: false })}
           disabled={!watchedLocations.some(l => l.value)}
         >
           <PlusCircle className="mr-2 h-4 w-4" /> Add Location Price
@@ -226,7 +250,7 @@ export default function CreateEventPage() {
       tickets: [{
         name: 'General Admission',
         description: 'Standard entry to the event.',
-        locationPrices: [{ location: '', price: 0, quantity: 100 }]
+        locationPrices: [{ location: '', price: 0, quantity: 100, isFree: false }]
       }],
     },
   });
@@ -599,7 +623,7 @@ export default function CreateEventPage() {
                         onClick={() => appendTicket({
                             name: '',
                             description: '',
-                            locationPrices: [{ location: watchedLocations?.[0]?.value ?? '', price: 0, quantity: 100 }]
+                            locationPrices: [{ location: watchedLocations?.[0]?.value ?? '', price: 0, quantity: 100, isFree: false }]
                         })}
                     >
                         <PlusCircle className="mr-2 h-4 w-4" />
