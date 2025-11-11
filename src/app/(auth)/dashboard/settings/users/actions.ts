@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import { sendTempPassword } from '@/lib/email';
 import { getRoles } from '@/lib/actions';
 import type { Role } from '@prisma/client';
+import { getCurrentUser } from '@/lib/actions';
 
 function generateTempPassword(length = 12) {
   // Generate a random password with mixed characters, ensuring it's URL-safe and easy to copy.
@@ -20,6 +21,11 @@ function generateTempPassword(length = 12) {
 
 export async function addUser(data: any, isStaffRegistration: boolean = false) {
     const { firstName, lastName, phoneNumber, email, roleId: requestedRoleId, nibBankAccount, branchId } = data;
+    const creator = await getCurrentUser();
+
+    if (isStaffRegistration && !creator) {
+        return { success: false, error: "You must be logged in to create staff." };
+    }
 
     const phoneRegex = /^(09|07)\d{8}$/;
     if (!phoneRegex.test(phoneNumber)) {
@@ -103,13 +109,16 @@ export async function addUser(data: any, isStaffRegistration: boolean = false) {
             lastName,
             phoneNumber,
             roleId: finalRoleId,
-            // Staff are active by default, others require approval/password change.
             passwordChangeRequired: !isStaffRegistration,
-            status: isStaffRegistration ? 'ACTIVE' : 'INACTIVE', 
+            status: 'ACTIVE',
             nibBankAccount: nibBankAccount || null,
             email: email,
-            tempPass: tempPassword, // Store the temporary password
+            tempPass: tempPassword,
         };
+        
+        if (isStaffRegistration && creator) {
+            createData.organizerId = creator.id;
+        }
 
         if (branchId) {
             createData.branchId = branchId;
@@ -119,7 +128,6 @@ export async function addUser(data: any, isStaffRegistration: boolean = false) {
             data: createData,
         });
 
-        // Send email with credentials
         if (user.email) {
             await sendTempPassword({
                 email: user.email,

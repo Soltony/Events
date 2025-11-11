@@ -42,9 +42,6 @@ import { addUser } from '@/app/(auth)/dashboard/settings/users/actions';
 import { useAuth } from '@/context/auth-context';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHeader, TableRow, TableHead } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-import { Separator } from '@/components/ui/separator';
 
 const addStaffFormSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required." }),
@@ -85,7 +82,9 @@ export default function StaffRegistrationPage() {
     };
     
     useEffect(() => {
-        fetchStaff();
+        if (currentUser) {
+            fetchStaff();
+        }
     }, [currentUser]);
 
     const addStaffForm = useForm<AddStaffFormValues>({
@@ -99,21 +98,11 @@ export default function StaffRegistrationPage() {
     });
 
     async function onAddStaffSubmit(data: AddStaffFormValues) {
-        if (!currentUser?.branchId) {
-            toast({ variant: 'destructive', title: 'Action not allowed', description: 'You must be assigned to a branch to add staff.' });
-            return;
-        }
-
         setIsSubmitting(true);
         setIsSuccess(false);
 
-        const staffData = {
-            ...data,
-            branchId: currentUser.branchId,
-        };
-
         try {
-            const result = await addUser(staffData, true); // Pass true for isStaffRegistration
+            const result = await addUser(data, true); 
 
             if (result.success) {
                 toast({
@@ -177,7 +166,7 @@ export default function StaffRegistrationPage() {
             </Button>
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Staff Management</h1>
-                <p className="text-muted-foreground">Register new staff members and manage existing accounts for your branch.</p>
+                <p className="text-muted-foreground">Register new staff members and manage existing accounts.</p>
             </div>
         </div>
 
@@ -236,7 +225,7 @@ export default function StaffRegistrationPage() {
                     <CardHeader>
                         <CardTitle>Your Staff Members</CardTitle>
                         <CardDescription>
-                            List of staff members registered under your branch: <strong>{currentUser.branch?.name}</strong>.
+                            List of staff members you have registered.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>

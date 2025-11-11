@@ -11,31 +11,28 @@ datasource db {
 }
 
 model Event {
-  id               Int            @id @default(autoincrement())
-  name             String
-  description      String
-  startDate        DateTime
-  endDate          DateTime?
-  location         String
-  hint             String?
-  category         String
-  image            String?
-  status           EventStatus    @default(PENDING)
-  rejectionReason  String?
-  organizer        User           @relation(fields: [organizerId], references: [id])
-  organizerId      String
-  ticketTypes      TicketType[]
-  attendees        Attendee[]
-  promoCodes       PromoCode[]
-  pendingOrders    PendingOrder[]
-  payments         EventPayment[]
-  nibBankAccount   String?
-}
+  id              Int      @id @default(autoincrement())
+  name            String
+  description     String
+  startDate       DateTime
+  endDate         DateTime?
+  location        String
+  category        String
+  image           String?
+  hint            String?
+  status          EventStatus @default(PENDING)
+  rejectionReason String?
+  organizerId     String
+  nibBankAccount  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-enum EventStatus {
-  PENDING
-  APPROVED
-  REJECTED
+  organizer   User          @relation(fields: [organizerId], references: [id])
+  ticketTypes TicketType[]
+  attendees   Attendee[]
+  promoCodes  PromoCode[]
+  payments    EventPayment[]
+  pendingOrders PendingOrder[]
 }
 
 model TicketType {
@@ -44,56 +41,144 @@ model TicketType {
   description    String?
   basePrice      Decimal         @db.Decimal(10, 2)
   total          Int
-  sold           Int
-  event          Event           @relation(fields: [eventId], references: [id])
-  eventId        Int
-  attendees      Attendee[]
+  sold           Int             @default(0)
   locationPrices Json?
+  eventId        Int
+  
+  event          Event           @relation(fields: [eventId], references: [id])
+  attendees      Attendee[]
+  pendingOrders  PendingOrder[]
 }
 
 model Attendee {
-  id           Int           @id @default(autoincrement())
+  id           Int      @id @default(autoincrement())
   name         String
   phoneNumber  String?
-  email        String?
+  checkedIn    Boolean  @default(false)
+  qrCode       String   @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
   eventId      Int
-  event        Event         @relation(fields: [eventId], references: [id])
   ticketTypeId Int
-  ticketType   TicketType    @relation(fields: [ticketTypeId], references: [id])
   userId       String?
-  user         User?         @relation(fields: [userId], references: [id])
-  checkedIn    Boolean       @default(false)
-  qrCode       String        @unique
-  createdAt    DateTime      @default(now())
-  pendingOrder PendingOrder?
+
+  event       Event      @relation(fields: [eventId], references: [id])
+  ticketType  TicketType @relation(fields: [ticketTypeId], references: [id])
+  user        User?      @relation(fields: [userId], references: [id])
+  pendingOrders PendingOrder[]
 }
 
 model User {
-  id                     String    @id @unique
-  firstName              String
-  lastName               String
-  phoneNumber            String    @unique
-  email                  String?   @unique
-  roleId                 String
-  role                   Role      @relation(fields: [roleId], references: [id])
-  events                 Event[]
-  attendees              Attendee[]
-  passwordChangeRequired Boolean   @default(true)
-  status                 UserStatus @default(INACTIVE)
-  tempPass               String?
-  nibBankAccount         String?
-  branchId               String?
-  branch                 Branch?   @relation(fields: [branchId], references: [id])
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
+  id                       String      @id
+  firstName                String
+  lastName                 String
+  phoneNumber              String      @unique
+  email                    String?     @unique
+  nibBankAccount           String?
+  passwordChangeRequired   Boolean     @default(true)
+  status                   UserStatus  @default(INACTIVE)
+  tempPass                 String?
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
+  roleId                   String
+  branchId                 String?
+  organizerId              String?
+  
+  role                     Role        @relation(fields: [roleId], references: [id])
+  branch                   Branch?     @relation(fields: [branchId], references: [id])
+  events                   Event[]
+  attendees                Attendee[]
+  organizer                User?       @relation("UserToStaff", fields: [organizerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  staff                    User[]      @relation("UserToStaff")
 }
 
 model Role {
-  id          String  @id @default(cuid())
-  name        String  @unique
+  id          String   @id @default(uuid())
+  name        String   @unique
   description String?
   permissions String?
-  users       User[]
+
+  users User[]
+}
+
+model PromoCode {
+  id      Int         @id @default(autoincrement())
+  code    String      @unique
+  type    PromoCodeType
+  value   Decimal     @db.Decimal(10, 2)
+  maxUses Int
+  uses    Int         @default(0)
+  eventId Int
+  event   Event       @relation(fields: [eventId], references: [id])
+}
+
+model PendingOrder {
+  id               Int      @id @default(autoincrement())
+  transactionId    String   @unique
+  arifpaySessionId String?  @unique
+  status           OrderStatus @default(PENDING)
+  attendeeData     Json
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  eventId          Int
+  ticketTypeId     Int
+  promoCode        String?
+  attendeeId       Int?     @unique
+
+  event        Event         @relation(fields: [eventId], references: [id])
+  ticketType   TicketType    @relation(fields: [ticketTypeId], references: [id])
+  attendee     Attendee?     @relation(fields: [attendeeId], references: [id])
+  payments     EventPayment[]
+}
+
+model EventPayment {
+  id             String    @id @default(uuid())
+  amount         Decimal   @db.Decimal(10, 2)
+  method         String
+  status         String
+  sessionId      String?
+  transactionId  String    @unique
+  paymentDate    DateTime?
+  reference      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  pendingOrderId Int
+  eventId        Int
+
+  pendingOrder PendingOrder @relation(fields: [pendingOrderId], references: [id])
+  event        Event        @relation(fields: [eventId], references: [id])
+}
+
+model District {
+  id                  String   @id @default(uuid())
+  name                String   @unique
+  contactPersonName   String
+  contactPersonPhone  String
+  
+  branches Branch[]
+}
+
+model Branch {
+  id                  String   @id @default(uuid())
+  name                String
+  contactPersonName   String
+  contactPersonPhone  String
+  districtId          String
+
+  district District @relation(fields: [districtId], references: [id])
+  users    User[]
+}
+
+enum EventStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  FAILED
 }
 
 enum UserStatus {
@@ -101,69 +186,7 @@ enum UserStatus {
   INACTIVE
 }
 
-model PromoCode {
-  id      Int           @id @default(autoincrement())
-  code    String        @unique
-  type    PromoCodeType
-  value   Decimal       @db.Decimal(10, 2)
-  maxUses Int
-  uses    Int           @default(0)
-  event   Event         @relation(fields: [eventId], references: [id])
-  eventId Int
-}
-
 enum PromoCodeType {
   PERCENTAGE
   FIXED
-}
-
-model PendingOrder {
-  id               String         @id @default(cuid())
-  transactionId    String         @unique
-  arifpaySessionId String?
-  eventId          Int
-  event            Event          @relation(fields: [eventId], references: [id])
-  ticketTypeId     Int?
-  attendeeData     Json
-  promoCode        String?
-  status           String         @default("PENDING")
-  attendeeId       Int?           @unique
-  attendee         Attendee?      @relation(fields: [attendeeId], references: [id])
-  payments         EventPayment[] @relation("EventPaymentToPendingOrder")
-  createdAt        DateTime       @default(now())
-}
-
-model EventPayment {
-  id             String       @id @default(cuid())
-  amount         Float
-  method         String
-  status         String
-  sessionId      String?
-  transactionId  String       @unique
-  paymentDate    DateTime?
-  reference      String?
-  pendingOrderId String
-  pendingOrder   PendingOrder @relation("EventPaymentToPendingOrder", fields: [pendingOrderId], references: [id])
-  eventId        Int
-  event          Event        @relation(fields: [eventId], references: [id])
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-}
-
-model District {
-  id                 String   @id @default(cuid())
-  name               String   @unique
-  contactPersonName  String
-  contactPersonPhone String
-  branches           Branch[]
-}
-
-model Branch {
-  id                 String   @id @default(cuid())
-  name               String
-  districtId         String
-  district           District @relation(fields: [districtId], references: [id])
-  contactPersonName  String
-  contactPersonPhone String
-  users              User[]
 }

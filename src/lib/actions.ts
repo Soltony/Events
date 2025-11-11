@@ -702,23 +702,9 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
 }
 
 export async function getStaffForUser(organizerId: string) {
-    const organizer = await prisma.user.findUnique({
-        where: { id: organizerId },
-    });
-
-    if (!organizer || !organizer.branchId) {
-        return [];
-    }
-
     const staff = await prisma.user.findMany({
         where: {
-            branchId: organizer.branchId,
-            role: {
-                name: 'Staff'
-            },
-            id: {
-                not: organizerId
-            }
+            organizerId: organizerId,
         },
         include: {
             role: true,
@@ -782,43 +768,75 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
         }
 
-        const authApiUrl = process.env.AUTH_API_BASE_URL;
-        if (!authApiUrl) {
-            throw new Error('Authentication service URL is not configured.');
-        }
+        // --- Start Transaction ---
+        await prisma.$transaction(async (tx) => {
+            // 1. Find all staff members created by this user
+            const staffMembers = await tx.user.findMany({
+                where: { organizerId: userId },
+                select: { id: true, phoneNumber: true },
+            });
 
-        const cookieStore = await cookies();
-        const tokenCookie = await cookieStore.get('auth');
-        if (!tokenCookie?.value) {
-            throw new Error('Authentication token not found');
-        }
-        
-        const decrypted = await decryptSessionPayload(tokenCookie.value);
-        const { accessToken: token } = JSON.parse(decrypted);
+            if (staffMembers.length > 0) {
+                const staffPhoneNumbers = staffMembers.map(staff => staff.phoneNumber);
+                const staffIds = staffMembers.map(staff => staff.id);
 
-        if (!token) {
-             throw new Error('Auth token is missing from session.');
-        }
-       
-        const response = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ phoneNumbers: [phoneNumber] })
+                // 2. Delete staff from external auth service
+                const authApiUrl = process.env.AUTH_API_BASE_URL;
+                if (!authApiUrl) throw new Error('Auth API URL not configured.');
+
+                const cookieStore = await cookies();
+                const tokenCookie = await cookieStore.get('auth');
+                if (!tokenCookie?.value) throw new Error('Authentication token not found');
+                
+                const decrypted = await decryptSessionPayload(tokenCookie.value);
+                const { accessToken: token } = JSON.parse(decrypted);
+                if (!token) throw new Error('Auth token is missing from session.');
+
+                const staffDeleteResponse = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ phoneNumbers: staffPhoneNumbers })
+                });
+
+                if (!staffDeleteResponse.ok) {
+                    const errorData = await staffDeleteResponse.json().catch(() => ({}));
+                    const errorMessage = errorData?.errors?.join(', ') || `Failed to delete staff from authentication service. Status: ${staffDeleteResponse.status}`;
+                    throw new Error(errorMessage);
+                }
+                
+                // 3. Delete staff members from local DB
+                await tx.user.deleteMany({
+                    where: { id: { in: staffIds } },
+                });
+            }
+
+            // 4. Delete the creator user from the external auth service
+            const authApiUrl = process.env.AUTH_API_BASE_URL;
+            if (!authApiUrl) throw new Error('Auth API URL not configured.');
+             const cookieStore = await cookies();
+            const tokenCookie = await cookieStore.get('auth');
+            if (!tokenCookie?.value) throw new Error('Authentication token not found');
+             const decrypted = await decryptSessionPayload(tokenCookie.value);
+            const { accessToken: token } = JSON.parse(decrypted);
+            if (!token) throw new Error('Auth token is missing from session.');
+
+            const response = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ phoneNumbers: [phoneNumber] })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                const errorMessage = errorData?.errors?.join(', ') || `Failed to delete user from authentication service. Status: ${response.status}`;
+                throw new Error(errorMessage);
+            }
+            
+            // 5. Delete associated attendees and the creator user from the local DB
+            await tx.attendee.deleteMany({ where: { userId } });
+            await tx.user.delete({ where: { id: userId } });
         });
-        
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            const errorMessage = errorData?.errors?.join(', ') || `Failed to delete user from authentication service. Status: ${response.status}`;
-            throw new Error(errorMessage);
-        }
-        
-        await prisma.$transaction([
-            prisma.attendee.deleteMany({ where: { userId } }),
-            prisma.user.delete({ where: { id: userId } }),
-        ]);
+        // --- End Transaction ---
 
         revalidatePath('/dashboard/settings/users');
 
