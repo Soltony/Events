@@ -1015,6 +1015,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
                 arifpaySessionId: paymentSessionId,
                 transactionId: paymentSessionId, // Using the same for simplicity in mock
                 eventId: eventId,
+                ticketTypeId: firstTicket.id,
                 attendeeData: {
                     ...attendeeDetails,
                     quantity: totalQuantity,
