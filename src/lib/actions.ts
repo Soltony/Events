@@ -290,7 +290,7 @@ export async function addEvent(data: any) {
       for (const ticket of tickets) {
         if (ticket.locationPrices && ticket.locationPrices.length > 0) {
             for (const config of ticket.locationPrices) {
-                if (config.location && config.price > 0 && config.quantity >= 0) {
+                if (config.location && config.price >= 0 && config.quantity >= 0) {
                      await prisma.ticketType.create({
                         data: {
                             name: `${ticket.name} - ${config.location}`,
