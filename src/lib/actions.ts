@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -696,7 +695,6 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
         where: { phoneNumber },
         include: {
             role: true,
-            branch: true
         },
     });
     return serialize(user);
@@ -705,9 +703,7 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
 export async function getStaffForUser(organizerId: string) {
     const staff = await prisma.user.findMany({
         where: {
-            organizer: {
-                id: organizerId
-            }
+            organizerId: organizerId,
         },
         include: {
             role: true,
