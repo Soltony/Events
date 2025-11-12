@@ -703,9 +703,7 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
 export async function getStaffForUser(organizerId: string) {
     const staff = await prisma.user.findMany({
         where: {
-            organizer: {
-                id: organizerId
-            }
+            organizerId: organizerId,
         },
         include: {
             role: true,
@@ -774,9 +772,7 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             // 1. Find all staff members created by this user
             const staffMembers = await tx.user.findMany({
                 where: {
-                    organizer: {
-                        id: userId
-                    }
+                    organizerId: userId,
                 },
                 select: { id: true, phoneNumber: true },
             });
