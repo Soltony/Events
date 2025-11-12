@@ -46,8 +46,15 @@ async function proxyRequest(req: NextRequest, path: string[]) {
       headers,
       validateStatus: () => true,
     });
+    
+    let responseBody = response.data;
+    // Ensure the response is always valid JSON, even if the upstream service returns an empty body.
+    if (response.status >= 200 && response.status < 300 && (response.data === '' || response.data === null || response.data === undefined)) {
+      responseBody = { isSuccess: true, message: 'Operation successful' };
+    }
 
-    return new NextResponse(JSON.stringify(response.data), {
+
+    return new NextResponse(JSON.stringify(responseBody), {
       status: response.status,
       headers: { 'Content-Type': 'application/json' },
     });
