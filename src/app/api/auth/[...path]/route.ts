@@ -4,7 +4,8 @@ import axios from 'axios';
 
 const AUTH_API_BASE_URL = process.env.AUTH_API_BASE_URL || 'http://localhost:5160';
 
-async function proxyRequest(req: NextRequest, path: string[]) {
+async function proxyRequest(req: NextRequest, { params }: { params: { path: string[] } }) {
+  const path = params.path || [];
   if (!AUTH_API_BASE_URL) {
     console.error('AUTH_API_BASE_URL is not set.');
     return new NextResponse(
@@ -50,7 +51,7 @@ async function proxyRequest(req: NextRequest, path: string[]) {
     let responseBody = response.data;
     // Ensure the response is always valid JSON, even if the upstream service returns an empty body.
     if (response.status >= 200 && response.status < 300 && (response.data === '' || response.data === null || response.data === undefined)) {
-      responseBody = { isSuccess: true, message: 'Operation successful' };
+      responseBody = {};
     }
 
 
@@ -70,22 +71,18 @@ async function proxyRequest(req: NextRequest, path: string[]) {
   }
 }
 
-export async function GET(req: NextRequest, { params }: { params: { path: string[] } }) {
-  const path = params.path || [];
-  return proxyRequest(req, path);
+export async function GET(req: NextRequest, context: { params: { path: string[] } }) {
+  return proxyRequest(req, context);
 }
 
-export async function POST(req: NextRequest, { params }: { params: { path: string[] } }) {
-  const path = params.path || [];
-  return proxyRequest(req, path);
+export async function POST(req: NextRequest, context: { params: { path: string[] } }) {
+  return proxyRequest(req, context);
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { path: string[] } }) {
-  const path = params.path || [];
-  return proxyRequest(req, path);
+export async function PUT(req: NextRequest, context: { params: { path: string[] } }) {
+  return proxyRequest(req, context);
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { path: string[] } }) {
-  const path = params.path || [];
-  return proxyRequest(req, path);
+export async function DELETE(req: NextRequest, context: { params: { path: string[] } }) {
+  return proxyRequest(req, context);
 }
