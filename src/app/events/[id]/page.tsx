@@ -165,7 +165,11 @@ export default function PublicEventDetailPage() {
         try {
             const response = await api.get('/api/auth/cookie-data');
             if (response.data?.success && response.data.data?.phoneNumber) {
-                setAttendeePhone(response.data.data.phoneNumber);
+                let phone = response.data.data.phoneNumber;
+                if (phone.startsWith('251')) {
+                    phone = '0' + phone.substring(3);
+                }
+                setAttendeePhone(phone);
                 setIsPhoneFromSession(true);
             }
         } catch (error) {
