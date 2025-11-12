@@ -4,8 +4,8 @@ import axios from 'axios';
 
 const AUTH_API_BASE_URL = process.env.AUTH_API_BASE_URL || 'http://localhost:5160';
 
-async function proxyRequest(req: NextRequest, { params }: { params: { path: string[] } }) {
-  const path = params.path || [];
+async function proxyRequest(req: NextRequest, context: { params: { path: string[] } }) {
+  const path = context.params.path || [];
   if (!AUTH_API_BASE_URL) {
     console.error('AUTH_API_BASE_URL is not set.');
     return new NextResponse(
