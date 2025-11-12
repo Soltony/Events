@@ -705,7 +705,9 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
 export async function getStaffForUser(organizerId: string) {
     const staff = await prisma.user.findMany({
         where: {
-            organizerId: organizerId,
+            organizer: {
+                id: organizerId
+            }
         },
         include: {
             role: true,
