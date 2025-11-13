@@ -21,33 +21,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // --- Fetch auth token from secure session cookie ---
-    console.log('[NIB INITIATE] Attempting to retrieve session cookie...');
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('auth');
-    console.log('[NIB INITIATE] Value of session cookie (auth):', sessionCookie?.value);
+    // --- NEW: Directly check for Authorization header first ---
+    const authHeader = req.headers.get('Authorization');
+    let authToken: string | null = null;
 
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        authToken = authHeader.substring(7);
+        console.log('[NIB INITIATE] Auth token successfully extracted from Authorization header.');
+    } else {
+        // --- Fallback to session cookie for logged-in users ---
+        console.log('[NIB INITIATE] Authorization header not found, attempting to retrieve session cookie...');
+        const cookieStore = await cookies();
+        const sessionCookie = cookieStore.get('auth');
+        console.log('[NIB INITIATE] Value of session cookie (auth):', sessionCookie?.value);
 
-    if (!sessionCookie?.value) {
-      console.error('[NIB INITIATE] Error: User session cookie not found.');
-      return NextResponse.json(
-        { error: 'Unauthorized', detail: 'User session not found.' },
-        { status: 401 }
-      );
+        if (sessionCookie?.value) {
+            console.log('[NIB INITIATE] Session cookie found. Decrypting...');
+            const decryptedSession = await decryptSessionPayload(sessionCookie.value);
+            const sessionData = JSON.parse(decryptedSession);
+            authToken = sessionData.accessToken;
+        }
     }
-
-    console.log('[NIB INITIATE] Session cookie found. Decrypting...');
-    const decryptedSession = await decryptSessionPayload(sessionCookie.value);
-    const { accessToken: authToken } = JSON.parse(decryptedSession);
 
     if (!authToken) {
-      console.error('[NIB INITIATE] Error: Auth token is missing from session after decryption.');
+      console.error('[NIB INITIATE] Error: Auth token could not be found in header or session cookie.');
       return NextResponse.json(
-        { error: 'Unauthorized', detail: 'Auth token is missing from session.' },
+        { error: 'Unauthorized', detail: 'User session not found or auth token is missing.' },
         { status: 401 }
       );
     }
-    console.log('[NIB INITIATE] Auth token successfully extracted from session.');
+    
 
     const ACCOUNT_NO = process.env.NIB_ACCOUNT_NO;
     const COMPANY_NAME = process.env.NIB_COMPANY_NAME;
