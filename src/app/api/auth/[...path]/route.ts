@@ -29,19 +29,14 @@ async function proxyRequest(req: NextRequest, { params }: { params: { path: stri
 
   try {
     let body = null;
-    // For methods that can have a body, try to parse it.
-    // This is safer than assuming a body always exists.
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
+    if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
       try {
         const textBody = await req.text();
-        if (textBody) { // Only parse if the body is not empty
+        if (textBody) { 
           body = JSON.parse(textBody);
         }
       } catch (e) {
-        // If parsing fails but the body isn't empty, it's a malformed request.
         console.warn("Could not parse request body as JSON:", e);
-        // You might want to return a 400 Bad Request error here depending on your API's contract.
-        // For now, we'll proceed with a null body.
       }
     }
 
@@ -50,15 +45,13 @@ async function proxyRequest(req: NextRequest, { params }: { params: { path: stri
       url: targetUrl,
       data: body,
       headers,
-      validateStatus: () => true, // Let us handle all status codes
+      validateStatus: () => true,
     });
     
     let responseBody = response.data;
-    // Ensure the response is always valid JSON, even if the upstream service returns an empty body.
     if (response.status >= 200 && response.status < 300 && (response.data === '' || response.data === null || response.data === undefined)) {
       responseBody = {};
     }
-
 
     return new NextResponse(JSON.stringify(responseBody), {
       status: response.status,
@@ -66,7 +59,7 @@ async function proxyRequest(req: NextRequest, { params }: { params: { path: stri
     });
   } catch (error: any) {
     console.error(`API Proxy Error for ${targetUrl}:`, error.message);
-    const status = error.response?.status || 502; // 502 Bad Gateway is more appropriate for proxy failures
+    const status = error.response?.status || 502;
     const errorMessage = error.response?.data?.errors?.join(', ') || 'Proxy request failed.';
     
     return new NextResponse(
