@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // --- NEW: Directly check for Authorization header first ---
+    // --- Get Auth Token ---
     const authHeader = req.headers.get('Authorization');
     let authToken: string | null = null;
 
@@ -29,7 +29,6 @@ export async function POST(req: NextRequest) {
         authToken = authHeader.substring(7);
         console.log('[NIB INITIATE] Auth token successfully extracted from Authorization header.');
     } else {
-        // --- Fallback to session cookie for logged-in users ---
         console.log('[NIB INITIATE] Authorization header not found, attempting to retrieve session cookie...');
         const cookieStore = await cookies();
         const sessionCookie = cookieStore.get('auth');
@@ -51,23 +50,40 @@ export async function POST(req: NextRequest) {
       );
     }
     
+    // --- Fetch Event Owner's Bank Account ---
+    const pendingOrder = await prisma.pendingOrder.findUnique({
+      where: { transactionId: pendingOrderTransactionId },
+      include: { event: true }
+    });
 
-    const ACCOUNT_NO = process.env.NIB_ACCOUNT_NO;
+    if (!pendingOrder || !pendingOrder.event || !pendingOrder.event.nibBankAccount) {
+        let errorDetail = 'Could not find the pending order or associated event.';
+        if (pendingOrder && !pendingOrder.event) {
+            errorDetail = 'The event associated with this order could not be found.';
+        } else if (pendingOrder?.event && !pendingOrder.event.nibBankAccount) {
+            errorDetail = 'The event organizer has not configured a bank account for payouts.';
+        }
+        console.error(`[NIB INITIATE] Error: ${errorDetail}`);
+        return NextResponse.json({ error: 'Payment routing failed.', detail: errorDetail }, { status: 404 });
+    }
+    
+    const ACCOUNT_NO = pendingOrder.event.nibBankAccount;
+    console.log(`[NIB INITIATE] Dynamically fetched Account No: ${ACCOUNT_NO}`);
+
+
     const COMPANY_NAME = process.env.NIB_COMPANY_NAME;
     const NIB_PAYMENT_KEY = process.env.NIB_PAYMENT_KEY;
     const NIB_PAYMENT_URL = process.env.NIB_PAYMENT_URL;
     const APP_URL = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL;
 
     console.log('[NIB INITIATE] Environment Variables:', {
-        ACCOUNT_NO,
         COMPANY_NAME,
         NIB_PAYMENT_KEY_EXISTS: !!NIB_PAYMENT_KEY,
         NIB_PAYMENT_URL,
         APP_URL
     });
 
-
-    if (!ACCOUNT_NO || !COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL || !APP_URL) {
+    if (!COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL || !APP_URL) {
       console.error('[NIB INITIATE] Error: One or more required payment gateway environment variables are missing.');
       return NextResponse.json(
         { error: 'Payment gateway configuration is missing on the server.' },
@@ -111,19 +127,6 @@ export async function POST(req: NextRequest) {
 
 
     // --- Create EventPayment record in the database ---
-    const pendingOrder = await prisma.pendingOrder.findUnique({
-      where: { transactionId: pendingOrderTransactionId },
-      include: { event: true }
-    });
-
-    if (!pendingOrder) {
-      console.error(`[NIB INITIATE] Error: Pending order with transaction ID ${pendingOrderTransactionId} not found.`);
-      return NextResponse.json(
-        { error: 'Pending order not found.' },
-        { status: 404 }
-      );
-    }
-
     const eventPayment = await prisma.eventPayment.create({
       data: {
         amount: total,
