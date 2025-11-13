@@ -25,6 +25,9 @@ export async function POST(req: NextRequest) {
     console.log('[NIB INITIATE] Attempting to retrieve session cookie...');
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get('auth');
+    console.log('[NIB INITIATE] Value of session cookie (auth):', sessionCookie?.value);
+
+
     if (!sessionCookie?.value) {
       console.error('[NIB INITIATE] Error: User session cookie not found.');
       return NextResponse.json(

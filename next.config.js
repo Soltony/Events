@@ -1,3 +1,4 @@
+
 /** @type {import('next').NextConfig} */
 
 const path = require('path');
@@ -78,10 +79,8 @@ const nextConfig = {
     ],
   },
   poweredByHeader: false,
-  experimental: {
-    serverActions: {
-      bodySizeLimit: "10mb",
-    },
+  serverActions: {
+    bodySizeLimit: "10mb",
   },
   env: {
     NEXT_PUBLIC_NIB_ACCOUNT_NO: process.env.NIB_ACCOUNT_NO,
