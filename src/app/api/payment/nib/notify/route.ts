@@ -147,6 +147,7 @@ export async function POST(request: NextRequest) {
         },
       });
       
+      console.log(`[NIB NOTIFY] Payment completed for Transaction ID: ${txnRef}`);
       return allCreatedAttendees;
     });
 
