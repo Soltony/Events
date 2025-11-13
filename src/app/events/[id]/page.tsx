@@ -38,7 +38,7 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Autoplay from "embla-carousel-autoplay";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useAuth } from '@/context/auth-context';
+import { useAuth, ensureCsrfToken } from '@/context/auth-context';
 import api from '@/lib/api';
 import QRCode from 'qrcode';
 
@@ -269,6 +269,9 @@ export default function PublicEventDetailPage() {
 
         startTransition(async () => {
             try {
+                // Step 0: Ensure CSRF token is present
+                await ensureCsrfToken();
+
                 // Step 1: Create a pending order in our database
                 const pendingOrderResponse = await api.post('/api/payment/pending-order', {
                     eventId,
