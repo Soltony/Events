@@ -4,6 +4,8 @@ import axios from 'axios';
 
 const AUTH_API_BASE_URL = process.env.AUTH_API_BASE_URL || 'http://localhost:5160';
 
+// The 'context' parameter has been removed to fix a Next.js 15 build error.
+// The 'path' is now passed directly from each handler.
 async function proxyRequest(req: NextRequest, path: string[]) {
   if (!AUTH_API_BASE_URL) {
     console.error('AUTH_API_BASE_URL is not set.');
@@ -30,15 +32,12 @@ async function proxyRequest(req: NextRequest, path: string[]) {
     let body = null;
     if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
       try {
-        // Check if there is a body before trying to parse it
         const textBody = await req.text();
         if (textBody) { 
           body = JSON.parse(textBody);
         }
       } catch (e) {
         console.warn("Could not parse request body as JSON:", e);
-        // If body is not valid JSON, we might want to proxy it as is, or handle as an error.
-        // For now, we'll proceed with body as null if parsing fails.
       }
     }
 
@@ -47,11 +46,9 @@ async function proxyRequest(req: NextRequest, path: string[]) {
       url: targetUrl,
       data: body,
       headers,
-      validateStatus: () => true, // Let us handle all status codes
+      validateStatus: () => true, 
     });
     
-    // If the response is successful but the body is empty, return an empty JSON object
-    // to prevent client-side JSON parsing errors.
     let responseBody = response.data;
     if (response.status >= 200 && response.status < 300 && (response.data === '' || response.data === null || response.data === undefined)) {
       responseBody = {};
@@ -63,7 +60,7 @@ async function proxyRequest(req: NextRequest, path: string[]) {
     });
   } catch (error: any) {
     console.error(`API Proxy Error for ${targetUrl}:`, error.message);
-    const status = error.response?.status || 502; // 502 Bad Gateway is appropriate for proxy errors
+    const status = error.response?.status || 502;
     const errorMessage = error.response?.data?.errors?.join(', ') || 'Proxy request failed.';
     
     return new NextResponse(
@@ -73,6 +70,7 @@ async function proxyRequest(req: NextRequest, path: string[]) {
   }
 }
 
+// Each handler now extracts the path from its own context and passes it to proxyRequest.
 export async function GET(req: NextRequest, { params }: { params: { path: string[] } }) {
   const path = params.path || [];
   return proxyRequest(req, path);
