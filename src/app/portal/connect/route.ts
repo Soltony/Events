@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
     response.cookies.set('auth', encrypted, {
       httpOnly: true,
       secure: process.env.NODE_ENV !== 'development',
-      sameSite: 'strict',
+      sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24, // 1 day
     });

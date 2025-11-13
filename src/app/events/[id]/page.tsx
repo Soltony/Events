@@ -153,6 +153,9 @@ export default function PublicEventDetailPage() {
   useEffect(() => {
     // This effect runs once to check for a phone number from any session (logged-in user or SuperApp guest)
     async function populatePhoneNumber() {
+        // Ensure CSRF tokens are ready for guest users before they do anything.
+        await ensureCsrfToken();
+
         // Priority 1: Logged-in user
         if (user?.phoneNumber) {
             setAttendeeName(`${user.firstName} ${user.lastName}`);

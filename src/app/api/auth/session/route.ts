@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     cookieStore.set('auth', encryptedData, {
       httpOnly: true,
       secure: process.env.NODE_ENV !== 'development',
-      sameSite: 'strict',
+      sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24, // 1 day
     });
