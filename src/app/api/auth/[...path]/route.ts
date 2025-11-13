@@ -4,8 +4,6 @@ import axios from 'axios';
 
 const AUTH_API_BASE_URL = process.env.AUTH_API_BASE_URL || 'http://localhost:5160';
 
-// The 'context' parameter has been removed to fix a Next.js 15 build error.
-// The 'path' is now passed directly from each handler.
 async function proxyRequest(req: NextRequest, path: string[]) {
   if (!AUTH_API_BASE_URL) {
     console.error('AUTH_API_BASE_URL is not set.');
@@ -70,7 +68,6 @@ async function proxyRequest(req: NextRequest, path: string[]) {
   }
 }
 
-// Each handler now extracts the path from its own context and passes it to proxyRequest.
 export async function GET(req: NextRequest, { params }: { params: { path: string[] } }) {
   const path = params.path || [];
   return proxyRequest(req, path);
