@@ -99,7 +99,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     await clearAuthData();
     
-    if (reason) {
+    const isProtectedRoute = pathname.startsWith('/dashboard');
+
+    if (reason && isProtectedRoute) {
         toast({
             title: 'Session Expired',
             description: reason,
@@ -107,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     
     // Only redirect if they are on a protected route.
-    if (pathname.startsWith('/dashboard')) {
+    if (isProtectedRoute) {
         router.push('/login');
     }
 
