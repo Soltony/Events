@@ -5,13 +5,11 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { useRouter, usePathname } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import api, { setAuthToken } from '@/lib/api';
-import { getUserByPhoneNumber } from '@/lib/actions';
 import type { User, Role, Branch } from '@prisma/client';
 import Cookies from 'js-cookie';
 
 interface AuthTokens {
   accessToken: string;
-  refreshToken: string;
 }
 
 interface UserWithRole extends User {
@@ -20,7 +18,6 @@ interface UserWithRole extends User {
 }
 
 interface AuthContextType {
-  tokens: AuthTokens | null;
   user: UserWithRole | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -44,7 +41,7 @@ export async function ensureCsrfToken() {
       console.log('[ensureCsrfToken] Successfully fetched new CSRF tokens.');
     } catch (error) {
       console.error('[ensureCsrfToken] Failed to obtain CSRF token:', error);
-      throw error; // Re-throw to be caught by the caller
+      throw error;
     }
   } else {
       console.log('[ensureCsrfToken] CSRF tokens already exist.');
@@ -52,20 +49,14 @@ export async function ensureCsrfToken() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [user, setUser] = useState<UserWithRole | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [isCsrfReady, setIsCsrfReady] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
 
-  // Combined loading state
-  const isLoading = isAuthLoading || !isCsrfReady;
-
-  // Initialize failed attempts and lockout from localStorage
   useEffect(() => {
     const storedFailedAttempts = localStorage.getItem('failedLoginAttempts');
     const storedLockoutUntil = localStorage.getItem('lockoutUntil');
@@ -76,11 +67,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     if (storedLockoutUntil) {
       const lockoutTime = parseInt(storedLockoutUntil, 10);
-      // Only set lockout if it hasn't expired yet
       if (Date.now() < lockoutTime) {
         setLockoutUntil(lockoutTime);
       } else {
-        // Clear expired lockout
         localStorage.removeItem('lockoutUntil');
         localStorage.removeItem('failedLoginAttempts');
       }
@@ -89,13 +78,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearAuthData = useCallback(async () => {
     setUser(null);
-    setTokens(null);
     setAuthToken(null);
     localStorage.removeItem('authUser');
-    // Clear CSRF cookies on logout
-    Cookies.remove('csrf_token');
-    Cookies.remove('csrf_secret');
-    await fetch('/api/auth/session', { method: 'DELETE' });
+    await api.post('/api/auth/logout');
   }, []);
 
   const logout = useCallback(async (options?: { reason?: string }) => {
@@ -112,71 +97,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
     }
     
-    // Only redirect if they are on a protected route.
     if (isProtectedRoute) {
         router.push('/login');
     }
 
   }, [router, toast, clearAuthData, pathname]);
 
-  const refreshUser = useCallback(async (phoneNumber?: string) => {
-    const phoneToFetch = phoneNumber || user?.phoneNumber;
-    if (!phoneToFetch) return;
-
+  const refreshUser = useCallback(async () => {
     try {
-        const freshUserData = await getUserByPhoneNumber(phoneToFetch);
-        if (freshUserData) {
-            setUser(freshUserData);
-            localStorage.setItem('authUser', JSON.stringify(freshUserData));
+        const { data } = await api.get('/api/auth/me');
+        if (data.user) {
+            setUser(data.user);
+            localStorage.setItem('authUser', JSON.stringify(data.user));
         } else {
-            await logout({ reason: 'Your session could not be verified. Please log in again.' });
+             await logout({ reason: 'Your session could not be verified. Please log in again.' });
         }
     } catch (error) {
         console.error("Failed to refresh user data", error);
         await logout({ reason: 'Could not verify your session. Please log in again.' });
     }
-  }, [user?.phoneNumber, logout]);
+  }, [logout]);
 
 
   useEffect(() => {
     async function initializeAuth() {
-      try {
-        await ensureCsrfToken();
-        setIsCsrfReady(true);
-      } catch {
-        setIsCsrfReady(false);
-        setIsAuthLoading(false);
-        return;
-      }
-      
-      try {
-        const sessionResponse = await api.get('/api/auth/session');
-        
-        if (sessionResponse.data?.accessToken && sessionResponse.data?.phoneNumber) {
-            const { accessToken, refreshToken, phoneNumber } = sessionResponse.data;
-            const newTokens = { accessToken, refreshToken: refreshToken || '' };
-            setTokens(newTokens);
-            setAuthToken(accessToken);
-            
-            // For full users, refresh their data from our DB
-            const potentialUser = await getUserByPhoneNumber(phoneNumber);
-            if (potentialUser) {
-                setUser(potentialUser);
-                localStorage.setItem('authUser', JSON.stringify(potentialUser));
-            } else {
-                // This is likely a SuperApp guest user. No user record in our DB.
-                setUser(null);
-                localStorage.removeItem('authUser');
-            }
-        } else {
-             await clearAuthData();
+        setIsLoading(true);
+        try {
+            await refreshUser();
+        } catch (error) {
+            await clearAuthData();
+        } finally {
+            setIsLoading(false);
         }
-      } catch (error) {
-        console.error("Failed to initialize auth state from session", error);
-        await clearAuthData();
-      } finally {
-        setIsAuthLoading(false);
-      }
     }
     initializeAuth();
   }, [clearAuthData, refreshUser]);
@@ -212,15 +164,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, logout]);
 
   const login = async (data: any) => {
-    if (!isCsrfReady) {
-        toast({
-            variant: 'destructive',
-            title: 'Initialization Error',
-            description: 'The application is not ready. Please wait a moment and try again.',
-        });
-        return;
-    }
-
     if (lockoutUntil && Date.now() < lockoutUntil) {
         const timeLeft = Math.ceil((lockoutUntil - Date.now()) / 1000);
         toast({
@@ -231,21 +174,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
     }
 
-    setIsAuthLoading(true);
+    setIsLoading(true);
     try {
-      await ensureCsrfToken(); // Ensure token exists before login attempt
-      
-      const requestData = {
+      const response = await api.post('/api/auth/login', {
         phoneNumber: data.phoneNumber,
         password: data.password,
-      };
-      const response = await api.post('/api/auth/login', requestData);
+      });
 
-      if (response.data && response.data.isSuccess) {
-        const userData = await getUserByPhoneNumber(data.phoneNumber);
-        if (!userData) {
-          throw new Error('Failed to retrieve user data after login.');
-        }
+      if (response.data && response.data.user) {
+        const userData: UserWithRole = response.data.user;
 
         if (userData.status === 'INACTIVE' && userData.passwordChangeRequired) {
             throw new Error('Your account is pending approval. Please contact an administrator.');
@@ -260,65 +197,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('failedLoginAttempts');
         localStorage.removeItem('lockoutUntil');
 
-        const { accessToken, refreshToken, AccessToken, RefreshToken } = response.data;
-        const resolvedAccessToken = accessToken || AccessToken;
-        const resolvedRefreshToken = refreshToken || RefreshToken;
-
-        if (resolvedAccessToken) {
-          const newTokens = { 
-              accessToken: resolvedAccessToken, 
-              refreshToken: resolvedRefreshToken,
-              phoneNumber: data.phoneNumber,
-          };
-          
-          await api.post('/api/auth/session', newTokens);
-          
-          setTokens({ accessToken: newTokens.accessToken, refreshToken: newTokens.refreshToken });
-          setAuthToken(resolvedAccessToken);
-          
-          setUser(userData);
-          localStorage.setItem('authUser', JSON.stringify(userData));
-          
-          toast({
-            title: 'Login Successful',
-            description: 'Redirecting...',
-          });
-          
-          if (userData.passwordChangeRequired) {
-              router.push('/profile');
-          } else {
-              switch(userData.role?.name) {
-                  case 'Admin':
-                  default:
-                      router.push('/dashboard');
-                      break;
-              }
-          }
-          router.refresh();
+        setUser(userData);
+        localStorage.setItem('authUser', JSON.stringify(userData));
+        
+        toast({
+          title: 'Login Successful',
+          description: 'Redirecting...',
+        });
+        
+        if (userData.passwordChangeRequired) {
+            router.push('/profile');
         } else {
-          throw new Error('Login failed: Authentication tokens were not provided in the response.');
+            router.push('/dashboard');
         }
+        router.refresh();
 
       } else {
-        const currentFailed = failedAttempts + 1;
-        setFailedAttempts(currentFailed);
-        localStorage.setItem('failedLoginAttempts', currentFailed.toString());
-
-        if (currentFailed >= MAX_LOGIN_ATTEMPTS) {
-            const newLockoutUntil = Date.now() + LOCKOUT_DURATION;
-            setLockoutUntil(newLockoutUntil);
-            setFailedAttempts(0);
-            localStorage.setItem('lockoutUntil', newLockoutUntil.toString());
-            localStorage.removeItem('failedLoginAttempts');
-            toast({
-                variant: 'destructive',
-                title: 'Login Locked',
-                description: `Too many failed attempts. Please try again in ${LOCKOUT_DURATION / 1000} seconds.`,
-            });
-        } else {
-            const errorMessage = response.data.errors?.join(', ') || 'Login failed. Please check your credentials.';
-            throw new Error(errorMessage);
-        }
+        throw new Error('Login failed: Invalid response from server.');
       }
     } catch (error: any) {
       const currentFailed = failedAttempts + 1;
@@ -337,7 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               description: `Too many failed attempts. Please try again in ${LOCKOUT_DURATION / 1000} seconds.`,
           });
       } else {
-          const errorMessage = error.response?.data?.errors?.join(', ') || error.message || 'An error occurred during login.';
+          const errorMessage = error.response?.data?.message || error.message || 'An error occurred during login.';
           toast({
             variant: 'destructive',
             title: 'Login Failed',
@@ -346,7 +241,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error('Login error:', error);
       }
     } finally {
-        setIsAuthLoading(false);
+        setIsLoading(false);
     }
   };
   
@@ -357,7 +252,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user.role.name === 'Admin') return true;
     
     try {
-      // Handle both JSON array and comma-separated formats for backward compatibility
       let userPermissions: string[];
       if (user.role.permissions.startsWith('[')) {
         userPermissions = JSON.parse(user.role.permissions);
@@ -375,7 +269,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = !isLoading && !!user;
 
   return (
-    <AuthContext.Provider value={{ tokens, user, isAuthenticated, isLoading, hasPermission, login, logout, refreshUser: () => refreshUser() }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, hasPermission, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

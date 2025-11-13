@@ -28,7 +28,7 @@ import api from '@/lib/api';
 const registerFormSchema = z.object({
   firstName: z.string().min(1, { message: 'First name is required.' }),
   lastName: z.string().min(1, { message: 'Last name is required.' }),
-  phoneNumber: z.string().min(1, { message: 'Phone number is required.' }),
+  phoneNumber: z.string().min(10, { message: 'Phone number must be at least 10 digits.' }),
   email: z.string().email({ message: 'Invalid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
 });
@@ -54,33 +54,19 @@ export default function RegisterPage() {
   async function onSubmit(data: RegisterFormValues) {
     setIsLoading(true);
     try {
-      const response = await api.post(`/api/auth/register`, data);
+      await api.post(`/api/auth/register`, data);
 
-      if (response.data.isSuccess) {
-        toast({
-          title: 'Registration Successful!',
-          description: 'You can now log in with your credentials.',
-        });
-        router.push('/login');
-      } else {
-         throw new Error(response.data.errors?.join(', ') || 'Registration failed');
-      }
+      toast({
+        title: 'Registration Submitted!',
+        description: 'Your account is pending approval by an administrator.',
+      });
+      router.push('/login');
+      
     } catch (error: any) {
-      let errorMessage = 'An unknown error occurred during registration.';
-      const rawError = error.response?.data?.errors?.[0] || error.message || '';
-
-      if (typeof rawError === 'string') {
-        if (rawError.toLowerCase().includes('phone number is already registered')) {
-          errorMessage = 'This phone number is already registered.';
-        } else if (rawError.toLowerCase().includes('email is already registered')) {
-          errorMessage = 'This email address is already registered.';
-        }
-      }
-
-       toast({
+      toast({
         variant: 'destructive',
         title: 'Registration Failed',
-        description: errorMessage,
+        description: error.response?.data?.message || 'An unknown error occurred during registration.',
       });
       console.error("Registration error:", error);
     } finally {

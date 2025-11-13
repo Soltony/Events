@@ -1,57 +1,43 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
-import { decryptSessionPayload } from '@/lib/sessionCrypto';
+import jwt from 'jsonwebtoken';
+import type { Role, User } from '@prisma/client';
 
-interface UserWithRole {
-  id: string;
-  firstName: string;
-  lastName: string;
-  phoneNumber: string;
-  role: {
-    id: string;
-    name: string;
-    permissions: string;
-  };
+const JWT_SECRET = process.env.JWT_SECRET;
+
+interface UserWithRole extends User {
+  role: Role;
 }
 
-async function decryptSessionCookie(): Promise<string | null> {
-  try {
-    const cookieStore = await cookies();
-    const tokenCookie = cookieStore.get('auth');
-    if (!tokenCookie) return null;
-    return await decryptSessionPayload(tokenCookie.value);
-  } catch (error) {
-    console.error('Failed to decrypt session cookie:', error);
-    return null;
-  }
+export async function getCurrentUserFromCookie(): Promise<UserWithRole | null> {
+    if (!JWT_SECRET) {
+      console.error('JWT_SECRET environment variable is not set.');
+      return null;
+    }
+
+    const token = cookies().get('auth_token')?.value;
+    if (!token) {
+        return null;
+    }
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+
+        const user = await prisma.user.findUnique({
+            where: { id: decoded.userId },
+            include: { role: true },
+        });
+
+        return user as UserWithRole | null;
+
+    } catch (error) {
+        console.error('Error verifying token or fetching user in middleware:', error);
+        return null;
+    }
 }
 
-export async function getCurrentUser(): Promise<UserWithRole | null> {
-  try {
-    const decryptedSession = await decryptSessionCookie();
-    if (!decryptedSession) return null;
-    
-    const { accessToken } = JSON.parse(decryptedSession);
-    if (!accessToken) return null;
-    
-    // Verify token and get user from database
-    const user = await prisma.user.findFirst({
-      where: { 
-        // You might want to add token validation here
-        // For now, we'll assume the token is valid if it exists
-      },
-      include: {
-        role: true
-      }
-    });
-    
-    return user as UserWithRole | null;
-  } catch (error) {
-    console.error('Failed to get current user:', error);
-    return null;
-  }
-}
 
 export function hasPermission(user: UserWithRole | null, permission: string): boolean {
   if (!user || !user.role?.permissions) {
@@ -61,7 +47,6 @@ export function hasPermission(user: UserWithRole | null, permission: string): bo
   if (user.role.name === 'Admin') return true;
   
   try {
-    // Handle both JSON array and comma-separated formats for backward compatibility
     let userPermissions: string[];
     if (user.role.permissions.startsWith('[')) {
       userPermissions = JSON.parse(user.role.permissions);
@@ -76,13 +61,14 @@ export function hasPermission(user: UserWithRole | null, permission: string): bo
   }
 }
 
+// Higher-order function for requiring authentication
 export function requireAuth(handler: (req: NextRequest, user: UserWithRole) => Promise<NextResponse>) {
-  return async (req: NextRequest) => {
-    const user = await getCurrentUser();
+  return async (req: NextRequest, ...args: any[]) => {
+    const user = await getCurrentUserFromCookie();
     
     if (!user) {
       return NextResponse.json(
-        { error: 'Unauthorized', detail: 'Authentication required' },
+        { message: 'Authentication required' },
         { status: 401 }
       );
     }
@@ -91,21 +77,25 @@ export function requireAuth(handler: (req: NextRequest, user: UserWithRole) => P
   };
 }
 
-export function requirePermission(permission: string) {
+// Higher-order function for requiring specific permissions
+export function requirePermission(permission: string | string[]) {
   return function(handler: (req: NextRequest, user: UserWithRole) => Promise<NextResponse>) {
-    return async (req: NextRequest) => {
-      const user = await getCurrentUser();
+    return async (req: NextRequest, ...args: any[]) => {
+      const user = await getCurrentUserFromCookie();
       
       if (!user) {
         return NextResponse.json(
-          { error: 'Unauthorized', detail: 'Authentication required' },
+          { message: 'Authentication required' },
           { status: 401 }
         );
       }
       
-      if (!hasPermission(user, permission)) {
+      const permissionsToCheck = Array.isArray(permission) ? permission : [permission];
+      const hasRequiredPermission = permissionsToCheck.some(p => hasPermission(user, p));
+
+      if (!hasRequiredPermission) {
         return NextResponse.json(
-          { error: 'Forbidden', detail: 'Insufficient permissions' },
+          { message: 'Insufficient permissions' },
           { status: 403 }
         );
       }
