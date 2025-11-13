@@ -11,6 +11,7 @@ import prisma from '@/lib/prisma';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    console.log('[NIB INITIATE] Received body:', body);
     const { total, transactionId: pendingOrderTransactionId } = body;
 
     if (!total || !pendingOrderTransactionId) {
@@ -21,24 +22,29 @@ export async function POST(req: NextRequest) {
     }
 
     // --- Fetch auth token from secure session cookie ---
+    console.log('[NIB INITIATE] Attempting to retrieve session cookie...');
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get('auth');
     if (!sessionCookie?.value) {
+      console.error('[NIB INITIATE] Error: User session cookie not found.');
       return NextResponse.json(
         { error: 'Unauthorized', detail: 'User session not found.' },
         { status: 401 }
       );
     }
 
+    console.log('[NIB INITIATE] Session cookie found. Decrypting...');
     const decryptedSession = await decryptSessionPayload(sessionCookie.value);
     const { accessToken: authToken } = JSON.parse(decryptedSession);
 
     if (!authToken) {
+      console.error('[NIB INITIATE] Error: Auth token is missing from session after decryption.');
       return NextResponse.json(
         { error: 'Unauthorized', detail: 'Auth token is missing from session.' },
         { status: 401 }
       );
     }
+    console.log('[NIB INITIATE] Auth token successfully extracted from session.');
 
     const ACCOUNT_NO = process.env.NIB_ACCOUNT_NO;
     const COMPANY_NAME = process.env.NIB_COMPANY_NAME;
@@ -46,7 +52,17 @@ export async function POST(req: NextRequest) {
     const NIB_PAYMENT_URL = process.env.NIB_PAYMENT_URL;
     const APP_URL = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL;
 
+    console.log('[NIB INITIATE] Environment Variables:', {
+        ACCOUNT_NO,
+        COMPANY_NAME,
+        NIB_PAYMENT_KEY_EXISTS: !!NIB_PAYMENT_KEY,
+        NIB_PAYMENT_URL,
+        APP_URL
+    });
+
+
     if (!ACCOUNT_NO || !COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL || !APP_URL) {
+      console.error('[NIB INITIATE] Error: One or more required payment gateway environment variables are missing.');
       return NextResponse.json(
         { error: 'Payment gateway configuration is missing on the server.' },
         { status: 500 }
@@ -68,8 +84,12 @@ export async function POST(req: NextRequest) {
       `transactionId=${transactionId}`,
       `transactionTime=${transactionTime}`
     ].join('&');
+    console.log('[NIB INITIATE] String for signature generation:', signatureString);
+
 
     const signature = crypto.createHash('sha256').update(signatureString, 'utf8').digest('hex');
+    console.log('[NIB INITIATE] Generated Signature:', signature);
+
 
     const payload = {
       accountNo: ACCOUNT_NO,
@@ -81,6 +101,8 @@ export async function POST(req: NextRequest) {
       transactionTime,
       signature
     };
+    console.log('[NIB INITIATE] Payload to be sent to NIB:', payload);
+
 
     // --- Create EventPayment record in the database ---
     const pendingOrder = await prisma.pendingOrder.findUnique({
@@ -89,6 +111,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!pendingOrder) {
+      console.error(`[NIB INITIATE] Error: Pending order with transaction ID ${pendingOrderTransactionId} not found.`);
       return NextResponse.json(
         { error: 'Pending order not found.' },
         { status: 404 }
@@ -107,27 +130,41 @@ export async function POST(req: NextRequest) {
       }
     });
 
+    console.log(`[NIB INITIATE] Created EventPayment record with ID: ${eventPayment.id}`);
+
+
     // --- Call NIB API ---
+    const apiHeaders = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${authToken}`
+    };
+    console.log('[NIB INITIATE] Calling NIB API at:', NIB_PAYMENT_URL);
+    console.log('[NIB INITIATE] Headers being sent to NIB:', apiHeaders);
+
     const response = await fetch(NIB_PAYMENT_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      },
+      headers: apiHeaders,
       body: JSON.stringify(payload),
     });
+
+    console.log(`[NIB INITIATE] NIB API Response Status: ${response.status}`);
+
 
     if (!response.ok) {
       let errorText = `Failed to get payment token from gateway. Status: ${response.status}`;
       try {
         const errorBody = await response.json();
+        console.error('[NIB INITIATE] NIB API Error Body:', errorBody);
         errorText = errorBody.detail || errorBody.error || errorText;
       } catch {}
       return NextResponse.json({ error: errorText, status: response.status }, { status: response.status });
     }
 
     const responseText = await response.text();
+    console.log('[NIB INITIATE] NIB API Response Body:', responseText);
+
     if (!responseText) {
+       console.error('[NIB INITIATE] Error: Received empty response from payment gateway.');
       return NextResponse.json(
         { error: "Received empty response from payment gateway.", status: 502 },
         { status: 502 }
@@ -137,11 +174,14 @@ export async function POST(req: NextRequest) {
     const responseData = JSON.parse(responseText);
 
     if (!responseData.token) {
+       console.error('[NIB INITIATE] Error: Payment gateway did not return a valid payment token in response.');
       return NextResponse.json(
         { error: "Payment gateway did not return a valid payment token.", status: 502 },
         { status: 502 }
       );
     }
+     console.log('[NIB INITIATE] Successfully received payment token from NIB.');
+
 
     // Optionally update sessionId if NIB provides one
     await prisma.eventPayment.update({
@@ -156,7 +196,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Payment initiation error:', error);
+    console.error('[NIB INITIATE] Unexpected error in handler:', error);
     return NextResponse.json(
       { error: error.message || 'Unexpected error during payment initiation.' },
       { status: 500 }
