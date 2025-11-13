@@ -29,14 +29,19 @@ async function proxyRequest(req: NextRequest, { params }: { params: { path: stri
 
   try {
     let body = null;
+    // For methods that can have a body, try to parse it.
+    // This is safer than assuming a body always exists.
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       try {
         const textBody = await req.text();
-        if (textBody) {
+        if (textBody) { // Only parse if the body is not empty
           body = JSON.parse(textBody);
         }
       } catch (e) {
-        console.warn("Could not parse request body:", e);
+        // If parsing fails but the body isn't empty, it's a malformed request.
+        console.warn("Could not parse request body as JSON:", e);
+        // You might want to return a 400 Bad Request error here depending on your API's contract.
+        // For now, we'll proceed with a null body.
       }
     }
 
@@ -45,7 +50,7 @@ async function proxyRequest(req: NextRequest, { params }: { params: { path: stri
       url: targetUrl,
       data: body,
       headers,
-      validateStatus: () => true,
+      validateStatus: () => true, // Let us handle all status codes
     });
     
     let responseBody = response.data;
@@ -61,7 +66,7 @@ async function proxyRequest(req: NextRequest, { params }: { params: { path: stri
     });
   } catch (error: any) {
     console.error(`API Proxy Error for ${targetUrl}:`, error.message);
-    const status = error.response?.status || 502;
+    const status = error.response?.status || 502; // 502 Bad Gateway is more appropriate for proxy failures
     const errorMessage = error.response?.data?.errors?.join(', ') || 'Proxy request failed.';
     
     return new NextResponse(
