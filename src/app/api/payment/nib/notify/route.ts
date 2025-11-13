@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { headers } from 'next/headers';
@@ -12,8 +11,9 @@ export async function POST(request: NextRequest) {
   let requestBody;
   try {
     requestBody = await request.json();
+    console.log('[NIB NOTIFY] Received callback with body:', JSON.stringify(requestBody, null, 2));
   } catch (e) {
-    console.error("Callback Error: Invalid JSON in request body.", e);
+    console.error("[NIB NOTIFY] Callback Error: Invalid JSON in request body.", e);
     return NextResponse.json({ message: "Invalid JSON" }, { status: 400 });
   }
 
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   console.log('[NIB NOTIFY] Received Authorization Header:', authHeader);
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.error("Authorization header is missing or malformed.");
+    console.error("[NIB NOTIFY] Authorization header is missing or malformed.");
     return NextResponse.json({ message: 'Authorization header is required.' }, { status: 401 });
   }
 
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
   } = requestBody;
 
   if (tokenFromHeader !== tokenFromBody) {
-    console.error("Token mismatch between header and body.");
+    console.error("[NIB NOTIFY] Token mismatch between header and body.");
     return NextResponse.json({ message: "Token validation failed." }, { status: 401 });
   }
 
@@ -48,12 +48,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (!eventPayment || !eventPayment.pendingOrder) {
-      console.error(`Order not found for NIB transaction reference: ${txnRef}`);
+      console.error(`[NIB NOTIFY] Order not found for NIB transaction reference: ${txnRef}`);
       return NextResponse.json({ message: 'Order not found, but acknowledged.' }, { status: 200 });
     }
 
     if (eventPayment.status === 'COMPLETED' || eventPayment.pendingOrder.status === 'COMPLETED') {
-      console.log(`Order for transaction ${txnRef} already handled.`);
+      console.log(`[NIB NOTIFY] Order for transaction ${txnRef} already handled.`);
       return NextResponse.json({ message: 'Already handled' }, { status: 200 });
     }
 
@@ -61,9 +61,12 @@ export async function POST(request: NextRequest) {
     const createdAttendees = await prisma.$transaction(async (tx) => {
       // 1. Get attendee data from pending order
       const attendeeData = eventPayment.pendingOrder.attendeeData as { name: string, phoneNumber: string, userId?: string, tickets: any[] };
+      if (!attendeeData || typeof attendeeData !== 'object') {
+          throw new Error('attendeeData in PendingOrder is malformed or missing.');
+      }
       const { name, phoneNumber, userId, tickets } = attendeeData;
 
-      if (!tickets || tickets.length === 0) {
+      if (!tickets || !Array.isArray(tickets) || tickets.length === 0) {
         throw new Error('No ticket information found in pending order.');
       }
       
@@ -153,12 +156,26 @@ export async function POST(request: NextRequest) {
     revalidatePath('/tickets');
     revalidatePath(`/payment/success?transaction_id=${eventPayment.pendingOrder.transactionId}`);
 
-    console.log(`Successfully processed payment for transaction ${txnRef}.`);
+    console.log(`[NIB NOTIFY] Successfully processed payment for transaction ${txnRef}.`);
 
     return NextResponse.json({ message: 'Payment confirmed and updated.', attendees: createdAttendees }, { status: 200 });
 
   } catch (error: any) {
-    console.error('Webhook processing error:', error);
+    console.error('[NIB NOTIFY] Webhook processing error:', error);
+    // Optionally update the order to FAILED status
+    if (txnRef) {
+        try {
+            const payment = await prisma.eventPayment.findFirst({ where: { transactionId: txnRef }});
+            if (payment) {
+                await prisma.pendingOrder.update({
+                    where: { id: payment.pendingOrderId },
+                    data: { status: 'FAILED' }
+                });
+            }
+        } catch(e) {
+            console.error(`[NIB NOTIFY] Failed to mark order as FAILED for txnRef ${txnRef}`, e);
+        }
+    }
     return NextResponse.json({ message: 'Internal server error processing webhook.', detail: error.message }, { status: 500 });
   }
 }
