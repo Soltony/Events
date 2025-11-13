@@ -144,33 +144,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await ensureCsrfToken();
         setIsCsrfReady(true);
       } catch {
-        // If CSRF token fetching fails, we're in a bad state.
-        // You might want to show a global error message here.
         setIsCsrfReady(false);
         setIsAuthLoading(false);
         return;
       }
       
       try {
-        const sessionResponse = await fetch('/api/auth/session', { credentials: 'include' });
-
-        if (sessionResponse.ok) {
-            const sessionData = await sessionResponse.json();
-            if (sessionData.accessToken && sessionData.phoneNumber) {
-                const newTokens = { accessToken: sessionData.accessToken, refreshToken: sessionData.refreshToken || '' };
-                setTokens(newTokens);
-                setAuthToken(newTokens.accessToken); // Set token for API calls
-                
-                await refreshUser(sessionData.phoneNumber);
-
+        const sessionResponse = await api.get('/api/auth/session');
+        
+        if (sessionResponse.data?.accessToken && sessionResponse.data?.phoneNumber) {
+            const { accessToken, refreshToken, phoneNumber } = sessionResponse.data;
+            const newTokens = { accessToken, refreshToken: refreshToken || '' };
+            setTokens(newTokens);
+            setAuthToken(accessToken);
+            
+            // For full users, refresh their data from our DB
+            const potentialUser = await getUserByPhoneNumber(phoneNumber);
+            if (potentialUser) {
+                setUser(potentialUser);
+                localStorage.setItem('authUser', JSON.stringify(potentialUser));
             } else {
-                 await clearAuthData();
+                // This is likely a SuperApp guest user. No user record in our DB.
+                setUser(null);
+                localStorage.removeItem('authUser');
             }
         } else {
-            await clearAuthData();
+             await clearAuthData();
         }
       } catch (error) {
-        console.error("Failed to initialize auth state", error);
+        console.error("Failed to initialize auth state from session", error);
         await clearAuthData();
       } finally {
         setIsAuthLoading(false);
@@ -269,14 +271,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               phoneNumber: data.phoneNumber,
           };
           
-          await fetch('/api/auth/session', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(newTokens),
-            credentials: 'include'
-          });
+          await api.post('/api/auth/session', newTokens);
           
           setTokens({ accessToken: newTokens.accessToken, refreshToken: newTokens.refreshToken });
           setAuthToken(resolvedAccessToken);

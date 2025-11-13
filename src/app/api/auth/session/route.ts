@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { encryptSessionPayload, decryptSessionPayload } from '@/lib/sessionCrypto';
+import api from '@/lib/api';
 
 export async function POST(req: NextRequest) {
   if (req.method !== 'POST') {
