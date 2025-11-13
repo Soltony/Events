@@ -1,4 +1,3 @@
-
 'use server';
 
 import { headers } from 'next/headers';
@@ -31,10 +30,15 @@ export async function POST(request: NextRequest) {
 
   const {
     paidAmount,
-    txnRef,
-    transactionId,
+    txnRef, // This is our original transactionId
+    transactionId, // This is NIB's transactionId
     token: tokenFromBody,
   } = requestBody;
+  
+  if (!txnRef) {
+      console.error("[NIB NOTIFY] 'txnRef' is missing from the callback body.");
+      return NextResponse.json({ message: "Transaction reference (txnRef) is required." }, { status: 400 });
+  }
 
   if (tokenFromHeader !== tokenFromBody) {
     console.error("[NIB NOTIFY] Token mismatch between header and body.");
@@ -43,12 +47,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const eventPayment = await prisma.eventPayment.findFirst({
-      where: { transactionId: txnRef },
+      where: { transactionId: txnRef }, // Use txnRef to find our internal record
       include: { pendingOrder: true }
     });
 
     if (!eventPayment || !eventPayment.pendingOrder) {
-      console.error(`[NIB NOTIFY] Order not found for NIB transaction reference: ${txnRef}`);
+      console.error(`[NIB NOTIFY] Order not found for NIB transaction reference (txnRef): ${txnRef}`);
       return NextResponse.json({ message: 'Order not found, but acknowledged.' }, { status: 200 });
     }
 
@@ -62,11 +66,13 @@ export async function POST(request: NextRequest) {
       // 1. Get attendee data from pending order
       const attendeeData = eventPayment.pendingOrder.attendeeData as { name: string, phoneNumber: string, userId?: string, tickets: any[] };
       if (!attendeeData || typeof attendeeData !== 'object') {
+          console.error('[NIB NOTIFY] Transaction Error: attendeeData in PendingOrder is malformed or missing.');
           throw new Error('attendeeData in PendingOrder is malformed or missing.');
       }
       const { name, phoneNumber, userId, tickets } = attendeeData;
 
       if (!tickets || !Array.isArray(tickets) || tickets.length === 0) {
+        console.error('[NIB NOTIFY] Transaction Error: No ticket information found in pending order.');
         throw new Error('No ticket information found in pending order.');
       }
       
@@ -79,9 +85,11 @@ export async function POST(request: NextRequest) {
 
         const ticketType = await tx.ticketType.findUnique({ where: { id: ticketTypeId } });
         if (!ticketType) {
+          console.error(`[NIB NOTIFY] Transaction Error: Ticket type with ID ${ticketTypeId} not found.`);
           throw new Error(`Ticket type with ID ${ticketTypeId} not found.`);
         }
         if ((ticketType.total - ticketType.sold) < quantity) {
+           console.error(`[NIB NOTIFY] Transaction Error: Not enough tickets available for "${ticketType.name}".`);
           throw new Error(`Not enough tickets available for "${ticketType.name}".`);
         }
 
