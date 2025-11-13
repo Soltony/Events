@@ -152,7 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       try {
-        const sessionResponse = await fetch('/api/auth/session');
+        const sessionResponse = await fetch('/api/auth/session', { credentials: 'include' });
 
         if (sessionResponse.ok) {
             const sessionData = await sessionResponse.json();
