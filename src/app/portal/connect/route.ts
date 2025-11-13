@@ -95,8 +95,11 @@ export async function GET(request: NextRequest) {
 
     const encrypted = await encryptSessionPayload(JSON.stringify(sessionPayload));
 
-    const cookieStore = await cookies();
-    cookieStore.set('auth', encrypted, {
+    // Create a response object to set the cookie on
+    const response = NextResponse.redirect(new URL('/', request.url));
+
+    // Set the cookie on the response object
+    response.cookies.set('auth', encrypted, {
       httpOnly: true,
       secure: process.env.NODE_ENV !== 'development',
       sameSite: 'strict',
@@ -104,8 +107,8 @@ export async function GET(request: NextRequest) {
       maxAge: 60 * 60 * 24, // 1 day
     });
 
-    // Redirect to the homepage after setting the cookie
-    redirect('/');
+    // Return the response with the cookie
+    return response;
 
   } catch (error: any) {
     // This is a special Next.js error type used for redirects.
