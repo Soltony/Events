@@ -20,6 +20,8 @@ export async function POST(request: NextRequest) {
   const headerList = await headers();
   const authHeader = headerList.get('Authorization');
 
+  console.log('[NIB NOTIFY] Received Authorization Header:', authHeader);
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     console.error("Authorization header is missing or malformed.");
     return NextResponse.json({ message: 'Authorization header is required.' }, { status: 401 });
