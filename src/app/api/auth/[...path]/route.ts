@@ -5,8 +5,7 @@ import type { RouteContext } from 'next/dist/server/future/route-modules/app-rou
 
 const AUTH_API_BASE_URL = process.env.AUTH_API_BASE_URL || 'http://localhost:5160';
 
-async function proxyRequest(req: NextRequest, context: RouteContext) {
-  const path = context.params.path || [];
+async function proxyRequest(req: NextRequest, path: string[]) {
   if (!AUTH_API_BASE_URL) {
     console.error('AUTH_API_BASE_URL is not set.');
     return new NextResponse(
@@ -71,17 +70,21 @@ async function proxyRequest(req: NextRequest, context: RouteContext) {
 }
 
 export async function GET(req: NextRequest, context: RouteContext) {
-  return proxyRequest(req, context);
+  const path = context.params.path || [];
+  return proxyRequest(req, path);
 }
 
 export async function POST(req: NextRequest, context: RouteContext) {
-  return proxyRequest(req, context);
+  const path = context.params.path || [];
+  return proxyRequest(req, path);
 }
 
 export async function PUT(req: NextRequest, context: RouteContext) {
-  return proxyRequest(req, context);
+  const path = context.params.path || [];
+  return proxyRequest(req, path);
 }
 
 export async function DELETE(req: NextRequest, context: RouteContext) {
-  return proxyRequest(req, context);
+  const path = context.params.path || [];
+  return proxyRequest(req, path);
 }
