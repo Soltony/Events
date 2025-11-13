@@ -25,7 +25,10 @@ api.interceptors.request.use(config => {
   if (method === 'POST' || method === 'PUT' || method === 'DELETE' || method === 'PATCH') {
     const csrfToken = Cookies.get('csrf_token'); // Read the client-readable CSRF token
     if (csrfToken) {
+      console.log('[API Interceptor] Attaching CSRF Token to header:', csrfToken);
       config.headers['X-CSRF-Token'] = csrfToken;
+    } else {
+      console.warn('[API Interceptor] CSRF token cookie not found.');
     }
   }
   return config;

@@ -39,11 +39,15 @@ const LOCKOUT_DURATION = 30 * 1000; // 30 seconds
 export async function ensureCsrfToken() {
   if (!Cookies.get('csrf_token') || !Cookies.get('csrf_secret')) {
     try {
+      console.log('[ensureCsrfToken] CSRF tokens not found, fetching new ones...');
       await api.get('/api/csrf-token');
+      console.log('[ensureCsrfToken] Successfully fetched new CSRF tokens.');
     } catch (error) {
-      console.error('Failed to obtain CSRF token:', error);
+      console.error('[ensureCsrfToken] Failed to obtain CSRF token:', error);
       throw error; // Re-throw to be caught by the caller
     }
+  } else {
+      console.log('[ensureCsrfToken] CSRF tokens already exist.');
   }
 }
 

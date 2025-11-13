@@ -24,9 +24,15 @@ export async function middleware(req: NextRequest) {
     const csrfTokenFromHeader = req.headers.get(CSRF_HEADER_NAME);
     const csrfSecretFromCookie = req.cookies.get(CSRF_COOKIE_NAME_SECRET)?.value;
 
+    console.log('[Middleware] CSRF Check for:', req.method, req.nextUrl.pathname);
+    console.log('[Middleware] Token from Header (X-CSRF-Token):', csrfTokenFromHeader);
+    console.log('[Middleware] Secret from Cookie (csrf_secret):', csrfSecretFromCookie);
+
     if (!csrfTokenFromHeader || !csrfSecretFromCookie || csrfTokenFromHeader !== csrfSecretFromCookie) {
-        console.warn(`CSRF validation failed for ${req.method} ${req.nextUrl.pathname}`);
+        console.error(`CSRF validation failed for ${req.method} ${req.nextUrl.pathname}. Header and Cookie do not match.`);
         return new NextResponse(JSON.stringify({ error: 'CSRF token mismatch or missing' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+    } else {
+        console.log('[Middleware] CSRF validation successful.');
     }
   }
   
