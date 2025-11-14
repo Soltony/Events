@@ -10,7 +10,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' blob: data: https://placehold.co https://storage.googleapis.com https://picsum.photos",
   "font-src 'self' data:",
-  "connect-src 'self' blob: data:",
+  "connect-src 'self' blob: data: https://nominatim.openstreetmap.org",
   "media-src 'self' blob: data:",
   "frame-ancestors 'none'",
   "base-uri 'self'",
