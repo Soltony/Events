@@ -6,7 +6,9 @@ const path = require('path');
 // ✅ Updated Content Security Policy
 const csp = [
   "default-src 'self'",
+  // Allow inline scripts, eval for specific libraries, and data blobs
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:",
+  // Allow inline styles for component libraries like ShadCN
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' blob: data: https://placehold.co https://storage.googleapis.com https://picsum.photos",
   "font-src 'self' data:",
@@ -16,7 +18,7 @@ const csp = [
   "base-uri 'self'",
 ].join('; ');
 
-// ✅ Updated security headers
+// ✅ Updated security headers, now the single source of truth
 const securityHeaders = [
   {
     key: 'Strict-Transport-Security',
@@ -34,10 +36,9 @@ const securityHeaders = [
     key: 'Referrer-Policy',
     value: 'origin-when-cross-origin',
   },
-  // ✅ Updated Permissions-Policy
   {
     key: 'Permissions-Policy',
-    value: "camera=(self), microphone=(), geolocation=(), payment=()",
+    value: "camera=(), microphone=(), geolocation=(), payment=()",
   },
   {
     key: 'Content-Security-Policy',
@@ -61,7 +62,6 @@ const nextConfig = {
       },
     ];
   },
-  // ✅ Add allowed image domains
   images: {
     remotePatterns: [
       {
