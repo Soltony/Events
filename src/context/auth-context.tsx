@@ -55,7 +55,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const clearAuthData = useCallback(async () => {
     setUser(null);
-    api.defaults.headers.common['Authorization'] = '';
     localStorage.removeItem('authUser');
     try {
         await api.post('/api/auth/logout');
@@ -90,13 +89,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(data.user);
             localStorage.setItem('authUser', JSON.stringify(data.user));
         } else {
-             await logout({ reason: 'Your session could not be verified. Please log in again.' });
+            // If server returns no user, clear state but don't call logout
+            setUser(null);
+            localStorage.removeItem('authUser');
         }
     } catch (error) {
-        console.error("Failed to refresh user data", error);
-        await logout({ reason: 'Could not verify your session. Please log in again.' });
+        // On 401 or other error, just clear the user state.
+        // The AuthGuard will handle the redirect.
+        setUser(null);
+        localStorage.removeItem('authUser');
     }
-  }, [logout]);
+  }, []);
 
 
   useEffect(() => {
@@ -105,13 +108,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             await refreshUser();
         } catch (error) {
-            await clearAuthData();
+            // Even if refreshUser itself throws (unlikely now), clear auth.
+            setUser(null);
+            localStorage.removeItem('authUser');
         } finally {
             setIsLoading(false);
         }
     }
     initializeAuth();
-  }, [clearAuthData, refreshUser]);
+  }, [refreshUser]);
 
 
   useEffect(() => {
