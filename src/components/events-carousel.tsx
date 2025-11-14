@@ -21,7 +21,7 @@ interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
 }
 
-const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
+const DEFAULT_IMAGE_PLACEHOLDER = '/images/nibtickets.jpg';
 
 export default function EventsCarousel({ events }: { events: EventWithTickets[] }) {
   const [api, setApi] = useState<EmblaCarouselType | undefined>();

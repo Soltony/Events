@@ -11,7 +11,9 @@ import React from 'react';
 export const metadata: Metadata = {
   title: 'NibTera Tickets',
   description: 'The ultimate solution for event ticketing.',
-  icons: null,
+  icons: {
+    icon: '/images/favicon.ico',
+  },
 };
  
 export default async function RootLayout({

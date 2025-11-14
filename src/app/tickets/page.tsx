@@ -36,7 +36,7 @@ interface Attendee {
   ticketType: TicketType;
 }
 
-const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
+const DEFAULT_IMAGE_PLACEHOLDER = '/images/nibtickets.jpg';
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
   const startDateFormat = 'LLL dd, y, hh:mm a';

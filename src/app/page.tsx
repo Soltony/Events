@@ -36,7 +36,7 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     return `Date: ${format(new Date(startDate), startDateFormat)}`;
 }
 
-const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
+const DEFAULT_IMAGE_PLACEHOLDER = '/images/nibtickets.jpg';
 
 const categoryIcons: { [key: string]: React.ReactNode } = {
     'All': <Ticket className="h-4 w-4" style={{ color: '#f59e0b' }} />,
@@ -203,7 +203,7 @@ export default function PublicHomePage() {
         <nav className="container mx-auto px-4 sm:px-6 py-2 flex justify-between items-center h-14">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Image
-                src="/image/nibtickets.jpg"
+                src="/images/nibtickets.jpg"
                 alt="Nibtera Tickets Logo"
                 width={120}
                 height={28}
