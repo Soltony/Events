@@ -4,7 +4,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { format } from 'date-fns';
-import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 
@@ -22,8 +21,7 @@ export async function POST(req: NextRequest) {
     }
 
     // --- Get Auth Token ---
-    const cookieStore = cookies();
-    const authToken = cookieStore.get('auth_token')?.value;
+    const authToken = req.cookies.get('auth_token')?.value;
 
     if (!authToken) {
         console.error('[NIB INITIATE] Error: Auth token could not be found in header or session cookie.');
