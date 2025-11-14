@@ -475,4 +475,3 @@ const Footer = () => (
       </div>
     </footer>
 )
-
