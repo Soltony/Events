@@ -1,53 +1,28 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
-import { getCurrentUserFromCookie, hasPermission } from '@/lib/auth-middleware';
 
 const CSRF_COOKIE_NAME_SECRET = 'csrf_secret';
 const CSRF_HEADER_NAME = 'X-CSRF-Token';
 
-const PROTECTED_ROUTES: Record<string, string | string[]> = {
-  '/dashboard': 'Dashboard:Read',
-  '/dashboard/scan': 'Scan QR:Read',
-  '/dashboard/events': 'Events:Read',
-  '/dashboard/reports': 'Reports:Read',
-  '/dashboard/settings': ['User Management:Read', 'Role Management:Read', 'Staff Management:Read'],
-};
+const PROTECTED_ROUTES = [
+  '/dashboard',
+  '/profile'
+];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const cookies = req.cookies;
 
   // --- Authentication & Authorization Checks ---
-  if (pathname.startsWith('/dashboard')) {
-      const user = await getCurrentUserFromCookie();
-
-      if (!user) {
+  const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname.startsWith(route));
+  
+  if (isProtectedRoute) {
+      const token = cookies.get('auth_token');
+      if (!token) {
           const url = req.nextUrl.clone();
           url.pathname = '/login';
           return NextResponse.redirect(url);
-      }
-
-      if (user.passwordChangeRequired && pathname !== '/profile') {
-          const url = req.nextUrl.clone();
-          url.pathname = '/profile';
-          return NextResponse.redirect(url);
-      }
-
-      const requiredPermission = Object.keys(PROTECTED_ROUTES).find(
-        (route) => pathname.startsWith(route) && route.length > 1 // Exclude '/'
-      );
-
-      if (requiredPermission) {
-        const permission = PROTECTED_ROUTES[requiredPermission];
-        const permissionsToCheck = Array.isArray(permission) ? permission : [permission];
-        
-        const userHasPermission = permissionsToCheck.some(p => hasPermission(user, p));
-
-        if (!userHasPermission) {
-           const url = req.nextUrl.clone();
-           url.pathname = '/dashboard'; // Redirect to a safe default page
-           return NextResponse.redirect(url);
-        }
       }
   }
 
