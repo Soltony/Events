@@ -55,7 +55,7 @@ export async function middleware(req: NextRequest) {
   // --- CSRF Protection ---
   if (pathname.startsWith('/api/')) {
     const isStateChangingMethod = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method);
-    const publicApiRoutes = ['/api/auth/login', '/api/auth/register', '/api/payment/nib/notify'];
+    const publicApiRoutes = ['/api/auth/login', '/api/auth/register', '/api/payment/nib/notify', '/api/auth/logout'];
     
     if (isStateChangingMethod && !publicApiRoutes.includes(pathname)) {
       const csrfTokenFromHeader = req.headers.get(CSRF_HEADER_NAME);
