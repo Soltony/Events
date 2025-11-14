@@ -50,6 +50,8 @@ const addUserFormSchema = z.object({
     .min(13, { message: "NIB Account must be between 13 and 15 digits." })
     .max(15, { message: "NIB Account must be between 13 and 15 digits." })
     .refine(val => val.startsWith('70'), { message: "NIB Account must start with 70." })
+    .optional()
+    .or(z.literal(''))
 });
 
 type AddUserFormValues = z.infer<typeof addUserFormSchema>;
@@ -203,7 +205,7 @@ export default function UserRegistrationPage() {
                         <FormField control={addUserForm.control} name="nibBankAccount" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>
-                                    NIB Account
+                                    NIB Account <span className="text-muted-foreground">(Optional)</span>
                                 </FormLabel>
                                 <FormControl><Input placeholder="700***********" {...field} /></FormControl>
                                 <FormMessage />

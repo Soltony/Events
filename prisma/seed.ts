@@ -2,6 +2,7 @@
 import { PrismaClient } from '@prisma/client'
 import { addDays } from 'date-fns';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient()
 
@@ -53,21 +54,28 @@ async function main() {
   
   console.log(`Created/updated roles: ${adminRole.name}, ${staffRole.name}`);
 
-  // Create Users
+  // Create Admin User with a hashed password
+  const adminPassword = 'admin123';
+  const hashedPassword = await bcrypt.hash(adminPassword, 10);
+  
   const adminUser = await prisma.user.upsert({
     where: { phoneNumber: '0912345678' },
     update: {},
     create: {
-      id: '6700eb96-ac20-40f3-81b7-0f16bbbc0f6c', // Placeholder ID for seed user
+      id: '6700eb96-ac20-40f3-81b7-0f16bbbc0f6c',
       firstName: 'Admin',
       lastName: 'User',
       phoneNumber: '0912345678',
+      email: 'admin@example.com',
+      password: hashedPassword,
       roleId: adminRole.id,
-      nibBankAccount: '7000000000000'
+      nibBankAccount: '7000000000000',
+      status: 'ACTIVE',
+      passwordChangeRequired: false,
     },
   });
 
-  console.log('Admin user created or updated.');
+  console.log('Admin user created or updated with a hashed password.');
 
   // This section will only run in non-production environments to prevent accidental data loss.
   if (process.env.NODE_ENV !== 'production') {
