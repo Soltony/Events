@@ -80,7 +80,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setAuthToken(null);
     localStorage.removeItem('authUser');
-    await api.post('/api/auth/logout');
+    // This API call is crucial for clearing the HttpOnly cookie
+    try {
+        await api.post('/api/auth/logout');
+    } catch (error) {
+        console.error("Logout API call failed", error);
+    }
   }, []);
 
   const logout = useCallback(async (options?: { reason?: string }) => {
@@ -97,9 +102,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
     }
     
-    if (isProtectedRoute) {
-        router.push('/login');
-    }
+    // Always redirect to login after logout, regardless of current page
+    router.push('/login');
+    router.refresh();
 
   }, [router, toast, clearAuthData, pathname]);
 
