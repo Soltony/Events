@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import { sendTempPassword } from '@/lib/email';
 import { randomBytes } from 'crypto';
 import type { UserStatus } from '@prisma/client';
+import cuid from 'cuid';
 
 interface AddUserFormData {
   firstName: string;
@@ -54,6 +55,7 @@ export async function addUser(data: AddUserFormData, isStaff: boolean = false) {
 
     await prisma.user.create({
       data: {
+        id: cuid(), // Explicitly provide the ID
         firstName: data.firstName,
         lastName: data.lastName,
         phoneNumber: data.phoneNumber,
