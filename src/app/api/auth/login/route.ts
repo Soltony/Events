@@ -27,12 +27,8 @@ export async function POST(req: NextRequest) {
       include: { role: true },
     });
 
-    if (!user) {
+    if (!user || !user.password) {
       return NextResponse.json({ message: 'Invalid credentials.' }, { status: 401 });
-    }
-    
-    if (!user.password) {
-       return NextResponse.json({ message: 'Invalid credentials. Account may be set up for a different login method.' }, { status: 401 });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
