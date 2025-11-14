@@ -50,8 +50,7 @@ const VALID_PERMISSIONS = new Set([
 
 export async function getCurrentUser(): Promise<(User & { role: Role, branch: Branch | null }) | null> {
   try {
-    const cookieStore = cookies();
-    const tokenCookie = cookieStore.get('auth_token');
+    const tokenCookie = cookies().get('auth_token');
 
     if (!tokenCookie?.value) {
       return null;
