@@ -1,11 +1,10 @@
-
 {
   "name": "nextn",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev -p 9002",
-    "build": "next build && copyfiles -u 1 public/**/* .next/standalone/public",
+    "build": "next build && copyfiles public/**/* .next/standalone/public",
     "start": "node .next/standalone/server.js",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -65,7 +64,7 @@
     "react-hook-form": "^7.54.2",
     "react-leaflet": "^4.2.1",
     "recharts": "^2.15.1",
-    "sharp": "^0.34.4",
+    "sharp": "^0.34.5",
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.24.2"
