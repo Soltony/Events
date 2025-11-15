@@ -21,6 +21,9 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { UserNav } from "@/components/user-nav";
+import { useAuth } from "@/context/auth-context";
+
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
@@ -196,11 +199,12 @@ export default function PublicHomePage() {
   }, [filteredEvents]);
   
   const navbarStyle = { background: '#fefce5' };
+  const { isAuthenticated } = useAuth();
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
        <header className="fixed top-0 w-full z-50" style={navbarStyle}>
-        <nav className="container mx-auto px-4 sm:px-6 py-2 flex justify-between items-center h-14">
+        <nav className="container mx-auto px-4 sm:px-6 py-2 flex justify-between items-center h-16">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Image
                 src="/images/nibtickets.jpg"
@@ -212,8 +216,8 @@ export default function PublicHomePage() {
             />
           </Link>
           
-          <div className="hidden md:flex items-center gap-4">
-            <TooltipProvider>
+          <div className="flex items-center gap-2">
+             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button asChild variant="outline" size="icon" className="bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground rounded-full">
@@ -228,41 +232,40 @@ export default function PublicHomePage() {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <AuthStatus />
-          </div>
 
-          <div className="md:hidden flex items-center gap-2">
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="text-sm h-8 px-3">
-                        <LayoutGrid className="h-4 w-4" />
-                        <span className="sr-only">Categories</span>
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                    {categories.map((category) => (
-                        <DropdownMenuItem key={category} onSelect={() => setSelectedCategory(category)}>
-                             <div className="flex items-center gap-2">
-                                {categoryIcons[category] || <Ticket className="h-4 w-4" />}
-                                <span>{category}</span>
-                            </div>
-                        </DropdownMenuItem>
-                    ))}
-                </DropdownMenuContent>
-            </DropdownMenu>
+            {isAuthenticated ? (
+                <UserNav />
+            ) : (
+                <Button asChild>
+                    <Link href="/login">Sign In</Link>
+                </Button>
+            )}
 
-             <Button asChild variant="ghost" className="text-sm h-8 px-3">
-              <Link href="/tickets">
-                <Ticket className="h-4 w-4" />
-                <span className="sr-only">My Tickets</span>
-              </Link>
-            </Button>
-            <AuthStatus />
+            <div className="md:hidden">
+              <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="text-sm h-8 px-3">
+                          <LayoutGrid className="h-4 w-4" />
+                          <span className="sr-only">Categories</span>
+                      </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                      {categories.map((category) => (
+                          <DropdownMenuItem key={category} onSelect={() => setSelectedCategory(category)}>
+                              <div className="flex items-center gap-2">
+                                  {categoryIcons[category] || <Ticket className="h-4 w-4" />}
+                                  <span>{category}</span>
+                              </div>
+                          </DropdownMenuItem>
+                      ))}
+                  </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </nav>
       </header>
 
-      <main className="flex-grow pt-14">
+      <main className="flex-grow pt-16">
         <section className="relative w-full">
             <EventsCarousel events={upcomingEvents} />
 
@@ -475,3 +478,5 @@ const Footer = () => (
       </div>
     </footer>
 )
+
+    
