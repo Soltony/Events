@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -15,12 +16,14 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AuthStatus } from "@/components/auth-status";
 import EventsCarousel from "@/components/events-carousel";
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { UserNav } from "@/components/user-nav";
+import { useAuth } from "@/context/auth-context";
+
 
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
@@ -36,7 +39,7 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     return `Date: ${format(new Date(startDate), startDateFormat)}`;
 }
 
-const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
+const DEFAULT_IMAGE_PLACEHOLDER = '/images/nibtickets.jpg';
 
 const categoryIcons: { [key: string]: React.ReactNode } = {
     'All': <Ticket className="h-4 w-4" style={{ color: '#f59e0b' }} />,
@@ -196,14 +199,15 @@ export default function PublicHomePage() {
   }, [filteredEvents]);
   
   const navbarStyle = { background: '#fefce5' };
+  const { isAuthenticated } = useAuth();
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
        <header className="fixed top-0 w-full z-50" style={navbarStyle}>
-        <nav className="container mx-auto px-4 sm:px-6 py-2 flex justify-between items-center h-14">
+        <nav className="container mx-auto px-4 sm:px-6 py-2 flex justify-between items-center h-16">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Image
-                src="/image/nibtickets.jpg"
+                src="/images/nibtickets.jpg"
                 alt="Nibtera Tickets Logo"
                 width={120}
                 height={28}
@@ -212,8 +216,8 @@ export default function PublicHomePage() {
             />
           </Link>
           
-          <div className="hidden md:flex items-center gap-4">
-            <TooltipProvider>
+          <div className="flex items-center gap-2">
+             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button asChild variant="outline" size="icon" className="bg-accent text-accent-foreground hover:bg-accent/90 hover:text-accent-foreground rounded-full">
@@ -228,41 +232,40 @@ export default function PublicHomePage() {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <AuthStatus />
-          </div>
 
-          <div className="md:hidden flex items-center gap-2">
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="text-sm h-8 px-3">
-                        <LayoutGrid className="h-4 w-4" />
-                        <span className="sr-only">Categories</span>
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                    {categories.map((category) => (
-                        <DropdownMenuItem key={category} onSelect={() => setSelectedCategory(category)}>
-                             <div className="flex items-center gap-2">
-                                {categoryIcons[category] || <Ticket className="h-4 w-4" />}
-                                <span>{category}</span>
-                            </div>
-                        </DropdownMenuItem>
-                    ))}
-                </DropdownMenuContent>
-            </DropdownMenu>
+            {isAuthenticated ? (
+                <UserNav />
+            ) : (
+                <Button asChild>
+                    <Link href="/login">Sign In</Link>
+                </Button>
+            )}
 
-             <Button asChild variant="ghost" className="text-sm h-8 px-3">
-              <Link href="/tickets">
-                <Ticket className="h-4 w-4" />
-                <span className="sr-only">My Tickets</span>
-              </Link>
-            </Button>
-            <AuthStatus />
+            <div className="md:hidden">
+              <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="text-sm h-8 px-3">
+                          <LayoutGrid className="h-4 w-4" />
+                          <span className="sr-only">Categories</span>
+                      </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                      {categories.map((category) => (
+                          <DropdownMenuItem key={category} onSelect={() => setSelectedCategory(category)}>
+                              <div className="flex items-center gap-2">
+                                  {categoryIcons[category] || <Ticket className="h-4 w-4" />}
+                                  <span>{category}</span>
+                              </div>
+                          </DropdownMenuItem>
+                      ))}
+                  </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </nav>
       </header>
 
-      <main className="flex-grow pt-14">
+      <main className="flex-grow pt-16">
         <section className="relative w-full">
             <EventsCarousel events={upcomingEvents} />
 
@@ -290,7 +293,7 @@ export default function PublicHomePage() {
                                 onClick={() => setIsSearchFocused(false)}
                               >
                                 <Image 
-                                    src={event.image || DEFAULT_IMAGE_PLACEHOLDER}
+                                    src={event.image && !event.image.startsWith('/') ? `/${event.image}` : (event.image || DEFAULT_IMAGE_PLACEHOLDER)}
                                     alt={event.name} 
                                     width={40} 
                                     height={40} 
@@ -336,7 +339,7 @@ export default function PublicHomePage() {
                     ))
                 ) : (upcomingEvents.length > 0) ? (
                     upcomingEvents.map((event) => {
-                      const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
+                      const imageSource = event.image && !event.image.startsWith('/') ? `/${event.image}` : (event.image || DEFAULT_IMAGE_PLACEHOLDER);
                       return (
                         <CardContainer key={event.id} className="inter-var w-full h-[420px]">
                           <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col justify-between">
@@ -399,7 +402,7 @@ export default function PublicHomePage() {
                     ))
                 ) : (topSellingEvents.length > 0) ? (
                     topSellingEvents.slice(0, 4).map((event) => {
-                      const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
+                      const imageSource = event.image && !event.image.startsWith('/') ? `/${event.image}` : (event.image || DEFAULT_IMAGE_PLACEHOLDER);
                       return (
                          <CardContainer key={event.id} className="inter-var w-full h-[420px]">
                           <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col justify-between">
@@ -476,3 +479,4 @@ const Footer = () => (
     </footer>
 )
 
+    

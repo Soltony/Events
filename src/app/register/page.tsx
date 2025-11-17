@@ -79,7 +79,7 @@ export default function RegisterPage() {
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="items-center text-center pt-8 pb-4">
             <Image
-                src="/image/nibtickets.jpg"
+                src="/images/nibtickets.jpg"
                 alt="NibTera Tickets Logo"
                 width={200}
                 height={60}

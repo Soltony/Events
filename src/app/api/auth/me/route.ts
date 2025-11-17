@@ -21,6 +21,10 @@ export async function GET(req: NextRequest) {
 
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
 
+    if (!decoded.userId) {
+        return NextResponse.json({ message: 'Invalid token payload.' }, { status: 401 });
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       include: { role: true },

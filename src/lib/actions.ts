@@ -6,7 +6,7 @@ import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee, EventStatus, UserStatus, District, Branch } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import { decryptSessionPayload } from './sessionCrypto';
+import jwt from 'jsonwebtoken';
 import type { DateRange } from 'react-day-picker';
 import { randomUUID } from 'crypto';
 
@@ -50,38 +50,27 @@ const VALID_PERMISSIONS = new Set([
 
 export async function getCurrentUser(): Promise<(User & { role: Role, branch: Branch | null }) | null> {
   try {
-    const cookieStore = await cookies();
-    const tokenCookie = cookieStore.get('auth');
+    const cookieStore = cookies();
+    const tokenCookie = cookieStore.get('auth_token');
 
     if (!tokenCookie?.value) {
       return null;
     }
     
-    // Cookie is encrypted; decrypt before parsing JSON
-    const decrypted = await decryptSessionPayload(tokenCookie.value);
-    const tokenData = JSON.parse(decrypted);
-    const token = tokenData.accessToken;
-
-    if (!token) {
-        return null;
+    const JWT_SECRET = process.env.JWT_SECRET;
+    if (!JWT_SECRET) {
+      console.error("JWT_SECRET is not set in environment variables.");
+      return null;
     }
 
-    const payloadBase64 = token.split('.')[1];
-    if (!payloadBase64) {
+    const decoded = jwt.verify(tokenCookie.value, JWT_SECRET) as { userId: string };
+
+    if (!decoded || !decoded.userId) {
         return null;
     }
-
-    const decodedJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
-    const decoded = JSON.parse(decodedJson);
-
-    if (!decoded || typeof decoded === 'string' || !decoded.sub) {
-        return null;
-    }
-
-    const userId = decoded.sub;
 
     const user = await prisma.user.findUnique({
-        where: { id: userId },
+        where: { id: decoded.userId },
         include: { 
             role: true,
             branch: true 
@@ -778,59 +767,11 @@ export async function deleteUser(userId: string, phoneNumber: string) {
             });
 
             if (staffMembers.length > 0) {
-                const staffPhoneNumbers = staffMembers.map(staff => staff.phoneNumber);
+                // Since there is no external auth service, we just delete locally
                 const staffIds = staffMembers.map(staff => staff.id);
-
-                // 2. Delete staff from external auth service
-                const authApiUrl = process.env.AUTH_API_BASE_URL;
-                if (!authApiUrl) throw new Error('Auth API URL not configured.');
-
-                const cookieStore = await cookies();
-                const tokenCookie = await cookieStore.get('auth');
-                if (!tokenCookie?.value) throw new Error('Authentication token not found');
-                
-                const decrypted = await decryptSessionPayload(tokenCookie.value);
-                const { accessToken: token } = JSON.parse(decrypted);
-                if (!token) throw new Error('Auth token is missing from session.');
-
-                const staffDeleteResponse = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ phoneNumbers: staffPhoneNumbers })
-                });
-
-                if (!staffDeleteResponse.ok) {
-                    const errorData = await staffDeleteResponse.json().catch(() => ({}));
-                    const errorMessage = errorData?.errors?.join(', ') || `Failed to delete staff from authentication service. Status: ${staffDeleteResponse.status}`;
-                    throw new Error(errorMessage);
-                }
-                
-                // 3. Delete staff members from local DB
                 await tx.user.deleteMany({
                     where: { id: { in: staffIds } },
                 });
-            }
-
-            // 4. Delete the creator user from the external auth service
-            const authApiUrl = process.env.AUTH_API_BASE_URL;
-            if (!authApiUrl) throw new Error('Auth API URL not configured.');
-             const cookieStore = await cookies();
-            const tokenCookie = await cookieStore.get('auth');
-            if (!tokenCookie?.value) throw new Error('Authentication token not found');
-             const decrypted = await decryptSessionPayload(tokenCookie.value);
-            const { accessToken: token } = JSON.parse(decrypted);
-            if (!token) throw new Error('Auth token is missing from session.');
-
-            const response = await fetch(`${authApiUrl}/api/Auth/delete-users`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ phoneNumbers: [phoneNumber] })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                const errorMessage = errorData?.errors?.join(', ') || `Failed to delete user from authentication service. Status: ${response.status}`;
-                throw new Error(errorMessage);
             }
             
             // 5. Delete associated attendees and the creator user from the local DB
