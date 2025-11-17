@@ -74,7 +74,7 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 }
 
 
-const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
+const DEFAULT_IMAGE_PLACEHOLDER = '/images/nibtickets.jpg';
 
 export default function PublicEventDetailPage() {
   const router = useRouter();

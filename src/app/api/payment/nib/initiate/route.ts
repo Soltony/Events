@@ -4,9 +4,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { format } from 'date-fns';
-import { cookies } from 'next/headers';
-import { decryptSessionPayload } from '@/lib/sessionCrypto';
 import prisma from '@/lib/prisma';
+import jwt from 'jsonwebtoken';
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,32 +21,14 @@ export async function POST(req: NextRequest) {
     }
 
     // --- Get Auth Token ---
-    const authHeader = req.headers.get('Authorization');
-    let authToken: string | null = null;
-
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        authToken = authHeader.substring(7);
-        console.log('[NIB INITIATE] Auth token successfully extracted from Authorization header.');
-    } else {
-        console.log('[NIB INITIATE] Authorization header not found, attempting to retrieve session cookie...');
-        const cookieStore = await cookies();
-        const sessionCookie = cookieStore.get('auth');
-        console.log('[NIB INITIATE] Value of session cookie (auth):', sessionCookie?.value);
-
-        if (sessionCookie?.value) {
-            console.log('[NIB INITIATE] Session cookie found. Decrypting...');
-            const decryptedSession = await decryptSessionPayload(sessionCookie.value);
-            const sessionData = JSON.parse(decryptedSession);
-            authToken = sessionData.accessToken;
-        }
-    }
+    const authToken = req.cookies.get('auth_token')?.value;
 
     if (!authToken) {
-      console.error('[NIB INITIATE] Error: Auth token could not be found in header or session cookie.');
-      return NextResponse.json(
-        { error: 'Unauthorized', detail: 'User session not found or auth token is missing.' },
-        { status: 401 }
-      );
+        console.error('[NIB INITIATE] Error: Auth token could not be found in header or session cookie.');
+        return NextResponse.json(
+            { error: 'Unauthorized', detail: 'User session not found or auth token is missing.' },
+            { status: 401 }
+        );
     }
     
     // --- Fetch Event Owner's Bank Account ---

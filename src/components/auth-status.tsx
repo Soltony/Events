@@ -12,25 +12,11 @@ export function AuthStatus() {
   const { isAuthenticated, isLoading } = useAuth();
   const pathname = usePathname();
 
-  const isDashboardPage = pathname.startsWith('/dashboard');
-
-  // Do not render the component on dashboard pages, as UserNav is in the header there.
-  if (isDashboardPage) {
-    return null;
-  }
-  
-  if (isLoading) {
-    return <Skeleton className="h-10 w-10 rounded-full" />;
-  }
-
-  if (isAuthenticated) {
-    // We only show UserNav on non-dashboard pages from here.
-    return (
-      <div className="flex items-center gap-2">
-        <UserNav />
-      </div>
-    )
-  }
-
+  // This component is no longer needed on the main page,
+  // as the logic is now handled directly in page.tsx.
+  // It is also not needed on dashboard pages.
+  // Returning null to prevent it from rendering anywhere.
   return null;
 }
+
+    

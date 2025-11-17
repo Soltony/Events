@@ -69,7 +69,7 @@ const getCategoryBadgeClass = (category: string) => {
 }
 
 const EventCard = ({ event, isAdmin, onDelete }: { event: EventWithOrganizer, isAdmin: boolean, onDelete: (e: EventWithOrganizer) => void }) => {
-    const displayImage = event.image || DEFAULT_IMAGE_PLACEHOLDER;
+    const displayImage = event.image || '/images/nibtickets.jpg';
 
     const statusBadge = (status: string) => {
         return (

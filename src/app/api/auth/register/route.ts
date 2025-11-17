@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import cuid from 'cuid';
 
 export async function POST(req: NextRequest) {
   try {
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
 
     const user = await prisma.user.create({
       data: {
+        id: cuid(),
         firstName,
         lastName,
         phoneNumber,

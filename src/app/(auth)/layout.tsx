@@ -1,3 +1,4 @@
+
 'use client';
 
 import { MainNav } from '@/components/main-nav';
@@ -56,7 +57,7 @@ export default function AuthLayout({
                   className="flex items-center gap-2 font-semibold"
                 >
                   <Image
-                    src="/image/nibtickets.jpg"
+                    src="/images/nibtickets.jpg"
                     alt="Nibkera Tickets Logo"
                     width={150}
                     height={40}
