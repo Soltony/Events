@@ -37,7 +37,7 @@ interface EventWithOrganizer extends EventType {
   organizer?: Partial<UserType>;
 }
 
-const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
+const DEFAULT_IMAGE_PLACEHOLDER = '/images/nibtickets.jpg';
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
     const startDateFormat = 'LLL dd, y, hh:mm a';
@@ -69,7 +69,10 @@ const getCategoryBadgeClass = (category: string) => {
 }
 
 const EventCard = ({ event, isAdmin, onDelete }: { event: EventWithOrganizer, isAdmin: boolean, onDelete: (e: EventWithOrganizer) => void }) => {
-    const displayImage = event.image || '/images/nibtickets.jpg';
+    let displayImage = DEFAULT_IMAGE_PLACEHOLDER;
+    if (event.image && (event.image.startsWith('/') || event.image.startsWith('http'))) {
+        displayImage = event.image;
+    }
 
     const statusBadge = (status: string) => {
         return (
