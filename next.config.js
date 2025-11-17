@@ -1,8 +1,6 @@
-
 require('dotenv').config();
 
 /** @type {import('next').NextConfig} */
-
 const path = require('path');
 
 const csp = [
@@ -46,7 +44,11 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
-  output: "standalone",
+  output: "standalone",           // ✅ standalone build
+  reactStrictMode: true,          // recommended
+  experimental: {
+    serverActions: {},            // ✅ must be an object, not boolean
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -63,24 +65,12 @@ const nextConfig = {
   },
   images: {
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'placehold.co',
-      },
-      {
-        protocol: 'https',
-        hostname: 'storage.googleapis.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'picsum.photos',
-      },
+      { protocol: 'https', hostname: 'placehold.co' },
+      { protocol: 'https', hostname: 'storage.googleapis.com' },
+      { protocol: 'https', hostname: 'picsum.photos' },
     ],
   },
   poweredByHeader: false,
-  serverActions: {
-    bodySizeLimit: "10mb",
-  },
   env: {
     NEXT_PUBLIC_NIB_ACCOUNT_NO: process.env.NIB_ACCOUNT_NO,
     NEXT_PUBLIC_NIB_COMPANY_NAME: process.env.NIB_COMPANY_NAME,
