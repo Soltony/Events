@@ -233,12 +233,8 @@ export default function PublicHomePage() {
               </Tooltip>
             </TooltipProvider>
 
-            {isAuthenticated ? (
+            {isAuthenticated && (
                 <UserNav />
-            ) : (
-                <Button asChild>
-                    <Link href="/login">Sign In</Link>
-                </Button>
             )}
 
             <div className="md:hidden">
