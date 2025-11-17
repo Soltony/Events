@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -292,7 +293,7 @@ export default function PublicHomePage() {
                                 onClick={() => setIsSearchFocused(false)}
                               >
                                 <Image 
-                                    src={event.image || DEFAULT_IMAGE_PLACEHOLDER}
+                                    src={event.image && !event.image.startsWith('/') ? `/${event.image}` : (event.image || DEFAULT_IMAGE_PLACEHOLDER)}
                                     alt={event.name} 
                                     width={40} 
                                     height={40} 
@@ -338,7 +339,7 @@ export default function PublicHomePage() {
                     ))
                 ) : (upcomingEvents.length > 0) ? (
                     upcomingEvents.map((event) => {
-                      const imageSource = event.image ? event.image : DEFAULT_IMAGE_PLACEHOLDER;
+                      const imageSource = event.image && !event.image.startsWith('/') ? `/${event.image}` : (event.image || DEFAULT_IMAGE_PLACEHOLDER);
                       return (
                         <CardContainer key={event.id} className="inter-var w-full h-[420px]">
                           <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col justify-between">
@@ -401,7 +402,7 @@ export default function PublicHomePage() {
                     ))
                 ) : (topSellingEvents.length > 0) ? (
                     topSellingEvents.slice(0, 4).map((event) => {
-                      const imageSource = event.image ? event.image : DEFAULT_IMAGE_PLACEHOLDER;
+                      const imageSource = event.image && !event.image.startsWith('/') ? `/${event.image}` : (event.image || DEFAULT_IMAGE_PLACEHOLDER);
                       return (
                          <CardContainer key={event.id} className="inter-var w-full h-[420px]">
                           <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col justify-between">
