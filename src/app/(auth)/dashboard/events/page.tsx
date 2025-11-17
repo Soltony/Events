@@ -37,6 +37,7 @@ interface EventWithOrganizer extends EventType {
   organizer?: Partial<UserType>;
 }
 
+const DEFAULT_IMAGE_PLACEHOLDER = '/image/nibtickets.jpg';
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
     const startDateFormat = 'LLL dd, y, hh:mm a';
@@ -68,7 +69,7 @@ const getCategoryBadgeClass = (category: string) => {
 }
 
 const EventCard = ({ event, isAdmin, onDelete }: { event: EventWithOrganizer, isAdmin: boolean, onDelete: (e: EventWithOrganizer) => void }) => {
-    const displayImage = event.image || '/image/nibtickets.jpg';
+    const displayImage = event.image || DEFAULT_IMAGE_PLACEHOLDER;
 
     const statusBadge = (status: string) => {
         return (
@@ -85,31 +86,43 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: EventWithOrganizer, is
     
     return (
         <Card className="flex flex-col hover:shadow-lg transition-shadow duration-300 relative overflow-hidden group">
-          <div className="relative z-10 flex flex-col h-full">
             {isAdmin && event.status && statusBadge(event.status)}
-            <CardHeader className="p-0 relative aspect-[16/9]">
-              <Image src={displayImage} alt={event.name} fill className="rounded-t-lg object-cover" data-ai-hint={event.hint ?? 'event'} />
-            </CardHeader>
-            <CardContent className="p-4 flex-1 space-y-2 bg-card">
-                <Badge variant="outline" className={cn("text-xs", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
-                <CardTitle className="text-lg leading-tight">{event.name}</CardTitle>
-                <div className="space-y-1 pt-1">
-                  <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
-                  <CardDescription className="flex items-center gap-1.5 pt-1 text-xs">
-                      <MapPin className="h-3 w-3" />
-                      {event.location}
-                  </CardDescription>
-                  {isAdmin && event.organizer?.firstName && (
+            <div className="relative aspect-[16/9] w-full">
+              <Image 
+                src={displayImage} 
+                alt={event.name} 
+                fill 
+                className="rounded-t-lg object-cover" 
+                data-ai-hint={event.hint ?? 'event'}
+                onError={(e) => { 
+                    const target = e.target as HTMLImageElement;
+                    target.srcset = '';
+                    target.src = DEFAULT_IMAGE_PLACEHOLDER;
+                }}
+              />
+            </div>
+            <CardContent className="p-4 flex-1 flex flex-col justify-between">
+                <div className="space-y-2">
+                    <Badge variant="outline" className={cn("text-xs", getCategoryBadgeClass(event.category))}>{event.category}</Badge>
+                    <CardTitle className="text-lg leading-tight">{event.name}</CardTitle>
+                    <div className="space-y-1 pt-1">
+                      <CardDescription className="text-xs">{formatEventDate(event.startDate, event.endDate)}</CardDescription>
                       <CardDescription className="flex items-center gap-1.5 pt-1 text-xs">
-                          <User className="h-3 w-3" />
-                          Creator: {event.organizer.firstName} {event.organizer.lastName}
+                          <MapPin className="h-3 w-3" />
+                          {event.location}
                       </CardDescription>
-                  )}
-                  {event.status === 'REJECTED' && event.rejectionReason && (
-                      <CardDescription className="text-xs text-red-600 pt-1 italic">
-                          Reason: {event.rejectionReason}
-                      </CardDescription>
-                  )}
+                      {isAdmin && event.organizer?.firstName && (
+                          <CardDescription className="flex items-center gap-1.5 pt-1 text-xs">
+                              <User className="h-3 w-3" />
+                              Creator: {event.organizer.firstName} {event.organizer.lastName}
+                          </CardDescription>
+                      )}
+                      {event.status === 'REJECTED' && event.rejectionReason && (
+                          <CardDescription className="text-xs text-red-600 pt-1 italic">
+                              Reason: {event.rejectionReason}
+                          </CardDescription>
+                      )}
+                    </div>
                 </div>
             </CardContent>
             <CardFooter className="p-2 border-t flex justify-end gap-1 bg-card rounded-b-lg">
@@ -143,7 +156,6 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: EventWithOrganizer, is
                     </>
                 )}
             </CardFooter>
-          </div>
         </Card>
     );
 };
@@ -155,7 +167,7 @@ const EventGrid = ({ events, isLoading, isAdmin, onDelete }: { events: EventWith
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {[...Array(4)].map((_, i) => (
                     <Card key={i}>
-                        <CardHeader className="p-0"><Skeleton className="w-full aspect-[16/9] rounded-t-lg" /></CardHeader>
+                        <Skeleton className="w-full aspect-[16/9] rounded-t-lg" />
                         <CardContent className="p-4 space-y-2">
                         <Skeleton className="h-5 w-20" />
                         <Skeleton className="h-7 w-3/4" />
