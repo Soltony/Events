@@ -304,24 +304,15 @@ export async function addEvent(data: any) {
 }
 
 export async function updateEvent(id: number, data: any) {
-    const { startDate, endDate, otherCategory, locations, images, ...eventData } = data;
+    const { startDate, endDate, otherCategory, locations, images, tickets, ...eventData } = data;
     const user = await getCurrentUser();
     if (!user) {
         throw new Error('User is not authenticated.');
     }
 
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
-
-    // This is the fix: Remove properties that don't exist in the Event model
-    const eventDataForUpdate = { ...eventData };
-    delete eventDataForUpdate.otherCategory;
-    delete eventDataForUpdate.tickets;
-    
     const locationString = locations.map((l: { value: string }) => l.value).join('||');
-    
-    const imageString = Array.isArray(images) && images.length > 0
-        ? images[0]
-        : null;
+    const imageString = Array.isArray(images) && images.length > 0 ? images[0] : null;
 
     const eventToUpdate = await prisma.event.findUnique({ where: { id }});
     if (!eventToUpdate) throw new Error("Event not found");
@@ -333,7 +324,7 @@ export async function updateEvent(id: number, data: any) {
     const updatedEvent = await prisma.event.update({
         where: { id },
         data: {
-            ...eventDataForUpdate,
+            ...eventData,
             image: imageString,
             location: locationString,
             category: finalCategory,
