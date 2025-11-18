@@ -30,6 +30,7 @@ async function handleSuperAppLogin() {
   }
 
   try {
+    const token = authHeader.substring(7);
     const externalResponse = await fetch(VALIDATE_TOKEN_URL, {
       method: 'GET',
       headers: {
