@@ -22,9 +22,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ message: 'Connection token is missing.' }, { status: 400 });
     }
 
-    // In a real scenario, this token would be a one-time use token
-    // that is validated against a database or another service.
-    // For this prototype, we'll assume the token directly contains the user's phone number.
     const decodedToken = jwt.verify(token, JWT_SECRET) as { phoneNumber: string, iat: number, exp: number };
     
     if (!decodedToken.phoneNumber) {
@@ -36,42 +33,56 @@ export async function GET(req: NextRequest) {
       include: { role: true },
     });
 
-    if (!user) {
-      return NextResponse.json({ message: 'User not found.' }, { status: 404 });
+    // If the user exists, log them in by setting the auth_token and redirecting to the dashboard.
+    if (user) {
+        const sessionTokenPayload = {
+            userId: user.id,
+            role: user.role.name,
+            permissions: user.role.permissions,
+        };
+
+        const sessionToken = jwt.sign(sessionTokenPayload, JWT_SECRET, {
+            expiresIn: JWT_EXPIRES_IN,
+        });
+
+        const cookie = serialize('auth_token', sessionToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 60 * 60 * 24, // 1 day
+        });
+
+        const redirectUrl = new URL('/dashboard', req.url);
+        const response = NextResponse.redirect(redirectUrl);
+        response.headers.set('Set-Cookie', cookie);
+
+        return response;
+    } else {
+        // If user does NOT exist, treat them as a guest.
+        // Set a client-readable cookie with their phone number and redirect to the homepage.
+        const guestPhoneCookie = serialize('phone_number', decodedToken.phoneNumber, {
+            httpOnly: false, // Make it readable by client-side JS
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 60 * 60 * 24 * 7, // Set for 1 week
+        });
+
+        const redirectUrl = new URL('/', req.url);
+        const response = NextResponse.redirect(redirectUrl);
+        response.headers.set('Set-Cookie', guestPhoneCookie);
+        
+        return response;
     }
-
-    // User found, create a standard session token (JWT)
-    const sessionTokenPayload = {
-      userId: user.id,
-      role: user.role.name,
-      permissions: user.role.permissions,
-    };
-
-    const sessionToken = jwt.sign(sessionTokenPayload, JWT_SECRET, {
-      expiresIn: JWT_EXPIRES_IN,
-    });
-
-    // Set the session token in an HttpOnly cookie
-    const cookie = serialize('auth_token', sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24, // 1 day
-    });
-
-    // Redirect to the dashboard after successful connection
-    const redirectUrl = new URL('/dashboard', req.url);
-    const response = NextResponse.redirect(redirectUrl);
-    response.headers.set('Set-Cookie', cookie);
-
-    return response;
 
   } catch (error) {
     console.error('[PORTAL_CONNECT_ERROR]', error);
     if (error instanceof jwt.JsonWebTokenError) {
         return NextResponse.json({ message: 'Invalid or expired connection token.' }, { status: 401 });
     }
-    return new NextResponse('Internal Server Error', { status: 500 });
+    // For any other error, redirect to home as a guest to prevent showing the error page.
+    const redirectUrl = new URL('/', req.url);
+    return NextResponse.redirect(redirectUrl);
   }
 }
