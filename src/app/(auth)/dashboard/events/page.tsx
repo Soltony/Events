@@ -70,9 +70,16 @@ const getCategoryBadgeClass = (category: string) => {
 
 const EventCard = ({ event, isAdmin, onDelete }: { event: EventWithOrganizer, isAdmin: boolean, onDelete: (e: EventWithOrganizer) => void }) => {
     let displayImage = DEFAULT_IMAGE_PLACEHOLDER;
-    if (event.image && (event.image.startsWith('/') || event.image.startsWith('http'))) {
+
+    if (event.image) {
+      if (event.image.startsWith('http') || event.image.startsWith('/')) {
         displayImage = event.image;
+      } else {
+        // Handle cases where the path is relative, like 'images/1.jpg'
+        displayImage = `/${event.image}`;
+      }
     }
+
 
     const statusBadge = (status: string) => {
         return (
