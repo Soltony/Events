@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
+import prisma from '@/lib/prisma';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -19,11 +20,12 @@ export async function GET(req: NextRequest) {
         try {
             const decoded = jwt.verify(authToken, JWT_SECRET) as { userId: string, phoneNumber?: string };
             if (decoded.userId) {
-                // If the token is valid, we can add user info to our response
-                responseData.userId = decoded.userId;
-                // If phone number is in the token, add it too.
-                if (decoded.phoneNumber) {
-                    responseData.phoneNumber = decoded.phoneNumber;
+                const user = await prisma.user.findUnique({
+                    where: { id: decoded.userId },
+                    select: { phoneNumber: true }
+                });
+                if (user?.phoneNumber) {
+                    responseData.phoneNumber = user.phoneNumber;
                 }
             }
         } catch (error) {

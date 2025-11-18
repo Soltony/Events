@@ -99,8 +99,6 @@ export default function PublicHomePage({ searchParams }: { searchParams: { [key:
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   
-  const phoneNumberFromUrl = searchParams?.phoneNumber;
-
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
       case 'Technology':
@@ -285,7 +283,7 @@ export default function PublicHomePage({ searchParams }: { searchParams: { [key:
                           {searchSuggestions.map(event => (
                             <li key={event.id}>
                               <Link 
-                                href={`/events/${event.id}${phoneNumberFromUrl ? `?phoneNumber=${phoneNumberFromUrl}` : ''}`}
+                                href={`/events/${event.id}`}
                                 className="flex items-center gap-4 p-3 hover:bg-gray-100"
                                 onClick={() => setIsSearchFocused(false)}
                               >
@@ -337,7 +335,7 @@ export default function PublicHomePage({ searchParams }: { searchParams: { [key:
                 ) : (upcomingEvents.length > 0) ? (
                     upcomingEvents.map((event) => {
                       const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-                      const eventLink = `/events/${event.id}${phoneNumberFromUrl ? `?phoneNumber=${phoneNumberFromUrl}` : ''}`;
+                      const eventLink = `/events/${event.id}`;
                       return (
                         <CardContainer key={event.id} className="inter-var w-full h-[420px]">
                           <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col justify-between">
@@ -401,7 +399,7 @@ export default function PublicHomePage({ searchParams }: { searchParams: { [key:
                 ) : (topSellingEvents.length > 0) ? (
                     topSellingEvents.slice(0, 4).map((event) => {
                       const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-                      const eventLink = `/events/${event.id}${phoneNumberFromUrl ? `?phoneNumber=${phoneNumberFromUrl}` : ''}`;
+                      const eventLink = `/events/${event.id}`;
                       return (
                          <CardContainer key={event.id} className="inter-var w-full h-[420px]">
                           <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col justify-between">
@@ -481,5 +479,6 @@ const Footer = () => (
     
 
     
+
 
 

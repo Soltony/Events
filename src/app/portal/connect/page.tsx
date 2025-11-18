@@ -68,6 +68,7 @@ async function handleSuperAppLogin() {
         userId: user.id,
         role: user.role.name,
         permissions: user.role.permissions,
+        phoneNumber: user.phoneNumber,
       };
 
       const sessionToken = jwt.sign(sessionTokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
@@ -84,9 +85,15 @@ async function handleSuperAppLogin() {
       return redirect('/dashboard');
       
     } else {
-      // User does not exist, treat them as a guest
-      // Redirect to homepage with phone number in query params
-      return redirect(`/?phoneNumber=${encodeURIComponent(phoneNumber)}`);
+      // User does not exist, treat them as a guest by setting a client-side readable cookie
+      cookies().set('phone_number', phoneNumber, {
+          httpOnly: false, // Make it readable by client-side JS to hint the UI
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 60 * 60 * 24 * 7, // 1 week
+      });
+      return redirect('/');
     }
 
   } catch (error: any) {

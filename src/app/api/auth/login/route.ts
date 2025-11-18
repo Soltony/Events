@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
       userId: user.id,
       role: user.role.name,
       permissions: user.role.permissions,
+      phoneNumber: user.phoneNumber, // Include phone number in the token
     };
 
     const token = jwt.sign(tokenPayload, JWT_SECRET, {

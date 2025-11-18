@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone, ArrowLeft, X, UserCircle, GripVertical, AlertCircle, CheckCircle2, Download } from 'lucide-react';
-import { notFound, useParams, useRouter, useSearchParams } from 'next/navigation';
+import { notFound, useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import type { Event, TicketType, PromoCode, Attendee } from '@prisma/client';
 import { useEffect, useState, useTransition, useMemo, useRef } from 'react';
@@ -79,9 +79,7 @@ const DEFAULT_IMAGE_PLACEHOLDER = '/images/nibtickets.jpg';
 export default function PublicEventDetailPage() {
   const router = useRouter();
   const params = useParams<{ id:string }>();
-  const searchParams = useSearchParams();
   const eventId = params ? parseInt(params.id, 10) : NaN;
-  const phoneNumberFromUrl = searchParams.get('phoneNumber');
 
   const [isPending, startTransition] = useTransition();
   const { user } = useAuth();
@@ -154,24 +152,33 @@ export default function PublicEventDetailPage() {
   }, [selectedLocation]);
 
   useEffect(() => {
-    // Priority 1: Logged-in user
-    if (user?.phoneNumber) {
-        setAttendeeName(`${user.firstName} ${user.lastName}`);
-        setAttendeePhone(user.phoneNumber);
-        setIsPhoneFromSession(true);
-        return;
-    }
-
-    // Priority 2: SuperApp guest user from URL
-    if (phoneNumberFromUrl) {
-        let phone = phoneNumberFromUrl;
-        if (phone.startsWith('251')) {
-            phone = '0' + phone.substring(3);
+    // This effect now fetches phone number from the session cookie via an API endpoint.
+    async function fetchSessionData() {
+        // Priority 1: Check for logged-in user data from AuthContext
+        if (user?.phoneNumber) {
+            setAttendeeName(`${user.firstName} ${user.lastName}`);
+            setAttendeePhone(user.phoneNumber);
+            setIsPhoneFromSession(true);
+            return;
         }
-        setAttendeePhone(phone);
-        setIsPhoneFromSession(true);
+
+        // Priority 2: Check for guest user data from cookie via API
+        try {
+            const response = await api.get('/api/auth/cookie-data');
+            if (response.data.success && response.data.data.phoneNumber) {
+                let phone = response.data.data.phoneNumber;
+                if (phone.startsWith('251')) {
+                    phone = '0' + phone.substring(3);
+                }
+                setAttendeePhone(phone);
+                setIsPhoneFromSession(true);
+            }
+        } catch (error) {
+            console.log("No guest session phone number found.");
+        }
     }
-  }, [user, phoneNumberFromUrl]);
+    fetchSessionData();
+  }, [user]);
 
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
@@ -434,7 +441,7 @@ export default function PublicEventDetailPage() {
   }
   
   const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
-  const homeLink = `/${phoneNumberFromUrl ? `?phoneNumber=${phoneNumberFromUrl}` : ''}`;
+  const homeLink = `/`;
 
 
   return (
