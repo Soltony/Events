@@ -91,14 +91,15 @@ const CategoryFilter = ({ categories, selectedCategory, onSelectCategory }: { ca
 };
 
 
-export default function PublicHomePage() {
+export default function PublicHomePage({ searchParams }: { searchParams: { [key: string]: string | undefined } }) {
   const [events, setEvents] = useState<EventWithTickets[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
-
+  
+  const phoneNumberFromUrl = searchParams?.phoneNumber;
 
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
@@ -284,7 +285,7 @@ export default function PublicHomePage() {
                           {searchSuggestions.map(event => (
                             <li key={event.id}>
                               <Link 
-                                href={`/events/${event.id}`} 
+                                href={`/events/${event.id}${phoneNumberFromUrl ? `?phoneNumber=${phoneNumberFromUrl}` : ''}`}
                                 className="flex items-center gap-4 p-3 hover:bg-gray-100"
                                 onClick={() => setIsSearchFocused(false)}
                               >
@@ -336,6 +337,7 @@ export default function PublicHomePage() {
                 ) : (upcomingEvents.length > 0) ? (
                     upcomingEvents.map((event) => {
                       const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
+                      const eventLink = `/events/${event.id}${phoneNumberFromUrl ? `?phoneNumber=${phoneNumberFromUrl}` : ''}`;
                       return (
                         <CardContainer key={event.id} className="inter-var w-full h-[420px]">
                           <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col justify-between">
@@ -354,7 +356,7 @@ export default function PublicHomePage() {
                                 </div>
                                 <CardItem translateZ="30" className="mt-auto pt-4">
                                     <Button asChild className="w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
-                                        <Link href={`/events/${event.id}`}>
+                                        <Link href={eventLink}>
                                             Buy Ticket
                                         </Link>
                                     </Button>
@@ -399,6 +401,7 @@ export default function PublicHomePage() {
                 ) : (topSellingEvents.length > 0) ? (
                     topSellingEvents.slice(0, 4).map((event) => {
                       const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
+                      const eventLink = `/events/${event.id}${phoneNumberFromUrl ? `?phoneNumber=${phoneNumberFromUrl}` : ''}`;
                       return (
                          <CardContainer key={event.id} className="inter-var w-full h-[420px]">
                           <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col justify-between">
@@ -417,7 +420,7 @@ export default function PublicHomePage() {
                                 </div>
                                  <CardItem translateZ="30" className="mt-auto pt-4">
                                     <Button asChild className="w-full rounded-full bg-accent text-accent-foreground hover:bg-accent/90">
-                                        <Link href={`/events/${event.id}`}>
+                                        <Link href={eventLink}>
                                             Buy Ticket
                                         </Link>
                                     </Button>
@@ -478,3 +481,4 @@ const Footer = () => (
     
 
     
+

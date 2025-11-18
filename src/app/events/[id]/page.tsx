@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone, ArrowLeft, X, UserCircle, GripVertical, AlertCircle, CheckCircle2, Download } from 'lucide-react';
-import { notFound, useParams, useRouter } from 'next/navigation';
+import { notFound, useParams, useRouter, useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
 import type { Event, TicketType, PromoCode, Attendee } from '@prisma/client';
 import { useEffect, useState, useTransition, useMemo, useRef } from 'react';
@@ -41,7 +41,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth, ensureCsrfToken } from '@/context/auth-context';
 import api from '@/lib/api';
 import QRCode from 'qrcode';
-import Cookies from 'js-cookie';
 
 
 interface EventWithTickets extends Event {
@@ -80,7 +79,10 @@ const DEFAULT_IMAGE_PLACEHOLDER = '/images/nibtickets.jpg';
 export default function PublicEventDetailPage() {
   const router = useRouter();
   const params = useParams<{ id:string }>();
+  const searchParams = useSearchParams();
   const eventId = params ? parseInt(params.id, 10) : NaN;
+  const phoneNumberFromUrl = searchParams.get('phoneNumber');
+
   const [isPending, startTransition] = useTransition();
   const { user } = useAuth();
   const [event, setEvent] = useState<EventWithTickets | null>(null);
@@ -152,30 +154,24 @@ export default function PublicEventDetailPage() {
   }, [selectedLocation]);
 
   useEffect(() => {
-    async function populateUserAndGuestInfo() {
-        await ensureCsrfToken();
-
-        // Priority 1: Logged-in user
-        if (user?.phoneNumber) {
-            setAttendeeName(`${user.firstName} ${user.lastName}`);
-            setAttendeePhone(user.phoneNumber);
-            setIsPhoneFromSession(true);
-            return;
-        }
-
-        // Priority 2: SuperApp guest user from client-readable cookie
-        const guestPhoneNumber = Cookies.get('phone_number');
-        if (guestPhoneNumber) {
-            let phone = guestPhoneNumber;
-            if (phone.startsWith('251')) {
-                phone = '0' + phone.substring(3);
-            }
-            setAttendeePhone(phone);
-            setIsPhoneFromSession(true);
-        }
+    // Priority 1: Logged-in user
+    if (user?.phoneNumber) {
+        setAttendeeName(`${user.firstName} ${user.lastName}`);
+        setAttendeePhone(user.phoneNumber);
+        setIsPhoneFromSession(true);
+        return;
     }
-    populateUserAndGuestInfo();
-  }, [user]);
+
+    // Priority 2: SuperApp guest user from URL
+    if (phoneNumberFromUrl) {
+        let phone = phoneNumberFromUrl;
+        if (phone.startsWith('251')) {
+            phone = '0' + phone.substring(3);
+        }
+        setAttendeePhone(phone);
+        setIsPhoneFromSession(true);
+    }
+  }, [user, phoneNumberFromUrl]);
 
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
@@ -438,6 +434,8 @@ export default function PublicEventDetailPage() {
   }
   
   const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
+  const homeLink = `/${phoneNumberFromUrl ? `?phoneNumber=${phoneNumberFromUrl}` : ''}`;
+
 
   return (
     <>
@@ -445,7 +443,7 @@ export default function PublicEventDetailPage() {
         <header className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-sm">
           <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center">
             <Button asChild variant="ghost">
-              <Link href="/">
+              <Link href={homeLink}>
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Back to Home
               </Link>

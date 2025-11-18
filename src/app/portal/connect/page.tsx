@@ -1,3 +1,4 @@
+
 'use server';
 
 import { headers } from 'next/headers';
@@ -83,17 +84,8 @@ async function handleSuperAppLogin() {
       
     } else {
       // User does not exist, treat them as a guest
-      // Set a client-readable cookie with their phone number for pre-filling forms
-      cookies().set('phone_number', phoneNumber, {
-        httpOnly: false, // Make it readable by client-side JS
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 60 * 60 * 24 * 7, // 1 week
-      });
-
-      // Redirect to homepage to load it cleanly as a guest
-      return redirect('/');
+      // Redirect to homepage with phone number in query params
+      return redirect(`/?phoneNumber=${encodeURIComponent(phoneNumber)}`);
     }
 
   } catch (error: any) {
@@ -113,5 +105,6 @@ export default async function PortalConnectPage() {
     }
   
     // If no redirect happens (e.g., in case of a silent failure), render the homepage.
-    return <PublicHomePage />;
+    // This now accepts searchParams to pass the phone number down if needed.
+    return <PublicHomePage searchParams={{}} />;
 }
