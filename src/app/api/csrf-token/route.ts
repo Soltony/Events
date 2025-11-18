@@ -1,19 +1,21 @@
 
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { nanoid } from 'nanoid';
+import jwt from 'jsonwebtoken';
 
-// This endpoint generates a synchronized pair of CSRF tokens.
-// One is a HttpOnly cookie (the secret), and the other is a client-readable cookie.
-// The client sends the readable token in a header, and the middleware verifies it against the secret.
-export async function GET() {
+const JWT_SECRET = process.env.JWT_SECRET;
+
+// This endpoint generates a synchronized pair of CSRF tokens and also sets guest session data.
+export async function GET(req: NextRequest) {
   const token = nanoid(32);
-  const response = NextResponse.json({ message: 'CSRF token set' });
+  const response = NextResponse.json({ message: 'Tokens set' });
+  const { searchParams } = new URL(req.url);
 
   // Set the secret token in an HttpOnly cookie
   response.cookies.set('csrf_secret', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax', // Use 'lax' for better cross-origin behavior
+    sameSite: 'lax',
     path: '/',
   });
   
@@ -21,9 +23,29 @@ export async function GET() {
   response.cookies.set('csrf_token', token, {
     httpOnly: false,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax', // Use 'lax' for better cross-origin behavior
+    sameSite: 'lax',
     path: '/',
   });
+
+  // --- New Logic: Set phone number from SuperApp query parameter ---
+  const superAppToken = searchParams.get('token');
+  if (superAppToken && JWT_SECRET) {
+      try {
+          const decoded = jwt.verify(superAppToken, JWT_SECRET) as { phoneNumber: string, userId: string };
+          if (decoded.phoneNumber) {
+              response.cookies.set('phone_number', decoded.phoneNumber, {
+                  httpOnly: false, // Make it readable by client-side JS
+                  secure: process.env.NODE_ENV === 'production',
+                  sameSite: 'lax',
+                  path: '/',
+                  maxAge: 60 * 60 * 24 * 7, // Set for 1 week
+              });
+              console.log('[CSRF Endpoint] SuperApp phone number cookie set for', decoded.phoneNumber);
+          }
+      } catch (error) {
+          console.error('[CSRF Endpoint] Invalid SuperApp token provided:', error);
+      }
+  }
   
   return response;
 }

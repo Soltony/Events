@@ -41,6 +41,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth, ensureCsrfToken } from '@/context/auth-context';
 import api from '@/lib/api';
 import QRCode from 'qrcode';
+import Cookies from 'js-cookie';
 
 
 interface EventWithTickets extends Event {
@@ -151,9 +152,7 @@ export default function PublicEventDetailPage() {
   }, [selectedLocation]);
 
   useEffect(() => {
-    // This effect runs once to check for a phone number from any session (logged-in user or SuperApp guest)
-    async function populatePhoneNumber() {
-        // Ensure CSRF tokens are ready for guest users before they do anything.
+    async function populateUserAndGuestInfo() {
         await ensureCsrfToken();
 
         // Priority 1: Logged-in user
@@ -161,26 +160,21 @@ export default function PublicEventDetailPage() {
             setAttendeeName(`${user.firstName} ${user.lastName}`);
             setAttendeePhone(user.phoneNumber);
             setIsPhoneFromSession(true);
-            return; // Exit if we have the user's phone number
+            return;
         }
 
-        // Priority 2: SuperApp guest user from secure cookie
-        try {
-            const response = await api.get('/api/auth/cookie-data');
-            if (response.data?.success && response.data.data?.phoneNumber) {
-                let phone = response.data.data.phoneNumber;
-                if (phone.startsWith('251')) {
-                    phone = '0' + phone.substring(3);
-                }
-                setAttendeePhone(phone);
-                setIsPhoneFromSession(true);
+        // Priority 2: SuperApp guest user from client-readable cookie
+        const guestPhoneNumber = Cookies.get('phone_number');
+        if (guestPhoneNumber) {
+            let phone = guestPhoneNumber;
+            if (phone.startsWith('251')) {
+                phone = '0' + phone.substring(3);
             }
-        } catch (error) {
-            // It's okay if this fails, it just means the user is a true guest
-            console.log('No SuperApp session found. User is a guest.');
+            setAttendeePhone(phone);
+            setIsPhoneFromSession(true);
         }
     }
-    populatePhoneNumber();
+    populateUserAndGuestInfo();
   }, [user]);
 
   const getCategoryBadgeClass = (category: string) => {
