@@ -47,7 +47,9 @@ const nextConfig = {
   output: "standalone",           // ✅ standalone build
   reactStrictMode: true,          // recommended
   experimental: {
-    serverActions: {},            // ✅ must be an object, not boolean
+    serverActions: {
+       bodySizeLimit: '10mb',
+    },            // ✅ must be an object, not boolean
   },
   typescript: {
     ignoreBuildErrors: true,
