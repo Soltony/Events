@@ -155,10 +155,17 @@ export default function PublicEventDetailPage() {
     // This effect now fetches phone number from the session cookie via an API endpoint.
     async function fetchSessionData() {
         // Priority 1: Check for logged-in user data from AuthContext
-        if (user?.phoneNumber) {
-            setAttendeeName(`${user.firstName} ${user.lastName}`);
-            setAttendeePhone(user.phoneNumber);
-            setIsPhoneFromSession(true);
+        if (user) {
+            if (user.phoneNumber) {
+                setAttendeePhone(user.phoneNumber);
+                setIsPhoneFromSession(true);
+            }
+            // Only set name for non-guest users
+            if (!user.isGuest && user.firstName) {
+                setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
+            } else {
+                setAttendeeName(''); // Explicitly clear name for guests
+            }
             return;
         }
 
