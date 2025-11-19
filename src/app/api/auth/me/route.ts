@@ -1,4 +1,3 @@
-
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -12,19 +11,40 @@ export async function GET(req: NextRequest) {
     if (!JWT_SECRET) {
       throw new Error('JWT_SECRET environment variable is not set.');
     }
-    
+
     const token = req.cookies.get('auth_token')?.value;
 
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated.' }, { status: 401 });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as {
+      userId: string;
+      isGuest?: boolean;
+      phoneNumber?: string;
+    };
 
     if (!decoded.userId) {
-        return NextResponse.json({ message: 'Invalid token payload.' }, { status: 401 });
+      return NextResponse.json({ message: 'Invalid token payload.' }, { status: 401 });
     }
 
+    // -----------------------------
+    // Guest User Handler
+    // -----------------------------
+    if (decoded.isGuest) {
+      const guestUser = {
+        id: decoded.userId,
+        phoneNumber: decoded.phoneNumber ?? "",
+        isGuest: true,
+        role: { name: "Guest" }
+      };
+
+      return NextResponse.json({ user: guestUser }, { status: 200 });
+    }
+
+    // -----------------------------
+    // Normal User
+    // -----------------------------
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       include: { role: true },
@@ -36,13 +56,18 @@ export async function GET(req: NextRequest) {
 
     const { password: _, ...userWithoutPassword } = user;
 
-    return NextResponse.json({ user: userWithoutPassword }, { status: 200 });
+    return NextResponse.json(
+      { user: { ...userWithoutPassword, isGuest: false } },
+      { status: 200 }
+    );
 
   } catch (error) {
     console.error('[ME_ERROR]', error);
+
     if (error instanceof jwt.JsonWebTokenError) {
       return NextResponse.json({ message: 'Invalid token.' }, { status: 401 });
     }
+
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
