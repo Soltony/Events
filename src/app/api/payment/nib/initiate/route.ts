@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
     // --- Call NIB API ---
     const apiHeaders = {
       'Content-Type': 'application/json',
-      // DO NOT send the Authorization header. Authentication is in the payload signature.
+      'Authorization': `Bearer ${authToken}`, // ✅ Add the correct Authorization header
     };
     console.log('[NIB INITIATE] Calling NIB API at:', NIB_PAYMENT_URL);
     console.log('[NIB INITIATE] Headers being sent to NIB:', apiHeaders);
