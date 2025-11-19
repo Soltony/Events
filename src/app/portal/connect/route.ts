@@ -10,6 +10,7 @@ import { serialize } from 'cookie';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = '1d';
+const GUEST_JWT_EXPIRES_IN = '1h'; // Guest token is valid for 1 hour
 const VALIDATE_TOKEN_URL = process.env.NIB_VALIDATE_TOKEN_URL;
 
 export async function GET(req: NextRequest) {
@@ -58,7 +59,8 @@ export async function GET(req: NextRequest) {
       include: { role: true },
     });
     
-    const response = NextResponse.redirect(new URL(user ? '/dashboard' : '/', req.url));
+    // Always redirect to the homepage. The AuthProvider on the client will handle routing to the dashboard if logged in.
+    const response = NextResponse.redirect(new URL('/', req.url));
 
     if (user) {
       // User exists, log them in by setting a secure auth_token cookie
@@ -67,6 +69,7 @@ export async function GET(req: NextRequest) {
         role: user.role.name,
         permissions: user.role.permissions,
         phoneNumber: user.phoneNumber,
+        isGuest: false,
       };
 
       const sessionToken = jwt.sign(sessionTokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
@@ -80,13 +83,21 @@ export async function GET(req: NextRequest) {
       });
 
     } else {
-      // User does not exist, treat them as a guest by setting a client-side readable cookie
-      response.cookies.set('phone_number', phoneNumber, {
-          httpOnly: false, // Make it readable by client-side JS to hint the UI
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          path: '/',
-          maxAge: 60 * 60 * 24 * 7, // 1 week
+      // User does not exist, treat them as a guest by creating a temporary guest auth token
+      const guestTokenPayload = {
+        userId: `guest_${phoneNumber}`, // Create a temporary, non-db guest ID
+        phoneNumber: phoneNumber,
+        isGuest: true,
+      };
+
+      const guestToken = jwt.sign(guestTokenPayload, JWT_SECRET, { expiresIn: GUEST_JWT_EXPIRES_IN });
+
+      response.cookies.set('auth_token', guestToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60, // 1 hour
       });
     }
 

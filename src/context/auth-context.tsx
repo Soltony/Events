@@ -15,6 +15,7 @@ interface AuthTokens {
 interface UserWithRole extends User {
   role: Role;
   branch?: Branch | null;
+  isGuest?: boolean;
 }
 
 interface AuthContextType {
@@ -124,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const resetTimeout = () => {
       clearTimeout(timeoutId);
-      if (localStorage.getItem('authUser')) { 
+      if (localStorage.getItem('authUser') && !user?.isGuest) { 
           timeoutId = setTimeout(() => {
             logout({ reason: 'You have been logged out due to inactivity.' });
           }, SESSION_TIMEOUT_DURATION);
@@ -137,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         resetTimeout();
     };
 
-    if (user) { 
+    if (user && !user.isGuest) { 
       events.forEach(event => window.addEventListener(event, handleActivity));
       resetTimeout();
     }
