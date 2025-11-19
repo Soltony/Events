@@ -152,17 +152,24 @@ export default function PublicEventDetailPage() {
   }, [selectedLocation]);
 
   useEffect(() => {
-    // This effect now fetches phone number from the session cookie via an API endpoint.
     async function fetchSessionData() {
-        // Priority 1: Check for logged-in user data from AuthContext
-        if (user?.phoneNumber) {
-            setAttendeeName(`${user.firstName} ${user.lastName}`);
-            setAttendeePhone(user.phoneNumber);
-            setIsPhoneFromSession(true);
+        if (user) {
+            if (user.phoneNumber) {
+                let phone = user.phoneNumber;
+                 if (phone.startsWith('251')) {
+                    phone = '0' + phone.substring(3);
+                }
+                setAttendeePhone(phone);
+                setIsPhoneFromSession(true);
+            }
+            if (!user.isGuest && user.firstName) {
+                setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
+            } else {
+                setAttendeeName(''); 
+            }
             return;
         }
 
-        // Priority 2: Check for guest user data from cookie via API
         try {
             const response = await api.get('/api/auth/cookie-data');
             if (response.data.success && response.data.data.phoneNumber) {

@@ -7,6 +7,8 @@ import { format } from 'date-fns';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 
+const JWT_SECRET = process.env.JWT_SECRET;
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -18,6 +20,10 @@ export async function POST(req: NextRequest) {
         { error: 'Total amount and transaction ID are required.' },
         { status: 400 }
       );
+    }
+    
+    if (!JWT_SECRET) {
+      throw new Error('JWT_SECRET is not set.');
     }
 
     // --- Get Auth Token ---
@@ -31,6 +37,15 @@ export async function POST(req: NextRequest) {
         );
     }
     
+    // --- Decode Auth Token to get phone number ---
+    const decodedToken = jwt.verify(authToken, JWT_SECRET) as { phoneNumber: string, isGuest: boolean, userId: string };
+    const userPhoneNumber = decodedToken.phoneNumber;
+
+    if (!userPhoneNumber) {
+        console.error('[NIB INITIATE] Error: Phone number not found in auth token.');
+        return NextResponse.json({ error: 'Unauthorized', detail: 'Invalid session token.' }, { status: 401 });
+    }
+
     // --- Fetch Event Owner's Bank Account ---
     const pendingOrder = await prisma.pendingOrder.findUnique({
       where: { transactionId: pendingOrderTransactionId },
@@ -126,7 +141,7 @@ export async function POST(req: NextRequest) {
     // --- Call NIB API ---
     const apiHeaders = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${authToken}`
+      'Authorization': `Bearer ${authToken}`, // ✅ Add the correct Authorization header
     };
     console.log('[NIB INITIATE] Calling NIB API at:', NIB_PAYMENT_URL);
     console.log('[NIB INITIATE] Headers being sent to NIB:', apiHeaders);
