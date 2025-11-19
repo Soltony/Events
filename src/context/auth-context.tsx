@@ -200,25 +200,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   
   const hasPermission = (permission: string) => {
-    if (!user || !user.role?.permissions) {
+    if (!user || !user.role) {
       return false;
     }
     if (user.role.name === 'Admin') return true;
+
+    const permissions = user.role.permissions;
+    if (!permissions || typeof permissions !== 'string') {
+        return false;
+    }
     
     try {
       let userPermissions: string[];
-      // Support both JSON array and comma-separated string for permissions
-      if (typeof user.role.permissions === 'string' && user.role.permissions.startsWith('[')) {
-        userPermissions = JSON.parse(user.role.permissions);
-      } else if (typeof user.role.permissions === 'string') {
-        userPermissions = user.role.permissions.split(',');
+      if (permissions.startsWith('[')) {
+        // Handle cases where the string is a valid JSON array or an empty array "[]"
+        userPermissions = JSON.parse(permissions);
+      } else if (permissions) {
+        // Handle comma-separated string, ignoring empty strings from split
+        userPermissions = permissions.split(',').filter(p => p);
       } else {
-        userPermissions = user.role.permissions;
+        // Handle empty string
+        userPermissions = [];
       }
       
       return Array.isArray(userPermissions) && userPermissions.includes(permission);
     } catch (error) {
-      console.error('Failed to parse permissions:', error);
+      console.error('Failed to parse permissions:', permissions, error);
       return false;
     }
   };
