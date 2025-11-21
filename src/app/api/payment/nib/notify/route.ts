@@ -17,21 +17,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Invalid JSON" }, { status: 400 });
   }
 
-  const headerList = await headers();
+  // Step 5: Validate the token from the Authorization header
+  const headerList = headers();
   const authHeader = headerList.get('Authorization');
-
   console.log('[NIB NOTIFY] Received Authorization Header:', authHeader);
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     console.error("[NIB NOTIFY] Authorization header is missing or malformed.");
     return NextResponse.json({ message: 'Authorization header is required.' }, { status: 401 });
   }
-
   const tokenFromHeader = authHeader.substring(7);
 
   const {
     paidAmount,
-    txnRef, // This is our original transactionId
+    txnRef, // This is our original transactionId for the payment attempt
     transactionId, // This is NIB's transactionId
     token: tokenFromBody,
   } = requestBody;
@@ -47,13 +46,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Find our payment record using the reference we sent
     const eventPayment = await prisma.eventPayment.findFirst({
-      where: { transactionId: txnRef }, // Use txnRef to find our internal record
+      where: { transactionId: txnRef }, 
       include: { pendingOrder: true }
     });
 
     if (!eventPayment || !eventPayment.pendingOrder) {
-      console.error(`[NIB NOTIFY] Order not found for NIB transaction reference (txnRef): ${txnRef}`);
+      console.error(`[NIB NOTIFY] Order not found for transaction reference (txnRef): ${txnRef}`);
       return NextResponse.json({ message: 'Order not found, but acknowledged.' }, { status: 200 });
     }
 
@@ -62,72 +62,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Already handled' }, { status: 200 });
     }
 
-    // Use a transaction to ensure atomicity
-    const createdAttendees = await prisma.$transaction(async (tx) => {
-      // 1. Get attendee data from pending order
+    await prisma.$transaction(async (tx) => {
       const attendeeData = eventPayment.pendingOrder.attendeeData as { name: string, phoneNumber: string, userId?: string, tickets: any[] };
-      if (!attendeeData || typeof attendeeData !== 'object') {
-          console.error('[NIB NOTIFY] Transaction Error: attendeeData in PendingOrder is malformed or missing.');
+      if (!attendeeData || typeof attendeeData !== 'object' || !attendeeData.tickets) {
           throw new Error('attendeeData in PendingOrder is malformed or missing.');
       }
       const { name, phoneNumber, userId, tickets } = attendeeData;
 
-      if (!tickets || !Array.isArray(tickets) || tickets.length === 0) {
-        console.error('[NIB NOTIFY] Transaction Error: No ticket information found in pending order.');
-        throw new Error('No ticket information found in pending order.');
-      }
-      
-      let allCreatedAttendees: any[] = [];
-
-      // 2. Create Attendee record(s)
+      let firstAttendeeId: string | null = null;
       for (const ticketInfo of tickets) {
         const ticketTypeId = ticketInfo.id;
         const quantity = ticketInfo.quantity || 1;
 
         const ticketType = await tx.ticketType.findUnique({ where: { id: ticketTypeId } });
-        if (!ticketType) {
-          console.error(`[NIB NOTIFY] Transaction Error: Ticket type with ID ${ticketTypeId} not found.`);
-          throw new Error(`Ticket type with ID ${ticketTypeId} not found.`);
+        if (!ticketType) throw new Error(`Ticket type with ID ${ticketTypeId} not found.`);
+        if ((ticketType.total - ticketType.sold) < quantity) throw new Error(`Not enough tickets available for "${ticketType.name}".`);
+
+        // Create an attendee record for each individual ticket
+        for (let i = 0; i < quantity; i++) {
+          const newAttendee = await tx.attendee.create({
+              data: {
+                  name,
+                  phoneNumber,
+                  userId: userId,
+                  eventId: eventPayment.eventId,
+                  ticketTypeId: ticketTypeId,
+                  checkedIn: false,
+                  qrCode: crypto.randomUUID(), // This is the unique ID for scanning
+              }
+          });
+          if (!firstAttendeeId) {
+              firstAttendeeId = newAttendee.id;
+          }
         }
-        if ((ticketType.total - ticketType.sold) < quantity) {
-           console.error(`[NIB NOTIFY] Transaction Error: Not enough tickets available for "${ticketType.name}".`);
-          throw new Error(`Not enough tickets available for "${ticketType.name}".`);
-        }
 
-        const attendeesToCreate = Array.from({ length: quantity }).map(() => ({
-          name,
-          phoneNumber: phoneNumber,
-          userId: userId,
-          eventId: eventPayment.eventId,
-          ticketTypeId: ticketTypeId,
-          checkedIn: false,
-          qrCode: crypto.randomUUID(), // unique for each ticket
-        }));
-
-        await tx.attendee.createMany({ data: attendeesToCreate });
-
-        // Fetch the attendees just created for this ticket type
-        const justCreated = await tx.attendee.findMany({
-            where: {
-                eventId: eventPayment.eventId,
-                name,
-                phoneNumber,
-                userId,
-                ticketTypeId,
-            },
-            orderBy: { createdAt: 'desc' },
-            take: quantity,
-        });
-        allCreatedAttendees = allCreatedAttendees.concat(justCreated);
-
-        // 3. Update ticket stock
         await tx.ticketType.update({
           where: { id: ticketTypeId },
           data: { sold: { increment: quantity } },
         });
       }
       
-      // 4. Update Promo Code uses if applicable
       if (eventPayment.pendingOrder.promoCode) {
         const promo = await tx.promoCode.findFirst({ where: { code: eventPayment.pendingOrder.promoCode, eventId: eventPayment.eventId } });
         if (promo) {
@@ -139,40 +113,37 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // 5. Update PendingOrder status
       await tx.pendingOrder.update({
         where: { id: eventPayment.pendingOrderId },
-        data: { status: 'COMPLETED' },
+        data: { 
+            status: 'COMPLETED',
+            attendeeId: firstAttendeeId // Link to the first created attendee for reference
+        },
       });
 
-      // 6. Update EventPayment status
       await tx.eventPayment.update({
         where: { id: eventPayment.id },
         data: {
           status: 'COMPLETED',
           amount: paidAmount,
           paymentDate: new Date(),
-          reference: transactionId, // NIB's own transactionId
+          reference: transactionId,
         },
       });
       
       console.log(`[NIB NOTIFY] Payment completed for Transaction ID: ${txnRef}`);
-      return allCreatedAttendees;
     });
 
-    // Revalidate paths to show updated data
     revalidatePath(`/events/${eventPayment.eventId}`);
     revalidatePath('/');
     revalidatePath('/tickets');
     revalidatePath(`/payment/success?transaction_id=${eventPayment.pendingOrder.transactionId}`);
 
     console.log(`[NIB NOTIFY] Successfully processed payment for transaction ${txnRef}.`);
-
-    return NextResponse.json({ message: 'Payment confirmed and updated.', attendees: createdAttendees }, { status: 200 });
+    return NextResponse.json({ message: 'Payment confirmed and updated.' }, { status: 200 });
 
   } catch (error: any) {
     console.error('[NIB NOTIFY] Webhook processing error:', error);
-    // Optionally update the order to FAILED status
     if (txnRef) {
         try {
             const payment = await prisma.eventPayment.findFirst({ where: { transactionId: txnRef }});

@@ -162,7 +162,7 @@ export default function PublicEventDetailPage() {
                 setAttendeePhone(phone);
                 setIsPhoneFromSession(true);
             }
-            if (!user.isGuest && user.firstName) {
+             if (!user.isGuest && user.firstName) {
                 setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
             } else {
                 setAttendeeName(''); 
@@ -276,10 +276,7 @@ export default function PublicEventDetailPage() {
 
         startTransition(async () => {
             try {
-                // Step 0: Ensure CSRF token is present
                 await ensureCsrfToken();
-
-                // Step 1: Create a pending order in our database
                 const pendingOrderResponse = await api.post('/api/payment/pending-order', {
                     eventId,
                     tickets: Object.values(selectedTickets),
@@ -295,17 +292,16 @@ export default function PublicEventDetailPage() {
                 setPaymentTransactionId(transactionId);
 
 
-                // Step 2: Use the transactionId from our DB to initiate payment with NIB
                 const paymentResponse = await api.post('/api/payment/nib/initiate', {
                     total,
-                    transactionId, // Pass our internal transaction ID
+                    transactionId,
                 });
 
                 if (!paymentResponse.data.success) {
                     throw new Error(paymentResponse.data.error || "Failed to initiate payment.");
                 }
 
-                // Step 3: Send the payment token back to the NIB Super App
+                // Step 4: Send payment token back to SuperApp
                 const paymentToken = paymentResponse.data.paymentToken;
                 if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
                     console.log('Sending payment token to NIB Super App...');
@@ -354,7 +350,7 @@ export default function PublicEventDetailPage() {
                     const ticketDetails = await getTicketDetailsForConfirmation(paymentTransactionId);
                     if (ticketDetails) {
                         setConfirmedTicket(ticketDetails);
-                        const qrUrl = await QRCode.toDataURL(ticketDetails.id.toString(), { errorCorrectionLevel: 'H', type: 'image/png', margin: 1 });
+                        const qrUrl = await QRCode.toDataURL(ticketDetails.qrCode, { errorCorrectionLevel: 'H', type: 'image/png', margin: 1 });
                         setQrCodeDataUrl(qrUrl);
                         setPaymentStatus('success');
                     } else {
@@ -757,3 +753,4 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
+
