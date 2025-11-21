@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
       const authResponse = await fetch(NIB_AUTH_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyName: COMPANY_NAME, Key: NIB_PAYMENT_KEY }), // Corrected from apiKey to Key
+        body: JSON.stringify({ companyName: COMPANY_NAME, apiKey: NIB_PAYMENT_KEY }),
       });
 
       const authText = await authResponse.text();
