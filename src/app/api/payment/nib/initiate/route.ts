@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
     // --- 2. Get token or phone from cookies ---
     const cookieStore = cookies();
-    const authCookie = cookieStore.get('auth')?.value;
+    const authCookie = cookieStore.get('auth_token')?.value;
     const phoneCookie = cookieStore.get('phone_number')?.value;
 
     const tokenForPayment = authCookie || phoneCookie;
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
       const authResponse = await fetch(NIB_AUTH_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyName: COMPANY_NAME, apiKey: NIB_PAYMENT_KEY }),
+        body: JSON.stringify({ companyName: COMPANY_NAME, Key: NIB_PAYMENT_KEY }), // Corrected from apiKey to Key
       });
 
       const authText = await authResponse.text();
