@@ -7,9 +7,8 @@ import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_EXPIRES_IN = '1d';
-const GUEST_JWT_EXPIRES_IN = '1h'; // Guest token is valid for 1 hour
 const VALIDATE_TOKEN_URL = process.env.VALIDATE_TOKEN_URL;
+const COOKIE_MAX_AGE = 60 * 60 * 24; // 1 day
 
 export async function GET(req: NextRequest) {
   if (!VALIDATE_TOKEN_URL || !JWT_SECRET) {
@@ -51,57 +50,29 @@ export async function GET(req: NextRequest) {
     if (!phoneNumber) {
       throw new Error('Phone number not found in token validation response.');
     }
-
-    const user = await prisma.user.findUnique({
-      where: { phoneNumber: phoneNumber },
-      include: { role: true },
-    });
     
     // Always redirect to the homepage. The AuthProvider on the client will handle routing.
     const response = NextResponse.redirect(new URL('/', req.url));
-
-    if (user) {
-      // User exists, log them in by setting a secure auth_token cookie
-      const sessionTokenPayload = {
-        userId: user.id,
-        role: user.role.name,
-        permissions: user.role.permissions,
-        phoneNumber: user.phoneNumber,
-        // Include the original SuperApp token if needed by other APIs
-        superAppToken: superAppToken, 
-        isGuest: false,
-      };
-
-      const sessionToken = jwt.sign(sessionTokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-      
-      response.cookies.set('auth_token', sessionToken, {
+    
+    // --- CORRECTED LOGIC ---
+    // Directly store the unmodified SuperApp token in the cookie.
+    // This is the token the NIB Payment API expects.
+    response.cookies.set('auth_token', superAppToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
-        maxAge: 60 * 60 * 24, // 1 day
-      });
-
-    } else {
-      // User does not exist, treat them as a guest by creating a temporary guest auth token
-      const guestTokenPayload = {
-        userId: `guest_${phoneNumber}`, // Create a temporary, non-db guest ID
-        phoneNumber: phoneNumber,
-        // Include the original SuperApp token
-        superAppToken: superAppToken,
-        isGuest: true,
-      };
-
-      const guestToken = jwt.sign(guestTokenPayload, JWT_SECRET, { expiresIn: GUEST_JWT_EXPIRES_IN });
-
-      response.cookies.set('auth_token', guestToken, {
-        httpOnly: true,
+        maxAge: COOKIE_MAX_AGE,
+    });
+    
+    // Additionally, set a client-readable phone number cookie for guest identification.
+     response.cookies.set('phone_number', phoneNumber, {
+        httpOnly: false, // Make it readable by client-side JS
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
-        maxAge: 60 * 60, // 1 hour
-      });
-    }
+        maxAge: COOKIE_MAX_AGE,
+    });
 
     return response;
 
