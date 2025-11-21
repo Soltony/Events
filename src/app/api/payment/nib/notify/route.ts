@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Transaction reference (txnRef) is required." }, { status: 400 });
   }
 
+  // Per NIB docs, the token in the body should be validated against the header token
   if (tokenFromHeader !== tokenFromBody) {
     console.error("[NIB NOTIFY] Token mismatch between header and body.");
     return NextResponse.json({ message: "Token validation failed." }, { status: 401 });
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
       }
       const { name, phoneNumber, userId, tickets } = attendeeData;
 
-      let firstAttendeeId: string | null = null;
+      let firstAttendeeId: number | null = null;
       for (const ticketInfo of tickets) {
         const ticketTypeId = ticketInfo.id;
         const quantity = ticketInfo.quantity || 1;
