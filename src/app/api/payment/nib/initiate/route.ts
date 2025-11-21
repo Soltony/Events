@@ -1,190 +1,129 @@
-
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { format } from 'date-fns';
+import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
-import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET;
 
 export async function POST(req: NextRequest) {
   try {
+    // --- 1. Parse request body ---
     const body = await req.json();
     console.log('[NIB INITIATE] Received body:', body);
+
     const { total, transactionId: pendingOrderTransactionId } = body;
-
     if (!total || !pendingOrderTransactionId) {
-      return NextResponse.json(
-        { error: 'Total amount and transaction ID are required.' },
-        { status: 400 }
-      );
-    }
-    
-    if (!JWT_SECRET) {
-      throw new Error('JWT_SECRET is not set.');
+      return NextResponse.json({ error: 'Total and transaction ID are required.' }, { status: 400 });
     }
 
-    const superAppToken = req.headers.get('Authorization')?.replace('Bearer ', '');
-    if (!superAppToken) {
-      console.error('[NIB INITIATE] Error: SuperApp authorization token not found in header.');
-       return NextResponse.json(
-        { error: 'Unauthorized', detail: 'SuperApp authorization token is missing.' },
-        { status: 401 }
-      );
-    }
+    // --- 2. Get user token or phone from cookies ---
+    const cookieStore = cookies();
+    const authCookie = cookieStore.get('auth')?.value;
+    const phoneCookie = cookieStore.get('phone_number')?.value;
+    const tokenForPayment = authCookie || phoneCookie;
+    console.log('[NIB INITIATE] Using token/phone from cookie:', tokenForPayment);
 
-    // --- Fetch Event Owner's Bank Account ---
+    // --- 3. Fetch pending order and event ---
     const pendingOrder = await prisma.pendingOrder.findUnique({
       where: { transactionId: pendingOrderTransactionId },
-      include: { event: true }
+      include: { event: true },
     });
 
-    if (!pendingOrder || !pendingOrder.event || !pendingOrder.event.nibBankAccount) {
-        let errorDetail = 'Could not find the pending order or associated event.';
-        if (pendingOrder && !pendingOrder.event) {
-            errorDetail = 'The event associated with this order could not be found.';
-        } else if (pendingOrder?.event && !pendingOrder.event.nibBankAccount) {
-            errorDetail = 'The event organizer has not configured a bank account for payouts.';
-        }
-        console.error(`[NIB INITIATE] Error: ${errorDetail}`);
-        return NextResponse.json({ error: 'Payment routing failed.', detail: errorDetail }, { status: 404 });
+    if (!pendingOrder || !pendingOrder.event?.nibBankAccount) {
+      return NextResponse.json({ error: 'Missing event or bank account info.' }, { status: 404 });
     }
-    
-    const ACCOUNT_NO = pendingOrder.event.nibBankAccount;
-    console.log(`[NIB INITIATE] Dynamically fetched Account No: ${ACCOUNT_NO}`);
 
+    const ACCOUNT_NO = pendingOrder.event.nibBankAccount;
     const COMPANY_NAME = process.env.NIB_COMPANY_NAME;
     const NIB_PAYMENT_KEY = process.env.NIB_PAYMENT_KEY;
     const NIB_PAYMENT_URL = process.env.NIB_PAYMENT_URL;
     const APP_URL = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL;
-    const NIB_API_TOKEN = process.env.NIB_API_TOKEN;
 
-    console.log('[NIB INITIATE] Environment Variables:', {
-        COMPANY_NAME,
-        NIB_PAYMENT_KEY_EXISTS: !!NIB_PAYMENT_KEY,
-        NIB_PAYMENT_URL,
-        APP_URL,
-        NIB_API_TOKEN_EXISTS: !!NIB_API_TOKEN
-    });
-
-    if (!COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL || !APP_URL || !NIB_API_TOKEN) {
-      console.error('[NIB INITIATE] Error: One or more required payment gateway environment variables are missing.');
-      return NextResponse.json(
-        { error: 'Payment gateway configuration is missing on the server.' },
-        { status: 500 }
-      );
+    if (!COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL || !APP_URL) {
+      return NextResponse.json({ error: 'Missing required environment variables' }, { status: 500 });
     }
 
+    // --- 4. Generate transaction info ---
     const transactionId = crypto.randomUUID();
     const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
     const callBackURL = `${APP_URL}/api/payment/nib/notify`;
 
+    // --- 5. Build signature ---
     const signatureString = [
       `accountNo=${ACCOUNT_NO}`,
       `amount=${total}`,
       `callBackURL=${callBackURL}`,
       `companyName=${COMPANY_NAME}`,
       `Key=${NIB_PAYMENT_KEY}`,
-      `token=${superAppToken}`,
       `transactionId=${transactionId}`,
-      `transactionTime=${transactionTime}`
+      `transactionTime=${transactionTime}`,
     ].join('&');
-    console.log('[NIB INITIATE] String for signature generation:', signatureString);
 
     const signature = crypto.createHash('sha256').update(signatureString, 'utf8').digest('hex');
-    console.log('[NIB INITIATE] Generated Signature:', signature);
 
     const payload = {
       accountNo: ACCOUNT_NO,
       amount: String(total),
       callBackURL,
       companyName: COMPANY_NAME,
-      token: superAppToken,
-      transactionId: transactionId,
+      transactionId,
       transactionTime,
-      signature
+      token: tokenForPayment,
+      signature,
     };
-    console.log('[NIB INITIATE] Payload to be sent to NIB:', payload);
 
+    // --- 6. Create EventPayment record ---
     const eventPayment = await prisma.eventPayment.create({
       data: {
         amount: total,
         method: 'GATEWAY',
         status: 'PENDING',
         sessionId: null,
-        transactionId: transactionId,
+        transactionId,
         pendingOrderId: pendingOrder.id,
         eventId: pendingOrder.eventId,
-      }
+      },
     });
 
-    console.log(`[NIB INITIATE] Created EventPayment record with ID: ${eventPayment.id}`);
+    console.log('[NIB INITIATE] EventPayment record created:', eventPayment.id);
 
-    const apiHeaders = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${NIB_API_TOKEN}`, // ✅ Use the dedicated NIB API token here
-    };
-    console.log('[NIB INITIATE] Calling NIB API at:', NIB_PAYMENT_URL);
-    console.log('[NIB INITIATE] Headers being sent to NIB:', apiHeaders);
-
+    // --- 7. Call NIB Payment API ---
+    console.log('[NIB INITIATE] Calling NIB Payment API...');
     const response = await fetch(NIB_PAYMENT_URL, {
       method: 'POST',
-      headers: apiHeaders,
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
-    console.log(`[NIB INITIATE] NIB API Response Status: ${response.status}`);
+    const responseText = await response.text();
+    console.log('[NIB INITIATE] NIB raw response:', responseText);
 
     if (!response.ok) {
-      let errorText = `Failed to get payment token from gateway. Status: ${response.status}`;
-      try {
-        const errorBody = await response.json();
-        console.error('[NIB INITIATE] NIB API Error Body:', errorBody);
-        errorText = errorBody.detail || errorBody.error || errorText;
-      } catch {}
-      return NextResponse.json({ error: errorText, status: response.status }, { status: response.status });
-    }
-
-    const responseText = await response.text();
-    console.log('[NIB INITIATE] NIB API Response Body:', responseText);
-
-    if (!responseText) {
-       console.error('[NIB INITIATE] Error: Received empty response from payment gateway.');
-      return NextResponse.json(
-        { error: "Received empty response from payment gateway.", status: 502 },
-        { status: 502 }
-      );
+      return NextResponse.json({ error: 'NIB payment request failed', details: responseText }, { status: 502 });
     }
 
     const responseData = JSON.parse(responseText);
-
     if (!responseData.token) {
-       console.error('[NIB INITIATE] Error: Payment gateway did not return a valid payment token in response.');
-      return NextResponse.json(
-        { error: "Payment gateway did not return a valid payment token.", status: 502 },
-        { status: 502 }
-      );
+      return NextResponse.json({ error: 'NIB payment response invalid', raw: responseText }, { status: 502 });
     }
-     console.log('[NIB INITIATE] Successfully received payment token from NIB.');
 
+    // --- 8. Save sessionId ---
     await prisma.eventPayment.update({
       where: { transactionId },
-      data: { sessionId: responseData.token }
+      data: { sessionId: responseData.token },
     });
+
+    console.log('[NIB INITIATE] Payment sessionId saved:', responseData.token);
 
     return NextResponse.json({
       success: true,
       paymentToken: responseData.token,
-      paymentId: eventPayment.id
+      paymentId: eventPayment.id,
     });
 
-  } catch (error: any) {
-    console.error('[NIB INITIATE] Unexpected error in handler:', error);
-    return NextResponse.json(
-      { error: error.message || 'Unexpected error during payment initiation.' },
-      { status: 500 }
-    );
+  } catch (err: any) {
+    console.error('[NIB INITIATE] Unexpected error:', err);
+    return NextResponse.json({ error: err.message || 'Unexpected server error.' }, { status: 500 });
   }
 }
