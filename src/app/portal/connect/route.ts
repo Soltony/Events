@@ -55,9 +55,8 @@ export async function GET(req: NextRequest) {
     const response = NextResponse.redirect(new URL('/', req.url));
     
     // --- CORRECTED LOGIC ---
-    // Directly store the unmodified SuperApp token in the cookie.
-    // This is the token the NIB Payment API expects.
-    response.cookies.set('auth_token', superAppToken, {
+    // Store the raw SuperApp token in its own cookie for payment initiation
+    response.cookies.set('superapp_token', superAppToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
@@ -65,9 +64,33 @@ export async function GET(req: NextRequest) {
         maxAge: COOKIE_MAX_AGE,
     });
     
-    // Additionally, set a client-readable phone number cookie for guest identification.
-     response.cookies.set('phone_number', phoneNumber, {
-        httpOnly: false, // Make it readable by client-side JS
+    // Check if the user exists in our DB
+    const user = await prisma.user.findUnique({
+        where: { phoneNumber }
+    });
+
+    let internalTokenPayload: any;
+    if (user) {
+        internalTokenPayload = {
+            userId: user.id,
+            isGuest: false,
+        };
+    } else {
+        internalTokenPayload = {
+            userId: `guest_${phoneNumber}`,
+            phoneNumber: phoneNumber,
+            isGuest: true,
+        };
+    }
+
+    // Create our app's internal JWT
+    const internalToken = jwt.sign(internalTokenPayload, JWT_SECRET, {
+        expiresIn: '1d',
+    });
+    
+    // Set our app's internal auth token cookie
+    response.cookies.set('auth_token', internalToken, {
+        httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',

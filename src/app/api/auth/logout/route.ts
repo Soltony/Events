@@ -6,8 +6,17 @@ import { serialize } from 'cookie';
 
 export async function POST(req: NextRequest) {
   try {
-    // Expire the cookie by setting its maxAge to a past date
-    const cookie = serialize('auth_token', '', {
+    // Expire the internal auth token
+    const authTokenCookie = serialize('auth_token', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: -1,
+    });
+    
+    // Expire the SuperApp token
+    const superAppTokenCookie = serialize('superapp_token', '', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -16,7 +25,9 @@ export async function POST(req: NextRequest) {
     });
 
     const response = NextResponse.json({ message: 'Logout successful.' }, { status: 200 });
-    response.headers.set('Set-Cookie', cookie);
+    // Set both cookies to expire
+    response.headers.append('Set-Cookie', authTokenCookie);
+    response.headers.append('Set-Cookie', superAppTokenCookie);
 
     return response;
   } catch (error) {

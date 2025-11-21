@@ -22,12 +22,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // --- 2. Get SuperApp User Token from cookies ---
+    // --- 2. Get SuperApp User Token from the new 'superapp_token' cookie ---
     const cookieStore = cookies();
-    const superAppToken = cookieStore.get('auth_token')?.value;
+    const superAppToken = cookieStore.get('superapp_token')?.value;
 
     if (!superAppToken) {
-        console.error('[NIB INITIATE] Error: SuperApp authorization token (auth_token) not found in cookie.');
+        console.error('[NIB INITIATE] Error: SuperApp authorization token (superapp_token) not found in cookie.');
         return NextResponse.json({ error: 'User session not found. Please log in through the SuperApp.' }, { status: 401 });
     }
     console.log('[NIB INITIATE] Using SuperApp user token from cookie.');
