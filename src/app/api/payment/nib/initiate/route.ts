@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     const superAppToken = cookieStore.get('auth_token')?.value;
 
     if (!superAppToken) {
-        console.error('[NIB INITIATE] Error: SuperApp user token (auth_token) not found in cookie.');
+        console.error('[NIB INITIATE] Error: SuperApp authorization token (auth_token) not found in cookie.');
         return NextResponse.json({ error: 'User session not found. Please log in through the SuperApp.' }, { status: 401 });
     }
     console.log('[NIB INITIATE] Using SuperApp user token from cookie.');
@@ -52,49 +52,14 @@ export async function POST(req: NextRequest) {
     const COMPANY_NAME = process.env.NIB_COMPANY_NAME;
     const NIB_PAYMENT_KEY = process.env.NIB_PAYMENT_KEY;
     const NIB_PAYMENT_URL = process.env.NIB_PAYMENT_URL;
-    const NIB_AUTH_URL = process.env.NIB_AUTH_URL;
     const APP_URL = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL;
 
-    if (!COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL || !NIB_AUTH_URL || !APP_URL) {
+    if (!COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL || !APP_URL) {
       console.error('[NIB INITIATE] Error: Server is missing required NIB environment variables.');
       return NextResponse.json({ error: 'Payment service is not configured correctly.' }, { status: 500 });
     }
 
-    // --- 4. Authenticate with NIB to get a temporary API Access Token ---
-    console.log('[NIB INITIATE] Authenticating with NIB to get API access token...');
-    let nibToken: string;
-    try {
-      const authResponse = await fetch(NIB_AUTH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyName: COMPANY_NAME, apiKey: NIB_PAYMENT_KEY }),
-      });
-      
-      console.log('[NIB INITIATE] Auth Status:', authResponse.status);
-      const authText = await authResponse.text();
-      console.log('[NIB INITIATE] Auth raw response:', authText);
-
-      if (!authResponse.ok) {
-        return NextResponse.json({ error: 'Failed to authenticate with NIB payment service.', details: authText }, { status: 502 });
-      }
-      
-      if (!authText) {
-        return NextResponse.json({ error: 'NIB authentication response was empty.' }, { status: 502 });
-      }
-
-      const authData = JSON.parse(authText);
-      if (!authData.token) {
-        return NextResponse.json({ error: 'NIB did not return a valid API access token.', raw: authData }, { status: 502 });
-      }
-
-      nibToken = authData.token;
-      console.log('[NIB INITIATE] NIB API access token received successfully.');
-    } catch (err: any) {
-      console.error('[NIB INITIATE] Auth request to NIB failed:', err);
-      return NextResponse.json({ error: 'Could not connect to NIB authentication service.', details: err.message }, { status: 503 });
-    }
-
-    // --- 5. Generate transaction info & build signature ---
+    // --- 4. Generate transaction info & build signature ---
     const transactionId = crypto.randomUUID();
     const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
     const callBackURL = `${APP_URL}/api/payment/nib/notify`;
@@ -123,7 +88,7 @@ export async function POST(req: NextRequest) {
       signature,
     };
 
-    // --- 6. Create EventPayment record ---
+    // --- 5. Create EventPayment record ---
     const eventPayment = await prisma.eventPayment.create({
       data: {
         amount: total,
@@ -136,7 +101,7 @@ export async function POST(req: NextRequest) {
     });
     console.log('[NIB INITIATE] EventPayment record created:', eventPayment.id);
 
-    // --- 7. Call NIB Payment API ---
+    // --- 6. Call NIB Payment API ---
     console.log('[NIB INITIATE] Calling NIB Payment API...');
     let responseData: any;
     try {
@@ -144,7 +109,7 @@ export async function POST(req: NextRequest) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${nibToken}`, // Use the NIB API Access Token for authorization
+          Authorization: `Bearer ${superAppToken}`, // Use the SuperApp token for authorization
         },
         body: JSON.stringify(payload),
       });
@@ -154,7 +119,7 @@ export async function POST(req: NextRequest) {
       console.log('[NIB INITIATE] NIB Payment raw response:', responseText);
 
       if (!response.ok) {
-        return NextResponse.json({ error: 'NIB payment request failed', details: responseText }, { status: 502 });
+        return NextResponse.json({ error: 'NIB payment request failed', details: responseText }, { status: response.status });
       }
 
        if (!responseText) {
@@ -170,7 +135,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Could not connect to NIB payment service.', details: err.message }, { status: 503 });
     }
 
-    // --- 8. Save sessionId (the paymentToken from NIB) ---
+    // --- 7. Save sessionId (the paymentToken from NIB) ---
     await prisma.eventPayment.update({
       where: { transactionId: eventPayment.transactionId },
       data: { sessionId: responseData.token },
