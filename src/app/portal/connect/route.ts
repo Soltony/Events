@@ -11,7 +11,7 @@ import { serialize } from 'cookie';
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = '1d';
 const GUEST_JWT_EXPIRES_IN = '1h'; // Guest token is valid for 1 hour
-const VALIDATE_TOKEN_URL = process.env.NIB_VALIDATE_TOKEN_URL;
+const VALIDATE_TOKEN_URL = process.env.VALIDATE_TOKEN_URL;
 
 export async function GET(req: NextRequest) {
   if (!VALIDATE_TOKEN_URL || !JWT_SECRET) {
