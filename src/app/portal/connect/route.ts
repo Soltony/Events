@@ -2,11 +2,9 @@
 'use server';
 
 import { headers } from 'next/headers';
-import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
-import { serialize } from 'cookie';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = '1d';
@@ -15,7 +13,7 @@ const VALIDATE_TOKEN_URL = process.env.VALIDATE_TOKEN_URL;
 
 export async function GET(req: NextRequest) {
   if (!VALIDATE_TOKEN_URL || !JWT_SECRET) {
-    console.error('[PORTAL_CONNECT] Server is missing NIB_VALIDATE_TOKEN_URL or JWT_SECRET environment variables.');
+    console.error('[PORTAL_CONNECT] Server is missing VALIDATE_TOKEN_URL or JWT_SECRET environment variables.');
     return NextResponse.redirect(new URL('/', req.url));
   }
   
@@ -28,7 +26,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const token = authHeader.substring(7);
+    const superAppToken = authHeader.substring(7);
     const externalResponse = await fetch(VALIDATE_TOKEN_URL, {
       method: 'GET',
       headers: {
@@ -59,7 +57,7 @@ export async function GET(req: NextRequest) {
       include: { role: true },
     });
     
-    // Always redirect to the homepage. The AuthProvider on the client will handle routing to the dashboard if logged in.
+    // Always redirect to the homepage. The AuthProvider on the client will handle routing.
     const response = NextResponse.redirect(new URL('/', req.url));
 
     if (user) {
@@ -69,6 +67,8 @@ export async function GET(req: NextRequest) {
         role: user.role.name,
         permissions: user.role.permissions,
         phoneNumber: user.phoneNumber,
+        // Include the original SuperApp token if needed by other APIs
+        superAppToken: superAppToken, 
         isGuest: false,
       };
 
@@ -87,6 +87,8 @@ export async function GET(req: NextRequest) {
       const guestTokenPayload = {
         userId: `guest_${phoneNumber}`, // Create a temporary, non-db guest ID
         phoneNumber: phoneNumber,
+        // Include the original SuperApp token
+        superAppToken: superAppToken,
         isGuest: true,
       };
 
