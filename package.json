@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -p 9002",
     "build": "next build && powershell -Command \"if (!(Test-Path '.next\\standalone\\public')) { New-Item -ItemType Directory -Path '.next\\standalone\\public' }\" && powershell -Command \"xcopy /E /I /Y public .next\\standalone\\public\" && powershell -Command \"xcopy /E /I /Y .next\\static .next\\standalone\\.next\\static\"",
-    "start": "node .next/standalone/server.js",
+    "start": "next start -p 3002",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "postinstall": "patch-package && prisma generate"
