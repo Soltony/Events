@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { getEventById, validatePromoCode, getTicketDetailsForConfirmation } from '@/lib/actions';
@@ -323,9 +322,9 @@ export default function PublicEventDetailPage() {
 
             if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
                 console.log("📡 Sending token to NIB SuperApp…");
+                // Use the exact key 'token' as required by NIB documentation
                 window.myJsChannel.postMessage({
-                    paymentToken,     // REQUIRED EXACT KEY for NIB integration
-                    transactionId,    // OPTIONAL: helpful for debugging
+                    token: paymentToken
                 });
             } else {
                 console.error("❌ myJsChannel not available.");
@@ -777,10 +776,5 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
-
-
-
-
-    
 
     
