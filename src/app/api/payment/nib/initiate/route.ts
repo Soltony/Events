@@ -147,7 +147,6 @@ export async function POST(req: NextRequest) {
       success: true,
       paymentToken: responseData.token,
     });
-
   } catch (err: any) {
     console.error('[NIB INITIATE] Unexpected top-level error:', err);
     return NextResponse.json({ error: err.message || 'An unexpected server error occurred.' }, { status: 500 });
