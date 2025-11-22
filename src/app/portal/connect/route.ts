@@ -2,20 +2,17 @@
 'use server';
 
 import { headers } from 'next/headers';
-import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
-import { serialize } from 'cookie';
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_EXPIRES_IN = '1d';
-const GUEST_JWT_EXPIRES_IN = '1h'; // Guest token is valid for 1 hour
-const VALIDATE_TOKEN_URL = process.env.NIB_VALIDATE_TOKEN_URL;
+const VALIDATE_TOKEN_URL = process.env.VALIDATE_TOKEN_URL;
+const COOKIE_MAX_AGE = 60 * 60 * 24; // 1 day
 
 export async function GET(req: NextRequest) {
   if (!VALIDATE_TOKEN_URL || !JWT_SECRET) {
-    console.error('[PORTAL_CONNECT] Server is missing NIB_VALIDATE_TOKEN_URL or JWT_SECRET environment variables.');
+    console.error('[PORTAL_CONNECT] Server is missing VALIDATE_TOKEN_URL or JWT_SECRET environment variables.');
     return NextResponse.redirect(new URL('/', req.url));
   }
   
@@ -28,7 +25,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const token = authHeader.substring(7);
+    const superAppToken = authHeader.substring(7);
     const externalResponse = await fetch(VALIDATE_TOKEN_URL, {
       method: 'GET',
       headers: {
@@ -53,53 +50,52 @@ export async function GET(req: NextRequest) {
     if (!phoneNumber) {
       throw new Error('Phone number not found in token validation response.');
     }
-
-    const user = await prisma.user.findUnique({
-      where: { phoneNumber: phoneNumber },
-      include: { role: true },
+    
+    // Always redirect to the homepage. The AuthProvider on the client will handle routing.
+    const response = NextResponse.redirect(new URL('/', req.url));
+    
+    // --- CORRECTED LOGIC ---
+    // Store the raw SuperApp token in its own cookie for payment initiation
+    response.cookies.set('superapp_token', superAppToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: COOKIE_MAX_AGE,
     });
     
-    // Always redirect to the homepage. The AuthProvider on the client will handle routing to the dashboard if logged in.
-    const response = NextResponse.redirect(new URL('/', req.url));
+    // Check if the user exists in our DB
+    const user = await prisma.user.findUnique({
+        where: { phoneNumber }
+    });
 
+    let internalTokenPayload: any;
     if (user) {
-      // User exists, log them in by setting a secure auth_token cookie
-      const sessionTokenPayload = {
-        userId: user.id,
-        role: user.role.name,
-        permissions: user.role.permissions,
-        phoneNumber: user.phoneNumber,
-        isGuest: false,
-      };
-
-      const sessionToken = jwt.sign(sessionTokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-      
-      response.cookies.set('auth_token', sessionToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 60 * 60 * 24, // 1 day
-      });
-
+        internalTokenPayload = {
+            userId: user.id,
+            isGuest: false,
+        };
     } else {
-      // User does not exist, treat them as a guest by creating a temporary guest auth token
-      const guestTokenPayload = {
-        userId: `guest_${phoneNumber}`, // Create a temporary, non-db guest ID
-        phoneNumber: phoneNumber,
-        isGuest: true,
-      };
+        internalTokenPayload = {
+            userId: `guest_${phoneNumber}`,
+            phoneNumber: phoneNumber,
+            isGuest: true,
+        };
+    }
 
-      const guestToken = jwt.sign(guestTokenPayload, JWT_SECRET, { expiresIn: GUEST_JWT_EXPIRES_IN });
-
-      response.cookies.set('auth_token', guestToken, {
+    // Create our app's internal JWT
+    const internalToken = jwt.sign(internalTokenPayload, JWT_SECRET, {
+        expiresIn: '1d',
+    });
+    
+    // Set our app's internal auth token cookie
+    response.cookies.set('auth_token', internalToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
-        maxAge: 60 * 60, // 1 hour
-      });
-    }
+        maxAge: COOKIE_MAX_AGE,
+    });
 
     return response;
 

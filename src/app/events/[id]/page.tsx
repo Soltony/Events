@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { getEventById, validatePromoCode, getTicketDetailsForConfirmation } from '@/lib/actions';
@@ -162,7 +161,7 @@ export default function PublicEventDetailPage() {
                 setAttendeePhone(phone);
                 setIsPhoneFromSession(true);
             }
-            if (!user.isGuest && user.firstName) {
+             if (!user.isGuest && user.firstName) {
                 setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
             } else {
                 setAttendeeName(''); 
@@ -266,6 +265,7 @@ export default function PublicEventDetailPage() {
   }, [appliedPromo, subtotal]);
 
     const handlePurchase = async () => {
+<<<<<<< HEAD
         if (!attendeeName || !attendeePhone) {
             toast({ variant: 'destructive', title: "Missing Information", description: "Please enter your name and phone number." });
             return;
@@ -279,10 +279,31 @@ export default function PublicEventDetailPage() {
             await ensureCsrfToken();
 
             // Step 1: Create a pending order in our database
+=======
+    if (!attendeeName || !attendeePhone) {
+        toast({
+            variant: 'destructive',
+            title: "Missing Information",
+            description: "Please enter your name and phone number."
+        });
+        return;
+    }
+
+    setIsPurchaseModalOpen(false);
+    setPaymentStatus('processing');
+
+    startTransition(async () => {
+        try {
+            // Ensure CSRF token exists
+            await ensureCsrfToken();
+
+            // 1️⃣ Create Pending Order
+>>>>>>> e57df9c96ec316175585acb323a4eb9c05059e48
             const pendingOrderResponse = await api.post('/api/payment/pending-order', {
                 eventId,
                 tickets: Object.values(selectedTickets),
                 promoCode: appliedPromo?.code,
+<<<<<<< HEAD
                 attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
             });
 
@@ -332,6 +353,67 @@ export default function PublicEventDetailPage() {
             setPaymentStatus('failed');
         }
     };
+=======
+                attendeeDetails: {
+                    name: attendeeName,
+                    phone: attendeePhone,
+                    userId: user?.id
+                },
+            });
+
+            if (!pendingOrderResponse.data.success) {
+                throw new Error(
+                    pendingOrderResponse.data.error || 'Failed to create a pending order.'
+                );
+            }
+
+            const { transactionId } = pendingOrderResponse.data;
+            setPaymentTransactionId(transactionId);
+
+            // 2️⃣ Call NIB INITIATE
+            const paymentResponse = await api.post('/api/payment/nib/initiate', {
+                total,
+                transactionId,
+            });
+
+            if (!paymentResponse.data.success) {
+                throw new Error(
+                    paymentResponse.data.error || "Failed to initiate payment."
+                );
+            }
+
+            // 3️⃣ Extract paymentToken and IMMEDIATELY send to SuperApp
+            const { paymentToken } = paymentResponse.data;
+
+            console.log("📲 Payment token received:", paymentToken);
+
+            if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
+                console.log("📡 Sending token to NIB SuperApp…");
+                window.myJsChannel.postMessage({
+                    type: 'PAYMENT',       // REQUIRED by some SuperApps to identify the action
+                    token: paymentToken,   // REQUIRED EXACT KEY for NIB integration
+                });
+            } else {
+                console.error("❌ myJsChannel not available.");
+                setError("Payment app communication failed. This only works inside the NIB SuperApp.");
+                setPaymentStatus('failed');
+                return;
+            }
+        } catch (error: any) {
+            console.error("❌ Payment initiation error:", error);
+
+            setError(error.message || "Payment initiation failed.");
+            toast({
+                variant: "destructive",
+                title: "Payment Failed",
+                description: error.response?.data?.detail || error.message || "Unknown error",
+            });
+
+            setPaymentStatus('failed');
+        }
+    });
+};
+>>>>>>> e57df9c96ec316175585acb323a4eb9c05059e48
 
     // This effect handles polling for payment status
     useEffect(() => {
@@ -359,7 +441,7 @@ export default function PublicEventDetailPage() {
                     const ticketDetails = await getTicketDetailsForConfirmation(paymentTransactionId);
                     if (ticketDetails) {
                         setConfirmedTicket(ticketDetails);
-                        const qrUrl = await QRCode.toDataURL(ticketDetails.id.toString(), { errorCorrectionLevel: 'H', type: 'image/png', margin: 1 });
+                        const qrUrl = await QRCode.toDataURL(ticketDetails.qrCode, { errorCorrectionLevel: 'H', type: 'image/png', margin: 1 });
                         setQrCodeDataUrl(qrUrl);
                         setPaymentStatus('success');
                     } else {
