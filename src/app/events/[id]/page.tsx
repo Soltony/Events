@@ -328,7 +328,7 @@ export default function PublicEventDetailPage() {
       console.log('📲 Attempting to send message to SuperApp...');
 
       if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
-        console.log('📡 window.myJsChannel detected. Sending...');
+        console.log('📡 Sending token to NIB SuperApp…');
         window.myJsChannel.postMessage({
           type: 'PAYMENT',
           token: paymentToken,
@@ -352,13 +352,13 @@ export default function PublicEventDetailPage() {
           error.message ||
           'An unknown error occurred during payment initiation.'
       );
-      setPaymentStatus('failed');
       toast({
         variant: 'destructive',
         title: 'Payment Failed',
         description:
           error.response?.data?.details || error.message || 'Unknown error',
       });
+      setPaymentStatus('failed');
     } finally {
       setIsProcessing(false);
     }
