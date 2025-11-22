@@ -9,7 +9,7 @@ import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCar
 import { notFound, useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import type { Event, TicketType, PromoCode, Attendee } from '@prisma/client';
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, useTransition } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -265,76 +265,76 @@ export default function PublicEventDetailPage() {
   }, [appliedPromo, subtotal]);
 
     const handlePurchase = async () => {
-    if (!attendeeName || !attendeePhone) {
-        toast({
-            variant: 'destructive',
-            title: "Missing Information",
-            description: "Please enter your name and phone number."
-        });
-        return;
-    }
-
-    setIsPurchaseModalOpen(false);
-    setPaymentStatus('processing');
-    setIsProcessing(true);
-
-    try {
-        await ensureCsrfToken();
-        console.log("✅ CSRF token ensured. Creating pending order...");
-
-        const pendingOrderResponse = await api.post('/api/payment/pending-order', {
-            eventId,
-            tickets: Object.values(selectedTickets),
-            promoCode: appliedPromo?.code,
-            attendeeDetails: {
-                name: attendeeName,
-                phone: attendeePhone,
-                userId: user?.id
-            },
-        });
-
-        if (!pendingOrderResponse.data.success) {
-            throw new Error(pendingOrderResponse.data.error || 'Failed to create a pending order.');
+        if (!attendeeName || !attendeePhone) {
+            toast({
+                variant: 'destructive',
+                title: "Missing Information",
+                description: "Please enter your name and phone number."
+            });
+            return;
         }
 
-        const { transactionId } = pendingOrderResponse.data;
-        setPaymentTransactionId(transactionId);
-        console.log(`✅ Pending order created with transactionId: ${transactionId}. Initiating payment...`);
+        setIsPurchaseModalOpen(false);
+        setPaymentStatus('processing');
+        setIsProcessing(true);
 
-        const paymentResponse = await api.post('/api/payment/nib/initiate', {
-            total,
-            transactionId,
-        });
+        try {
+            await ensureCsrfToken();
+            console.log("✅ CSRF token ensured. Creating pending order...");
 
-        if (!paymentResponse.data.success) {
-            throw new Error(paymentResponse.data.error || "Failed to initiate payment.");
-        }
-        
-        const { paymentToken } = paymentResponse.data;
-        console.log(`✅ Payment initiated. Received paymentToken: ${paymentToken}`);
+            const pendingOrderResponse = await api.post('/api/payment/pending-order', {
+                eventId,
+                tickets: Object.values(selectedTickets),
+                promoCode: appliedPromo?.code,
+                attendeeDetails: {
+                    name: attendeeName,
+                    phone: attendeePhone,
+                    userId: user?.id
+                },
+            });
 
-        if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
-            console.log("📡 Sending token to NIB SuperApp...");
-            window.myJsChannel.postMessage({ type: 'PAYMENT', token: paymentToken });
-            console.log("✅ postMessage sent to SuperApp.");
-        } else {
-            console.error("❌ myJsChannel not available. This app must run inside the NIB SuperApp.");
-            setError("Payment app communication failed. This only works inside the NIB SuperApp.");
+            if (!pendingOrderResponse.data.success) {
+                throw new Error(pendingOrderResponse.data.error || 'Failed to create a pending order.');
+            }
+
+            const { transactionId } = pendingOrderResponse.data;
+            setPaymentTransactionId(transactionId);
+            console.log(`✅ Pending order created with transactionId: ${transactionId}. Initiating payment...`);
+
+            const paymentResponse = await api.post('/api/payment/nib/initiate', {
+                total,
+                transactionId,
+            });
+
+            if (!paymentResponse.data.success) {
+                throw new Error(paymentResponse.data.error || "Failed to initiate payment.");
+            }
+            
+            const { paymentToken } = paymentResponse.data;
+            console.log(`✅ Payment initiated. Received paymentToken: ${paymentToken}`);
+
+            if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
+                console.log("📡 Sending token to NIB SuperApp...");
+                window.myJsChannel.postMessage({ type: 'PAYMENT', token: paymentToken });
+                console.log("✅ postMessage sent to SuperApp.");
+            } else {
+                console.error("❌ myJsChannel not available. This app must run inside the NIB SuperApp.");
+                setError("Payment app communication failed. This only works inside the NIB SuperApp.");
+                setPaymentStatus('failed');
+            }
+        } catch (error: any) {
+            console.error("❌ Payment initiation error:", error);
+            setError(error.response?.data?.details || error.message || "An unknown error occurred during payment initiation.");
             setPaymentStatus('failed');
+            toast({
+                variant: "destructive",
+                title: "Payment Failed",
+                description: error.response?.data?.details || error.message || "Unknown error",
+            });
+        } finally {
+            setIsProcessing(false);
         }
-    } catch (error: any) {
-        console.error("❌ Payment initiation error:", error);
-        setError(error.response?.data?.details || error.message || "An unknown error occurred during payment initiation.");
-        setPaymentStatus('failed');
-        toast({
-            variant: "destructive",
-            title: "Payment Failed",
-            description: error.response?.data?.details || error.message || "Unknown error",
-        });
-    } finally {
-        setIsProcessing(false);
-    }
-};
+    };
 
     // This effect handles polling for payment status
     useEffect(() => {
