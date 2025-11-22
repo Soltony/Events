@@ -291,7 +291,6 @@ export default function PublicEventDetailPage() {
                 const { transactionId } = pendingOrderResponse.data;
                 setPaymentTransactionId(transactionId);
 
-
                 const paymentResponse = await api.post('/api/payment/nib/initiate', {
                     total,
                     transactionId,
@@ -301,8 +300,8 @@ export default function PublicEventDetailPage() {
                     throw new Error(paymentResponse.data.error || "Failed to initiate payment.");
                 }
 
-                // Step 4: Send payment token back to SuperApp
-                const paymentToken = paymentResponse.data.paymentToken;
+                const { paymentToken } = paymentResponse.data;
+
                 if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
                     console.log('Sending payment token to NIB Super App...');
                     window.myJsChannel.postMessage({ token: paymentToken });
@@ -753,3 +752,4 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
+
