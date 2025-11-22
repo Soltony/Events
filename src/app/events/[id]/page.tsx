@@ -266,62 +266,87 @@ export default function PublicEventDetailPage() {
   }, [appliedPromo, subtotal]);
 
     const handlePurchase = async () => {
-        if (!attendeeName || !attendeePhone) {
-            toast({ variant: 'destructive', title: "Missing Information", description: "Please enter your name and phone number." });
-            return;
-        }
-
-        setIsPurchaseModalOpen(false);
-        setPaymentStatus('processing'); 
-
-        startTransition(async () => {
-            try {
-                await ensureCsrfToken();
-                const pendingOrderResponse = await api.post('/api/payment/pending-order', {
-                    eventId,
-                    tickets: Object.values(selectedTickets),
-                    promoCode: appliedPromo?.code,
-                    attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
-                });
-
-                if (!pendingOrderResponse.data.success) {
-                    throw new Error(pendingOrderResponse.data.error || 'Failed to create a pending order.');
-                }
-                
-                const { transactionId } = pendingOrderResponse.data;
-                setPaymentTransactionId(transactionId);
-
-                const paymentResponse = await api.post('/api/payment/nib/initiate', {
-                    total,
-                    transactionId,
-                });
-
-                if (!paymentResponse.data.success) {
-                    throw new Error(paymentResponse.data.error || "Failed to initiate payment.");
-                }
-
-                const { paymentToken } = paymentResponse.data;
-
-                if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
-                    console.log('Sending payment token to NIB Super App...');
-                    window.myJsChannel.postMessage({ token: paymentToken });
-                } else {
-                    console.error("NIB Super App channel (window.myJsChannel) not found.");
-                    setError("Could not communicate with the payment app. This feature is only available within the NIB SuperApp.");
-                    setPaymentStatus('failed');
-                }
-            } catch (error: any) {
-                console.error('Payment initiation error:', error);
-                setError(error.message || "An unknown error occurred.");
-                toast({
-                    variant: "destructive",
-                    title: "Payment Initiation Failed",
-                    description: error.response?.data?.detail || error.message || "An unknown error occurred.",
-                });
-                setPaymentStatus('failed');
-            }
+    if (!attendeeName || !attendeePhone) {
+        toast({
+            variant: 'destructive',
+            title: "Missing Information",
+            description: "Please enter your name and phone number."
         });
-    };
+        return;
+    }
+
+    setIsPurchaseModalOpen(false);
+    setPaymentStatus('processing');
+
+    startTransition(async () => {
+        try {
+            // Ensure CSRF token exists
+            await ensureCsrfToken();
+
+            // 1️⃣ Create Pending Order
+            const pendingOrderResponse = await api.post('/api/payment/pending-order', {
+                eventId,
+                tickets: Object.values(selectedTickets),
+                promoCode: appliedPromo?.code,
+                attendeeDetails: {
+                    name: attendeeName,
+                    phone: attendeePhone,
+                    userId: user?.id
+                },
+            });
+
+            if (!pendingOrderResponse.data.success) {
+                throw new Error(
+                    pendingOrderResponse.data.error || 'Failed to create a pending order.'
+                );
+            }
+
+            const { transactionId } = pendingOrderResponse.data;
+            setPaymentTransactionId(transactionId);
+
+            // 2️⃣ Call NIB INITIATE
+            const paymentResponse = await api.post('/api/payment/nib/initiate', {
+                total,
+                transactionId,
+            });
+
+            if (!paymentResponse.data.success) {
+                throw new Error(
+                    paymentResponse.data.error || "Failed to initiate payment."
+                );
+            }
+
+            // 3️⃣ Extract paymentToken and IMMEDIATELY send to SuperApp
+            const { paymentToken } = paymentResponse.data;
+
+            console.log("📲 Payment token received:", paymentToken);
+
+            if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
+                console.log("📡 Sending token to NIB SuperApp…");
+                window.myJsChannel.postMessage({
+                    paymentToken,     // REQUIRED EXACT KEY for NIB integration
+                    transactionId,    // OPTIONAL: helpful for debugging
+                });
+            } else {
+                console.error("❌ myJsChannel not available.");
+                setError("Payment app communication failed. This only works inside the NIB SuperApp.");
+                setPaymentStatus('failed');
+                return;
+            }
+        } catch (error: any) {
+            console.error("❌ Payment initiation error:", error);
+
+            setError(error.message || "Payment initiation failed.");
+            toast({
+                variant: "destructive",
+                title: "Payment Failed",
+                description: error.response?.data?.detail || error.message || "Unknown error",
+            });
+
+            setPaymentStatus('failed');
+        }
+    });
+};
 
     // This effect handles polling for payment status
     useEffect(() => {
@@ -755,5 +780,7 @@ export default function PublicEventDetailPage() {
 
 
 
+
+    
 
     
