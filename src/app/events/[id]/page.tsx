@@ -323,8 +323,7 @@ export default function PublicEventDetailPage() {
             if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
                 console.log("📡 Sending token to NIB SuperApp…");
                 window.myJsChannel.postMessage({
-                    type: 'PAYMENT',       // REQUIRED by some SuperApps to identify the action
-                    token: paymentToken,   // REQUIRED EXACT KEY for NIB integration
+                    token: paymentToken
                 });
             } else {
                 console.error("❌ myJsChannel not available.");
