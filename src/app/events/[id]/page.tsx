@@ -9,7 +9,7 @@ import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCar
 import { notFound, useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import type { Event, TicketType, PromoCode, Attendee } from '@prisma/client';
-import { useEffect, useState, useMemo, useRef, useTransition } from 'react';
+import { useEffect, useState, useTransition, useMemo, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -80,10 +80,10 @@ export default function PublicEventDetailPage() {
   const params = useParams<{ id:string }>();
   const eventId = params ? parseInt(params.id, 10) : NaN;
 
+  const [isPending, startTransition] = useTransition();
   const { user } = useAuth();
   const [event, setEvent] = useState<EventWithTickets | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [selectedTickets, setSelectedTickets] = useState<Record<number, SelectedTicket>>({});
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState('');
@@ -264,86 +264,107 @@ export default function PublicEventDetailPage() {
     }
   }, [appliedPromo, subtotal]);
 
-  const handlePurchase = async () => {
-    if (!attendeeName || !attendeePhone) {
-        toast({
-            variant: 'destructive',
-            title: "Missing Information",
-            description: "Please enter your name and phone number."
-        });
-        return;
-    }
-
-    setIsPurchaseModalOpen(false);
-    setPaymentStatus('processing');
-    setIsProcessing(true);
-
-    try {
-        // Step 0: Ensure CSRF token is present
-        await ensureCsrfToken();
-        console.log('✅ CSRF token ensured. Creating pending order...');
-
-        // Step 1: Create a pending order in our database
-        const pendingOrderResponse = await api.post('/api/payment/pending-order', {
-            eventId,
-            tickets: Object.values(selectedTickets),
-            promoCode: appliedPromo?.code,
-            attendeeDetails: {
-                name: attendeeName,
-                phone: attendeePhone,
-                userId: user?.id
-            },
-        });
-
-        if (!pendingOrderResponse.data.success) {
-            throw new Error(
-                pendingOrderResponse.data.error || 'Failed to create a pending order.'
-            );
-        }
-
-        const { transactionId } = pendingOrderResponse.data;
-        setPaymentTransactionId(transactionId);
-        console.log(`✅ Pending order created with transactionId: ${transactionId}. Initiating payment...`);
-
-        // Step 2: Initiate payment with NIB
-        const paymentResponse = await api.post('/api/payment/nib/initiate', {
-            total,
-            transactionId,
-        });
-
-        if (!paymentResponse.data.success) {
-            throw new Error(
-                paymentResponse.data.error || "Failed to initiate payment."
-            );
-        }
-
-        // Step 3: Extract paymentToken and IMMEDIATELY send to SuperApp
-        const { paymentToken } = paymentResponse.data;
-        console.log("📲 Payment token received:", paymentToken);
-
-        if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
-            console.log("📡 Sending token to NIB SuperApp…");
-            window.myJsChannel.postMessage({ type: 'PAYMENT', token: paymentToken });
-            console.log('✅ postMessage sent to SuperApp with type: PAYMENT and token.');
-        } else {
-            console.error("❌ myJsChannel not available. This app must run inside the NIB SuperApp.");
-            setError("Payment app communication failed. This only works inside the NIB SuperApp.");
-            setPaymentStatus('failed');
+    const handlePurchase = async () => {
+        if (!attendeeName || !attendeePhone) {
+            toast({ variant: 'destructive', title: "Missing Information", description: "Please enter your name and phone number." });
             return;
         }
-    } catch (error: any) {
-        console.error("❌ Payment initiation error:", error);
-        setError(error.response?.data?.details || error.message || "An unknown error occurred during payment initiation.");
-        setPaymentStatus('failed');
-        toast({
-            variant: "destructive",
-            title: "Payment Failed",
-            description: error.response?.data?.detail || error.message || "Unknown error",
-        });
-    } finally {
-        setIsProcessing(false);
-    }
-  };
+
+        setIsPurchaseModalOpen(false);
+        setPaymentStatus('processing'); 
+
+        try {
+            // Step 0: Ensure CSRF token is present
+            await ensureCsrfToken();
+
+            // Step 1: Create a pending order in our database
+            const pendingOrderResponse = await api.post('/api/payment/pending-order', {
+                eventId,
+                tickets: Object.values(selectedTickets),
+                promoCode: appliedPromo?.code,
+                attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
+            });
+
+            if (!pendingOrderResponse.data.success) {
+                throw new Error(pendingOrderResponse.data.error || 'Failed to create a pending order.');
+            }
+            
+            const { transactionId } = pendingOrderResponse.data;
+            setPaymentTransactionId(transactionId);
+
+            // Step 2: Use the transactionId from our DB to initiate payment with NIB
+            const paymentResponse = await api.post('/api/payment/nib/initiate', {
+                total,
+                transactionId, // Pass our internal transaction ID
+            });
+
+            if (!paymentResponse.data.success) {
+                throw new Error(paymentResponse.data.error || "Failed to initiate payment.");
+            }
+
+            // Step 3: Send the payment token back to the NIB Super App
+            // CRITICAL: This must be called synchronously, immediately after getting the token
+            // Do NOT wrap in setTimeout, startTransition, or useEffect
+            const paymentToken = paymentResponse.data.paymentToken;
+            
+            if (!paymentToken) {
+                console.error('[NIB PAYMENT] Error: Payment token is missing from response');
+                throw new Error('Payment token not received from server');
+            }
+
+            console.log('[NIB PAYMENT] Payment token received:', paymentToken.substring(0, 50) + '...');
+            
+            // Check if we're in the SuperApp environment
+            if (typeof window === 'undefined') {
+                console.error('[NIB PAYMENT] Error: window is undefined (SSR context)');
+                throw new Error('Payment can only be initiated in browser environment');
+            }
+
+            if (!window.myJsChannel) {
+                console.error('[NIB PAYMENT] Error: window.myJsChannel is not available');
+                console.log('[NIB PAYMENT] Available window properties:', Object.keys(window).filter(k => k.toLowerCase().includes('channel') || k.toLowerCase().includes('nib') || k.toLowerCase().includes('js')));
+                setError("Could not communicate with the payment app. This feature is only available within the NIB SuperApp.");
+                setPaymentStatus('failed');
+                return;
+            }
+
+            if (typeof window.myJsChannel.postMessage !== 'function') {
+                console.error('[NIB PAYMENT] Error: window.myJsChannel.postMessage is not a function');
+                console.log('[NIB PAYMENT] window.myJsChannel type:', typeof window.myJsChannel);
+                setError("Payment channel is not properly initialized.");
+                setPaymentStatus('failed');
+                return;
+            }
+
+            // Prepare the payload with the correct format
+            const payload = { 
+                type: 'PAYMENT', 
+                token: paymentToken 
+            };
+            
+            console.log('[NIB PAYMENT] Sending payment token to NIB Super App');
+            console.log('[NIB PAYMENT] Payload format:', JSON.stringify({ type: payload.type, token: payload.token.substring(0, 50) + '...' }));
+            console.log('[NIB PAYMENT] Calling window.myJsChannel.postMessage synchronously...');
+            
+            try {
+                // CRITICAL: Call postMessage synchronously, immediately after getting the token
+                window.myJsChannel.postMessage(payload);
+                console.log('[NIB PAYMENT] ✅ postMessage called successfully');
+            } catch (postMessageError: any) {
+                console.error('[NIB PAYMENT] ❌ Error calling postMessage:', postMessageError);
+                throw new Error(`Failed to send payment token to SuperApp: ${postMessageError.message}`);
+            }
+        } catch (error: any) {
+            console.error('Payment initiation error:', error);
+            setError(error.message || "An unknown error occurred.");
+            toast({
+                variant: "destructive",
+                title: "Payment Initiation Failed",
+                description: error.response?.data?.detail || error.message || "An unknown error occurred.",
+            });
+            setPaymentStatus('failed');
+        }
+    };
 
     // This effect handles polling for payment status
     useEffect(() => {
@@ -704,8 +725,8 @@ export default function PublicEventDetailPage() {
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handlePurchase} disabled={isProcessing}>
-              {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <AlertDialogAction onClick={handlePurchase} disabled={isPending}>
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Proceed to Payment
             </AlertDialogAction>
           </AlertDialogFooter>
