@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import { nanoid } from 'nanoid';
 import { sendTempPassword } from '@/lib/email';
 import { getCurrentUser } from '@/lib/actions';
+import cuid from 'cuid';
 
 interface AddUserResult {
   success: boolean;
@@ -63,6 +64,7 @@ export async function addUser(
 
         const user = await prisma.user.create({
             data: {
+                id: cuid(),
                 firstName: data.firstName,
                 lastName: data.lastName,
                 phoneNumber: data.phoneNumber,
