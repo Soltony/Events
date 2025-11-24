@@ -289,12 +289,11 @@ export default function PublicEventDetailPage() {
         return;
     }
 
-    setIsPurchaseModalOpen(false);
-    setPaymentStatus('processing');
+        setIsPurchaseModalOpen(false);
+        setPaymentStatus('processing'); 
 
-    startTransition(async () => {
         try {
-            // Ensure CSRF token exists
+            // Step 0: Ensure CSRF token is present
             await ensureCsrfToken();
 
             // 1️⃣ Create Pending Order
@@ -362,53 +361,82 @@ export default function PublicEventDetailPage() {
             });
 
             if (!pendingOrderResponse.data.success) {
-                throw new Error(
-                    pendingOrderResponse.data.error || 'Failed to create a pending order.'
-                );
+                throw new Error(pendingOrderResponse.data.error || 'Failed to create a pending order.');
             }
-
+            
             const { transactionId } = pendingOrderResponse.data;
             setPaymentTransactionId(transactionId);
 
-            // 2️⃣ Call NIB INITIATE
+            // Step 2: Use the transactionId from our DB to initiate payment with NIB
             const paymentResponse = await api.post('/api/payment/nib/initiate', {
                 total,
-                transactionId,
+                transactionId, // Pass our internal transaction ID
             });
 
             if (!paymentResponse.data.success) {
-                throw new Error(
-                    paymentResponse.data.error || "Failed to initiate payment."
-                );
+                throw new Error(paymentResponse.data.error || "Failed to initiate payment.");
             }
 
-            // 3️⃣ Extract paymentToken and IMMEDIATELY send to SuperApp
-            const { paymentToken } = paymentResponse.data;
+            // Step 3: Send the payment token back to the NIB Super App
+            // CRITICAL: This must be called synchronously, immediately after getting the token
+            // Do NOT wrap in setTimeout, startTransition, or useEffect
+            const paymentToken = paymentResponse.data.paymentToken;
+            
+            if (!paymentToken) {
+                console.error('[NIB PAYMENT] Error: Payment token is missing from response');
+                throw new Error('Payment token not received from server');
+            }
 
-            console.log("📲 Payment token received:", paymentToken);
+            console.log('[NIB PAYMENT] Payment token received:', paymentToken.substring(0, 50) + '...');
+            
+            // Check if we're in the SuperApp environment
+            if (typeof window === 'undefined') {
+                console.error('[NIB PAYMENT] Error: window is undefined (SSR context)');
+                throw new Error('Payment can only be initiated in browser environment');
+            }
 
-            if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
-                console.log("📡 Sending token to NIB SuperApp…");
-                window.myJsChannel.postMessage({
-                    type: 'PAYMENT',       // REQUIRED by some SuperApps to identify the action
-                    token: paymentToken,   // REQUIRED EXACT KEY for NIB integration
-                });
-            } else {
-                console.error("❌ myJsChannel not available.");
-                setError("Payment app communication failed. This only works inside the NIB SuperApp.");
+            if (!window.myJsChannel) {
+                console.error('[NIB PAYMENT] Error: window.myJsChannel is not available');
+                console.log('[NIB PAYMENT] Available window properties:', Object.keys(window).filter(k => k.toLowerCase().includes('channel') || k.toLowerCase().includes('nib') || k.toLowerCase().includes('js')));
+                setError("Could not communicate with the payment app. This feature is only available within the NIB SuperApp.");
                 setPaymentStatus('failed');
                 return;
             }
-        } catch (error: any) {
-            console.error("❌ Payment initiation error:", error);
 
-            setError(error.message || "Payment initiation failed.");
+            if (typeof window.myJsChannel.postMessage !== 'function') {
+                console.error('[NIB PAYMENT] Error: window.myJsChannel.postMessage is not a function');
+                console.log('[NIB PAYMENT] window.myJsChannel type:', typeof window.myJsChannel);
+                setError("Payment channel is not properly initialized.");
+                setPaymentStatus('failed');
+                return;
+            }
+
+            // Prepare the payload with the correct format
+            const payload = { 
+                type: 'PAYMENT', 
+                token: paymentToken 
+            };
+            
+            console.log('[NIB PAYMENT] Sending payment token to NIB Super App');
+            console.log('[NIB PAYMENT] Payload format:', JSON.stringify({ type: payload.type, token: payload.token.substring(0, 50) + '...' }));
+            console.log('[NIB PAYMENT] Calling window.myJsChannel.postMessage synchronously...');
+            
+            try {
+                // CRITICAL: Call postMessage synchronously, immediately after getting the token
+                window.myJsChannel.postMessage(payload);
+                console.log('[NIB PAYMENT] ✅ postMessage called successfully');
+            } catch (postMessageError: any) {
+                console.error('[NIB PAYMENT] ❌ Error calling postMessage:', postMessageError);
+                throw new Error(`Failed to send payment token to SuperApp: ${postMessageError.message}`);
+            }
+        } catch (error: any) {
+            console.error('Payment initiation error:', error);
+            setError(error.message || "An unknown error occurred.");
             toast({
                 variant: "destructive",
-                title: "Payment Failed",
-                description: error.response?.data?.detail || error.message || "Unknown error",
+                title: "Payment Initiation Failed",
+                description: error.response?.data?.detail || error.message || "An unknown error occurred.",
             });
-
             setPaymentStatus('failed');
         }
     });

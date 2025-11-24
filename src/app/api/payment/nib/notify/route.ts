@@ -8,25 +8,87 @@ import { revalidatePath } from 'next/cache';
 import crypto from 'crypto';
 
 export async function POST(request: NextRequest) {
-  let requestBody;
+console.log('[NIB NOTIFY] Callback received at:', new Date().toISOString());
+  /*let requestBody;
   try {
+     console.log('[NIB NOTIFY] Received callback with body:');
     requestBody = await request.json();
     console.log('[NIB NOTIFY] Received callback with body:', JSON.stringify(requestBody, null, 2));
   } catch (e) {
     console.error("[NIB NOTIFY] Callback Error: Invalid JSON in request body.", e);
     return NextResponse.json({ message: "Invalid JSON" }, { status: 400 });
-  }
+  }*/
 
   // Step 5: Validate the token from the Authorization header
-  const headerList = headers();
-  const authHeader = headerList.get('Authorization');
+  const authHeader = request.headers.get("Authorization");
   console.log('[NIB NOTIFY] Received Authorization Header:', authHeader);
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     console.error("[NIB NOTIFY] Authorization header is missing or malformed.");
     return NextResponse.json({ message: 'Authorization header is required.' }, { status: 401 });
   }
-  const tokenFromHeader = authHeader.substring(7);
+  const jsonStr = authHeader.slice(7).trim();
+
+    let payload: any;
+    try {
+      payload = JSON.parse(jsonStr); // {"token":"xxxx"}
+    } catch (err) {
+      console.error("Failed to parse JSON from Authorization header");
+      return NextResponse.json(
+        { message: "Invalid JSON in Authorization header" },
+        { status: 400 }
+      );
+    }
+
+    const token = payload.token;
+    if (!token) {
+      return NextResponse.json(
+        { message: "Token missing from payload" },
+        { status: 401 }
+      );
+    }
+
+    const bearerToken = `Bearer ${token}`;
+
+    const validationUrl = process.env.VALIDATE_TOKEN_URL;
+
+    if (!validationUrl) {
+      console.error("NIB_VALIDATE_TOKEN_URL missing in environment");
+      return NextResponse.json(
+        { message: "Server misconfiguration" },
+        { status: 500 }
+      );
+    }
+
+    // -----------------------------------
+    // 2. Validate token with external NIB server
+    // -----------------------------------
+    let externalResponse;
+    try {
+      externalResponse = await fetch(validationUrl, {
+        method: "GET",
+        headers: {
+          Authorization: bearerToken,
+          Accept: "application/json",
+        },
+        cache: "no-store",
+      });
+    } catch (err) {
+      console.error("Failed to call validation URL:", err);
+      return NextResponse.json(
+        { message: "Error validating token" },
+        { status: 500 }
+      );
+    }
+
+    if (!externalResponse.ok) {
+      const errText = await externalResponse.text();
+      console.error("Token validation failed:", errText);
+      return NextResponse.json(
+        { message: "Invalid token" },
+        { status: 401 }
+      );
+    }
 
   const {
     paidAmount,
