@@ -738,50 +738,57 @@ export async function updateUserStatus(userId: string, status: UserStatus) {
 }
 
 export async function deleteUser(userId: string, phoneNumber: string) {
-    try {
-        const eventCount = await prisma.event.count({
-            where: { organizerId: userId },
-        });
+  try {
+    const count = await prisma.event.count({
+      where: { organizerId: userId },
+    });
 
-        if (eventCount > 0) {
-            throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
-        }
-
-        // --- Start Transaction ---
-        await prisma.$transaction(async (tx) => {
-            // 1. Find all staff members created by this user
-            const staffMembers = await tx.user.findMany({
-                where: {
-                    organizerId: userId,
-                },
-                select: { id: true, phoneNumber: true },
-            });
-
-            if (staffMembers.length > 0) {
-                // Since there is no external auth service, we just delete locally
-                const staffIds = staffMembers.map(staff => staff.id);
-                await tx.user.deleteMany({
-                    where: { id: { in: staffIds } },
-                });
-            }
-            
-            // 5. Delete associated attendees and the creator user from the local DB
-            await tx.attendee.deleteMany({ where: { userId } });
-            await tx.user.delete({ where: { id: userId } });
-        });
-        // --- End Transaction ---
-
-        revalidatePath('/dashboard/settings/users');
-
-    } catch (error: any) {
-        console.error('Error deleting user:', error);
-        
-        if (error.code === 'P2003') { 
-             throw new Error("Cannot delete user. They are still linked to other records in the database (e.g., as an event organizer). Please reassign or delete those records first.");
-        }
-        
-        throw new Error(error.message || 'Failed to delete user.');
+    if (count > 0) {
+      return {
+        ok: false,
+        message: `Cannot delete user. They are the organizer of ${count} event(s). Please delete or reassign the events first.`,
+      };
     }
+    
+    // In a real app with external auth, you'd delete the user there first.
+    // For this prototype, we'll just delete from the local DB.
+    
+    // Also, if this user is an organizer, we might need to delete their staff.
+    const userToDelete = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { role: true }
+    });
+
+    if (userToDelete?.role?.name === 'Organizer') {
+        await prisma.user.deleteMany({
+            where: { organizerId: userId }
+        });
+    }
+
+    await prisma.attendee.deleteMany({ where: { userId }});
+
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+    
+    revalidatePath('/dashboard/settings/users');
+    
+    return { ok: true };
+  } catch (err: any) {
+    console.error('Error deleting user:', err);
+
+    if (err.code === 'P2003') { 
+        return {
+            ok: false,
+            message: "Cannot delete user. They are still linked to other records in the database (e.g., as an event organizer). Please reassign or delete those records first."
+        };
+    }
+
+    return {
+      ok: false,
+      message: err.message ?? "Unexpected server error.",
+    };
+  }
 }
 
 
