@@ -170,7 +170,7 @@ export default function UserManagementPage() {
                 title: "User Deleted",
                 description: `Successfully deleted ${userToDelete.firstName} ${userToDelete.lastName}.`
             });
-            fetchData();
+            fetchData(); // Refresh list
         } catch(error: any) {
              toast({
                 variant: 'destructive',
