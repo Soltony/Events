@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
     const cookieStore = cookies();
     const superAppToken = cookieStore.get('superapp_token')?.value;
 
+console.log({superAppToken});
+
     if (!superAppToken) {
         console.error('[NIB INITIATE] Error: SuperApp authorization token (superapp_token) not found in cookie.');
         return NextResponse.json({ error: 'User session not found. Please log in through the SuperApp.' }, { status: 401 });
@@ -62,7 +64,7 @@ export async function POST(req: NextRequest) {
     // --- 4. Generate transaction info & build signature ---
     const transactionId = crypto.randomUUID();
     const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
-    const callBackURL = `${APP_URL}/api/payment/nib/notify`;
+    const callBackURL = process.env.NIB_CALLBACK;
 
     const signatureString = [
       `accountNo=${ACCOUNT_NO}`,
@@ -74,6 +76,8 @@ export async function POST(req: NextRequest) {
       `transactionId=${transactionId}`,
       `transactionTime=${transactionTime}`,
     ].join('&');
+
+console.log({signatureString});
 
     const signature = crypto.createHash('sha256').update(signatureString, 'utf8').digest('hex');
 
@@ -87,6 +91,8 @@ export async function POST(req: NextRequest) {
       transactionTime,
       signature,
     };
+
+console.log({payload});
 
     // --- 5. Create EventPayment record ---
     const eventPayment = await prisma.eventPayment.create({
@@ -106,13 +112,13 @@ export async function POST(req: NextRequest) {
     let responseData: any;
     try {
       const response = await fetch(NIB_PAYMENT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${superAppToken}`, // Use the SuperApp token for authorization
-        },
-        body: JSON.stringify(payload),
-      });
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${superAppToken}`,
+      },
+      body: JSON.stringify(payload),
+    });
 
       console.log('[NIB INITIATE] Payment API Status:', response.status);
       const responseText = await response.text();
@@ -147,6 +153,7 @@ export async function POST(req: NextRequest) {
       success: true,
       paymentToken: responseData.token,
     });
+
   } catch (err: any) {
     console.error('[NIB INITIATE] Unexpected top-level error:', err);
     return NextResponse.json({ error: err.message || 'An unexpected server error occurred.' }, { status: 500 });
