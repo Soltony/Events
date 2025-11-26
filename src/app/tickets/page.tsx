@@ -33,6 +33,7 @@ interface Attendee {
   userId: string | null;
   phoneNumber: string | null;
   createdAt: Date;
+  qrCode: string;
   event: Event;
   ticketType: TicketType;
 }
@@ -130,17 +131,17 @@ export default function MyTicketsPage() {
 
       {tickets.length > 0 ? (
         <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
-          {tickets.map((ticket) => {
-            const imageSource = ticket.event.image || DEFAULT_IMAGE_PLACEHOLDER;
+          {tickets.map((attendee) => {
+            const imageSource = attendee.event.image || DEFAULT_IMAGE_PLACEHOLDER;
             return (
               <Card
-                key={ticket.id}
+                key={attendee.id}
                 className="bg-white shadow-md hover:shadow-lg transition-all rounded-2xl overflow-hidden border border-gray-200"
               >
                 <CardHeader className="p-0 relative aspect-video">
                   <Image
                     src={imageSource}
-                    alt={ticket.event.name}
+                    alt={attendee.event.name}
                     fill
                     className="object-cover rounded-t-2xl"
                     onError={(e) => {
@@ -151,18 +152,18 @@ export default function MyTicketsPage() {
                   />
                 </CardHeader>
                 <CardContent className="p-5 text-left">
-                  <CardTitle className="text-xl font-bold text-[#864b20]">{ticket.event.name}</CardTitle>
+                  <CardTitle className="text-xl font-bold text-[#864b20]">{attendee.event.name}</CardTitle>
                   <CardDescription className="text-sm text-gray-500 mt-1">
-                    {formatEventDate(ticket.event.startDate, ticket.event.endDate)}
+                    {formatEventDate(attendee.event.startDate, attendee.event.endDate)}
                   </CardDescription>
-                  <p className="font-semibold mt-3 text-[#f6b313]">{ticket.ticketType.name}</p>
+                  <p className="font-semibold mt-3 text-[#f6b313]">{attendee.ticketType.name}</p>
                 </CardContent>
                 <CardFooter className="p-5 pt-0">
                   <Button
                     asChild
                     className="w-full bg-[#864b20] hover:bg-[#6e3f1b] text-white font-semibold rounded-xl"
                   >
-                    <Link href={`/ticket/${ticket.id}/confirmation`}>
+                    <Link href={`/ticket/${attendee.id}/confirmation`}>
                       View QR Code & Details
                       <ArrowUpRight className="ml-2 h-4 w-4" />
                     </Link>
