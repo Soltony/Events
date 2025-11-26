@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { randomUUID } from 'crypto';
+import { normalizePhoneNumber } from '@/lib/utils';
 
 export async function POST(req: NextRequest) {
     try {
@@ -14,6 +15,11 @@ export async function POST(req: NextRequest) {
                 error: 'Invalid request payload',
                 detail: 'Required fields: eventId, tickets[], attendeeDetails with name and phone.'
             }, { status: 400 });
+        }
+        
+        const normalizedPhone = normalizePhoneNumber(attendeeDetails.phone);
+        if (!normalizedPhone) {
+            return NextResponse.json({ error: 'Invalid phone number provided.' }, { status: 400 });
         }
 
         const totalQuantity = (tickets as Array<{ quantity: number }>).reduce((sum: number, t) => sum + Number(t.quantity), 0);
@@ -28,7 +34,7 @@ export async function POST(req: NextRequest) {
                 ticketTypeId: tickets[0].id, // Store primary ticket type
                 attendeeData: {
                     name: attendeeDetails.name,
-                    phone: attendeeDetails.phone, // Ensure phone is captured
+                    phone: normalizedPhone, // Store normalized phone number
                     userId: attendeeDetails.userId,
                     quantity: totalQuantity,
                     tickets: tickets, // Store all selected ticket details

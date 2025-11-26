@@ -150,22 +150,24 @@ export default function PublicEventDetailPage() {
 
   useEffect(() => {
     async function fetchSessionData() {
-        if (isAuthLoading) return;
+        if (isAuthLoading) return; // Wait for auth to be resolved
 
-        if (user && !user.isGuest) {
+        if (user && !user.isGuest) { // Full user session exists
             if (user.firstName) {
                 setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
             }
             if (user.phoneNumber) {
-                setAttendeePhone(normalizePhoneNumber(user.phoneNumber));
+                const normalized = normalizePhoneNumber(user.phoneNumber);
+                setAttendeePhone(normalized);
                 setIsPhoneFromSession(true);
             }
-        } else {
-            // Fallback for guest users (from SuperApp cookie)
+        } else { // Fallback for guest users (e.g., from SuperApp)
             try {
+                // Fetch data from the secure cookie via an API route
                 const response = await api.get('/api/auth/cookie-data');
                 if (response.data.success && response.data.data.phoneNumber) {
-                    setAttendeePhone(normalizePhoneNumber(response.data.data.phoneNumber));
+                    const normalized = normalizePhoneNumber(response.data.data.phoneNumber);
+                    setAttendeePhone(normalized);
                     setIsPhoneFromSession(true);
                 }
             } catch (error) {
@@ -175,6 +177,7 @@ export default function PublicEventDetailPage() {
     }
     fetchSessionData();
 }, [user, isAuthLoading]);
+
 
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
