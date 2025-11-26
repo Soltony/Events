@@ -38,7 +38,7 @@ console.log({superAppToken});
     // --- 3. Fetch pending order and event ---
     const pendingOrder = await prisma.pendingOrder.findUnique({
       where: { transactionId: pendingOrderTransactionId },
-      include: { event: true },
+      include: { event: true }
     });
 
     if (!pendingOrder || !pendingOrder.event?.nibBankAccount) {
@@ -84,7 +84,7 @@ console.log({signatureString});
     const payload = {
       accountNo: ACCOUNT_NO,
       amount: String(total),
-      callBackURL,
+      callBackURL: callBackURL,
       companyName: COMPANY_NAME,
       token: superAppToken, // The user's token goes in the payload
       transactionId,
@@ -119,6 +119,9 @@ console.log({payload});
       },
       body: JSON.stringify(payload),
     });
+
+
+console.log({payload,superAppToken, NIB_PAYMENT_URL});
 
       console.log('[NIB INITIATE] Payment API Status:', response.status);
       const responseText = await response.text();
