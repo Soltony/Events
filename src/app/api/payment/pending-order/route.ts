@@ -9,10 +9,10 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { eventId, tickets, promoCode, attendeeDetails } = body;
 
-        if (!eventId || !tickets?.length || !attendeeDetails) {
+        if (!eventId || !tickets?.length || !attendeeDetails || !attendeeDetails.phone) {
             return NextResponse.json({
                 error: 'Invalid request payload',
-                detail: 'Required fields: eventId, tickets[], attendeeDetails.'
+                detail: 'Required fields: eventId, tickets[], attendeeDetails with name and phone.'
             }, { status: 400 });
         }
 
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
                 ticketTypeId: tickets[0].id, // Store primary ticket type
                 attendeeData: {
                     name: attendeeDetails.name,
-                    phoneNumber: attendeeDetails.phone,
+                    phone: attendeeDetails.phone, // Ensure phone is captured
                     userId: attendeeDetails.userId,
                     quantity: totalQuantity,
                     tickets: tickets, // Store all selected ticket details

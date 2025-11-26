@@ -268,6 +268,14 @@ export default function PublicEventDetailPage() {
         }
 
         const normalizedPhone = normalizePhoneNumber(attendeePhone);
+        if (!normalizedPhone) {
+             toast({
+                variant: 'destructive',
+                title: "Invalid Phone Number",
+                description: "Please enter a valid phone number.",
+            });
+            return;
+        }
 
         setIsPurchaseModalOpen(false);
         setPaymentStatus('processing');

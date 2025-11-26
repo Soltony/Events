@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { NextRequest, NextResponse } from "next/server";
@@ -30,6 +31,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "OK" }, { status: 200 });
     }
     
+    console.log(`[NIB NOTIFY] Found transactionId: ${transactionId}`);
+    
     // Find the corresponding EventPayment and its PendingOrder
     const payment = await prisma.eventPayment.findUnique({
         where: { transactionId },
@@ -54,6 +57,7 @@ export async function POST(req: NextRequest) {
     
     // Use paidByNumber from NIB if available and normalize it.
     const paidByNumberRaw = parsedBody?.paidByNumber;
+    console.log(`[NIB NOTIFY] paidByNumber (raw): ${paidByNumberRaw}`);
     const paidByNumberNormalized = paidByNumberRaw ? normalizePhoneNumber(paidByNumberRaw) : null;
     
     const orderAttendeeData = order.attendeeData as {
@@ -64,7 +68,9 @@ export async function POST(req: NextRequest) {
     };
     const orderPhoneNormalized = normalizePhoneNumber(orderAttendeeData.phone);
     
-    if (paidByNumberNormalized && paidByNumberNormalized !== orderPhoneNormalized) {
+    if (paidByNumberNormalized && paidByNumberNormalized === orderPhoneNormalized) {
+        console.log(`[NIB NOTIFY] paidByNumber matches pending order phone for transaction: ${transactionId}`);
+    } else {
         console.warn(`[NIB NOTIFY] Warning: Phone number mismatch for transaction ${transactionId}. Order Phone: ${orderPhoneNormalized}, Paid By: ${paidByNumberNormalized}. Proceeding with order phone.`);
     }
 
