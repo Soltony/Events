@@ -348,7 +348,7 @@ export default function PublicEventDetailPage() {
         }
     };
   
-  if (loading || !event || isAuthLoading) {
+  if (loading || isAuthLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <header className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-sm">
@@ -388,6 +388,10 @@ export default function PublicEventDetailPage() {
         </main>
       </div>
     )
+  }
+
+  if (!event) {
+    return notFound();
   }
   
   const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
@@ -664,6 +668,10 @@ export default function PublicEventDetailPage() {
         // Fetch the superapp_token from cookies
         const superAppToken = Cookies.get('superapp_token');
 
+        if (!superAppToken) {
+          throw new Error('User session not found. Please log in through the SuperApp.');
+        }
+
         // Step 2: Initiate payment
         const paymentRes = await api.post('/api/payment/nib/initiate', {
           total,
@@ -764,4 +772,3 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
-
