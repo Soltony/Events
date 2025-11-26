@@ -298,17 +298,9 @@ export default function PublicEventDetailPage() {
             
             try {
                 const response = await api.get(`/api/payment/status/${paymentTransactionId}`);
-                if (response.data.status === 'COMPLETED') {
-                    const ticketDetails = await getTicketDetailsForConfirmation(paymentTransactionId);
-                    if (ticketDetails) {
-                        setConfirmedTicket(ticketDetails);
-                        const qrUrl = await QRCode.toDataURL(ticketDetails.qrCode, { errorCorrectionLevel: 'H', type: 'image/png', margin: 1 });
-                        setQrCodeDataUrl(qrUrl);
-                        setPaymentStatus('success');
-                    } else {
-                        throw new Error("Could not retrieve ticket details after confirmation.");
-                    }
+                if (response.data.status === 'COMPLETED' && response.data.attendeeId) {
                     isCancelled = true; // Stop polling
+                    router.replace(`/ticket/${response.data.attendeeId}/confirmation`);
                 } else {
                     setTimeout(poll, 2000);
                 }
@@ -321,7 +313,7 @@ export default function PublicEventDetailPage() {
         poll();
 
         return () => { isCancelled = true; };
-    }, [paymentStatus, paymentTransactionId]);
+    }, [paymentStatus, paymentTransactionId, router]);
 
 
     const eventLocations = useMemo(() => {
@@ -712,8 +704,8 @@ export default function PublicEventDetailPage() {
             {paymentStatus === 'processing' && (
                  <div className="flex flex-col items-center justify-center p-8 text-center space-y-4">
                     <Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" />
-                    <DialogTitle className="text-2xl font-semibold">Finalizing Your Ticket...</DialogTitle>
-                    <DialogDescription>Please wait while we confirm your payment. This may take a few moments.</DialogDescription>
+                    <DialogTitle className="text-2xl font-semibold">Waiting for Payment...</DialogTitle>
+                    <DialogDescription>Please complete the payment in the NIB Super App. This window will update automatically.</DialogDescription>
                     <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm pt-4">
                         <CheckCircle2 className="h-4 w-4" />
                         <span>Do not close this window.</span>

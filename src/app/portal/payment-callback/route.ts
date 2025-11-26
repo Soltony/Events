@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       let lastAttendee = null;
 
       // Handle guest user ID
-      const finalUserId = userId && !userId.startsWith('guest_') ? userId : undefined;
+      const finalUserId = userId;
 
       // Create Attendee record(s)
       for (const ticketInfo of tickets) {

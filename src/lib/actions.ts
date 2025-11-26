@@ -1007,6 +1007,7 @@ export async function getTicketDetailsForConfirmation(identifier: string) {
 }
 
 
+
 export async function getTicketsForUser(userId?: string, phoneNumber?: string): Promise<AttendeeTicket[]> {
     if (!userId && !phoneNumber) {
         return [];
