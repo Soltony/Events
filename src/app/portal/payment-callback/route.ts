@@ -4,6 +4,19 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { randomUUID } from "crypto";
 
+function normalizePhone(phone?: string | null): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
+  // Normalize Ethiopian-style numbers: 2519xxxxxxxx or 09xxxxxxxx -> 9xxxxxxxx
+  if (digits.startsWith("251") && digits.length >= 11) {
+    return digits.slice(-9);
+  }
+  if (digits.startsWith("0") && digits.length >= 10) {
+    return digits.slice(-9);
+  }
+  return digits;
+}
+
 export async function POST(req: NextRequest) {
   try {                                       
     // 1. Raw body
@@ -29,7 +42,7 @@ export async function POST(req: NextRequest) {
     console.log("[NIB NOTIFY] Full URL:", req.url);
     console.log("[NIB NOTIFY] Query params:", Object.fromEntries(searchParams));
 
-    // 5. Get our internal transactionId.
+    // 5. Get our internal transactionId and the paidByNumber (payer phone).
     //
     // For NIB, the field `txnRef` in the callback body contains the same UUID
     // we originally sent as `transactionId` when initiating the payment.
@@ -45,12 +58,21 @@ export async function POST(req: NextRequest) {
       parsedBody?.transactionId ||
       parsedBody?.TranID;
 
+    const paidByNumberRaw =
+      parsedBody?.paidByNumber ||
+      parsedBody?.payerPhone ||
+      parsedBody?.PayerPhone ||
+      null;
+
     if (!transactionId) {
       console.log("[NIB NOTIFY] No transactionId found anywhere");
       return NextResponse.json({ message: "OK" }, { status: 200 });
     }
 
     console.log("[NIB NOTIFY] Found transactionId:", transactionId);
+    if (paidByNumberRaw) {
+      console.log("[NIB NOTIFY] paidByNumber (raw):", paidByNumberRaw);
+    }
 
     // 6. Complete the payment + issue tickets in a single transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -106,6 +128,30 @@ export async function POST(req: NextRequest) {
           order,
           attendees: existingAttendees,
         };
+      }
+
+      // Validate paidByNumber against the phone number stored on the order
+      const orderPhoneNormalized = normalizePhone(
+        (order.attendeeData as any)?.phoneNumber ?? null
+      );
+      const paidByNormalized = normalizePhone(paidByNumberRaw);
+
+      if (paidByNormalized && orderPhoneNormalized) {
+        if (paidByNormalized !== orderPhoneNormalized) {
+          console.warn(
+            "[NIB NOTIFY] paidByNumber does not match pending order phone.",
+            {
+              paidByNormalized,
+              orderPhoneNormalized,
+              transactionId,
+            }
+          );
+        } else {
+          console.log(
+            "[NIB NOTIFY] paidByNumber matches pending order phone for transaction:",
+            transactionId
+          );
+        }
       }
 
       // 6.b) Issue attendees (tickets)
