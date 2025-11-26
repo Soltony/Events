@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -32,6 +31,8 @@ export default function EventsCarousel({ events }: { events: EventWithTickets[] 
     Autoplay({ delay: 5000, stopOnInteraction: true, stopOnMouseEnter: true })
   );
 
+  const eventsWithImages = events.filter(event => event.image);
+
   useEffect(() => {
     if (!api) {
       return;
@@ -50,7 +51,7 @@ export default function EventsCarousel({ events }: { events: EventWithTickets[] 
     };
   }, [api]);
 
-  if (events.length === 0) {
+  if (eventsWithImages.length === 0) {
     return (
         <div className="relative w-full aspect-square md:aspect-video">
             <Image
@@ -77,8 +78,8 @@ export default function EventsCarousel({ events }: { events: EventWithTickets[] 
             }}
         >
             <CarouselContent>
-                {events.map((event, index) => {
-                    const imageUrl = event.image && !event.image.startsWith('/') ? `/${event.image}` : (event.image || DEFAULT_IMAGE_PLACEHOLDER);
+                {eventsWithImages.map((event, index) => {
+                    const imageUrl = event.image || DEFAULT_IMAGE_PLACEHOLDER;
                     return (
                         <CarouselItem key={event.id}>
                             <div className="relative w-full aspect-square md:aspect-video">

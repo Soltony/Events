@@ -270,7 +270,7 @@ export default function EditUserPage() {
                                         disabled={currentUser?.id === userId}
                                     >
                                         <FormControl><SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
-                                        <SelectContent>{roles.map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
+                                        <SelectContent>{roles.filter(role => role.name !== 'Admin').map((role) => (<SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>))}</SelectContent>
                                     </Select>
                                     <FormMessage />
                                 </FormItem>

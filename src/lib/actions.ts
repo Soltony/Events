@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -22,6 +23,7 @@ interface AttendeeTicket {
   userId: string | null;
   phoneNumber: string | null;
   createdAt: Date;
+  qrCode: string;
   event: {
     id: string;
     name: string;
@@ -167,7 +169,7 @@ export async function getEventById(id: number) {
         const serializedEvent = serialize(event) as any;
          // Manually construct the organizer name from the fetched fields
         if (serializedEvent.organizer) {
-            serializedEvent.organizerName = `${serializedEvent.organizer.firstName || ''} ${serializedEvent.organizer.lastName || ''}`.trim();
+            serializedEvent.organizerName = `${''}${serializedEvent.organizer.firstName || ''} ${''}${serializedEvent.organizer.lastName || ''}`.trim();
         }
 
         serializedEvent.ticketTypes = serializedEvent.ticketTypes.map((tt: any) => {
@@ -282,7 +284,7 @@ export async function addEvent(data: any) {
                 if (config.location && config.price >= 0 && config.quantity >= 0) {
                      await prisma.ticketType.create({
                         data: {
-                            name: `${ticket.name} - ${config.location}`,
+                            name: `${''}${ticket.name} - ${config.location}`,
                             description: ticket.description,
                             basePrice: config.price,
                             total: config.quantity,
@@ -738,50 +740,57 @@ export async function updateUserStatus(userId: string, status: UserStatus) {
 }
 
 export async function deleteUser(userId: string, phoneNumber: string) {
-    try {
-        const eventCount = await prisma.event.count({
-            where: { organizerId: userId },
-        });
+  try {
+    const count = await prisma.event.count({
+      where: { organizerId: userId },
+    });
 
-        if (eventCount > 0) {
-            throw new Error(`Cannot delete user. They are the organizer of ${eventCount} event(s). Please delete or reassign the events first.`);
-        }
-
-        // --- Start Transaction ---
-        await prisma.$transaction(async (tx) => {
-            // 1. Find all staff members created by this user
-            const staffMembers = await tx.user.findMany({
-                where: {
-                    organizerId: userId,
-                },
-                select: { id: true, phoneNumber: true },
-            });
-
-            if (staffMembers.length > 0) {
-                // Since there is no external auth service, we just delete locally
-                const staffIds = staffMembers.map(staff => staff.id);
-                await tx.user.deleteMany({
-                    where: { id: { in: staffIds } },
-                });
-            }
-            
-            // 5. Delete associated attendees and the creator user from the local DB
-            await tx.attendee.deleteMany({ where: { userId } });
-            await tx.user.delete({ where: { id: userId } });
-        });
-        // --- End Transaction ---
-
-        revalidatePath('/dashboard/settings/users');
-
-    } catch (error: any) {
-        console.error('Error deleting user:', error);
-        
-        if (error.code === 'P2003') { 
-             throw new Error("Cannot delete user. They are still linked to other records in the database (e.g., as an event organizer). Please reassign or delete those records first.");
-        }
-        
-        throw new Error(error.message || 'Failed to delete user.');
+    if (count > 0) {
+      return {
+        ok: false,
+        message: `Cannot delete user. They are the organizer of ${count} event(s). Please delete or reassign the events first.`,
+      };
     }
+    
+    // In a real app with external auth, you'd delete the user there first.
+    // For this prototype, we'll just delete from the local DB.
+    
+    // Also, if this user is an organizer, we might need to delete their staff.
+    const userToDelete = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { role: true }
+    });
+
+    if (userToDelete?.role?.name === 'Organizer') {
+        await prisma.user.deleteMany({
+            where: { organizerId: userId }
+        });
+    }
+
+    await prisma.attendee.deleteMany({ where: { userId }});
+
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+    
+    revalidatePath('/dashboard/settings/users');
+    
+    return { ok: true };
+  } catch (err: any) {
+    console.error('Error deleting user:', err);
+
+    if (err.code === 'P2003') { 
+        return {
+            ok: false,
+            message: "Cannot delete user. They are still linked to other records in the database (e.g., as an event organizer). Please reassign or delete those records first."
+        };
+    }
+
+    return {
+      ok: false,
+      message: err.message ?? "Unexpected server error.",
+    };
+  }
 }
 
 
@@ -918,7 +927,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
         
         // This is a placeholder for the actual payment gateway interaction
         console.log(`Initiating payment for ${finalAmount.toFixed(2)} ETB...`);
-        const paymentSessionId = `MOCK_${randomUUID()}`;
+        const paymentSessionId = `MOCK_${''}${randomUUID()}`;
 
         // Create a single attendee record for the entire purchase
         const firstTicket = tickets[0];
@@ -969,57 +978,83 @@ export async function purchaseTickets(request: PurchaseRequest) {
 }
 
 export async function getTicketDetailsForConfirmation(identifier: string) {
-    const isNumericId = /^\d+$/.test(identifier);
+  const isNumericId = /^\d+$/.test(identifier);
 
-    let whereClause;
-    if (isNumericId) {
-        whereClause = { id: parseInt(identifier, 10) };
-    } else {
-        // If it's not numeric, assume it's a transactionId from the payment success page
-        const order = await prisma.pendingOrder.findFirst({
-            where: { 
-                OR: [
-                    { transactionId: identifier },
-                    { arifpaySessionId: identifier }
-                ]
-             },
-        });
-        if (!order || !order.attendeeId) return null;
-        whereClause = { id: order.attendeeId };
-    }
-
-    const attendee = await prisma.attendee.findUnique({
-        where: whereClause,
-        include: {
-            event: true,
-            ticketType: true,
-        },
+  let whereClause;
+  if (isNumericId) {
+    whereClause = { id: parseInt(identifier, 10) };
+  } else {
+    // If not a numeric ID, it could be a transactionId or a qrCode string (UUID)
+    const order = await prisma.pendingOrder.findFirst({
+      where: {
+        OR: [
+          { transactionId: identifier },
+          { arifpaySessionId: identifier }
+        ]
+      },
+      select: { attendeeId: true }
     });
 
-    return serialize(attendee);
+    if (order && order.attendeeId) {
+      whereClause = { id: order.attendeeId };
+    } else {
+      // Fallback to check if the identifier is a QR code
+      whereClause = { qrCode: identifier };
+    }
+  }
+
+  const attendee = await prisma.attendee.findUnique({
+    where: whereClause,
+    include: {
+      event: true,
+      ticketType: true,
+    },
+  });
+
+  return serialize(attendee);
 }
 
-export async function getTicketsForUser(userId?: string, phoneNumber?: string) {
+
+
+
+export async function getTicketsForUser(userId?: string, phoneNumber?: string): Promise<AttendeeTicket[]> {
     if (!userId && !phoneNumber) {
         return [];
     }
 
-    const whereClauses = [];
+    const whereClauses: ({ userId: string } | { phoneNumber: string })[] = [];
     if (userId) {
         whereClauses.push({ userId: userId });
     }
     if (phoneNumber) {
-        // The `in` operator expects an array.
-        whereClauses.push({ phoneNumber: { in: [phoneNumber] } });
+        whereClauses.push({ phoneNumber: phoneNumber });
     }
 
     const attendees = await prisma.attendee.findMany({
         where: {
             OR: whereClauses,
         },
-        include: {
-            event: true,
-            ticketType: true,
+        select: {
+            id: true,
+            userId: true,
+            phoneNumber: true,
+            createdAt: true,
+            qrCode: true,
+            event: {
+                select: {
+                    id: true,
+                    name: true,
+                    image: true,
+                    startDate: true,
+                    endDate: true,
+                }
+            },
+            ticketType: {
+                select: {
+                    id: true,
+                    name: true,
+                }
+            },
         },
         orderBy: {
             createdAt: 'desc',
@@ -1028,6 +1063,7 @@ export async function getTicketsForUser(userId?: string, phoneNumber?: string) {
 
     return serialize(attendees);
 }
+
 
 
 export async function getTicketsByUserId(userId: string | null) {
@@ -1087,11 +1123,11 @@ export async function validatePromoCode(code: string, eventId: number, location?
 }
 
 
-export async function checkInAttendee(attendeeId: number) {
+export async function checkInAttendee(qrCode: string) {
     'use server';
     try {
         const attendee = await prisma.attendee.findUnique({
-            where: { id: attendeeId },
+            where: { qrCode },
             include: { event: true, ticketType: true }
         });
 
@@ -1104,7 +1140,7 @@ export async function checkInAttendee(attendeeId: number) {
         }
 
         const updatedAttendee = await prisma.attendee.update({
-            where: { id: attendeeId },
+            where: { qrCode },
             data: { checkedIn: true },
             include: { event: true, ticketType: true }
         });

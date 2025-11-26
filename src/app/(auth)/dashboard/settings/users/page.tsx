@@ -164,42 +164,44 @@ export default function UserManagementPage() {
 
     const handleDelete = async () => {
         if (!userToDelete) return;
-        try {
-            await deleteUser(userToDelete.id, userToDelete.phoneNumber);
+        const res = await deleteUser(userToDelete.id, userToDelete.phoneNumber);
+
+        if (!res.ok) {
             toast({
-                title: "User Deleted",
-                description: `Successfully deleted ${userToDelete.firstName} ${userToDelete.lastName}.`
+                variant: "destructive",
+                title: "Error Deleting User",
+                description: res.message,
             });
-            fetchData();
-        } catch(error: any) {
-             toast({
-                variant: 'destructive',
-                title: 'Error Deleting User',
-                description: error.message || "An unexpected error occurred."
-            });
-        } finally {
             setUserToDelete(null);
+            return;
         }
-    }
+
+        toast({
+            title: "User Deleted",
+            description: `Successfully deleted ${userToDelete.firstName} ${userToDelete.lastName}.`
+        });
+        fetchData();
+        setUserToDelete(null);
+    };
 
     const handleDecline = async (userToDecline: UserWithDetails) => {
         setActionLoading(userToDecline.id);
-        try {
-            await deleteUser(userToDecline.id, userToDecline.phoneNumber);
+        const res = await deleteUser(userToDecline.id, userToDecline.phoneNumber);
+
+        if (!res.ok) {
+            toast({
+                variant: 'destructive',
+                title: 'Error Declining User',
+                description: res.message || "An unexpected error occurred.",
+            });
+        } else {
             toast({
                 title: "User Declined",
                 description: `Registration for ${userToDecline.firstName} ${userToDecline.lastName} has been declined and the user has been deleted.`,
             });
             fetchData();
-        } catch(error: any) {
-             toast({
-                variant: 'destructive',
-                title: 'Error Declining User',
-                description: error.message || "An unexpected error occurred.",
-            });
-        } finally {
-            setActionLoading(null);
         }
+        setActionLoading(null);
     }
 
 

@@ -1,6 +1,8 @@
+
+
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { format } from 'date-fns';
@@ -56,35 +58,105 @@ export default function MyTicketsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    async function fetchTickets() {
-      setLoading(true);
+    let isMounted = true;
+    let pollInterval: number | undefined;
+    let pollCount = 0;
+    const maxPolls = 24; // e.g. poll for up to 2 minutes at 5s interval
+
+    const hasPendingRefresh =
+      typeof window !== 'undefined' &&
+      window.sessionStorage.getItem('pendingTicketsRefresh') === 'true';
+
+    async function fetchTickets(isPoll = false) {
+      if (!isPoll) {
+        setLoading(true);
+      }
+
       try {
         const response = await api.get('/api/auth/cookie-data');
         const phoneNumber = response.data?.data?.phoneNumber;
         const userId = response.data?.data?.userId;
 
         if (!phoneNumber && !userId) {
-          console.log("No user session found.");
-          setTickets([]);
+          console.log('No user session found.');
+          if (isMounted) {
+            setTickets([]);
+          }
           return;
         }
 
         const fetchedTickets = await getTicketsForUser(userId, phoneNumber);
-        setTickets(fetchedTickets);
+
+        if (!isMounted) return;
+
+        setTickets((prev) => {
+          const prevCount = prev.length;
+          const nextCount = fetchedTickets.length;
+
+          // If we are polling due to a recent purchase and we detect that
+          // new tickets have appeared, show a success toast once and stop
+          // polling. This also avoids duplicate notifications on refresh.
+          if (isPoll && hasPendingRefresh && nextCount > prevCount) {
+            toast({
+              variant: 'default',
+              title: 'Purchase Successful!',
+              description: 'Your new ticket has been added to My Tickets.',
+            });
+            if (typeof window !== 'undefined') {
+              window.sessionStorage.removeItem('pendingTicketsRefresh');
+            }
+            if (pollInterval) {
+              window.clearInterval(pollInterval);
+            }
+          }
+
+          return fetchedTickets;
+        });
       } catch (error) {
         console.error('❌ Failed to fetch tickets:', error);
-        toast({
-          variant: "destructive",
-          title: "Could not load tickets",
-          description: "There was a problem retrieving your tickets. Please try again later.",
-        });
-        setTickets([]);
+        if (!isPoll) {
+          toast({
+            variant: 'destructive',
+            title: 'Could not load tickets',
+            description: 'There was a problem retrieving your tickets. Please try again later.',
+          });
+        }
+        if (isMounted) {
+          setTickets([]);
+        }
       } finally {
-        setLoading(false);
+        if (!isPoll) {
+          setLoading(false);
+        }
       }
     }
 
-    fetchTickets();
+    // Initial load
+    fetchTickets(false);
+
+    // If there is a recent purchase in progress, keep polling until tickets show up.
+    if (hasPendingRefresh) {
+      pollInterval = window.setInterval(() => {
+        pollCount += 1;
+        if (pollCount > maxPolls) {
+          if (pollInterval) {
+            window.clearInterval(pollInterval);
+          }
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.removeItem('pendingTicketsRefresh');
+          }
+          return;
+        }
+        fetchTickets(true);
+      }, 5000);
+    }
+
+    return () => {
+      isMounted = false;
+      if (pollInterval) {
+        window.clearInterval(pollInterval);
+      }
+    };
   }, [toast]);
 
   if (loading) {
