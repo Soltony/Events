@@ -54,11 +54,15 @@ interface TicketDetails extends Attendee {
 }
 
 declare global {
-    interface Window {
-        myJsChannel?: {
-            postMessage: (message: { token: string }) => void;
-        };
-    }
+  interface Window {
+    myJsChannel?: {
+      postMessage: (
+        message:
+          | { type: 'PAYMENT'; token: string }
+          | { token: string }
+      ) => void;
+    };
+  }
 }
 
 export type SelectedTicket = {
@@ -160,36 +164,63 @@ export default function PublicEventDetailPage() {
   }, [selectedLocation]);
 
   useEffect(() => {
+    // Do not override a value the user has already typed manually
+    if (attendeePhone) {
+      return;
+    }
+
     async function fetchSessionPhone() {
       if (isAuthLoading) return;
-  
+
       try {
-        const response = await api.get("/api/auth/cookie-data");
-  
-        if (response.data.success && response.data.data.phoneNumber) {
-          const normalized = normalizePhoneNumber(response.data.data.phoneNumber);
-          setAttendeePhone(normalized);
-          setIsPhoneFromSession(true);
-          // Also set name if it's a full user from the auth context
-          if (user && !user.isGuest) {
-            setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
+        // 1) Primary source: cookie-based session data (includes SuperApp guests)
+        const response = await api.get("/api/auth/cookie-data").catch(() => null);
+
+        const cookiePhone: string | undefined =
+          response?.data?.success && response.data.data?.phoneNumber
+            ? response.data.data.phoneNumber
+            : undefined;
+
+        if (cookiePhone) {
+          const normalized = normalizePhoneNumber(cookiePhone);
+          if (normalized) {
+            setAttendeePhone(normalized);
+            setIsPhoneFromSession(true);
+
+            // If we also have a full user, use it to prefill the name
+            if (user && !user.isGuest) {
+              setAttendeeName(
+                `${user.firstName} ${user.lastName || ""}`.trim()
+              );
+            }
+            return; // We successfully pre-populated from cookie-data
           }
-          return; // Exit after successfully getting phone from cookie
         }
-  
-        // Only fallback to AuthContext if cookie has no phone
+
+        // 2) Fallback: authenticated user from AuthContext
         if (user && !user.isGuest && user.phoneNumber) {
-          setAttendeePhone(normalizePhoneNumber(user.phoneNumber));
-          setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
-          setIsPhoneFromSession(true);
+          const normalized = normalizePhoneNumber(user.phoneNumber);
+          if (normalized) {
+            setAttendeePhone(normalized);
+            setAttendeeName(
+              `${user.firstName} ${user.lastName || ""}`.trim()
+            );
+            setIsPhoneFromSession(true);
+            return;
+          }
         }
-  
+
+        // 3) If we reach here, we could not pre-populate a phone number.
+        //    Leave `attendeePhone` empty and keep the field editable.
+        setIsPhoneFromSession(false);
       } catch (e) {
-        console.log("No session phone found from any source.");
+        console.log("[Attendee Phone] No session phone found from any source.");
+        setIsPhoneFromSession(false);
       }
     }
+
     fetchSessionPhone();
-  }, [user, isAuthLoading]);
+  }, [user, isAuthLoading, attendeePhone]);
 
 
   const getCategoryBadgeClass = (category: string) => {
