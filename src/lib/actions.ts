@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -982,14 +983,13 @@ export async function getTicketDetailsForConfirmation(identifier: string) {
     if (isNumericId) {
         whereClause = { id: parseInt(identifier, 10) };
     } else {
-        // If it's not numeric, assume it's a transactionId from the payment success page
         const order = await prisma.pendingOrder.findFirst({
-            where: { 
+            where: {
                 OR: [
                     { transactionId: identifier },
                     { arifpaySessionId: identifier }
                 ]
-             },
+            },
         });
         if (!order || !order.attendeeId) return null;
         whereClause = { id: order.attendeeId };
@@ -1005,6 +1005,7 @@ export async function getTicketDetailsForConfirmation(identifier: string) {
 
     return serialize(attendee);
 }
+
 
 export async function getTicketsForUser(userId?: string, phoneNumber?: string): Promise<AttendeeTicket[]> {
     if (!userId && !phoneNumber) {
@@ -1024,8 +1025,21 @@ export async function getTicketsForUser(userId?: string, phoneNumber?: string): 
             OR: whereClauses.length > 0 ? whereClauses : undefined,
         },
         include: {
-            event: true,
-            ticketType: true,
+            event: {
+                select: {
+                    id: true,
+                    name: true,
+                    image: true,
+                    startDate: true,
+                    endDate: true,
+                }
+            },
+            ticketType: {
+                select: {
+                    id: true,
+                    name: true,
+                }
+            },
         },
         orderBy: {
             createdAt: 'desc',
@@ -1034,6 +1048,7 @@ export async function getTicketsForUser(userId?: string, phoneNumber?: string): 
 
     return serialize(attendees);
 }
+
 
 
 export async function getTicketsByUserId(userId: string | null) {
