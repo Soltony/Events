@@ -23,6 +23,7 @@ interface AttendeeTicket {
   userId: string | null;
   phoneNumber: string | null;
   createdAt: Date;
+  qrCode: string;
   event: {
     id: string;
     name: string;
@@ -1025,7 +1026,12 @@ export async function getTicketsForUser(userId?: string, phoneNumber?: string): 
         where: {
             OR: whereClauses.length > 0 ? whereClauses : undefined,
         },
-        include: {
+        select: {
+            id: true,
+            userId: true,
+            phoneNumber: true,
+            createdAt: true,
+            qrCode: true,
             event: {
                 select: {
                     id: true,
