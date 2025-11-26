@@ -64,8 +64,8 @@ export async function POST(request: NextRequest) {
         throw new Error('No ticket information found in pending order.');
       }
       
-      // FIX: If the user is a guest, do not save the guest ID to the userId foreign key column.
-      if (userId?.startsWith('guest_')) {
+      // If the user is a guest (no real user ID), ensure userId is null.
+      if (!userId || userId.startsWith('guest_')) {
         userId = undefined;
       }
 
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
           eventId: eventPayment.eventId,
           ticketTypeId: ticketTypeId,
           checkedIn: false,
-          qrCode: randomUUID(), // Generate a unique QR code
+          qrCode: randomUUID(),
         }));
 
         await tx.attendee.createMany({ data: attendeesToCreate });
