@@ -46,7 +46,7 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
       format(new Date(endDate), 'LLL dd, y') === format(new Date(startDate), 'LLL dd, y')
         ? 'hh:mm a'
         : startDateFormat;
-    return `${format(new Date(startDate), startDateFormat)} - ${format(new Date(endDate), endDateFormat)}`;
+    return `${''}${format(new Date(startDate), startDateFormat)} - ${format(new Date(endDate), endDateFormat)}`;
   }
   return format(new Date(startDate), startDateFormat);
 }
@@ -85,7 +85,7 @@ export default function MyTicketsPage() {
           return;
         }
 
-        const fetchedTickets = await getTicketsForUser(userId, phoneNumber);
+        const fetchedTickets = await getTicketsForUser(undefined, phoneNumber);
 
         if (!isMounted) return;
 
