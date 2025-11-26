@@ -74,6 +74,9 @@ export async function POST(request: NextRequest) {
       
       let lastAttendee = null;
 
+      // Handle guest user ID
+      const finalUserId = userId && !userId.startsWith('guest_') ? userId : undefined;
+
       // Create Attendee record(s)
       for (const ticketInfo of tickets) {
         const ticketTypeId = ticketInfo.id;
@@ -86,9 +89,6 @@ export async function POST(request: NextRequest) {
         if ((ticketType.total - ticketType.sold) < quantity) {
           throw new Error(`Not enough tickets available for "${ticketType.name}".`);
         }
-
-        // Handle guest user ID
-        const finalUserId = userId && !userId.startsWith('guest_') ? userId : undefined;
 
         const attendeesToCreate = Array.from({ length: quantity }).map(() => ({
           name,
@@ -152,6 +152,7 @@ export async function POST(request: NextRequest) {
     revalidatePath('/');
     revalidatePath('/tickets');
     revalidatePath(`/payment/success?transaction_id=${eventPayment.pendingOrder.transactionId}`);
+    revalidatePath(`/ticket/${createdAttendee?.id}/confirmation`);
 
     console.log(`Successfully processed payment for transaction ${txnRef}.`);
 

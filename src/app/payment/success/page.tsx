@@ -51,6 +51,8 @@ function SuccessContent() {
                 if (response.data.status === 'COMPLETED') {
                     if (response.data.attendeeId) {
                         setStatus('redirecting');
+                        // Set a flag for the toast before redirecting
+                        sessionStorage.setItem('showSuccessToast', 'true');
                         router.replace(`/ticket/${response.data.attendeeId}/confirmation`);
                     } else {
                         throw new Error("Could not retrieve ticket details after confirmation.");

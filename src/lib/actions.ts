@@ -168,7 +168,7 @@ export async function getEventById(id: number) {
         const serializedEvent = serialize(event) as any;
          // Manually construct the organizer name from the fetched fields
         if (serializedEvent.organizer) {
-            serializedEvent.organizerName = `${serializedEvent.organizer.firstName || ''} ${serializedEvent.organizer.lastName || ''}`.trim();
+            serializedEvent.organizerName = `${''}${serializedEvent.organizer.firstName || ''} ${''}${serializedEvent.organizer.lastName || ''}`.trim();
         }
 
         serializedEvent.ticketTypes = serializedEvent.ticketTypes.map((tt: any) => {
@@ -283,7 +283,7 @@ export async function addEvent(data: any) {
                 if (config.location && config.price >= 0 && config.quantity >= 0) {
                      await prisma.ticketType.create({
                         data: {
-                            name: `${ticket.name} - ${config.location}`,
+                            name: `${''}${ticket.name} - ${config.location}`,
                             description: ticket.description,
                             basePrice: config.price,
                             total: config.quantity,
@@ -926,7 +926,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
         
         // This is a placeholder for the actual payment gateway interaction
         console.log(`Initiating payment for ${finalAmount.toFixed(2)} ETB...`);
-        const paymentSessionId = `MOCK_${randomUUID()}`;
+        const paymentSessionId = `MOCK_${''}${randomUUID()}`;
 
         // Create a single attendee record for the entire purchase
         const firstTicket = tickets[0];
