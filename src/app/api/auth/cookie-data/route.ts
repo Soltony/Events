@@ -9,7 +9,7 @@ import prisma from '@/lib/prisma';
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // This route provides non-sensitive session data for the client,
-// including data from the secure auth token and the insecure guest cookie.
+// prioritizing the SuperApp guest cookie.
 export async function GET(req: NextRequest) {
     const cookieStore = cookies();
     let responseData: { [key: string]: any } = {};
@@ -20,10 +20,8 @@ export async function GET(req: NextRequest) {
         responseData.phoneNumber = guestPhoneCookie;
     }
     
-    // 2. Try to get data from the secure JWT auth token (for logged-in users)
+    // 2. Only if the guest cookie does NOT exist, fallback to the logged-in user's auth token
     const authToken = cookieStore.get('auth_token')?.value;
-
-    // 3. Only if cookie does NOT exist, fallback to auth token user profile
     if (!responseData.phoneNumber && authToken && JWT_SECRET) {
         try {
             const decoded = jwt.verify(authToken, JWT_SECRET) as { userId: string, phoneNumber?: string };
@@ -37,11 +35,11 @@ export async function GET(req: NextRequest) {
                 }
             }
         } catch (error) {
-            console.log("Auth token is present but invalid. Proceeding as guest.");
+            console.log("[COOKIE_DATA_API] Auth token is present but invalid. Proceeding as guest.");
         }
     }
     
-    // 4. Return whatever data was found
+    // 3. Return whatever data was found
     if (Object.keys(responseData).length > 0) {
         return NextResponse.json({ success: true, data: responseData });
     } else {

@@ -170,6 +170,7 @@ export default function PublicEventDetailPage() {
     }
 
     async function fetchSessionPhone() {
+      // Don't run until auth state is resolved to avoid race conditions
       if (isAuthLoading) return;
 
       try {
