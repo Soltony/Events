@@ -977,34 +977,42 @@ export async function purchaseTickets(request: PurchaseRequest) {
 }
 
 export async function getTicketDetailsForConfirmation(identifier: string) {
-    const isNumericId = /^\d+$/.test(identifier);
+  const isNumericId = /^\d+$/.test(identifier);
 
-    let whereClause;
-    if (isNumericId) {
-        whereClause = { id: parseInt(identifier, 10) };
-    } else {
-        const order = await prisma.pendingOrder.findFirst({
-            where: {
-                OR: [
-                    { transactionId: identifier },
-                    { arifpaySessionId: identifier }
-                ]
-            },
-        });
-        if (!order || !order.attendeeId) return null;
-        whereClause = { id: order.attendeeId };
-    }
-
-    const attendee = await prisma.attendee.findUnique({
-        where: whereClause,
-        include: {
-            event: true,
-            ticketType: true,
-        },
+  let whereClause;
+  if (isNumericId) {
+    whereClause = { id: parseInt(identifier, 10) };
+  } else {
+    // If not a numeric ID, it could be a transactionId or a qrCode string (UUID)
+    const order = await prisma.pendingOrder.findFirst({
+      where: {
+        OR: [
+          { transactionId: identifier },
+          { arifpaySessionId: identifier }
+        ]
+      },
+      select: { attendeeId: true }
     });
 
-    return serialize(attendee);
+    if (order && order.attendeeId) {
+      whereClause = { id: order.attendeeId };
+    } else {
+      // Fallback to check if the identifier is a QR code
+      whereClause = { qrCode: identifier };
+    }
+  }
+
+  const attendee = await prisma.attendee.findUnique({
+    where: whereClause,
+    include: {
+      event: true,
+      ticketType: true,
+    },
+  });
+
+  return serialize(attendee);
 }
+
 
 
 
@@ -1013,7 +1021,7 @@ export async function getTicketsForUser(userId?: string, phoneNumber?: string): 
         return [];
     }
 
-    const whereClauses = [];
+    const whereClauses: ({ userId: string } | { phoneNumber: string })[] = [];
     if (userId) {
         whereClauses.push({ userId: userId });
     }
@@ -1023,7 +1031,7 @@ export async function getTicketsForUser(userId?: string, phoneNumber?: string): 
 
     const attendees = await prisma.attendee.findMany({
         where: {
-            OR: whereClauses.length > 0 ? whereClauses : undefined,
+            OR: whereClauses,
         },
         select: {
             id: true,

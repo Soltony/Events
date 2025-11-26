@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { format } from 'date-fns';
@@ -59,54 +59,42 @@ export default function MyTicketsPage() {
   const { toast } = useToast();
   const { user, isLoading: isAuthLoading } = useAuth();
 
-  useEffect(() => {
-    async function fetchTickets() {
-      console.log('fetchTickets called. Auth loading:', isAuthLoading, 'User:', user);
-      if (isAuthLoading) {
-        return; // Wait until authentication state is resolved
-      }
-      setLoading(true);
-      try {
-        // Use the authenticated user from context if available
-        if (user) {
-            console.log('Fetching tickets for logged-in user:', user.id);
-            const fetchedTickets = await getTicketsForUser(user.id, user.phoneNumber || undefined);
-            setTickets(fetchedTickets);
-            return;
-        }
-
-        // Fallback for guest users
-        console.log('No user found, attempting to fetch as guest via cookie-data API.');
+  const fetchTickets = useCallback(async () => {
+    setLoading(true);
+    try {
+      let fetchedTickets: Attendee[] = [];
+      if (user) {
+        // If user is authenticated, fetch by user ID and phone number.
+        fetchedTickets = await getTicketsForUser(user.id, user.phoneNumber || undefined);
+      } else {
+        // If not authenticated, try to fetch by phone number from the cookie (guest flow).
         const response = await api.get('/api/auth/cookie-data');
-        console.log('Response from /api/auth/cookie-data:', response);
         const phoneNumber = response.data?.data?.phoneNumber;
-        console.log('Extracted phone number for guest:', phoneNumber);
-
-        if (!phoneNumber) {
-          console.log("No guest phone number found in cookie data.");
-          setTickets([]);
-          return;
+        if (phoneNumber) {
+          fetchedTickets = await getTicketsForUser(undefined, phoneNumber);
         }
-
-        const fetchedTickets = await getTicketsForUser(undefined, phoneNumber);
-        console.log('Fetched tickets for guest:', fetchedTickets);
-        setTickets(fetchedTickets);
-
-      } catch (error) {
-        console.error('❌ Failed to fetch tickets:', error);
-        toast({
-          variant: "destructive",
-          title: "Could not load tickets",
-          description: "There was a problem retrieving your tickets. Please try again later.",
-        });
-        setTickets([]);
-      } finally {
-        setLoading(false);
       }
+      setTickets(fetchedTickets);
+    } catch (error) {
+      console.error('❌ Failed to fetch tickets:', error);
+      toast({
+        variant: "destructive",
+        title: "Could not load tickets",
+        description: "There was a problem retrieving your tickets. Please try again later.",
+      });
+      setTickets([]);
+    } finally {
+      setLoading(false);
     }
+  }, [toast, user]);
 
-    fetchTickets();
-  }, [toast, user, isAuthLoading]);
+
+  useEffect(() => {
+    // Only fetch tickets once the authentication state is resolved.
+    if (!isAuthLoading) {
+      fetchTickets();
+    }
+  }, [isAuthLoading, fetchTickets]);
 
   if (loading) {
     return (
