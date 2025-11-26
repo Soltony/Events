@@ -149,33 +149,33 @@ export default function PublicEventDetailPage() {
   }, [selectedLocation]);
 
   useEffect(() => {
-    async function fetchSessionData() {
-        if (isAuthLoading) return; // Wait for auth to be resolved
+    async function fetchSessionPhone() {
+      try {
+        const response = await api.get("/api/auth/cookie-data");
 
-        if (user && !user.isGuest) { // Full user session exists
-            if (user.firstName) {
-                setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
-            }
-            if (user.phoneNumber) {
-                const normalized = normalizePhoneNumber(user.phoneNumber);
-                setAttendeePhone(normalized);
-                setIsPhoneFromSession(true);
-            }
-        } else { // Fallback for guest users (e.g., from SuperApp)
-            try {
-                // Fetch data from the secure cookie via an API route
-                const response = await api.get('/api/auth/cookie-data');
-                if (response.data.success && response.data.data.phoneNumber) {
-                    const normalized = normalizePhoneNumber(response.data.data.phoneNumber);
-                    setAttendeePhone(normalized);
-                    setIsPhoneFromSession(true);
-                }
-            } catch (error) {
-                console.log("No guest session phone number found.");
-            }
+        if (response.data.success && response.data.data.phoneNumber) {
+          const normalized = normalizePhoneNumber(response.data.data.phoneNumber);
+          setAttendeePhone(normalized);
+          setIsPhoneFromSession(true);
+        } else if (user && !user.isGuest && user.phoneNumber) {
+          // Only fallback to AuthContext if cookie has no phone
+          setAttendeePhone(normalizePhoneNumber(user.phoneNumber));
+          setIsPhoneFromSession(true);
         }
+
+        if (user && !user.isGuest) {
+          if (user.firstName) {
+            setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
+          }
+        }
+        
+      } catch (e) {
+        console.log("No session phone found, user might be a new guest.");
+      }
     }
-    fetchSessionData();
+    if (!isAuthLoading) {
+        fetchSessionPhone();
+    }
 }, [user, isAuthLoading]);
 
 
@@ -730,3 +730,5 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
+
+    
