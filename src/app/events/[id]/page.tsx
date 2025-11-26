@@ -66,9 +66,9 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     
     if (endDate) {
       const endDateFormat = 'LLL dd, y, hh:mm a';
-      return `Start Date: ${format(new Date(startDate), startDateFormat)}\nEnd Date: ${format(new Date(endDate), endDateFormat)}`;
+      return `Start Date: ${''}${format(new Date(startDate), startDateFormat)}\nEnd Date: ${''}${format(new Date(endDate), endDateFormat)}`;
     }
-    return `Date: ${format(new Date(startDate), startDateFormat)}`;
+    return `Date: ${''}${format(new Date(startDate), startDateFormat)}`;
 }
 
 
@@ -80,7 +80,7 @@ export default function PublicEventDetailPage() {
   const eventId = params ? parseInt(params.id, 10) : NaN;
 
   const [isPending, startTransition] = useTransition();
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [event, setEvent] = useState<EventWithTickets | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTickets, setSelectedTickets] = useState<Record<number, SelectedTicket>>({});
@@ -149,6 +149,10 @@ export default function PublicEventDetailPage() {
 
   useEffect(() => {
     async function fetchSessionData() {
+        // Wait for auth to finish loading
+        if (isAuthLoading) return;
+
+        // If a full user is logged in
         if (user) {
             if (user.phoneNumber) {
                 let phone = user.phoneNumber;
@@ -159,13 +163,14 @@ export default function PublicEventDetailPage() {
                 setIsPhoneFromSession(true);
             }
              if (!user.isGuest && user.firstName) {
-                setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
+                setAttendeeName(`${''}${user.firstName} ${user.lastName || ''}`.trim());
             } else {
                 setAttendeeName(''); 
             }
             return;
         }
 
+        // If no user, try to get guest data from cookie
         try {
             const response = await api.get('/api/auth/cookie-data');
             if (response.data.success && response.data.data.phoneNumber) {
@@ -181,7 +186,7 @@ export default function PublicEventDetailPage() {
         }
     }
     fetchSessionData();
-  }, [user]);
+  }, [user, isAuthLoading]);
 
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
@@ -364,13 +369,13 @@ export default function PublicEventDetailPage() {
             pollCount++;
             
             try {
-                const response = await api.get(`/api/payment/status/${paymentTransactionId}`);
+                const response = await api.get(`/api/payment/status/${''}${paymentTransactionId}`);
                 if (response.data.status === 'COMPLETED' && response.data.attendeeId) {
                     // Set a flag for the toast before redirecting
                     if (typeof window !== 'undefined') {
                       sessionStorage.setItem('showSuccessToast', 'true');
                     }
-                    router.replace(`/ticket/${response.data.attendeeId}/confirmation`);
+                    router.replace(`/ticket/${''}${response.data.attendeeId}/confirmation`);
                     isCancelled = true; // Stop polling
                 } else {
                     setTimeout(poll, 2000);
@@ -399,7 +404,7 @@ export default function PublicEventDetailPage() {
         }
         // If multiple locations, filter by the selected one.
         if (selectedLocation) {
-            return event.ticketTypes.filter(ticket => ticket.name.includes(` - ${selectedLocation}`));
+            return event.ticketTypes.filter(ticket => ticket.name.includes(` - ${''}${selectedLocation}`));
         }
         return [];
     }, [event, selectedLocation, eventLocations]);
@@ -483,11 +488,11 @@ export default function PublicEventDetailPage() {
                   <div className="grid md:grid-cols-5 gap-8">
                       <div className="md:col-span-3 space-y-8">
                           <div className="w-full aspect-video relative rounded-lg overflow-hidden shadow-lg">
-                            <Image src={imageSource} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
+                            <Image src={imageSource} alt={`${''}${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
                           </div>
                           
                           <div className="rounded-lg p-0">
-                              <Badge variant="outline" className={`mb-2 w-min whitespace-nowrap ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
+                              <Badge variant="outline" className={`mb-2 w-min whitespace-nowrap ${''}${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
                               <h1 className="text-4xl font-bold tracking-tight text-card-foreground">{event.name}</h1>
                               {event.organizerName && (
                                   <div className="flex items-center gap-2 text-lg text-muted-foreground pt-3">
@@ -565,10 +570,10 @@ export default function PublicEventDetailPage() {
                                                       <div className="mb-3 sm:mb-0">
                                                           <h4 className="font-semibold text-lg">{baseName}</h4>
                                                           <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">
-                                                              {Number(ticket.basePrice) === 0 ? 'Free' : `${Number(ticket.basePrice).toFixed(2)} ETB`}
+                                                              {Number(ticket.basePrice) === 0 ? 'Free' : `${''}${Number(ticket.basePrice).toFixed(2)} ETB`}
                                                           </p>
                                                           <p className="text-sm text-muted-foreground">
-                                                              {!isSoldOut ? `${remaining} remaining` : 'Sold Out'}
+                                                              {!isSoldOut ? `${''}${remaining} remaining` : 'Sold Out'}
                                                           </p>
                                                       </div>
                                                       <div className="flex items-center gap-2">
