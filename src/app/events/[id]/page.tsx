@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { getEventById, validatePromoCode, getTicketDetailsForConfirmation } from '@/lib/actions';
@@ -33,13 +34,14 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import CartSheet from '@/components/cart-sheet';
-import { cn } from '@/lib/utils';
+import { cn, normalizePhoneNumber } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Autoplay from "embla-carousel-autoplay";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth, ensureCsrfToken } from '@/context/auth-context';
 import api from '@/lib/api';
 import QRCode from 'qrcode';
+import Cookies from 'js-cookie';
 
 
 interface EventWithTickets extends Event {
@@ -89,7 +91,7 @@ export default function PublicEventDetailPage() {
   const eventId = params ? parseInt(params.id, 10) : NaN;
 
   const [isPending, startTransition] = useTransition();
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [event, setEvent] = useState<EventWithTickets | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTickets, setSelectedTickets] = useState<Record<number, SelectedTicket>>({});
@@ -159,40 +161,37 @@ export default function PublicEventDetailPage() {
   }, [selectedLocation]);
 
   useEffect(() => {
-    async function fetchSessionData() {
-        if (user) {
-            if (user.phoneNumber) {
-                let phone = user.phoneNumber;
-                 if (phone.startsWith('251')) {
-                    phone = '0' + phone.substring(3);
-                }
-                setAttendeePhone(phone);
-                setIsPhoneFromSession(true);
-            }
-             if (!user.isGuest && user.firstName) {
-                setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
-            } else {
-                setAttendeeName(''); 
-            }
-            return;
-        }
+    async function fetchSessionPhone() {
+        if (isAuthLoading) return; // Wait for auth context to be ready
 
         try {
             const response = await api.get('/api/auth/cookie-data');
+            
+            // Prioritize phone from cookie-data endpoint (which checks SuperApp cookie first)
             if (response.data.success && response.data.data.phoneNumber) {
-                let phone = response.data.data.phoneNumber;
-                if (phone.startsWith('251')) {
-                    phone = '0' + phone.substring(3);
+                const normalized = normalizePhoneNumber(response.data.data.phoneNumber);
+                setAttendeePhone(normalized);
+                setIsPhoneFromSession(true);
+                // Also set name if it's a full user
+                if (user && !user.isGuest) {
+                    setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
                 }
-                setAttendeePhone(phone);
+                return; // Exit after successfully getting phone from cookie
+            }
+
+            // Fallback to AuthContext user if cookie fails or has no phone
+            if (user && !user.isGuest && user.phoneNumber) {
+                setAttendeePhone(normalizePhoneNumber(user.phoneNumber));
+                setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
                 setIsPhoneFromSession(true);
             }
-        } catch (error) {
-            console.log("No guest session phone number found.");
+
+        } catch (e) {
+            console.log("No session phone found from any source.");
         }
     }
-    fetchSessionData();
-  }, [user]);
+    fetchSessionPhone();
+  }, [user, isAuthLoading]);
 
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
@@ -619,13 +618,14 @@ export default function PublicEventDetailPage() {
               <Label htmlFor="phone">Phone Number</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                    id="phone" 
-                    placeholder="e.g., 0912345678" 
-                    value={attendeePhone} 
-                    onChange={e => setAttendeePhone(e.target.value)} 
-                    className={cn("pl-10", isPhoneFromSession && "bg-muted cursor-not-allowed")}
-                    readOnly={isPhoneFromSession}
+                <Input
+                  id="phone"
+                  placeholder="e.g., 0912345678"
+                  value={attendeePhone}
+                  disabled={isPhoneFromSession}
+                  readOnly={isPhoneFromSession}
+                  onChange={e => setAttendeePhone(e.target.value)}
+                  className={cn("pl-10", isPhoneFromSession && "bg-muted cursor-not-allowed")}
                 />
               </div>
             </div>
@@ -662,11 +662,15 @@ export default function PublicEventDetailPage() {
 
         const { transactionId } = pendingOrderRes.data;
         setPaymentTransactionId(transactionId);
+        
+        // Fetch the superapp_token from cookies
+        const superAppToken = Cookies.get('superapp_token');
 
         // Step 2: Initiate payment
         const paymentRes = await api.post('/api/payment/nib/initiate', {
           total,
           transactionId,
+          superAppToken, // Pass the token to the backend
         });
 
         if (!paymentRes.data.success || !paymentRes.data.paymentToken) {
@@ -762,3 +766,5 @@ export default function PublicEventDetailPage() {
     </>
   );
 }
+
+    
