@@ -42,6 +42,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth, ensureCsrfToken } from '@/context/auth-context';
 import api from '@/lib/api';
 import QRCode from 'qrcode';
+import Cookies from 'js-cookie';
 
 
 interface EventWithTickets extends Event {
@@ -77,9 +78,9 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     
     if (endDate) {
       const endDateFormat = 'LLL dd, y, hh:mm a';
-      return `Start Date: ${format(new Date(startDate), startDateFormat)}\nEnd Date: ${format(new Date(endDate), endDateFormat)}`;
+      return `Start Date: ${''}${format(new Date(startDate), startDateFormat)}\nEnd Date: ${''}${format(new Date(endDate), endDateFormat)}`;
     }
-    return `Date: ${format(new Date(startDate), startDateFormat)}`;
+    return `Date: ${''}${format(new Date(startDate), startDateFormat)}`;
 }
 
 
@@ -172,7 +173,7 @@ export default function PublicEventDetailPage() {
                 setIsPhoneFromSession(true);
             }
              if (!user.isGuest && user.firstName) {
-                setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
+                setAttendeeName(`${''}${user.firstName} ${''}${user.lastName || ''}`.trim());
             } else {
                 setAttendeeName(''); 
             }
@@ -513,7 +514,7 @@ export default function PublicEventDetailPage() {
                                                       <div className="mb-3 sm:mb-0">
                                                           <h4 className="font-semibold text-lg">{baseName}</h4>
                                                           <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">
-                                                              {Number(ticket.basePrice) === 0 ? 'Free' : `${Number(ticket.basePrice).toFixed(2)} ETB`}
+                                                              {Number(ticket.basePrice) === 0 ? 'Free' : `${''}${Number(ticket.basePrice).toFixed(2)} ETB`}
                                                           </p>
                                                           <p className="text-sm text-muted-foreground">
                                                               {!isSoldOut ? `${remaining} remaining` : 'Sold Out'}
@@ -664,11 +665,15 @@ export default function PublicEventDetailPage() {
 
         const { transactionId } = pendingOrderRes.data;
         setPaymentTransactionId(transactionId);
+        
+        // Get the superapp token from the cookie
+        const superAppToken = Cookies.get('superapp_token');
 
         // Step 2: Initiate payment
         const paymentRes = await api.post('/api/payment/nib/initiate', {
           total,
           transactionId,
+          superAppToken, // Pass the token in the body
         });
 
         if (!paymentRes.data.success || !paymentRes.data.paymentToken) {
