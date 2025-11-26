@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { getEventById, validatePromoCode, getTicketDetailsForConfirmation } from '@/lib/actions';
@@ -162,36 +161,36 @@ export default function PublicEventDetailPage() {
 
   useEffect(() => {
     async function fetchSessionPhone() {
-        if (isAuthLoading) return; // Wait for auth context to be ready
-
-        try {
-            const response = await api.get('/api/auth/cookie-data');
-            
-            // Prioritize phone from cookie-data endpoint (which checks SuperApp cookie first)
-            if (response.data.success && response.data.data.phoneNumber) {
-                const normalized = normalizePhoneNumber(response.data.data.phoneNumber);
-                setAttendeePhone(normalized);
-                setIsPhoneFromSession(true);
-                // Also set name if it's a full user
-                if (user && !user.isGuest) {
-                    setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
-                }
-                return; // Exit after successfully getting phone from cookie
-            }
-
-            // Fallback to AuthContext user if cookie fails or has no phone
-            if (user && !user.isGuest && user.phoneNumber) {
-                setAttendeePhone(normalizePhoneNumber(user.phoneNumber));
-                setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
-                setIsPhoneFromSession(true);
-            }
-
-        } catch (e) {
-            console.log("No session phone found from any source.");
+      if (isAuthLoading) return;
+  
+      try {
+        const response = await api.get("/api/auth/cookie-data");
+  
+        if (response.data.success && response.data.data.phoneNumber) {
+          const normalized = normalizePhoneNumber(response.data.data.phoneNumber);
+          setAttendeePhone(normalized);
+          setIsPhoneFromSession(true);
+          // Also set name if it's a full user from the auth context
+          if (user && !user.isGuest) {
+            setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
+          }
+          return; // Exit after successfully getting phone from cookie
         }
+  
+        // Only fallback to AuthContext if cookie has no phone
+        if (user && !user.isGuest && user.phoneNumber) {
+          setAttendeePhone(normalizePhoneNumber(user.phoneNumber));
+          setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
+          setIsPhoneFromSession(true);
+        }
+  
+      } catch (e) {
+        console.log("No session phone found from any source.");
+      }
     }
     fetchSessionPhone();
   }, [user, isAuthLoading]);
+
 
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
@@ -349,7 +348,7 @@ export default function PublicEventDetailPage() {
         }
     };
   
-  if (loading || !event) {
+  if (loading || !event || isAuthLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <header className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-sm">
@@ -620,11 +619,10 @@ export default function PublicEventDetailPage() {
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="phone"
-                  placeholder="e.g., 0912345678"
+                  placeholder="Phone Number"
                   value={attendeePhone}
                   disabled={isPhoneFromSession}
                   readOnly={isPhoneFromSession}
-                  onChange={e => setAttendeePhone(e.target.value)}
                   className={cn("pl-10", isPhoneFromSession && "bg-muted cursor-not-allowed")}
                 />
               </div>
@@ -767,4 +765,3 @@ export default function PublicEventDetailPage() {
   );
 }
 
-    
