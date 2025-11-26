@@ -1,4 +1,3 @@
-
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -6,6 +5,7 @@ import crypto from 'crypto';
 import { format } from 'date-fns';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
+import Cookies from 'js-cookie';
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     const {
       total,
       transactionId: pendingOrderTransactionId,
-      superAppToken: bodySuperAppToken,
+      superAppToken,
     } = body;
 
     if (!total || !pendingOrderTransactionId) {
@@ -26,21 +26,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // --- 2. Get SuperApp User Token ---
-    // Primary source is the 'superapp_token' cookie (when running inside the Super App
-    // WebView). For local testing, we also accept `superAppToken` in the request body.
-    const cookieStore = cookies();
-    const cookieSuperAppToken = cookieStore.get('superapp_token')?.value;
-    const superAppToken = cookieSuperAppToken || bodySuperAppToken;
-
-    console.log('[NIB INITIATE] Resolved superAppToken from', {
-      fromCookie: !!cookieSuperAppToken,
-      fromBody: !!bodySuperAppToken,
-    });
-
     if (!superAppToken) {
       console.error(
-        '[NIB INITIATE] Error: SuperApp authorization token not found in cookie or request body.'
+        '[NIB INITIATE] Error: SuperApp authorization token not found in request body.'
       );
       return NextResponse.json(
         {
@@ -50,9 +38,8 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
-
-    console.log('[NIB INITIATE] Using SuperApp user token.');
-
+    
+    console.log('[NIB INITIATE] Using SuperApp user token from request body.');
 
     // --- 3. Fetch pending order and event ---
     const pendingOrder = await prisma.pendingOrder.findUnique({

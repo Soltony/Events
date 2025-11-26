@@ -1,4 +1,3 @@
-
 'use server';
 
 import { headers } from 'next/headers';
@@ -56,7 +55,7 @@ export async function GET(req: NextRequest) {
     
     // Store the raw SuperApp token in its own cookie for payment initiation
     response.cookies.set('superapp_token', superAppToken, {
-        httpOnly: false, // Must be readable by client-side JS
+        httpOnly: false, // CRITICAL: Must be readable by client-side JS
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',

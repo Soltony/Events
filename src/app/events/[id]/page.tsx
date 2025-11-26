@@ -1,7 +1,6 @@
-
 'use client';
 
-import { getEventById, validatePromoCode } from '@/lib/actions';
+import { getEventById, validatePromoCode, getTicketDetailsForConfirmation } from '@/lib/actions';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -37,7 +36,7 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Autoplay from "embla-carousel-autoplay";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useAuth } from '@/context/auth-context';
+import { useAuth, ensureCsrfToken } from '@/context/auth-context';
 import api from '@/lib/api';
 import QRCode from 'qrcode';
 
@@ -297,17 +296,14 @@ export default function PublicEventDetailPage() {
 
             const { transactionId } = pendingOrderResponse.data;
             setPaymentTransactionId(transactionId);
-
-            // Let the "My Tickets" page know that it should watch for new
-            // tickets and auto-refresh once the payment completes.
-            if (typeof window !== 'undefined') {
-                window.sessionStorage.setItem('pendingTicketsRefresh', 'true');
-            }
+            
+            const superAppTokenFromCookie = (await import('js-cookie')).default.get('superapp_token');
 
             // Step 2: Use the transactionId from our DB to initiate payment with NIB
             const paymentResponse = await api.post('/api/payment/nib/initiate', {
                 total,
                 transactionId, // Pass our internal transaction ID
+                superAppToken: superAppTokenFromCookie,
             });
 
             if (!paymentResponse.data.success) {
@@ -317,31 +313,12 @@ export default function PublicEventDetailPage() {
             // Step 3: Send the payment token back to the NIB Super App
             const paymentToken = paymentResponse.data.paymentToken;
             if (!paymentToken) {
-                console.error('[NIB PAYMENT] Error: Payment token is missing from response');
                 throw new Error('Payment token not received from server');
             }
 
-            console.log('[NIB PAYMENT] Payment token received:', paymentToken.substring(0, 50) + '...');
-
-            if (typeof window === 'undefined') {
-                console.error('[NIB PAYMENT] Error: window is undefined (SSR context)');
-                throw new Error('Payment can only be initiated in browser environment');
-            }
-
-            if (!window.myJsChannel) {
+            if (typeof window === 'undefined' || !window.myJsChannel?.postMessage) {
                 console.error('[NIB PAYMENT] Error: window.myJsChannel is not available');
-                console.log('[NIB PAYMENT] Available window properties:', Object.keys(window).filter((k) =>
-                    k.toLowerCase().includes('channel') || k.toLowerCase().includes('nib') || k.toLowerCase().includes('js')
-                ));
                 setError("Could not communicate with the payment app. This feature is only available within the NIB SuperApp.");
-                setPaymentStatus('failed');
-                return;
-            }
-
-            if (typeof window.myJsChannel.postMessage !== 'function') {
-                console.error('[NIB PAYMENT] Error: window.myJsChannel.postMessage is not a function');
-                console.log('[NIB PAYMENT] window.myJsChannel type:', typeof window.myJsChannel);
-                setError("Payment channel is not properly initialized.");
                 setPaymentStatus('failed');
                 return;
             }
@@ -351,24 +328,16 @@ export default function PublicEventDetailPage() {
                 token: paymentToken,
             };
 
-            console.log('[NIB PAYMENT] Sending payment token to NIB Super App');
-            console.log('[NIB PAYMENT] Payload format:', JSON.stringify({ type: payload.type, token: payload.token.substring(0, 50) + '...' }));
-            console.log('[NIB PAYMENT] Calling window.myJsChannel.postMessage synchronously...');
+            window.myJsChannel.postMessage(payload);
 
-            try {
-                window.myJsChannel.postMessage(payload);
-                console.log('[NIB PAYMENT] ✅ postMessage called successfully');
-            } catch (postMessageError: any) {
-                console.error('[NIB PAYMENT] ❌ Error calling postMessage:', postMessageError);
-                throw new Error(`Failed to send payment token to SuperApp: ${postMessageError.message}`);
-            }
         } catch (error: any) {
             console.error('Payment initiation error:', error);
-            setError(error.message || "An unknown error occurred.");
+            const errorMessage = error.response?.data?.detail || error.message || "An unknown error occurred.";
+            setError(errorMessage);
             toast({
                 variant: "destructive",
                 title: "Payment Initiation Failed",
-                description: error.response?.data?.detail || error.message || "An unknown error occurred.",
+                description: errorMessage,
             });
             setPaymentStatus('failed');
         }
@@ -382,7 +351,7 @@ export default function PublicEventDetailPage() {
 
         let isCancelled = false;
         let pollCount = 0;
-        const maxPolls = 20; // Poll for 40 seconds
+        const maxPolls = 60; // Poll for 2 minutes
 
         const poll = async () => {
             if (isCancelled || pollCount >= maxPolls) {
@@ -396,16 +365,12 @@ export default function PublicEventDetailPage() {
             
             try {
                 const response = await api.get(`/api/payment/status/${paymentTransactionId}`);
-                if (response.data.status === 'COMPLETED') {
-                    const ticketDetails = await getTicketDetailsForConfirmation(paymentTransactionId);
-                    if (ticketDetails) {
-                        setConfirmedTicket(ticketDetails);
-                        const qrUrl = await QRCode.toDataURL(ticketDetails.qrCode, { errorCorrectionLevel: 'H', type: 'image/png', margin: 1 });
-                        setQrCodeDataUrl(qrUrl);
-                        setPaymentStatus('success');
-                    } else {
-                        throw new Error("Could not retrieve ticket details after confirmation.");
+                if (response.data.status === 'COMPLETED' && response.data.attendeeId) {
+                    // Set a flag for the toast before redirecting
+                    if (typeof window !== 'undefined') {
+                      sessionStorage.setItem('showSuccessToast', 'true');
                     }
+                    router.replace(`/ticket/${response.data.attendeeId}/confirmation`);
                     isCancelled = true; // Stop polling
                 } else {
                     setTimeout(poll, 2000);
@@ -419,7 +384,7 @@ export default function PublicEventDetailPage() {
         poll();
 
         return () => { isCancelled = true; };
-    }, [paymentStatus, paymentTransactionId]);
+    }, [paymentStatus, paymentTransactionId, router]);
 
 
     const eventLocations = useMemo(() => {
