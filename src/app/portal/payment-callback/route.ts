@@ -5,7 +5,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { randomUUID } from "crypto";
-import { normalizePhoneNumber } from "@/lib/utils";
+
+function normalizePhone(phone?: string | null): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
+  // Normalize Ethiopian-style numbers: 2519xxxxxxxx or 09xxxxxxxx -> 9xxxxxxxx
+  if (digits.startsWith("251") && digits.length >= 11) {
+    return digits.slice(-9);
+  }
+  if (digits.startsWith("0") && digits.length >= 10) {
+    return digits.slice(-9);
+  }
+  return digits;
+}
 
 export async function POST(req: NextRequest) {
   try {                                       
@@ -18,68 +30,139 @@ export async function POST(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const transactionIdFromQuery = searchParams.get("transactionId");
-    
-    // NIB uses 'txnRef' for OUR transaction ID in the callback body.
-    const transactionIdFromBody = parsedBody?.txnRef;
+    console.log("[NIB NOTIFY] Full URL:", req.url);
+    console.log("[NIB NOTIFY] Query params:", Object.fromEntries(searchParams));
 
-    const transactionId = transactionIdFromQuery || transactionIdFromBody;
+    // 5. Get our internal transactionId and the paidByNumber (payer phone).
+    //
+    // For NIB, the field `txnRef` in the callback body contains the same UUID
+    // we originally sent as `transactionId` when initiating the payment.
+    // The field `transactionId` in the callback body is the BANK'S reference
+    // (e.g. "FT252742WQR6"), which does NOT match our EventPayment.transactionId.
+    const transactionId =
+      // Prefer explicit query param if present
+      searchParams.get("transactionId") ||
+      searchParams.get("TranID") ||
+      // Prefer NIB's `txnRef` which mirrors our original transactionId
+      parsedBody?.txnRef ||
+      // Fallbacks in case of different field naming
+      parsedBody?.transactionId ||
+      parsedBody?.TranID;
+
+    const paidByNumberRaw =
+      parsedBody?.paidByNumber ||
+      parsedBody?.payerPhone ||
+      parsedBody?.PayerPhone ||
+      null;
 
     if (!transactionId) {
       console.error("[NIB NOTIFY] Error: Transaction reference (txnRef or transactionId) not found in callback body or query.", { body: rawBody, query: Object.fromEntries(searchParams) });
       // Acknowledge receipt to NIB to prevent retries, but indicate an issue.
       return NextResponse.json({ message: "OK" }, { status: 200 });
     }
-    
-    console.log(`[NIB NOTIFY] Found transactionId: ${transactionId}`);
-    
-    // Find the corresponding EventPayment and its PendingOrder
-    const payment = await prisma.eventPayment.findUnique({
+
+    console.log("[NIB NOTIFY] Found transactionId:", transactionId);
+    if (paidByNumberRaw) {
+      console.log("[NIB NOTIFY] paidByNumber (raw):", paidByNumberRaw);
+    }
+
+    // 6. Complete the payment + issue tickets in a single transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // 6.a) Mark the payment as completed and load the related pending order
+      const payment = await tx.eventPayment.findUnique({
         where: { transactionId },
         include: { pendingOrder: true },
     });
 
-    if (!payment) {
-        console.error(`[NIB NOTIFY] Error: No EventPayment found for transactionId: ${transactionId}`);
-        return NextResponse.json({ message: "OK" }, { status: 200 });
-    }
-    
-    if (payment.status === 'COMPLETED') {
-        console.log(`[NIB NOTIFY] Info: Transaction ${transactionId} already completed.`);
-        return NextResponse.json({ message: "OK" }, { status: 200 });
-    }
+      if (!payment) {
+        console.log("[NIB NOTIFY] No EventPayment found for transactionId");
+        return { alreadyCompleted: false, order: null, attendees: [] as any[] };
+      }
 
-    const order = payment.pendingOrder;
-    if (!order) {
-        console.error(`[NIB NOTIFY] Error: No PendingOrder associated with EventPayment ID: ${payment.id}`);
-        return NextResponse.json({ message: "OK" }, { status: 200 });
-    }
-    
-    // Use paidByNumber from NIB if available and normalize it.
-    const paidByNumberRaw = parsedBody?.paidByNumber;
-    console.log(`[NIB NOTIFY] paidByNumber (raw): ${paidByNumberRaw}`);
-    const paidByNumberNormalized = paidByNumberRaw ? normalizePhoneNumber(paidByNumberRaw) : null;
-    
-    const orderAttendeeData = order.attendeeData as {
-      name: string;
-      phone: string;
-      userId?: string;
-      quantity: number;
-    };
-    const orderPhoneNormalized = normalizePhoneNumber(orderAttendeeData.phone);
-    
-    if (paidByNumberNormalized && paidByNumberNormalized === orderPhoneNormalized) {
-        console.log(`[NIB NOTIFY] paidByNumber matches pending order phone for transaction: ${transactionId}`);
-    } else {
-        console.warn(`[NIB NOTIFY] Warning: Phone number mismatch for transaction ${transactionId}. Order Phone: ${orderPhoneNormalized}, Paid By: ${paidByNumberNormalized}. Proceeding with order phone.`);
-    }
+      // Update payment status if needed
+      if (payment.status !== "COMPLETED") {
+        await tx.eventPayment.update({
+          where: { id: payment.id },
+          data: {
+            status: "COMPLETED",
+            paymentDate: new Date(),
+          },
+        });
+      }
 
-    // Now, perform the atomic transaction to create tickets and finalize the order.
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Update payment status
-      await tx.eventPayment.update({
-        where: { id: payment.id },
-        data: { status: "COMPLETED", paymentDate: new Date() },
+      const order = await tx.pendingOrder.findUnique({
+        where: { id: payment.pendingOrderId },
+      });
+
+      if (!order) {
+        console.log(
+          "[NIB NOTIFY] No PendingOrder linked to EventPayment:",
+          payment.id
+        );
+        return { alreadyCompleted: false, order: null, attendees: [] as any[] };
+      }
+
+      // If order is already completed, do not create tickets again
+      if (order.status === "COMPLETED" && order.attendeeId) {
+        const existingAttendees = await tx.attendee.findMany({
+          where: {
+            eventId: order.eventId,
+            // We only know the "primary" attendeeId stored on the order; fetch all
+            // attendees that match the same person details from attendeeData.
+            name: (order.attendeeData as any)?.name,
+            phoneNumber: (order.attendeeData as any)?.phoneNumber,
+            userId: (order.attendeeData as any)?.userId,
+          },
+        });
+
+        return {
+          alreadyCompleted: true,
+          order,
+          attendees: existingAttendees,
+        };
+      }
+
+      // Validate paidByNumber against the phone number stored on the order
+      const orderPhoneNormalized = normalizePhone(
+        (order.attendeeData as any)?.phoneNumber ?? null
+      );
+      const paidByNormalized = normalizePhone(paidByNumberRaw);
+
+      if (paidByNormalized && orderPhoneNormalized) {
+        if (paidByNormalized !== orderPhoneNormalized) {
+          console.warn(
+            "[NIB NOTIFY] paidByNumber does not match pending order phone.",
+            {
+              paidByNormalized,
+              orderPhoneNormalized,
+              transactionId,
+            }
+          );
+        } else {
+          console.log(
+            "[NIB NOTIFY] paidByNumber matches pending order phone for transaction:",
+            transactionId
+          );
+        }
+      }
+
+      // 6.b) Issue attendees (tickets)
+      const attendeeData = order.attendeeData as {
+        name: string;
+        phoneNumber?: string;
+        userId?: string;
+        quantity?: number;
+      };
+
+      const qty = attendeeData.quantity || 1;
+
+      if (!order.ticketTypeId) {
+        throw new Error("[NIB NOTIFY] PendingOrder is missing ticketTypeId");
+      }
+
+      // Ensure the ticket type exists and update its sold count
+      const ticketType = await tx.ticketType.findUnique({
+        where: { id: order.ticketTypeId },
       });
 
       // 2. Create Attendee(s) (the tickets)
