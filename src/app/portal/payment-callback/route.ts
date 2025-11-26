@@ -64,10 +64,6 @@ export async function POST(request: NextRequest) {
         throw new Error('No ticket information found in pending order.');
       }
       
-      if (userId?.startsWith('guest_')) {
-        userId = undefined;
-      }
-
       let lastAttendee = null;
 
       // 2. Create Attendee record(s)
@@ -155,4 +151,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: 'Internal server error processing webhook.', detail: error.message }, { status: 500 });
   }
 }
-
