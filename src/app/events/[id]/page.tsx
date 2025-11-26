@@ -161,35 +161,30 @@ export default function PublicEventDetailPage() {
 
   useEffect(() => {
     async function fetchSessionPhone() {
+      // Don't run until auth state is resolved to avoid race conditions
       if (isAuthLoading) return;
   
       try {
+        // Always try to fetch from the cookie-data API first
         const response = await api.get("/api/auth/cookie-data");
   
         if (response.data.success && response.data.data.phoneNumber) {
           const normalized = normalizePhoneNumber(response.data.data.phoneNumber);
           setAttendeePhone(normalized);
-          setIsPhoneFromSession(true);
-          // Also set name if it's a full user from the auth context
-          if (user && !user.isGuest) {
-            setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
-          }
-          return; // Exit after successfully getting phone from cookie
+          setIsPhoneFromSession(true); // Lock the input
         }
-  
-        // Only fallback to AuthContext if cookie has no phone
-        if (user && !user.isGuest && user.phoneNumber) {
-          setAttendeePhone(normalizePhoneNumber(user.phoneNumber));
-          setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
-          setIsPhoneFromSession(true);
-        }
-  
       } catch (e) {
-        console.log("No session phone found from any source.");
+        console.log("No session phone found from cookie API.");
+      }
+  
+      // Set user's name if they are fully logged in (not a guest)
+      if (user && !user.isGuest) {
+        setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
       }
     }
+  
     fetchSessionPhone();
-  }, [user, isAuthLoading]);
+  }, [isAuthLoading, user]);
 
 
   const getCategoryBadgeClass = (category: string) => {
