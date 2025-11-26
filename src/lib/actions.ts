@@ -10,6 +10,7 @@ import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 import type { DateRange } from 'react-day-picker';
 import { randomUUID } from 'crypto';
+import { normalizePhoneNumber } from './utils';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -673,8 +674,9 @@ export async function getUserById(userId: string) {
 
 
 export async function getUserByPhoneNumber(phoneNumber: string) {
+    const normalizedPhone = normalizePhoneNumber(phoneNumber);
     const user = await prisma.user.findUnique({
-        where: { phoneNumber },
+        where: { phoneNumber: normalizedPhone },
         include: {
             role: true,
         },
@@ -702,12 +704,14 @@ export async function getStaffForUser(organizerId: string) {
 
 export async function updateUser(userId: string, data: Partial<User>) {
     const { firstName, lastName, phoneNumber, roleId, nibBankAccount, email, branchId } = data;
+    const normalizedPhone = phoneNumber ? normalizePhoneNumber(phoneNumber) : undefined;
+
     const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: {
             firstName,
             lastName,
-            phoneNumber,
+            phoneNumber: normalizedPhone,
             roleId,
             branchId: branchId || null,
             nibBankAccount: nibBankAccount || null,
@@ -889,7 +893,9 @@ export async function purchaseTickets(request: PurchaseRequest) {
     const { eventId, tickets, promoCode, attendeeDetails } = request;
     const user = await getCurrentUser();
 
-    if (!user && !attendeeDetails.phone) {
+    const normalizedPhone = normalizePhoneNumber(attendeeDetails.phone);
+
+    if (!user && !normalizedPhone) {
         throw new Error("User must be logged in or provide a phone number.");
     }
 
@@ -938,7 +944,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
         const newAttendee = await tx.attendee.create({
             data: {
                 name: attendeeDetails.name,
-                phoneNumber: attendeeDetails.phone,
+                phoneNumber: normalizedPhone,
                 userId: attendeeDetails.userId || user?.id,
                 eventId: eventId,
                 ticketTypeId: firstTicket.id, // Primary ticket type
@@ -962,6 +968,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
                 ticketTypeId: firstTicket.id,
                 attendeeData: {
                     ...attendeeDetails,
+                    phone: normalizedPhone,
                     quantity: totalQuantity,
                     tickets: tickets,
                 },
@@ -1022,12 +1029,18 @@ export async function getTicketsForUser(userId?: string, phoneNumber?: string): 
         return [];
     }
 
-    const whereClauses: ({ userId: string } | { phoneNumber: string })[] = [];
+    const normalizedPhone = phoneNumber ? normalizePhoneNumber(phoneNumber) : undefined;
+
+    const whereClauses = [];
     if (userId) {
         whereClauses.push({ userId: userId });
     }
-    if (phoneNumber) {
-        whereClauses.push({ phoneNumber: phoneNumber });
+    if (normalizedPhone) {
+        whereClauses.push({ phoneNumber: normalizedPhone });
+    }
+
+    if (whereClauses.length === 0) {
+        return [];
     }
 
     const attendees = await prisma.attendee.findMany({
@@ -1047,13 +1060,13 @@ export async function getTicketsForUser(userId?: string, phoneNumber?: string): 
                     image: true,
                     startDate: true,
                     endDate: true,
-                }
+                },
             },
             ticketType: {
                 select: {
                     id: true,
                     name: true,
-                }
+                },
             },
         },
         orderBy: {
@@ -1127,7 +1140,7 @@ export async function checkInAttendee(qrCode: string) {
     'use server';
     try {
         const attendee = await prisma.attendee.findUnique({
-            where: { qrCode },
+            where: { qrCode: qrCode },
             include: { event: true, ticketType: true }
         });
 
@@ -1140,7 +1153,7 @@ export async function checkInAttendee(qrCode: string) {
         }
 
         const updatedAttendee = await prisma.attendee.update({
-            where: { qrCode },
+            where: { qrCode: qrCode },
             data: { checkedIn: true },
             include: { event: true, ticketType: true }
         });
@@ -1162,6 +1175,7 @@ export async function createDistrict(data: { districtName: string; contactPerson
     data: {
       name: districtName,
       ...rest,
+      contactPersonPhone: normalizePhoneNumber(rest.contactPersonPhone)
     },
   });
   revalidatePath('/dashboard/settings/branch-district-registration');
@@ -1174,6 +1188,7 @@ export async function createBranch(data: { branchName: string; districtId: strin
     data: {
       name: branchName,
       ...rest,
+      contactPersonPhone: normalizePhoneNumber(rest.contactPersonPhone)
     },
   });
   revalidatePath('/dashboard/settings/branch-district-registration');

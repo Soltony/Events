@@ -32,7 +32,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import CartSheet from '@/components/cart-sheet';
-import { cn } from '@/lib/utils';
+import { cn, normalizePhoneNumber } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Autoplay from "embla-carousel-autoplay";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -149,36 +149,27 @@ export default function PublicEventDetailPage() {
 
   useEffect(() => {
     async function fetchSessionData() {
-        // Wait for auth to finish loading
-        if (isAuthLoading) return;
+        if (isAuthLoading) return; // Wait for auth to finish loading
 
         // If a full user is logged in
-        if (user) {
+        if (user && !user.isGuest) {
             if (user.phoneNumber) {
-                let phone = user.phoneNumber;
-                 if (phone.startsWith('251')) {
-                    phone = '0' + phone.substring(3);
-                }
-                setAttendeePhone(phone);
+                const normalized = normalizePhoneNumber(user.phoneNumber);
+                setAttendeePhone(normalized);
                 setIsPhoneFromSession(true);
             }
-             if (!user.isGuest && user.firstName) {
-                setAttendeeName(`${''}${user.firstName} ${user.lastName || ''}`.trim());
-            } else {
-                setAttendeeName(''); 
+            if (user.firstName) {
+                setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
             }
-            return;
+            return; // Prioritize logged-in user data
         }
 
-        // If no user, try to get guest data from cookie
+        // Fallback for guest users (from SuperApp cookie)
         try {
             const response = await api.get('/api/auth/cookie-data');
             if (response.data.success && response.data.data.phoneNumber) {
-                let phone = response.data.data.phoneNumber;
-                if (phone.startsWith('251')) {
-                    phone = '0' + phone.substring(3);
-                }
-                setAttendeePhone(phone);
+                const normalized = normalizePhoneNumber(response.data.data.phoneNumber);
+                setAttendeePhone(normalized);
                 setIsPhoneFromSession(true);
             }
         } catch (error) {
@@ -276,6 +267,8 @@ export default function PublicEventDetailPage() {
             return;
         }
 
+        const normalizedPhone = normalizePhoneNumber(attendeePhone);
+
         setIsPurchaseModalOpen(false);
         setPaymentStatus('processing');
 
@@ -290,7 +283,7 @@ export default function PublicEventDetailPage() {
                 promoCode: appliedPromo?.code,
                 attendeeDetails: {
                     name: attendeeName,
-                    phone: attendeePhone,
+                    phone: normalizedPhone,
                     userId: user?.id,
                 },
             });
