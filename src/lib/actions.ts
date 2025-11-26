@@ -1006,7 +1006,7 @@ export async function getTicketDetailsForConfirmation(identifier: string) {
     return serialize(attendee);
 }
 
-export async function getTicketsForUser(userId?: string, phoneNumber?: string) {
+export async function getTicketsForUser(userId?: string, phoneNumber?: string): Promise<AttendeeTicket[]> {
     if (!userId && !phoneNumber) {
         return [];
     }
@@ -1016,13 +1016,12 @@ export async function getTicketsForUser(userId?: string, phoneNumber?: string) {
         whereClauses.push({ userId: userId });
     }
     if (phoneNumber) {
-        // The `in` operator expects an array.
-        whereClauses.push({ phoneNumber: { in: [phoneNumber] } });
+        whereClauses.push({ phoneNumber: phoneNumber });
     }
 
     const attendees = await prisma.attendee.findMany({
         where: {
-            OR: whereClauses,
+            OR: whereClauses.length > 0 ? whereClauses : undefined,
         },
         include: {
             event: true,

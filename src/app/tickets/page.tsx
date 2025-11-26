@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -12,6 +13,7 @@ import { ArrowUpRight, Ticket } from 'lucide-react';
 import api from '@/lib/api';
 import { getTicketsForUser } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/auth-context';
 
 interface Event {
   id: string;
@@ -54,23 +56,32 @@ export default function MyTicketsPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     async function fetchTickets() {
       setLoading(true);
       try {
+        // Use the authenticated user from context if available
+        if (user) {
+            const fetchedTickets = await getTicketsForUser(user.id, user.phoneNumber || undefined);
+            setTickets(fetchedTickets);
+            return;
+        }
+
+        // Fallback for guest users
         const response = await api.get('/api/auth/cookie-data');
         const phoneNumber = response.data?.data?.phoneNumber;
-        const userId = response.data?.data?.userId;
 
-        if (!phoneNumber && !userId) {
+        if (!phoneNumber) {
           console.log("No user session found.");
           setTickets([]);
           return;
         }
 
-        const fetchedTickets = await getTicketsForUser(userId, phoneNumber);
+        const fetchedTickets = await getTicketsForUser(undefined, phoneNumber);
         setTickets(fetchedTickets);
+
       } catch (error) {
         console.error('❌ Failed to fetch tickets:', error);
         toast({
@@ -85,7 +96,7 @@ export default function MyTicketsPage() {
     }
 
     fetchTickets();
-  }, [toast]);
+  }, [toast, user]);
 
   if (loading) {
     return (
