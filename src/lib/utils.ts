@@ -7,7 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 
 export function normalizePhoneNumber(phone: string): string {
   if (!phone) return '';
-  let normalized = phone.trim();
+  let normalized = phone.trim().replace(/\s+/g, ''); // Remove spaces
   
   if (normalized.startsWith('+251')) {
     normalized = '0' + normalized.substring(4);
@@ -23,5 +23,6 @@ export function normalizePhoneNumber(phone: string): string {
       }
   }
   
-  return normalized.replace(/[^0-9]/g, ''); // Final cleanup to remove non-numeric characters
+  // Final cleanup to remove any non-numeric characters that might remain
+  return normalized.replace(/[^0-9]/g, ''); 
 }
