@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { getEventById, validatePromoCode } from '@/lib/actions';
@@ -40,7 +39,7 @@ import Autoplay from "embla-carousel-autoplay";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth } from '@/context/auth-context';
 import api from '@/lib/api';
-import Cookies from 'js-cookie';
+import QRCode from 'qrcode';
 
 
 interface EventWithTickets extends Event {
@@ -48,12 +47,9 @@ interface EventWithTickets extends Event {
     organizerName?: string;
 }
 
-declare global {
-    interface Window {
-        myJsChannel?: {
-            postMessage: (message: { token: string }) => void;
-        };
-    }
+interface TicketDetails extends Attendee {
+    event: Event;
+    ticketType: TicketType;
 }
 
 export type SelectedTicket = {
@@ -71,9 +67,9 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
     
     if (endDate) {
       const endDateFormat = 'LLL dd, y, hh:mm a';
-      return `Start Date: ${''}${format(new Date(startDate), startDateFormat)}\nEnd Date: ${''}${format(new Date(endDate), endDateFormat)}`;
+      return `Start Date: ${format(new Date(startDate), startDateFormat)}\nEnd Date: ${format(new Date(endDate), endDateFormat)}`;
     }
-    return `Date: ${''}${format(new Date(startDate), startDateFormat)}`;
+    return `Date: ${format(new Date(startDate), startDateFormat)}`;
 }
 
 
@@ -164,7 +160,7 @@ export default function PublicEventDetailPage() {
                 setIsPhoneFromSession(true);
             }
              if (!user.isGuest && user.firstName) {
-                setAttendeeName(`${''}${user.firstName} ${''}${user.lastName || ''}`.trim());
+                setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
             } else {
                 setAttendeeName(''); 
             }
@@ -266,7 +262,118 @@ export default function PublicEventDetailPage() {
     }
   }, [appliedPromo, subtotal]);
 
-  
+    const handlePurchase = async () => {
+        if (!attendeeName || !attendeePhone) {
+            toast({
+                variant: 'destructive',
+                title: "Missing Information",
+                description: "Please enter your name and phone number.",
+            });
+            return;
+        }
+
+        setIsPurchaseModalOpen(false);
+        setPaymentStatus('processing');
+
+        try {
+            // Step 0: Ensure CSRF token is present
+            await ensureCsrfToken();
+
+            // Step 1: Create a pending order in our database
+            const pendingOrderResponse = await api.post('/api/payment/pending-order', {
+                eventId,
+                tickets: Object.values(selectedTickets),
+                promoCode: appliedPromo?.code,
+                attendeeDetails: {
+                    name: attendeeName,
+                    phone: attendeePhone,
+                    userId: user?.id,
+                },
+            });
+
+            if (!pendingOrderResponse.data.success) {
+                throw new Error(pendingOrderResponse.data.error || 'Failed to create a pending order.');
+            }
+
+            const { transactionId } = pendingOrderResponse.data;
+            setPaymentTransactionId(transactionId);
+
+            // Let the "My Tickets" page know that it should watch for new
+            // tickets and auto-refresh once the payment completes.
+            if (typeof window !== 'undefined') {
+                window.sessionStorage.setItem('pendingTicketsRefresh', 'true');
+            }
+
+            // Step 2: Use the transactionId from our DB to initiate payment with NIB
+            const paymentResponse = await api.post('/api/payment/nib/initiate', {
+                total,
+                transactionId, // Pass our internal transaction ID
+            });
+
+            if (!paymentResponse.data.success) {
+                throw new Error(paymentResponse.data.error || "Failed to initiate payment.");
+            }
+
+            // Step 3: Send the payment token back to the NIB Super App
+            const paymentToken = paymentResponse.data.paymentToken;
+            if (!paymentToken) {
+                console.error('[NIB PAYMENT] Error: Payment token is missing from response');
+                throw new Error('Payment token not received from server');
+            }
+
+            console.log('[NIB PAYMENT] Payment token received:', paymentToken.substring(0, 50) + '...');
+
+            if (typeof window === 'undefined') {
+                console.error('[NIB PAYMENT] Error: window is undefined (SSR context)');
+                throw new Error('Payment can only be initiated in browser environment');
+            }
+
+            if (!window.myJsChannel) {
+                console.error('[NIB PAYMENT] Error: window.myJsChannel is not available');
+                console.log('[NIB PAYMENT] Available window properties:', Object.keys(window).filter((k) =>
+                    k.toLowerCase().includes('channel') || k.toLowerCase().includes('nib') || k.toLowerCase().includes('js')
+                ));
+                setError("Could not communicate with the payment app. This feature is only available within the NIB SuperApp.");
+                setPaymentStatus('failed');
+                return;
+            }
+
+            if (typeof window.myJsChannel.postMessage !== 'function') {
+                console.error('[NIB PAYMENT] Error: window.myJsChannel.postMessage is not a function');
+                console.log('[NIB PAYMENT] window.myJsChannel type:', typeof window.myJsChannel);
+                setError("Payment channel is not properly initialized.");
+                setPaymentStatus('failed');
+                return;
+            }
+
+            const payload = {
+                type: 'PAYMENT',
+                token: paymentToken,
+            };
+
+            console.log('[NIB PAYMENT] Sending payment token to NIB Super App');
+            console.log('[NIB PAYMENT] Payload format:', JSON.stringify({ type: payload.type, token: payload.token.substring(0, 50) + '...' }));
+            console.log('[NIB PAYMENT] Calling window.myJsChannel.postMessage synchronously...');
+
+            try {
+                window.myJsChannel.postMessage(payload);
+                console.log('[NIB PAYMENT] ✅ postMessage called successfully');
+            } catch (postMessageError: any) {
+                console.error('[NIB PAYMENT] ❌ Error calling postMessage:', postMessageError);
+                throw new Error(`Failed to send payment token to SuperApp: ${postMessageError.message}`);
+            }
+        } catch (error: any) {
+            console.error('Payment initiation error:', error);
+            setError(error.message || "An unknown error occurred.");
+            toast({
+                variant: "destructive",
+                title: "Payment Initiation Failed",
+                description: error.response?.data?.detail || error.message || "An unknown error occurred.",
+            });
+            setPaymentStatus('failed');
+        }
+    };
+
     // This effect handles polling for payment status
     useEffect(() => {
         if (paymentStatus !== 'processing' || !paymentTransactionId) {
@@ -289,11 +396,17 @@ export default function PublicEventDetailPage() {
             
             try {
                 const response = await api.get(`/api/payment/status/${paymentTransactionId}`);
-                if (response.data.status === 'COMPLETED' && response.data.attendeeId) {
+                if (response.data.status === 'COMPLETED') {
+                    const ticketDetails = await getTicketDetailsForConfirmation(paymentTransactionId);
+                    if (ticketDetails) {
+                        setConfirmedTicket(ticketDetails);
+                        const qrUrl = await QRCode.toDataURL(ticketDetails.qrCode, { errorCorrectionLevel: 'H', type: 'image/png', margin: 1 });
+                        setQrCodeDataUrl(qrUrl);
+                        setPaymentStatus('success');
+                    } else {
+                        throw new Error("Could not retrieve ticket details after confirmation.");
+                    }
                     isCancelled = true; // Stop polling
-                    setPaymentStatus('success');
-                    sessionStorage.setItem('showSuccessToast', 'true');
-                    router.replace(`/ticket/${response.data.attendeeId}/confirmation`);
                 } else {
                     setTimeout(poll, 2000);
                 }
@@ -306,7 +419,7 @@ export default function PublicEventDetailPage() {
         poll();
 
         return () => { isCancelled = true; };
-    }, [paymentStatus, paymentTransactionId, router]);
+    }, [paymentStatus, paymentTransactionId]);
 
 
     const eventLocations = useMemo(() => {
@@ -487,7 +600,7 @@ export default function PublicEventDetailPage() {
                                                       <div className="mb-3 sm:mb-0">
                                                           <h4 className="font-semibold text-lg">{baseName}</h4>
                                                           <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">
-                                                              {Number(ticket.basePrice) === 0 ? 'Free' : `${''}${Number(ticket.basePrice).toFixed(2)} ETB`}
+                                                              {Number(ticket.basePrice) === 0 ? 'Free' : `${Number(ticket.basePrice).toFixed(2)} ETB`}
                                                           </p>
                                                           <p className="text-sm text-muted-foreground">
                                                               {!isSoldOut ? `${remaining} remaining` : 'Sold Out'}
@@ -608,73 +721,7 @@ export default function PublicEventDetailPage() {
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                startTransition(async () => {
-                  if (!attendeeName || !attendeePhone) {
-                    toast({
-                      variant: 'destructive',
-                      title: "Missing Information",
-                      description: "Please enter your name and phone number.",
-                    });
-                    return;
-                  }
-
-                  setIsPurchaseModalOpen(false);
-                  setPaymentStatus('processing');
-
-                  try {
-                    // Step 1: Create pending order
-                    const pendingOrderRes = await api.post('/api/payment/pending-order', {
-                      eventId,
-                      tickets: Object.values(selectedTickets),
-                      promoCode: appliedPromo?.code,
-                      attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
-                    });
-
-                    if (!pendingOrderRes.data.success) {
-                      throw new Error(pendingOrderRes.data.error || 'Failed to create pending order.');
-                    }
-
-                    const { transactionId } = pendingOrderRes.data;
-                    setPaymentTransactionId(transactionId);
-                    
-                    const superAppToken = Cookies.get('superapp_token');
-                    if (!superAppToken) {
-                        throw new Error('User session not found. Please log in through the SuperApp.');
-                    }
-
-                    // Step 2: Initiate payment
-                    const paymentRes = await api.post('/api/payment/nib/initiate', {
-                      total,
-                      transactionId,
-                      superAppToken,
-                    });
-
-                    if (!paymentRes.data.success || !paymentRes.data.paymentToken) {
-                      throw new Error(paymentRes.data.error || "Failed to initiate payment.");
-                    }
-
-                    const paymentToken = paymentRes.data.paymentToken;
-
-                    // Step 3: Post message to SuperApp
-                    if (typeof window === 'undefined' || !window.myJsChannel?.postMessage) {
-                      throw new Error('NIB SuperApp channel is not available.');
-                    }
-
-                    window.myJsChannel.postMessage({ token: paymentToken });
-                    toast({ title: "Processing Payment", description: "Handing off to NIBtera Super App..." });
-
-                  } catch (err: any) {
-                    console.error("Payment initiation error:", err);
-                    setError(err.message || "Unknown error occurred.");
-                    toast({ variant: 'destructive', title: 'Payment Initiation Failed', description: err.message || '' });
-                    setPaymentStatus('failed');
-                  }
-                });
-              }}
-              disabled={isPending}
-            >
+            <AlertDialogAction onClick={handlePurchase} disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Proceed to Payment
             </AlertDialogAction>
@@ -687,8 +734,8 @@ export default function PublicEventDetailPage() {
             {paymentStatus === 'processing' && (
                  <div className="flex flex-col items-center justify-center p-8 text-center space-y-4">
                     <Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" />
-                    <DialogTitle className="text-2xl font-semibold">Waiting for Payment...</DialogTitle>
-                    <DialogDescription>Please complete the payment in the NIB Super App. This window will update automatically.</DialogDescription>
+                    <DialogTitle className="text-2xl font-semibold">Finalizing Your Ticket...</DialogTitle>
+                    <DialogDescription>Please wait while we confirm your payment. This may take a few moments.</DialogDescription>
                     <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm pt-4">
                         <CheckCircle2 className="h-4 w-4" />
                         <span>Do not close this window.</span>

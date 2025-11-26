@@ -14,7 +14,6 @@ import { ArrowUpRight, Ticket } from 'lucide-react';
 import api from '@/lib/api';
 import { getTicketsForUser } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/context/auth-context';
 
 interface Event {
   id: string;
@@ -34,7 +33,6 @@ interface Attendee {
   userId: string | null;
   phoneNumber: string | null;
   createdAt: Date;
-  qrCode: string;
   event: Event;
   ticketType: TicketType;
 }
@@ -48,7 +46,7 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
       format(new Date(endDate), 'LLL dd, y') === format(new Date(startDate), 'LLL dd, y')
         ? 'hh:mm a'
         : startDateFormat;
-    return `${''}${format(new Date(startDate), startDateFormat)} - ${format(new Date(endDate), endDateFormat)}`;
+    return `${format(new Date(startDate), startDateFormat)} - ${format(new Date(endDate), endDateFormat)}`;
   }
   return format(new Date(startDate), startDateFormat);
 }
@@ -58,43 +56,110 @@ export default function MyTicketsPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
-  const { user, isLoading: isAuthLoading } = useAuth();
-
-  const fetchTickets = useCallback(async () => {
-    setLoading(true);
-    try {
-      let fetchedTickets: Attendee[] = [];
-      if (user) {
-        fetchedTickets = await getTicketsForUser(user.id, user.phoneNumber || undefined);
-      } else {
-        const response = await api.get('/api/auth/cookie-data');
-        const phoneNumber = response.data?.data?.phoneNumber;
-        if (phoneNumber) {
-          fetchedTickets = await getTicketsForUser(undefined, phoneNumber);
-        }
-      }
-      setTickets(fetchedTickets);
-    } catch (error) {
-      console.error('❌ Failed to fetch tickets:', error);
-      toast({
-        variant: "destructive",
-        title: "Could not load tickets",
-        description: "There was a problem retrieving your tickets. Please try again later.",
-      });
-      setTickets([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [toast, user]);
-
 
   useEffect(() => {
-    if (!isAuthLoading) {
-      fetchTickets();
-    }
-  }, [isAuthLoading, fetchTickets]);
+    let isMounted = true;
+    let pollInterval: number | undefined;
+    let pollCount = 0;
+    const maxPolls = 24; // e.g. poll for up to 2 minutes at 5s interval
 
-  if (loading || isAuthLoading) {
+    const hasPendingRefresh =
+      typeof window !== 'undefined' &&
+      window.sessionStorage.getItem('pendingTicketsRefresh') === 'true';
+
+    async function fetchTickets(isPoll = false) {
+      if (!isPoll) {
+        setLoading(true);
+      }
+
+      try {
+        const response = await api.get('/api/auth/cookie-data');
+        const phoneNumber = response.data?.data?.phoneNumber;
+        const userId = response.data?.data?.userId;
+
+        if (!phoneNumber && !userId) {
+          console.log('No user session found.');
+          if (isMounted) {
+            setTickets([]);
+          }
+          return;
+        }
+
+        const fetchedTickets = await getTicketsForUser(userId, phoneNumber);
+
+        if (!isMounted) return;
+
+        setTickets((prev) => {
+          const prevCount = prev.length;
+          const nextCount = fetchedTickets.length;
+
+          // If we are polling due to a recent purchase and we detect that
+          // new tickets have appeared, show a success toast once and stop
+          // polling. This also avoids duplicate notifications on refresh.
+          if (isPoll && hasPendingRefresh && nextCount > prevCount) {
+            toast({
+              variant: 'default',
+              title: 'Purchase Successful!',
+              description: 'Your new ticket has been added to My Tickets.',
+            });
+            if (typeof window !== 'undefined') {
+              window.sessionStorage.removeItem('pendingTicketsRefresh');
+            }
+            if (pollInterval) {
+              window.clearInterval(pollInterval);
+            }
+          }
+
+          return fetchedTickets;
+        });
+      } catch (error) {
+        console.error('❌ Failed to fetch tickets:', error);
+        if (!isPoll) {
+          toast({
+            variant: 'destructive',
+            title: 'Could not load tickets',
+            description: 'There was a problem retrieving your tickets. Please try again later.',
+          });
+        }
+        if (isMounted) {
+          setTickets([]);
+        }
+      } finally {
+        if (!isPoll) {
+          setLoading(false);
+        }
+      }
+    }
+
+    // Initial load
+    fetchTickets(false);
+
+    // If there is a recent purchase in progress, keep polling until tickets show up.
+    if (hasPendingRefresh) {
+      pollInterval = window.setInterval(() => {
+        pollCount += 1;
+        if (pollCount > maxPolls) {
+          if (pollInterval) {
+            window.clearInterval(pollInterval);
+          }
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.removeItem('pendingTicketsRefresh');
+          }
+          return;
+        }
+        fetchTickets(true);
+      }, 5000);
+    }
+
+    return () => {
+      isMounted = false;
+      if (pollInterval) {
+        window.clearInterval(pollInterval);
+      }
+    };
+  }, [toast]);
+
+  if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-6">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 w-full max-w-6xl">
@@ -126,17 +191,17 @@ export default function MyTicketsPage() {
 
       {tickets.length > 0 ? (
         <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
-          {tickets.map((attendee) => {
-            const imageSource = attendee.event.image || DEFAULT_IMAGE_PLACEHOLDER;
+          {tickets.map((ticket) => {
+            const imageSource = ticket.event.image || DEFAULT_IMAGE_PLACEHOLDER;
             return (
               <Card
-                key={attendee.id}
+                key={ticket.id}
                 className="bg-white shadow-md hover:shadow-lg transition-all rounded-2xl overflow-hidden border border-gray-200"
               >
                 <CardHeader className="p-0 relative aspect-video">
                   <Image
                     src={imageSource}
-                    alt={attendee.event.name}
+                    alt={ticket.event.name}
                     fill
                     className="object-cover rounded-t-2xl"
                     onError={(e) => {
@@ -147,18 +212,18 @@ export default function MyTicketsPage() {
                   />
                 </CardHeader>
                 <CardContent className="p-5 text-left">
-                  <CardTitle className="text-xl font-bold text-[#864b20]">{attendee.event.name}</CardTitle>
+                  <CardTitle className="text-xl font-bold text-[#864b20]">{ticket.event.name}</CardTitle>
                   <CardDescription className="text-sm text-gray-500 mt-1">
-                    {formatEventDate(attendee.event.startDate, attendee.event.endDate)}
+                    {formatEventDate(ticket.event.startDate, ticket.event.endDate)}
                   </CardDescription>
-                  <p className="font-semibold mt-3 text-[#f6b313]">{attendee.ticketType.name}</p>
+                  <p className="font-semibold mt-3 text-[#f6b313]">{ticket.ticketType.name}</p>
                 </CardContent>
                 <CardFooter className="p-5 pt-0">
                   <Button
                     asChild
                     className="w-full bg-[#864b20] hover:bg-[#6e3f1b] text-white font-semibold rounded-xl"
                   >
-                    <Link href={`/ticket/${attendee.id}/confirmation`}>
+                    <Link href={`/ticket/${ticket.id}/confirmation`}>
                       View QR Code & Details
                       <ArrowUpRight className="ml-2 h-4 w-4" />
                     </Link>

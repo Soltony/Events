@@ -72,11 +72,9 @@ export default function TicketConfirmationPage() {
 
         setTicket(ticketDetails);
 
+        // Use the stored qrCode value from the database so that what is
+        // rendered matches what is scanned/validated server-side.
         const qrCodeData = ticketDetails.qrCode;
-        if (!qrCodeData) {
-            throw new Error("QR code data is missing from the ticket details.");
-        }
-        
         const dataUrl = await QRCode.toDataURL(qrCodeData, {
           errorCorrectionLevel: 'H',
           type: 'image/png',
@@ -89,11 +87,6 @@ export default function TicketConfirmationPage() {
         setQrCodeDataUrl(dataUrl);
       } catch (error) {
         console.error('Failed to fetch ticket or generate QR code:', error);
-        toast({
-            variant: "destructive",
-            title: "Failed to load ticket",
-            description: "There was an issue loading your ticket details. Please try again later."
-        })
       } finally {
         setLoading(false);
       }
