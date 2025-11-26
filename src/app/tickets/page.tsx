@@ -47,7 +47,7 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
       format(new Date(endDate), 'LLL dd, y') === format(new Date(startDate), 'LLL dd, y')
         ? 'hh:mm a'
         : startDateFormat;
-    return `${format(new Date(startDate), startDateFormat)} - ${format(new Date(endDate), endDateFormat)}`;
+    return `${''}${format(new Date(startDate), startDateFormat)} - ${format(new Date(endDate), endDateFormat)}`;
   }
   return format(new Date(startDate), startDateFormat);
 }
@@ -57,10 +57,13 @@ export default function MyTicketsPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
 
   useEffect(() => {
     async function fetchTickets() {
+      if (isAuthLoading) {
+        return; // Wait until authentication state is resolved
+      }
       setLoading(true);
       try {
         // Use the authenticated user from context if available
@@ -97,7 +100,7 @@ export default function MyTicketsPage() {
     }
 
     fetchTickets();
-  }, [toast, user]);
+  }, [toast, user, isAuthLoading]);
 
   if (loading) {
     return (
