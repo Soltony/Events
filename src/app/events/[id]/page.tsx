@@ -150,33 +150,29 @@ export default function PublicEventDetailPage() {
 
   useEffect(() => {
     async function fetchSessionPhone() {
-      try {
-        const response = await api.get("/api/auth/cookie-data");
+        if (isAuthLoading) return;
+        try {
+            const response = await api.get("/api/auth/cookie-data");
+            if (response.data.success && response.data.data.phoneNumber) {
+                const normalized = normalizePhoneNumber(response.data.data.phoneNumber);
+                setAttendeePhone(normalized);
+                setIsPhoneFromSession(true);
+            } else if (user && !user.isGuest && user.phoneNumber) {
+                setAttendeePhone(normalizePhoneNumber(user.phoneNumber));
+                setIsPhoneFromSession(true);
+            }
 
-        if (response.data.success && response.data.data.phoneNumber) {
-          const normalized = normalizePhoneNumber(response.data.data.phoneNumber);
-          setAttendeePhone(normalized);
-          setIsPhoneFromSession(true);
-        } else if (user && !user.isGuest && user.phoneNumber) {
-          // Only fallback to AuthContext if cookie has no phone
-          setAttendeePhone(normalizePhoneNumber(user.phoneNumber));
-          setIsPhoneFromSession(true);
+            if (user && !user.isGuest) {
+                if (user.firstName) {
+                    setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
+                }
+            }
+        } catch (e) {
+            console.log("No session phone found, user might be a new guest.");
         }
-
-        if (user && !user.isGuest) {
-          if (user.firstName) {
-            setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
-          }
-        }
-        
-      } catch (e) {
-        console.log("No session phone found, user might be a new guest.");
-      }
     }
-    if (!isAuthLoading) {
-        fetchSessionPhone();
-    }
-}, [user, isAuthLoading]);
+    fetchSessionPhone();
+  }, [user, isAuthLoading]);
 
 
   const getCategoryBadgeClass = (category: string) => {
@@ -679,13 +675,14 @@ export default function PublicEventDetailPage() {
               <Label htmlFor="phone">Phone Number</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                    id="phone" 
-                    placeholder="e.g., 0912345678" 
-                    value={attendeePhone} 
-                    onChange={e => setAttendeePhone(e.target.value)} 
-                    className={cn("pl-10", isPhoneFromSession && "bg-muted cursor-not-allowed")}
+                <Input
+                    id="phone"
+                    placeholder="Phone Number"
+                    value={attendeePhone}
+                    onChange={e => setAttendeePhone(e.target.value)}
+                    disabled={isPhoneFromSession}
                     readOnly={isPhoneFromSession}
+                    className={cn("pl-10", isPhoneFromSession && "bg-muted cursor-not-allowed")}
                 />
               </div>
             </div>
