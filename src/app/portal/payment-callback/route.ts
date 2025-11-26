@@ -58,12 +58,17 @@ export async function POST(request: NextRequest) {
     const createdAttendee = await prisma.$transaction(async (tx) => {
       // 1. Get attendee data from pending order
       const attendeeData = eventPayment.pendingOrder.attendeeData as { name: string, phoneNumber?: string, userId?: string, tickets: any[] };
-      const { name, phoneNumber, userId, tickets } = attendeeData;
+      let { name, phoneNumber, userId, tickets } = attendeeData;
 
       if (!tickets || tickets.length === 0) {
         throw new Error('No ticket information found in pending order.');
       }
       
+      // FIX: If the user is a guest, do not save the guest ID to the userId foreign key column.
+      if (userId?.startsWith('guest_')) {
+        userId = undefined;
+      }
+
       let lastAttendee = null;
 
       // 2. Create Attendee record(s)
