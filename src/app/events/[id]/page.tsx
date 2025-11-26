@@ -1,6 +1,5 @@
 
 
-
 'use client';
 
 import { getEventById, validatePromoCode, getTicketDetailsForConfirmation } from '@/lib/actions';
@@ -35,7 +34,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import CartSheet from '@/components/cart-sheet';
-import { cn } from '@/lib/utils';
+import { cn, normalizePhoneNumber } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Autoplay from "embla-carousel-autoplay";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -91,7 +90,7 @@ export default function PublicEventDetailPage() {
   const eventId = params ? parseInt(params.id, 10) : NaN;
 
   const [isPending, startTransition] = useTransition();
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [event, setEvent] = useState<EventWithTickets | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTickets, setSelectedTickets] = useState<Record<number, SelectedTicket>>({});
@@ -101,9 +100,13 @@ export default function PublicEventDetailPage() {
   const [discount, setDiscount] = useState(0);
   const [isPromoLoading, setIsPromoLoading] = useState(false);
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  
+  // Attendee Info State
   const [attendeeName, setAttendeeName] = useState('');
   const [attendeePhone, setAttendeePhone] = useState('');
   const [isPhoneFromSession, setIsPhoneFromSession] = useState(false);
+  const [isSessionLoading, setIsSessionLoading] = useState(true);
+
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -161,40 +164,50 @@ export default function PublicEventDetailPage() {
   }, [selectedLocation]);
 
   useEffect(() => {
-    async function fetchSessionData() {
-        if (user) {
-            if (user.phoneNumber) {
-                let phone = user.phoneNumber;
-                 if (phone.startsWith('251')) {
-                    phone = '0' + phone.substring(3);
-                }
-                setAttendeePhone(phone);
-                setIsPhoneFromSession(true);
-            }
-             if (!user.isGuest && user.firstName) {
-                setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
-            } else {
-                setAttendeeName(''); 
-            }
-            return;
-        }
+    if (isAuthLoading) {
+      setIsSessionLoading(true);
+      return;
+    }
 
+    async function fetchSessionData() {
+        setIsSessionLoading(true);
+        // First, try to get data from the SuperApp cookie, as it's the source of truth for guests
         try {
             const response = await api.get('/api/auth/cookie-data');
             if (response.data.success && response.data.data.phoneNumber) {
-                let phone = response.data.data.phoneNumber;
-                if (phone.startsWith('251')) {
-                    phone = '0' + phone.substring(3);
-                }
-                setAttendeePhone(phone);
+                const normalized = normalizePhoneNumber(response.data.data.phoneNumber);
+                setAttendeePhone(normalized);
+                setIsPhoneFromSession(true);
+                 if (user?.firstName) {
+                    setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
+                 }
+                setIsSessionLoading(false);
+                return; // Exit if we found the SuperApp phone number
+            }
+        } catch (e) {
+            console.log("No guest session phone found, checking for logged-in user.");
+        }
+
+        // If no SuperApp cookie, fall back to the authenticated user from context
+        if (user && !user.isGuest) {
+            if (user.phoneNumber) {
+                setAttendeePhone(normalizePhoneNumber(user.phoneNumber));
                 setIsPhoneFromSession(true);
             }
-        } catch (error) {
-            console.log("No guest session phone number found.");
+            if (user.firstName) {
+                 setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
+            }
+        } else {
+            // Clear fields if there's no user or guest session at all
+            setAttendeePhone('');
+            setAttendeeName('');
+            setIsPhoneFromSession(false);
         }
+        setIsSessionLoading(false);
     }
+
     fetchSessionData();
-  }, [user]);
+  }, [user, isAuthLoading]);
 
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
@@ -609,6 +622,11 @@ export default function PublicEventDetailPage() {
               Please provide your name and phone number for the ticket.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {isSessionLoading ? (
+            <div className="flex items-center justify-center h-24">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
           <div className="space-y-4">
             <div className="grid gap-2">
               <Label htmlFor="name">Full Name</Label>
@@ -623,81 +641,82 @@ export default function PublicEventDetailPage() {
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
                     id="phone" 
-                    placeholder="e.g., 0912345678" 
+                    placeholder="Phone Number" 
                     value={attendeePhone} 
-                    onChange={e => setAttendeePhone(e.target.value)} 
-                    className={cn("pl-10", isPhoneFromSession && "bg-muted cursor-not-allowed")}
+                    disabled={isPhoneFromSession}
                     readOnly={isPhoneFromSession}
+                    className={cn("pl-10", isPhoneFromSession && "bg-muted cursor-not-allowed")}
                 />
               </div>
             </div>
           </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-  onClick={() => {
-    startTransition(async () => {
-      if (!attendeeName || !attendeePhone) {
-        toast({
-          variant: 'destructive',
-          title: "Missing Information",
-          description: "Please enter your name and phone number.",
-        });
-        return;
-      }
+              onClick={() => {
+                startTransition(async () => {
+                  if (!attendeeName || !attendeePhone) {
+                    toast({
+                      variant: 'destructive',
+                      title: "Missing Information",
+                      description: "Please enter your name and phone number.",
+                    });
+                    return;
+                  }
 
-      setIsPurchaseModalOpen(false);
-      setPaymentStatus('processing');
+                  setIsPurchaseModalOpen(false);
+                  setPaymentStatus('processing');
 
-      try {
-        // Step 1: Create pending order
-        const pendingOrderRes = await api.post('/api/payment/pending-order', {
-          eventId,
-          tickets: Object.values(selectedTickets),
-          promoCode: appliedPromo?.code,
-          attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
-        });
+                  try {
+                    // Step 1: Create pending order
+                    const pendingOrderRes = await api.post('/api/payment/pending-order', {
+                      eventId,
+                      tickets: Object.values(selectedTickets),
+                      promoCode: appliedPromo?.code,
+                      attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
+                    });
 
-        if (!pendingOrderRes.data.success) {
-          throw new Error(pendingOrderRes.data.error || 'Failed to create pending order.');
-        }
+                    if (!pendingOrderRes.data.success) {
+                      throw new Error(pendingOrderRes.data.error || 'Failed to create pending order.');
+                    }
 
-        const { transactionId } = pendingOrderRes.data;
-        setPaymentTransactionId(transactionId);
+                    const { transactionId } = pendingOrderRes.data;
+                    setPaymentTransactionId(transactionId);
 
-        // Step 2: Initiate payment
-        const paymentRes = await api.post('/api/payment/nib/initiate', {
-          total,
-          transactionId,
-        });
+                    // Step 2: Initiate payment
+                    const paymentRes = await api.post('/api/payment/nib/initiate', {
+                      total,
+                      transactionId,
+                    });
 
-        if (!paymentRes.data.success || !paymentRes.data.paymentToken) {
-          throw new Error(paymentRes.data.error || "Failed to initiate payment.");
-        }
+                    if (!paymentRes.data.success || !paymentRes.data.paymentToken) {
+                      throw new Error(paymentRes.data.error || "Failed to initiate payment.");
+                    }
 
-        const paymentToken = paymentRes.data.paymentToken;
+                    const paymentToken = paymentRes.data.paymentToken;
 
-        // Step 3: Post message to SuperApp
-        if (typeof window === 'undefined' || !window.myJsChannel?.postMessage) {
-          throw new Error('NIB SuperApp channel is not available.');
-        }
+                    // Step 3: Post message to SuperApp
+                    if (typeof window === 'undefined' || !window.myJsChannel?.postMessage) {
+                      throw new Error('NIB SuperApp channel is not available.');
+                    }
 
-        window.myJsChannel.postMessage({ token: paymentToken });
-        toast({ title: "Processing Payment", description: "Handing off to NIBtera Super App..." });
+                    window.myJsChannel.postMessage({ token: paymentToken });
+                    toast({ title: "Processing Payment", description: "Handing off to NIBtera Super App..." });
 
-      } catch (err: any) {
-        console.error("Payment initiation error:", err);
-        setError(err.message || "Unknown error occurred.");
-        toast({ variant: 'destructive', title: 'Payment Initiation Failed', description: err.message || '' });
-        setPaymentStatus('failed');
-      }
-    });
-  }}
-  disabled={isPending}
->
-  {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-  Proceed to Payment
-</AlertDialogAction>
+                  } catch (err: any) {
+                    console.error("Payment initiation error:", err);
+                    setError(err.message || "Unknown error occurred.");
+                    toast({ variant: 'destructive', title: 'Payment Initiation Failed', description: err.message || '' });
+                    setPaymentStatus('failed');
+                  }
+                });
+              }}
+              disabled={isPending || isSessionLoading}
+            >
+              {(isPending || isSessionLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Proceed to Payment
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
