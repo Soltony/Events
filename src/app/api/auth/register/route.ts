@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import cuid from 'cuid';
+import { normalizePhoneNumber } from '@/lib/utils';
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,8 +15,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'All fields are required.' }, { status: 400 });
     }
 
+    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+
     const existingUserByPhone = await prisma.user.findUnique({
-      where: { phoneNumber },
+      where: { phoneNumber: normalizedPhone },
     });
     if (existingUserByPhone) {
       return NextResponse.json({ message: 'Phone number is already registered.' }, { status: 409 });
@@ -44,7 +47,7 @@ export async function POST(req: NextRequest) {
         id: cuid(),
         firstName,
         lastName,
-        phoneNumber,
+        phoneNumber: normalizedPhone,
         email,
         password: hashedPassword,
         roleId: organizerRole.id,

@@ -5,10 +5,9 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ transactionId: string }> }
+  { params }: { params: { transactionId: string } }
 ): Promise<NextResponse> {
-  // Await the params promise
-  const { transactionId } = await context.params;
+  const { transactionId } = params;
 
   if (!transactionId) {
     return NextResponse.json(
@@ -21,7 +20,7 @@ export async function GET(
     const order = await prisma.pendingOrder.findFirst({
       where: {
         OR: [
-          { transactionId },
+          { transactionId: transactionId },
           { arifpaySessionId: transactionId },
         ],
       },

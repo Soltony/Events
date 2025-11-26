@@ -1,3 +1,4 @@
+
 'use client';
 
 import { getEventById, validatePromoCode, getTicketDetailsForConfirmation } from '@/lib/actions';
@@ -32,13 +33,14 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import CartSheet from '@/components/cart-sheet';
-import { cn } from '@/lib/utils';
+import { cn, normalizePhoneNumber } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Autoplay from "embla-carousel-autoplay";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth, ensureCsrfToken } from '@/context/auth-context';
 import api from '@/lib/api';
 import QRCode from 'qrcode';
+import Cookies from 'js-cookie';
 
 
 interface EventWithTickets extends Event {
@@ -49,6 +51,14 @@ interface EventWithTickets extends Event {
 interface TicketDetails extends Attendee {
     event: Event;
     ticketType: TicketType;
+}
+
+declare global {
+    interface Window {
+        myJsChannel?: {
+            postMessage: (message: { token: string }) => void;
+        };
+    }
 }
 
 export type SelectedTicket = {
@@ -80,7 +90,7 @@ export default function PublicEventDetailPage() {
   const eventId = params ? parseInt(params.id, 10) : NaN;
 
   const [isPending, startTransition] = useTransition();
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [event, setEvent] = useState<EventWithTickets | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTickets, setSelectedTickets] = useState<Record<number, SelectedTicket>>({});
@@ -98,6 +108,8 @@ export default function PublicEventDetailPage() {
 
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'failed'>('idle');
   const [paymentTransactionId, setPaymentTransactionId] = useState<string | null>(null);
+  const [confirmedTicket, setConfirmedTicket] = useState<TicketDetails | null>(null);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   
   const plugin = useRef(
     Autoplay({ delay: 3000, stopOnInteraction: true, stopOnMouseEnter: true })
@@ -148,40 +160,37 @@ export default function PublicEventDetailPage() {
   }, [selectedLocation]);
 
   useEffect(() => {
-    async function fetchSessionData() {
-        if (user) {
-            if (user.phoneNumber) {
-                let phone = user.phoneNumber;
-                 if (phone.startsWith('251')) {
-                    phone = '0' + phone.substring(3);
-                }
-                setAttendeePhone(phone);
-                setIsPhoneFromSession(true);
-            }
-             if (!user.isGuest && user.firstName) {
-                setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
-            } else {
-                setAttendeeName(''); 
-            }
-            return;
+    async function fetchSessionPhone() {
+      if (isAuthLoading) return;
+  
+      try {
+        const response = await api.get("/api/auth/cookie-data");
+  
+        if (response.data.success && response.data.data.phoneNumber) {
+          const normalized = normalizePhoneNumber(response.data.data.phoneNumber);
+          setAttendeePhone(normalized);
+          setIsPhoneFromSession(true);
+          // Also set name if it's a full user from the auth context
+          if (user && !user.isGuest) {
+            setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
+          }
+          return; // Exit after successfully getting phone from cookie
         }
-
-        try {
-            const response = await api.get('/api/auth/cookie-data');
-            if (response.data.success && response.data.data.phoneNumber) {
-                let phone = response.data.data.phoneNumber;
-                if (phone.startsWith('251')) {
-                    phone = '0' + phone.substring(3);
-                }
-                setAttendeePhone(phone);
-                setIsPhoneFromSession(true);
-            }
-        } catch (error) {
-            console.log("No guest session phone number found.");
+  
+        // Only fallback to AuthContext if cookie has no phone
+        if (user && !user.isGuest && user.phoneNumber) {
+          setAttendeePhone(normalizePhoneNumber(user.phoneNumber));
+          setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
+          setIsPhoneFromSession(true);
         }
+  
+      } catch (e) {
+        console.log("No session phone found from any source.");
+      }
     }
-    fetchSessionData();
-  }, [user]);
+    fetchSessionPhone();
+  }, [user, isAuthLoading]);
+
 
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
@@ -261,88 +270,7 @@ export default function PublicEventDetailPage() {
     }
   }, [appliedPromo, subtotal]);
 
-    const handlePurchase = async () => {
-        if (!attendeeName || !attendeePhone) {
-            toast({
-                variant: 'destructive',
-                title: "Missing Information",
-                description: "Please enter your name and phone number.",
-            });
-            return;
-        }
-
-        setIsPurchaseModalOpen(false);
-        setPaymentStatus('processing');
-
-        try {
-            // Step 0: Ensure CSRF token is present
-            await ensureCsrfToken();
-
-            // Step 1: Create a pending order in our database
-            const pendingOrderResponse = await api.post('/api/payment/pending-order', {
-                eventId,
-                tickets: Object.values(selectedTickets),
-                promoCode: appliedPromo?.code,
-                attendeeDetails: {
-                    name: attendeeName,
-                    phone: attendeePhone,
-                    userId: user?.id,
-                },
-            });
-
-            if (!pendingOrderResponse.data.success) {
-                throw new Error(pendingOrderResponse.data.error || 'Failed to create a pending order.');
-            }
-
-            const { transactionId } = pendingOrderResponse.data;
-            setPaymentTransactionId(transactionId);
-            
-            const superAppTokenFromCookie = (await import('js-cookie')).default.get('superapp_token');
-
-            // Step 2: Use the transactionId from our DB to initiate payment with NIB
-            const paymentResponse = await api.post('/api/payment/nib/initiate', {
-                total,
-                transactionId, // Pass our internal transaction ID
-                superAppToken: superAppTokenFromCookie,
-            });
-
-            if (!paymentResponse.data.success) {
-                throw new Error(paymentResponse.data.error || "Failed to initiate payment.");
-            }
-
-            // Step 3: Send the payment token back to the NIB Super App
-            const paymentToken = paymentResponse.data.paymentToken;
-            if (!paymentToken) {
-                throw new Error('Payment token not received from server');
-            }
-
-            if (typeof window === 'undefined' || !window.myJsChannel?.postMessage) {
-                console.error('[NIB PAYMENT] Error: window.myJsChannel is not available');
-                setError("Could not communicate with the payment app. This feature is only available within the NIB SuperApp.");
-                setPaymentStatus('failed');
-                return;
-            }
-
-            const payload = {
-                type: 'PAYMENT',
-                token: paymentToken,
-            };
-
-            window.myJsChannel.postMessage(payload);
-
-        } catch (error: any) {
-            console.error('Payment initiation error:', error);
-            const errorMessage = error.response?.data?.detail || error.message || "An unknown error occurred.";
-            setError(errorMessage);
-            toast({
-                variant: "destructive",
-                title: "Payment Initiation Failed",
-                description: errorMessage,
-            });
-            setPaymentStatus('failed');
-        }
-    };
-
+  
     // This effect handles polling for payment status
     useEffect(() => {
         if (paymentStatus !== 'processing' || !paymentTransactionId) {
@@ -351,7 +279,7 @@ export default function PublicEventDetailPage() {
 
         let isCancelled = false;
         let pollCount = 0;
-        const maxPolls = 60; // Poll for 2 minutes
+        const maxPolls = 20; // Poll for 40 seconds
 
         const poll = async () => {
             if (isCancelled || pollCount >= maxPolls) {
@@ -365,12 +293,16 @@ export default function PublicEventDetailPage() {
             
             try {
                 const response = await api.get(`/api/payment/status/${paymentTransactionId}`);
-                if (response.data.status === 'COMPLETED' && response.data.attendeeId) {
-                    // Set a flag for the toast before redirecting
-                    if (typeof window !== 'undefined') {
-                      sessionStorage.setItem('showSuccessToast', 'true');
+                if (response.data.status === 'COMPLETED') {
+                    const ticketDetails = await getTicketDetailsForConfirmation(paymentTransactionId);
+                    if (ticketDetails) {
+                        setConfirmedTicket(ticketDetails);
+                        const qrUrl = await QRCode.toDataURL(ticketDetails.qrCode, { errorCorrectionLevel: 'H', type: 'image/png', margin: 1 });
+                        setQrCodeDataUrl(qrUrl);
+                        setPaymentStatus('success');
+                    } else {
+                        throw new Error("Could not retrieve ticket details after confirmation.");
                     }
-                    router.replace(`/ticket/${response.data.attendeeId}/confirmation`);
                     isCancelled = true; // Stop polling
                 } else {
                     setTimeout(poll, 2000);
@@ -384,7 +316,7 @@ export default function PublicEventDetailPage() {
         poll();
 
         return () => { isCancelled = true; };
-    }, [paymentStatus, paymentTransactionId, router]);
+    }, [paymentStatus, paymentTransactionId]);
 
 
     const eventLocations = useMemo(() => {
@@ -403,8 +335,20 @@ export default function PublicEventDetailPage() {
         }
         return [];
     }, [event, selectedLocation, eventLocations]);
+
+    const handleDownloadQRCode = () => {
+        const qrImage = document.getElementById('qr-code-image') as HTMLImageElement;
+        if (qrImage && confirmedTicket) {
+            const link = document.createElement('a');
+            link.href = qrImage.src;
+            link.download = `ticket-qr-${confirmedTicket.event.name.replace(/\s+/g, '_')}-${confirmedTicket.id}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    };
   
-  if (loading || !event) {
+  if (loading || isAuthLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <header className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-sm">
@@ -444,6 +388,10 @@ export default function PublicEventDetailPage() {
         </main>
       </div>
     )
+  }
+
+  if (!event) {
+    return notFound();
   }
   
   const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
@@ -673,23 +621,91 @@ export default function PublicEventDetailPage() {
               <Label htmlFor="phone">Phone Number</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                    id="phone" 
-                    placeholder="e.g., 0912345678" 
-                    value={attendeePhone} 
-                    onChange={e => setAttendeePhone(e.target.value)} 
-                    className={cn("pl-10", isPhoneFromSession && "bg-muted cursor-not-allowed")}
-                    readOnly={isPhoneFromSession}
+                <Input
+                  id="phone"
+                  placeholder="Phone Number"
+                  value={attendeePhone}
+                  disabled={isPhoneFromSession}
+                  readOnly={isPhoneFromSession}
+                  className={cn("pl-10", isPhoneFromSession && "bg-muted cursor-not-allowed")}
                 />
               </div>
             </div>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handlePurchase} disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Proceed to Payment
-            </AlertDialogAction>
+            <AlertDialogAction
+  onClick={() => {
+    startTransition(async () => {
+      if (!attendeeName || !attendeePhone) {
+        toast({
+          variant: 'destructive',
+          title: "Missing Information",
+          description: "Please enter your name and phone number.",
+        });
+        return;
+      }
+
+      setIsPurchaseModalOpen(false);
+      setPaymentStatus('processing');
+
+      try {
+        // Step 1: Create pending order
+        const pendingOrderRes = await api.post('/api/payment/pending-order', {
+          eventId,
+          tickets: Object.values(selectedTickets),
+          promoCode: appliedPromo?.code,
+          attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
+        });
+
+        if (!pendingOrderRes.data.success) {
+          throw new Error(pendingOrderRes.data.error || 'Failed to create pending order.');
+        }
+
+        const { transactionId } = pendingOrderRes.data;
+        setPaymentTransactionId(transactionId);
+        
+        // Fetch the superapp_token from cookies
+        const superAppToken = Cookies.get('superapp_token');
+
+        if (!superAppToken) {
+          throw new Error('User session not found. Please log in through the SuperApp.');
+        }
+
+        // Step 2: Initiate payment
+        const paymentRes = await api.post('/api/payment/nib/initiate', {
+          total,
+          transactionId,
+          superAppToken, // Pass the token to the backend
+        });
+
+        if (!paymentRes.data.success || !paymentRes.data.paymentToken) {
+          throw new Error(paymentRes.data.error || "Failed to initiate payment.");
+        }
+
+        const paymentToken = paymentRes.data.paymentToken;
+
+        // Step 3: Post message to SuperApp
+        if (typeof window === 'undefined' || !window.myJsChannel?.postMessage) {
+          throw new Error('NIB SuperApp channel is not available.');
+        }
+
+        window.myJsChannel.postMessage({ token: paymentToken });
+        toast({ title: "Processing Payment", description: "Handing off to NIBtera Super App..." });
+
+      } catch (err: any) {
+        console.error("Payment initiation error:", err);
+        setError(err.message || "Unknown error occurred.");
+        toast({ variant: 'destructive', title: 'Payment Initiation Failed', description: err.message || '' });
+        setPaymentStatus('failed');
+      }
+    });
+  }}
+  disabled={isPending}
+>
+  {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+  Proceed to Payment
+</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -704,6 +720,38 @@ export default function PublicEventDetailPage() {
                     <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm pt-4">
                         <CheckCircle2 className="h-4 w-4" />
                         <span>Do not close this window.</span>
+                    </div>
+                </div>
+            )}
+            {paymentStatus === 'success' && confirmedTicket && (
+                <div className="flex flex-col items-center justify-center p-6 text-center">
+                    <div className="mx-auto w-16 h-16 mb-4 flex items-center justify-center rounded-full bg-green-100">
+                        <CheckCircle2 className="h-10 w-10 text-green-600" />
+                    </div>
+                    <h2 className="text-2xl font-bold">Purchase Successful!</h2>
+                    <p className="text-muted-foreground mt-2">Thank you! Your ticket is confirmed.</p>
+                    
+                    <div className="space-y-4 my-6 w-full">
+                        <p className="text-sm text-muted-foreground">Present this QR code at the event entrance for scanning.</p>
+                        {qrCodeDataUrl && 
+                            <div className="p-2 border-4 border-muted rounded-lg bg-white inline-block">
+                                <img id="qr-code-image" src={qrCodeDataUrl} alt="Ticket QR Code" className="h-48 w-48 mx-auto" />
+                            </div>
+                        }
+                    </div>
+
+                    <div className="flex flex-col gap-3 w-full">
+                        <Button 
+                            onClick={handleDownloadQRCode}
+                            style={{ backgroundColor: '#f59e0b', color: '#422006' }} 
+                            className="hover:bg-yellow-400/90"
+                        >
+                            <Download className="mr-2 h-4 w-4" />
+                            Download QR Code
+                        </Button>
+                        <Button variant="outline" onClick={() => setPaymentStatus('idle')}>
+                            Done
+                        </Button>
                     </div>
                 </div>
             )}

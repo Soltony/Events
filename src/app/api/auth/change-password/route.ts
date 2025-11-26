@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { normalizePhoneNumber } from '@/lib/utils';
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,8 +14,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'All fields are required.' }, { status: 400 });
     }
 
+    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+
     const user = await prisma.user.findUnique({
-      where: { phoneNumber },
+      where: { phoneNumber: normalizedPhone },
     });
 
     if (!user || !user.password) {
