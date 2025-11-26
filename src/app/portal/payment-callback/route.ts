@@ -1,3 +1,4 @@
+
 'use server';
 
 import { NextRequest, NextResponse } from "next/server";
@@ -139,7 +140,7 @@ export async function POST(req: NextRequest) {
             phoneNumber: attendeeData.phoneNumber,
             eventId: order.eventId,
             ticketTypeId: ticketType.id,
-            userId: attendeeData.userId,
+            userId: attendeeData.userId, // Save the userId
             checkedIn: false,
             qrCode: randomUUID(),
           },

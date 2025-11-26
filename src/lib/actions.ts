@@ -20,20 +20,20 @@ const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
 ));
 
 interface AttendeeTicket {
-  id: string;
+  id: number;
   userId: string | null;
   phoneNumber: string | null;
   createdAt: Date;
   qrCode: string;
   event: {
-    id: string;
+    id: number;
     name: string;
     image: string | null;
     startDate: Date;
     endDate: Date | null;
   };
   ticketType: {
-    id: string;
+    id: number;
     name: string;
   };
 }
@@ -1136,11 +1136,18 @@ export async function validatePromoCode(code: string, eventId: number, location?
 }
 
 
-export async function checkInAttendee(qrCode: string) {
+export async function checkInAttendee(qrOrId: string | number) {
     'use server';
     try {
+        let whereClause;
+        if (typeof qrOrId === 'number') {
+            whereClause = { id: qrOrId };
+        } else {
+            whereClause = { qrCode: qrOrId };
+        }
+
         const attendee = await prisma.attendee.findUnique({
-            where: { qrCode: qrCode },
+            where: whereClause,
             include: { event: true, ticketType: true }
         });
 
@@ -1153,7 +1160,7 @@ export async function checkInAttendee(qrCode: string) {
         }
 
         const updatedAttendee = await prisma.attendee.update({
-            where: { qrCode: qrCode },
+            where: { id: attendee.id },
             data: { checkedIn: true },
             include: { event: true, ticketType: true }
         });
