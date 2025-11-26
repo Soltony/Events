@@ -61,6 +61,7 @@ export default function MyTicketsPage() {
 
   useEffect(() => {
     async function fetchTickets() {
+      console.log('fetchTickets called. Auth loading:', isAuthLoading, 'User:', user);
       if (isAuthLoading) {
         return; // Wait until authentication state is resolved
       }
@@ -68,22 +69,27 @@ export default function MyTicketsPage() {
       try {
         // Use the authenticated user from context if available
         if (user) {
+            console.log('Fetching tickets for logged-in user:', user.id);
             const fetchedTickets = await getTicketsForUser(user.id, user.phoneNumber || undefined);
             setTickets(fetchedTickets);
             return;
         }
 
         // Fallback for guest users
+        console.log('No user found, attempting to fetch as guest via cookie-data API.');
         const response = await api.get('/api/auth/cookie-data');
+        console.log('Response from /api/auth/cookie-data:', response);
         const phoneNumber = response.data?.data?.phoneNumber;
+        console.log('Extracted phone number for guest:', phoneNumber);
 
         if (!phoneNumber) {
-          console.log("No user session found.");
+          console.log("No guest phone number found in cookie data.");
           setTickets([]);
           return;
         }
 
         const fetchedTickets = await getTicketsForUser(undefined, phoneNumber);
+        console.log('Fetched tickets for guest:', fetchedTickets);
         setTickets(fetchedTickets);
 
       } catch (error) {
