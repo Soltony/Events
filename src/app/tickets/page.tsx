@@ -12,9 +12,6 @@ import { ArrowUpRight, Ticket } from 'lucide-react';
 import api from '@/lib/api';
 import { getTicketsForUser } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/context/auth-context';
-
-console.log("### MyTicketsPage component file loaded ###");
 
 interface Event {
   id: string;
@@ -34,7 +31,6 @@ interface Attendee {
   userId: string | null;
   phoneNumber: string | null;
   createdAt: Date;
-  qrCode: string;
   event: Event;
   ticketType: TicketType;
 }
@@ -48,99 +44,206 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
       format(new Date(endDate), 'LLL dd, y') === format(new Date(startDate), 'LLL dd, y')
         ? 'hh:mm a'
         : startDateFormat;
-    return `${''}${format(new Date(startDate), startDateFormat)} - ${format(new Date(endDate), endDateFormat)}`;
+    return `${format(new Date(startDate), startDateFormat)} - ${format(new Date(endDate), endDateFormat)}`;
   }
   return format(new Date(startDate), startDateFormat);
 }
 
 export default function MyTicketsPage() {
-  console.log("### MyTicketsPage render START ###");
-
   const [tickets, setTickets] = useState<Attendee[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
-  const { user, isLoading: isAuthLoading } = useAuth();
-
-  console.log("Render values → user:", user, "isAuthLoading:", isAuthLoading);
 
   useEffect(() => {
-    console.log("### useEffect triggered ###");
+    let isMounted = true;
+    let pollInterval: number | undefined;
+    let pollCount = 0;
+    const maxPolls = 24; // e.g. poll for up to 2 minutes at 5s interval
 
-    async function fetchTickets() {
-      console.log(">>> fetchTickets called");
-      console.log("Auth loading:", isAuthLoading, "User:", user);
+    const hasPendingRefresh =
+      typeof window !== 'undefined' &&
+      window.sessionStorage.getItem('pendingTicketsRefresh') === 'true';
 
-      if (isAuthLoading) {
-        console.log("Auth is still loading → stopping fetchTickets");
-        return;
+    async function fetchTickets(isPoll = false) {
+      if (!isPoll) {
+        setLoading(true);
       }
 
-      setLoading(true);
-
       try {
-        if (user) {
-          console.log("Logged in user detected → fetching tickets for userId:", user.id);
-
-          const fetchedTickets = await getTicketsForUser(user.id, user.phoneNumber || undefined);
-
-          console.log("Fetched tickets for logged-in user:", fetchedTickets);
-          setTickets(fetchedTickets);
-          return;
-        }
-
-        // Guest user flow
-        console.log("No user found → checking /api/auth/cookie-data");
         const response = await api.get('/api/auth/cookie-data');
-
-        console.log("Cookie data response:", response);
-
         const phoneNumber = response.data?.data?.phoneNumber;
-        console.log("Guest phone number:", phoneNumber);
+        const userId = response.data?.data?.userId;
 
-        if (!phoneNumber) {
-          console.log("No guest phone number found.");
-          setTickets([]);
+        if (!phoneNumber && !userId) {
+          console.log('No user session found.');
+          if (isMounted) {
+            setTickets([]);
+          }
           return;
         }
 
-        console.log("Fetching guest tickets with phone:", phoneNumber);
-        const fetchedTickets = await getTicketsForUser(undefined, phoneNumber);
+        const fetchedTickets = await getTicketsForUser(userId, phoneNumber);
 
-        console.log("Fetched guest tickets:", fetchedTickets);
-        setTickets(fetchedTickets);
+        if (!isMounted) return;
 
-      } catch (error) {
-        console.error("❌ ERROR while fetching tickets:", error);
-        toast({
-          variant: "destructive",
-          title: "Could not load tickets",
-          description: "There was a problem retrieving your tickets. Please try again later.",
+        setTickets((prev) => {
+          const prevCount = prev.length;
+          const nextCount = fetchedTickets.length;
+
+          // If we are polling due to a recent purchase and we detect that
+          // new tickets have appeared, show a success toast once and stop
+          // polling. This also avoids duplicate notifications on refresh.
+          if (isPoll && hasPendingRefresh && nextCount > prevCount) {
+            toast({
+              variant: 'default',
+              title: 'Purchase Successful!',
+              description: 'Your new ticket has been added to My Tickets.',
+            });
+            if (typeof window !== 'undefined') {
+              window.sessionStorage.removeItem('pendingTicketsRefresh');
+            }
+            if (pollInterval) {
+              window.clearInterval(pollInterval);
+            }
+          }
+
+          return fetchedTickets;
         });
-        setTickets([]);
+      } catch (error) {
+        console.error('❌ Failed to fetch tickets:', error);
+        if (!isPoll) {
+          toast({
+            variant: 'destructive',
+            title: 'Could not load tickets',
+            description: 'There was a problem retrieving your tickets. Please try again later.',
+          });
+        }
+        if (isMounted) {
+          setTickets([]);
+        }
       } finally {
-        console.log(">>> fetchTickets FINISHED");
-        setLoading(false);
+        if (!isPoll) {
+          setLoading(false);
+        }
       }
     }
 
-    fetchTickets();
-  }, [toast, user, isAuthLoading]);
+    // Initial load
+    fetchTickets(false);
 
-  console.log("### MyTicketsPage render END ###");
+    // If there is a recent purchase in progress, keep polling until tickets show up.
+    if (hasPendingRefresh) {
+      pollInterval = window.setInterval(() => {
+        pollCount += 1;
+        if (pollCount > maxPolls) {
+          if (pollInterval) {
+            window.clearInterval(pollInterval);
+          }
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.removeItem('pendingTicketsRefresh');
+          }
+          return;
+        }
+        fetchTickets(true);
+      }, 5000);
+    }
+
+    return () => {
+      isMounted = false;
+      if (pollInterval) {
+        window.clearInterval(pollInterval);
+      }
+    };
+  }, [toast]);
 
   if (loading) {
-    console.log("Render → loading state...");
     return (
-      <div>Loading...</div>
+      <div className="min-h-screen bg-white flex items-center justify-center p-6">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 w-full max-w-6xl">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i} className="overflow-hidden rounded-2xl shadow-md border border-gray-200">
+              <CardHeader className="p-0">
+                <Skeleton className="w-full aspect-video rounded-t-lg" />
+              </CardHeader>
+              <CardContent className="p-4 space-y-2">
+                <Skeleton className="h-5 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </CardContent>
+              <CardFooter className="p-4 pt-0">
+                <Skeleton className="h-10 w-full" />
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      </div>
     );
   }
 
-  console.log("Render → Loaded. Tickets length:", tickets.length);
-
   return (
-    <div>
-      <h1>My Tickets</h1>
+    <div className="min-h-screen bg-white py-10 px-4">
+      <div className="max-w-5xl mx-auto text-center mb-10">
+        <h1 className="text-4xl font-extrabold text-[#864b20]">🎟️ My Tickets</h1>
+        <p className="text-gray-600 mt-2">View and manage your purchased event tickets.</p>
+      </div>
+
+      {tickets.length > 0 ? (
+        <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
+          {tickets.map((ticket) => {
+            const imageSource = ticket.event.image || DEFAULT_IMAGE_PLACEHOLDER;
+            return (
+              <Card
+                key={ticket.id}
+                className="bg-white shadow-md hover:shadow-lg transition-all rounded-2xl overflow-hidden border border-gray-200"
+              >
+                <CardHeader className="p-0 relative aspect-video">
+                  <Image
+                    src={imageSource}
+                    alt={ticket.event.name}
+                    fill
+                    className="object-cover rounded-t-2xl"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = DEFAULT_IMAGE_PLACEHOLDER;
+                      target.srcset = '';
+                    }}
+                  />
+                </CardHeader>
+                <CardContent className="p-5 text-left">
+                  <CardTitle className="text-xl font-bold text-[#864b20]">{ticket.event.name}</CardTitle>
+                  <CardDescription className="text-sm text-gray-500 mt-1">
+                    {formatEventDate(ticket.event.startDate, ticket.event.endDate)}
+                  </CardDescription>
+                  <p className="font-semibold mt-3 text-[#f6b313]">{ticket.ticketType.name}</p>
+                </CardContent>
+                <CardFooter className="p-5 pt-0">
+                  <Button
+                    asChild
+                    className="w-full bg-[#864b20] hover:bg-[#6e3f1b] text-white font-semibold rounded-xl"
+                  >
+                    <Link href={`/ticket/${ticket.id}/confirmation`}>
+                      View QR Code & Details
+                      <ArrowUpRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </CardFooter>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center text-center py-20 border-2 border-dashed border-gray-300 rounded-2xl bg-gray-50 max-w-xl mx-auto">
+          <Ticket className="h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-2xl font-bold text-[#864b20]">No Tickets Yet</h3>
+          <p className="text-gray-500 mt-2 mb-6">Your purchased tickets will appear here once available.</p>
+          <Button
+            asChild
+            className="bg-[#864b20] hover:bg-[#6e3f1b] text-white rounded-xl px-6"
+          >
+            <Link href="/">Explore Events</Link>
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
