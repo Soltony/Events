@@ -1,6 +1,4 @@
 
-
-
 'use client';
 
 import { getEventById, validatePromoCode, getTicketDetailsForConfirmation } from '@/lib/actions';
