@@ -1,3 +1,4 @@
+
 'use client';
 
 import { getEventById, validatePromoCode, getTicketDetailsForConfirmation } from '@/lib/actions';
@@ -149,35 +150,31 @@ export default function PublicEventDetailPage() {
 
   useEffect(() => {
     async function fetchSessionData() {
-        if (isAuthLoading) return; // Wait for auth to finish loading
+        if (isAuthLoading) return;
 
-        // If a full user is logged in
         if (user && !user.isGuest) {
-            if (user.phoneNumber) {
-                const normalized = normalizePhoneNumber(user.phoneNumber);
-                setAttendeePhone(normalized);
-                setIsPhoneFromSession(true);
-            }
             if (user.firstName) {
                 setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
             }
-            return; // Prioritize logged-in user data
-        }
-
-        // Fallback for guest users (from SuperApp cookie)
-        try {
-            const response = await api.get('/api/auth/cookie-data');
-            if (response.data.success && response.data.data.phoneNumber) {
-                const normalized = normalizePhoneNumber(response.data.data.phoneNumber);
-                setAttendeePhone(normalized);
+            if (user.phoneNumber) {
+                setAttendeePhone(normalizePhoneNumber(user.phoneNumber));
                 setIsPhoneFromSession(true);
             }
-        } catch (error) {
-            console.log("No guest session phone number found.");
+        } else {
+            // Fallback for guest users (from SuperApp cookie)
+            try {
+                const response = await api.get('/api/auth/cookie-data');
+                if (response.data.success && response.data.data.phoneNumber) {
+                    setAttendeePhone(normalizePhoneNumber(response.data.data.phoneNumber));
+                    setIsPhoneFromSession(true);
+                }
+            } catch (error) {
+                console.log("No guest session phone number found.");
+            }
         }
     }
     fetchSessionData();
-  }, [user, isAuthLoading]);
+}, [user, isAuthLoading]);
 
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
