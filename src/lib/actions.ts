@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -1115,11 +1114,11 @@ export async function validatePromoCode(code: string, eventId: number, location?
 }
 
 
-export async function checkInAttendee(attendeeId: number) {
+export async function checkInAttendee(qrCode: string) {
     'use server';
     try {
         const attendee = await prisma.attendee.findUnique({
-            where: { id: attendeeId },
+            where: { qrCode },
             include: { event: true, ticketType: true }
         });
 
@@ -1132,7 +1131,7 @@ export async function checkInAttendee(attendeeId: number) {
         }
 
         const updatedAttendee = await prisma.attendee.update({
-            where: { id: attendeeId },
+            where: { qrCode },
             data: { checkedIn: true },
             include: { event: true, ticketType: true }
         });
