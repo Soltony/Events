@@ -64,8 +64,7 @@ export async function POST(request: NextRequest) {
         throw new Error('No ticket information found in pending order.');
       }
       
-      // If the user is a guest (no real user ID), ensure userId is null.
-      if (!userId || userId.startsWith('guest_')) {
+      if (userId?.startsWith('guest_')) {
         userId = undefined;
       }
 
@@ -156,3 +155,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: 'Internal server error processing webhook.', detail: error.message }, { status: 500 });
   }
 }
+
