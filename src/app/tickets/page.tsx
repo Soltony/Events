@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
@@ -64,10 +65,8 @@ export default function MyTicketsPage() {
     try {
       let fetchedTickets: Attendee[] = [];
       if (user) {
-        // If user is authenticated, fetch by user ID and phone number.
         fetchedTickets = await getTicketsForUser(user.id, user.phoneNumber || undefined);
       } else {
-        // If not authenticated, try to fetch by phone number from the cookie (guest flow).
         const response = await api.get('/api/auth/cookie-data');
         const phoneNumber = response.data?.data?.phoneNumber;
         if (phoneNumber) {
@@ -90,13 +89,12 @@ export default function MyTicketsPage() {
 
 
   useEffect(() => {
-    // Only fetch tickets once the authentication state is resolved.
     if (!isAuthLoading) {
       fetchTickets();
     }
   }, [isAuthLoading, fetchTickets]);
 
-  if (loading) {
+  if (loading || isAuthLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-6">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 w-full max-w-6xl">

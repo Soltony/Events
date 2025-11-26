@@ -1,9 +1,8 @@
 
 
-
 'use client';
 
-import { getEventById, validatePromoCode, getTicketDetailsForConfirmation } from '@/lib/actions';
+import { getEventById, validatePromoCode } from '@/lib/actions';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -39,20 +38,14 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Autoplay from "embla-carousel-autoplay";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useAuth, ensureCsrfToken } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context';
 import api from '@/lib/api';
-import QRCode from 'qrcode';
 import Cookies from 'js-cookie';
 
 
 interface EventWithTickets extends Event {
     ticketTypes: (TicketType & { basePrice: number })[];
     organizerName?: string;
-}
-
-interface TicketDetails extends Attendee {
-    event: Event;
-    ticketType: TicketType;
 }
 
 declare global {
@@ -110,8 +103,6 @@ export default function PublicEventDetailPage() {
 
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'failed'>('idle');
   const [paymentTransactionId, setPaymentTransactionId] = useState<string | null>(null);
-  const [confirmedTicket, setConfirmedTicket] = useState<TicketDetails | null>(null);
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   
   const plugin = useRef(
     Autoplay({ delay: 3000, stopOnInteraction: true, stopOnMouseEnter: true })
@@ -300,6 +291,8 @@ export default function PublicEventDetailPage() {
                 const response = await api.get(`/api/payment/status/${paymentTransactionId}`);
                 if (response.data.status === 'COMPLETED' && response.data.attendeeId) {
                     isCancelled = true; // Stop polling
+                    setPaymentStatus('success');
+                    sessionStorage.setItem('showSuccessToast', 'true');
                     router.replace(`/ticket/${response.data.attendeeId}/confirmation`);
                 } else {
                     setTimeout(poll, 2000);
@@ -332,18 +325,6 @@ export default function PublicEventDetailPage() {
         }
         return [];
     }, [event, selectedLocation, eventLocations]);
-
-    const handleDownloadQRCode = () => {
-        const qrImage = document.getElementById('qr-code-image') as HTMLImageElement;
-        if (qrImage && confirmedTicket) {
-            const link = document.createElement('a');
-            link.href = qrImage.src;
-            link.download = `ticket-qr-${confirmedTicket.event.name.replace(/\s+/g, '_')}-${confirmedTicket.id}.png`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-    };
   
   if (loading || !event) {
     return (
@@ -628,73 +609,75 @@ export default function PublicEventDetailPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-  onClick={() => {
-    startTransition(async () => {
-      if (!attendeeName || !attendeePhone) {
-        toast({
-          variant: 'destructive',
-          title: "Missing Information",
-          description: "Please enter your name and phone number.",
-        });
-        return;
-      }
+              onClick={() => {
+                startTransition(async () => {
+                  if (!attendeeName || !attendeePhone) {
+                    toast({
+                      variant: 'destructive',
+                      title: "Missing Information",
+                      description: "Please enter your name and phone number.",
+                    });
+                    return;
+                  }
 
-      setIsPurchaseModalOpen(false);
-      setPaymentStatus('processing');
+                  setIsPurchaseModalOpen(false);
+                  setPaymentStatus('processing');
 
-      try {
-        // Step 1: Create pending order
-        const pendingOrderRes = await api.post('/api/payment/pending-order', {
-          eventId,
-          tickets: Object.values(selectedTickets),
-          promoCode: appliedPromo?.code,
-          attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
-        });
+                  try {
+                    // Step 1: Create pending order
+                    const pendingOrderRes = await api.post('/api/payment/pending-order', {
+                      eventId,
+                      tickets: Object.values(selectedTickets),
+                      promoCode: appliedPromo?.code,
+                      attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
+                    });
 
-        if (!pendingOrderRes.data.success) {
-          throw new Error(pendingOrderRes.data.error || 'Failed to create pending order.');
-        }
+                    if (!pendingOrderRes.data.success) {
+                      throw new Error(pendingOrderRes.data.error || 'Failed to create pending order.');
+                    }
 
-        const { transactionId } = pendingOrderRes.data;
-        setPaymentTransactionId(transactionId);
-        
-        // Get the superapp token from the cookie
-        const superAppToken = Cookies.get('superapp_token');
+                    const { transactionId } = pendingOrderRes.data;
+                    setPaymentTransactionId(transactionId);
+                    
+                    const superAppToken = Cookies.get('superapp_token');
+                    if (!superAppToken) {
+                        throw new Error('User session not found. Please log in through the SuperApp.');
+                    }
 
-        // Step 2: Initiate payment
-        const paymentRes = await api.post('/api/payment/nib/initiate', {
-          total,
-          transactionId,
-          superAppToken, // Pass the token in the body
-        });
+                    // Step 2: Initiate payment
+                    const paymentRes = await api.post('/api/payment/nib/initiate', {
+                      total,
+                      transactionId,
+                      superAppToken,
+                    });
 
-        if (!paymentRes.data.success || !paymentRes.data.paymentToken) {
-          throw new Error(paymentRes.data.error || "Failed to initiate payment.");
-        }
+                    if (!paymentRes.data.success || !paymentRes.data.paymentToken) {
+                      throw new Error(paymentRes.data.error || "Failed to initiate payment.");
+                    }
 
-        const paymentToken = paymentRes.data.paymentToken;
+                    const paymentToken = paymentRes.data.paymentToken;
 
-        // Step 3: Post message to SuperApp
-        if (typeof window === 'undefined' || !window.myJsChannel?.postMessage) {
-          throw new Error('NIB SuperApp channel is not available.');
-        }
+                    // Step 3: Post message to SuperApp
+                    if (typeof window === 'undefined' || !window.myJsChannel?.postMessage) {
+                      throw new Error('NIB SuperApp channel is not available.');
+                    }
 
-        window.myJsChannel.postMessage({ token: paymentToken });
-        toast({ title: "Processing Payment", description: "Handing off to NIBtera Super App..." });
+                    window.myJsChannel.postMessage({ token: paymentToken });
+                    toast({ title: "Processing Payment", description: "Handing off to NIBtera Super App..." });
 
-      } catch (err: any) {
-        console.error("Payment initiation error:", err);
-        setError(err.message || "Unknown error occurred.");
-        toast({ variant: 'destructive', title: 'Payment Initiation Failed', description: err.message || '' });
-        setPaymentStatus('failed');
-      }
-    });
-  }}
-  disabled={isPending}
->
-  {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-  Proceed to Payment
-</AlertDialogAction>
+                  } catch (err: any) {
+                    console.error("Payment initiation error:", err);
+                    setError(err.message || "Unknown error occurred.");
+                    toast({ variant: 'destructive', title: 'Payment Initiation Failed', description: err.message || '' });
+                    setPaymentStatus('failed');
+                  }
+                });
+              }}
+              disabled={isPending}
+            >
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Proceed to Payment
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -709,38 +692,6 @@ export default function PublicEventDetailPage() {
                     <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm pt-4">
                         <CheckCircle2 className="h-4 w-4" />
                         <span>Do not close this window.</span>
-                    </div>
-                </div>
-            )}
-            {paymentStatus === 'success' && confirmedTicket && (
-                <div className="flex flex-col items-center justify-center p-6 text-center">
-                    <div className="mx-auto w-16 h-16 mb-4 flex items-center justify-center rounded-full bg-green-100">
-                        <CheckCircle2 className="h-10 w-10 text-green-600" />
-                    </div>
-                    <h2 className="text-2xl font-bold">Purchase Successful!</h2>
-                    <p className="text-muted-foreground mt-2">Thank you! Your ticket is confirmed.</p>
-                    
-                    <div className="space-y-4 my-6 w-full">
-                        <p className="text-sm text-muted-foreground">Present this QR code at the event entrance for scanning.</p>
-                        {qrCodeDataUrl && 
-                            <div className="p-2 border-4 border-muted rounded-lg bg-white inline-block">
-                                <img id="qr-code-image" src={qrCodeDataUrl} alt="Ticket QR Code" className="h-48 w-48 mx-auto" />
-                            </div>
-                        }
-                    </div>
-
-                    <div className="flex flex-col gap-3 w-full">
-                        <Button 
-                            onClick={handleDownloadQRCode}
-                            style={{ backgroundColor: '#f59e0b', color: '#422006' }} 
-                            className="hover:bg-yellow-400/90"
-                        >
-                            <Download className="mr-2 h-4 w-4" />
-                            Download QR Code
-                        </Button>
-                        <Button variant="outline" onClick={() => setPaymentStatus('idle')}>
-                            Done
-                        </Button>
                     </div>
                 </div>
             )}

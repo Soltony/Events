@@ -72,7 +72,6 @@ export default function TicketConfirmationPage() {
 
         setTicket(ticketDetails);
 
-        // Use the qrCode string from the database to generate the QR image
         const qrCodeData = ticketDetails.qrCode;
         if (!qrCodeData) {
             throw new Error("QR code data is missing from the ticket details.");
@@ -119,30 +118,31 @@ export default function TicketConfirmationPage() {
     <>
       <div className="flex justify-center items-center min-h-screen bg-gray-50 py-6 px-4">
         <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
-          {/* Header */}
           <div className="bg-[#864b20] text-white p-5 text-center">
             <h1 className="text-2xl font-bold">Event Pass</h1>
             <p className="text-sm opacity-90 mt-1">Your ticket for {ticket.event.name}</p>
           </div>
 
-          {/* QR Code */}
           <div className="flex flex-col items-center py-6 px-5">
             <div
               className="bg-white p-2 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:scale-105 transition-transform"
               onClick={() => setShowFullQR(true)}
             >
-              <img
-                src={qrCodeDataUrl}
-                alt="QR Code"
-                className="w-44 h-44 object-contain"
-              />
+              {qrCodeDataUrl ? (
+                <img
+                    src={qrCodeDataUrl}
+                    alt="QR Code"
+                    className="w-44 h-44 object-contain"
+                />
+               ) : (
+                <Skeleton className="w-44 h-44" />
+               )}
             </div>
             <p className="text-xs text-gray-500 mt-3 text-center max-w-[220px]">
               Tap the QR code to view in fullscreen.
             </p>
           </div>
 
-          {/* Event Info */}
           <div className="px-6 pb-6 text-sm text-gray-700 space-y-3 border-t border-gray-100">
             <div className="flex justify-between items-center pt-4">
               <span className="flex items-center gap-2 text-gray-500">
@@ -177,7 +177,6 @@ export default function TicketConfirmationPage() {
             </div>
           </div>
 
-          {/* Footer Button */}
           <div className="bg-gray-50 border-t border-gray-200 p-4 flex justify-center">
             <Button
               asChild
@@ -189,7 +188,6 @@ export default function TicketConfirmationPage() {
           </div>
         </div>
       </div>
-      {/* Fullscreen QR Modal */}
     
       {showFullQR && (
         <div className="fixed inset-0 bg-black bg-opacity-90 flex flex-col justify-center items-center z-50">
@@ -199,11 +197,15 @@ export default function TicketConfirmationPage() {
           >
             <X className="h-6 w-6" />
           </button>
-          <img
-            src={qrCodeDataUrl}
-            alt="QR Code Fullscreen"
-            className="w-80 h-80 sm:w-96 sm:h-96 object-contain rounded-lg shadow-lg"
-          />
+           {qrCodeDataUrl ? (
+             <img
+                src={qrCodeDataUrl}
+                alt="QR Code Fullscreen"
+                className="w-80 h-80 sm:w-96 sm:h-96 object-contain rounded-lg shadow-lg bg-white"
+            />
+            ) : (
+             <Skeleton className="w-80 h-80 sm:w-96 sm:h-96" />
+            )}
           <p className="text-white text-sm mt-4 opacity-80">Tap close to return</p>
         </div>
       )}
