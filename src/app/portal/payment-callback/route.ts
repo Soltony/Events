@@ -1,9 +1,11 @@
+
 'use server';
 
 import { headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { randomUUID } from 'crypto';
 
 export async function POST(request: NextRequest) {
   let requestBody;
@@ -84,6 +86,7 @@ export async function POST(request: NextRequest) {
           eventId: eventPayment.eventId,
           ticketTypeId: ticketTypeId,
           checkedIn: false,
+          qrCode: randomUUID(), // Generate a unique QR code
         }));
 
         await tx.attendee.createMany({ data: attendeesToCreate });
