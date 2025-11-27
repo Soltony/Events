@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
@@ -36,7 +37,7 @@ export async function GET(
       return NextResponse.json({
         status: order.status,
         transactionId: order.transactionId,
-        attendeeId: order.attendeeId,
+        // OMIT attendeeId from the response to prevent leaking internal IDs
       });
     }
 
@@ -63,7 +64,7 @@ export async function GET(
       return NextResponse.json({
         status: payment.pendingOrder.status,
         transactionId: payment.pendingOrder.transactionId,
-        attendeeId: payment.pendingOrder.attendeeId,
+        // OMIT attendeeId from the response to prevent leaking internal IDs
       });
     }
 
