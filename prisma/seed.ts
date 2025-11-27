@@ -77,7 +77,7 @@ async function main() {
   const hashedPassword = await bcrypt.hash(adminPassword, 10);
   
   await prisma.user.upsert({
-    where: { phoneNumber: '0900000000' }, // Using a clear placeholder number
+    where: { email: 'admin@example.com' }, // Using email as the unique identifier for upsert
     update: {
         password: hashedPassword,
         roleId: adminRole.id,
