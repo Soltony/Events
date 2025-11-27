@@ -814,14 +814,18 @@ export async function getRoleById(id: string) {
 export async function createRole(data: { name: string; description: string; permissions: string[] }) {
     const { name, description, permissions } = data;
 
-    // Filter incoming permissions against the valid list
-    const sanitizedPermissions = permissions.filter(p => VALID_PERMISSIONS.has(p));
+    // Validate that all incoming permissions are known and valid
+    for (const perm of permissions) {
+        if (!VALID_PERMISSIONS.has(perm)) {
+            throw new Error(`Invalid permission provided: ${perm}`);
+        }
+    }
 
     const role = await prisma.role.create({
         data: {
             name,
             description,
-            permissions: JSON.stringify(sanitizedPermissions),
+            permissions: JSON.stringify(permissions),
         },
     });
     revalidatePath('/dashboard/settings/roles');
@@ -834,26 +838,29 @@ export async function updateRole(id: string, data: Partial<Role> & { permissions
     
     let permissionsArray: string[] = [];
     try {
-        // Handle both comma-separated strings and JSON arrays
+        // Handle both comma-separated strings and JSON arrays for robustness
         if(permissionsString.startsWith('[')) {
             permissionsArray = JSON.parse(permissionsString);
         } else {
             permissionsArray = permissionsString.split(',').filter(p => p);
         }
     } catch (e) {
-        console.error("Could not parse permissions string:", permissionsString);
-        permissionsArray = [];
+        throw new Error("Could not parse permissions string.");
     }
 
-    // Filter incoming permissions against the valid list
-    const sanitizedPermissions = permissionsArray.filter(p => VALID_PERMISSIONS.has(p));
+    // Validate that all incoming permissions are known and valid
+    for (const perm of permissionsArray) {
+        if (!VALID_PERMISSIONS.has(perm)) {
+            throw new Error(`Invalid permission provided: ${perm}`);
+        }
+    }
 
     const role = await prisma.role.update({
         where: { id },
         data: {
             name: data.name,
             description: data.description,
-            permissions: JSON.stringify(sanitizedPermissions),
+            permissions: JSON.stringify(permissionsArray),
         },
     });
     revalidatePath('/dashboard/settings/roles');
