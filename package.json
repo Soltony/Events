@@ -89,6 +89,7 @@
     "typescript": "^5.5.4"
   },
   "resolutions": {
-    "@babel/runtime": "7.26.10"
+    "@babel/runtime": "7.26.10",
+    "brace-expansion": "2.0.2"
   }
 }
