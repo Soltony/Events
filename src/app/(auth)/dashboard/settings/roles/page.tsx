@@ -68,16 +68,16 @@ export default function ManageRolesPage() {
   const getPermissionCount = (permissions: string | null) => {
     if (!permissions) return 0;
     try {
-        // Try parsing as JSON array
+        // Try parsing as JSON array first for robustness
         const parsed = JSON.parse(permissions);
         if (Array.isArray(parsed)) {
             return parsed.length;
         }
     } catch (e) {
-        // Fallback to comma-separated
+        // Fallback to comma-separated for legacy or malformed data
         return permissions.split(',').filter(p => p).length;
     }
-    return 0;
+    return 0; // Should not happen if data is well-formed
   }
 
   return (

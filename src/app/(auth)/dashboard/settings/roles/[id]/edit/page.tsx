@@ -83,10 +83,20 @@ export default function EditRolePage() {
         const fetchedRole = await getRoleById(roleId);
         if (fetchedRole) {
             setRole(fetchedRole);
+            let currentPermissions: string[] = [];
+            if (fetchedRole.permissions) {
+                try {
+                    // Try parsing as JSON first
+                    currentPermissions = JSON.parse(fetchedRole.permissions);
+                } catch (e) {
+                    // Fallback to comma-separated
+                    currentPermissions = fetchedRole.permissions.split(',');
+                }
+            }
             form.reset({
                 name: fetchedRole.name,
                 description: fetchedRole.description || '',
-                permissions: fetchedRole.permissions ? fetchedRole.permissions.split(',') : [],
+                permissions: currentPermissions,
             });
         } else {
             toast({ variant: 'destructive', title: 'Error', description: 'Role not found.' });
@@ -106,18 +116,18 @@ export default function EditRolePage() {
     if (!roleId) return;
     setIsSubmitting(true);
     try {
-        await updateRole(roleId, { ...data, permissions: data.permissions.join(',') });
+        await updateRole(roleId, { ...data, permissions: JSON.stringify(data.permissions) });
         toast({
             title: 'Role Updated!',
             description: `Successfully updated the "${data.name}" role.`,
         });
         router.push('/dashboard/settings/roles');
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to update role:", error);
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'Failed to update role. Please try again.',
+            description: error.message || 'Failed to update role. Please try again.',
         });
     } finally {
         setIsSubmitting(false);

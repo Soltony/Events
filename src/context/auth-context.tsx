@@ -212,14 +212,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     try {
       let userPermissions: string[];
-      if (permissions.startsWith('[') && permissions.endsWith(']')) {
-        // Handle cases where the string is a valid JSON array or an empty array "[]"
+      // First, try to parse as JSON. This is the new, preferred format.
+      if (permissions.trim().startsWith('[') && permissions.trim().endsWith(']')) {
         userPermissions = JSON.parse(permissions);
       } else if (permissions) {
-        // Handle comma-separated string, ignoring empty strings from split
+        // Fallback for older, comma-separated strings.
         userPermissions = permissions.split(',').filter(p => p);
       } else {
-        // Handle empty string
+        // Handle empty string case
         userPermissions = [];
       }
       
