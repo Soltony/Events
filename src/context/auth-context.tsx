@@ -56,7 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const clearAuthData = useCallback(async () => {
     setUser(null);
-    localStorage.removeItem('authUser');
     try {
         await api.post('/api/auth/logout');
     } catch (error) {
@@ -88,17 +87,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data } = await api.get('/api/auth/me');
         if (data.user) {
             setUser(data.user);
-            localStorage.setItem('authUser', JSON.stringify(data.user));
         } else {
-            // If server returns no user, clear state but don't call logout
             setUser(null);
-            localStorage.removeItem('authUser');
         }
     } catch (error) {
         // On 401 or other error, just clear the user state.
         // The AuthGuard will handle the redirect.
         setUser(null);
-        localStorage.removeItem('authUser');
     }
   }, []);
 
@@ -109,9 +104,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             await refreshUser();
         } catch (error) {
-            // Even if refreshUser itself throws (unlikely now), clear auth.
+            // Even if refreshUser itself throws, clear auth.
             setUser(null);
-            localStorage.removeItem('authUser');
         } finally {
             setIsLoading(false);
         }
@@ -125,7 +119,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const resetTimeout = () => {
       clearTimeout(timeoutId);
-      if (localStorage.getItem('authUser') && !user?.isGuest) { 
+      // Check for a valid, non-guest user session before setting a timeout
+      if (user && !user.isGuest) { 
           timeoutId = setTimeout(() => {
             logout({ reason: 'You have been logged out due to inactivity.' });
           }, SESSION_TIMEOUT_DURATION);
@@ -137,7 +132,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const handleActivity = () => {
         resetTimeout();
     };
-
+    
+    // Only set up activity listeners if there's a logged-in (non-guest) user
     if (user && !user.isGuest) { 
       events.forEach(event => window.addEventListener(event, handleActivity));
       resetTimeout();
@@ -169,7 +165,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         setUser(userData);
-        localStorage.setItem('authUser', JSON.stringify(userData));
         
         toast({
           title: 'Login Successful',
