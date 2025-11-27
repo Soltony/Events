@@ -91,6 +91,7 @@
   "overrides": {
     "form-data": "4.0.4",
     "tmp": "0.2.4",
-    "@babel/runtime": "7.26.10"
+    "@babel/runtime": "7.26.10",
+    "brace-expansion": "1.1.12"
   }
 }
