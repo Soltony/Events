@@ -1,6 +1,7 @@
 
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs';
+import cuid from 'cuid';
 
 const prisma = new PrismaClient()
 
@@ -82,6 +83,7 @@ async function main() {
         roleId: adminRole.id,
     },
     create: {
+      id: cuid(),
       firstName: 'Admin',
       lastName: 'User',
       phoneNumber: '0900000000', // Using a clear placeholder number
