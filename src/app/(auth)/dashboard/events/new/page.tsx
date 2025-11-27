@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation';
 import { PlusCircle, Trash2, UploadCloud, Loader2, X } from 'lucide-react';
 import Image from 'next/image';
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -72,6 +71,91 @@ const eventFormSchema = z.object({
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
+
+// New Component for a single location price row to fix hook error
+const LocationPriceRow = ({
+    control,
+    ticketIndex,
+    priceIndex,
+    watchedLocations,
+    setValue,
+}: {
+    control: Control<EventFormValues>;
+    ticketIndex: number;
+    priceIndex: number;
+    watchedLocations: { value: string }[];
+    setValue: Function;
+}) => {
+    const isFree = useWatch({
+        control,
+        name: `tickets.${ticketIndex}.locationPrices.${priceIndex}.isFree`,
+    });
+
+    useEffect(() => {
+        if (isFree) {
+            setValue(`tickets.${ticketIndex}.locationPrices.${priceIndex}.price`, 0, { shouldValidate: true });
+        }
+    }, [isFree, ticketIndex, priceIndex, setValue]);
+
+    return (
+        <div className="grid grid-cols-12 gap-2 items-end">
+            <FormField
+              control={control}
+              name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.location`}
+              render={({ field }) => (
+                <FormItem className="col-span-4">
+                  <FormLabel className="text-xs">Location</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger></FormControl>
+                    <SelectContent>{watchedLocations.map(l => l.value).filter(Boolean).map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.price`}
+              render={({ field }) => (
+                <FormItem className="col-span-3">
+                  <FormLabel className="text-xs">Price</FormLabel>
+                  <FormControl><Input type="number" placeholder="500" {...field} disabled={isFree} required={!isFree} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={control}
+              name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.isFree`}
+              render={({ field }) => (
+                <FormItem className="col-span-2 flex flex-col items-center justify-center pt-5">
+                  <FormControl>
+                      <div className="flex items-center space-x-2">
+                         <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                         <FormLabel htmlFor="is-free" className="text-xs">Free</FormLabel>
+                      </div>
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.quantity`}
+              render={({ field }) => (
+                <FormItem className="col-span-3">
+                  <FormLabel className="text-xs">Quantity</FormLabel>
+                  <FormControl><Input type="number" placeholder="100" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+    );
+};
+
 
 // New component for Ticket Tier Card to correctly handle nested field array
 const TicketTierCard = ({
@@ -145,76 +229,16 @@ const TicketTierCard = ({
           render={() => <FormMessage />}
         />
 
-        {locationPriceFields.map((field, priceIndex) => {
-            const isFree = useWatch({
-              control,
-              name: `tickets.${ticketIndex}.locationPrices.${priceIndex}.isFree`,
-            });
-            
-            useEffect(() => {
-                if (isFree) {
-                    setValue(`tickets.${ticketIndex}.locationPrices.${priceIndex}.price`, 0, { shouldValidate: true });
-                }
-            }, [isFree, ticketIndex, priceIndex, setValue]);
-            
-            return (
-              <div key={field.id} className="grid grid-cols-12 gap-2 items-end">
-                <FormField
-                  control={control}
-                  name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.location`}
-                  render={({ field }) => (
-                    <FormItem className="col-span-4">
-                      <FormLabel className="text-xs">Location</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger></FormControl>
-                        <SelectContent>{watchedLocations.map(l => l.value).filter(Boolean).map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}</SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={control}
-                  name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.price`}
-                  render={({ field }) => (
-                    <FormItem className="col-span-3">
-                      <FormLabel className="text-xs">Price</FormLabel>
-                      <FormControl><Input type="number" placeholder="500" {...field} disabled={isFree} required={!isFree} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={control}
-                  name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.isFree`}
-                  render={({ field }) => (
-                    <FormItem className="col-span-2 flex flex-col items-center justify-center pt-5">
-                      <FormControl>
-                          <div className="flex items-center space-x-2">
-                             <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                             <FormLabel htmlFor="is-free" className="text-xs">Free</FormLabel>
-                          </div>
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={control}
-                  name={`tickets.${ticketIndex}.locationPrices.${priceIndex}.quantity`}
-                  render={({ field }) => (
-                    <FormItem className="col-span-3">
-                      <FormLabel className="text-xs">Quantity</FormLabel>
-                      <FormControl><Input type="number" placeholder="100" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            )
-        })}
+        {locationPriceFields.map((field, priceIndex) => (
+            <LocationPriceRow
+                key={field.id}
+                control={control}
+                ticketIndex={ticketIndex}
+                priceIndex={priceIndex}
+                watchedLocations={watchedLocations}
+                setValue={setValue}
+            />
+        ))}
         <Button
           type="button"
           variant="outline"
