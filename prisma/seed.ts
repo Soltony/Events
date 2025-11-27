@@ -92,7 +92,7 @@ async function main() {
       roleId: adminRole.id,
       nibBankAccount: '7000000000000', // Placeholder account
       status: 'ACTIVE',
-      passwordChangeRequired: false,
+      passwordChangeRequired: true,
     },
   });
 
