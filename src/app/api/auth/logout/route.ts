@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     const authTokenCookie = serialize('auth_token', '', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       path: '/',
       maxAge: -1,
     });
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     const superAppTokenCookie = serialize('superapp_token', '', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       path: '/',
       maxAge: -1,
     });
