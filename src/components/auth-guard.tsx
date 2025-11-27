@@ -32,20 +32,18 @@ function hasAccess(pathname: string, hasPermission: (p: string) => boolean): boo
         return hasPermission(p);
     };
     
-    // Find a matching pattern for the current path
     const pathSegments = pathname.split('/').filter(Boolean);
-    
+
+    // Find a matching pattern
     const matchingPattern = Object.keys(pagePermissions).find(pattern => {
         const patternSegments = pattern.split('/').filter(Boolean);
         if (pathSegments.length !== patternSegments.length) {
             return false;
         }
-        
+
+        // Compare segments, treating [dynamic] segments as wildcards
         return patternSegments.every((segment, index) => {
-            if (segment.startsWith('[') && segment.endsWith(']')) {
-                return true; // It's a dynamic part, so it matches
-            }
-            return segment === pathSegments[index];
+            return segment.startsWith('[') && segment.endsWith(']') || segment === pathSegments[index];
         });
     });
 
@@ -53,7 +51,7 @@ function hasAccess(pathname: string, hasPermission: (p: string) => boolean): boo
         return checkPermission(pagePermissions[matchingPattern]);
     }
     
-    // Allow access to pages not in the list (e.g., /profile)
+    // Allow access to pages not explicitly listed in permissions (e.g., /profile)
     return true;
 }
 
@@ -78,7 +76,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     
     if (!hasAccess(pathname, hasPermission)) {
         // If user does not have permission, redirect to their default page
-        // You can define a more sophisticated logic here if needed
         toast({
             variant: 'destructive',
             title: 'Access Denied',
