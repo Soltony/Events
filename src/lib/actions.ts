@@ -311,17 +311,20 @@ export async function updateEvent(id: number, data: any) {
         throw new Error('User is not authenticated.');
     }
 
+    const eventToUpdate = await prisma.event.findUnique({ where: { id }});
+    if (!eventToUpdate) throw new Error("Event not found");
+
+    const isOwner = eventToUpdate.organizerId === user.id;
+    const isAdmin = user.role.name === 'Admin';
+
+    if (!isOwner && !isAdmin) {
+        throw new Error("You are not authorized to update this event.");
+    }
+    
     const finalCategory = eventData.category === 'Other' ? otherCategory : eventData.category;
     const locationString = locations.map((l: { value: string }) => l.value).join('||');
     const imageString = Array.isArray(images) && images.length > 0 ? images[0] : null;
 
-    const eventToUpdate = await prisma.event.findUnique({ where: { id }});
-    if (!eventToUpdate) throw new Error("Event not found");
-
-    if (user.role.name !== 'Admin' && eventToUpdate.organizerId !== user.id) {
-        throw new Error("You are not authorized to update this event.");
-    }
-    
     const updatedEvent = await prisma.event.update({
         where: { id },
         data: {
@@ -331,7 +334,7 @@ export async function updateEvent(id: number, data: any) {
             category: finalCategory,
             startDate: startDate,
             endDate: endDate,
-            status: user.role.name === 'Admin' ? eventToUpdate.status : 'PENDING',
+            status: isAdmin ? eventToUpdate.status : 'PENDING',
         }
     });
 
@@ -377,8 +380,11 @@ export async function deleteEvent(id: number) {
   const eventToDelete = await prisma.event.findUnique({ where: { id }});
   if (!eventToDelete) throw new Error("Event not found");
 
-  if (user.role.name !== 'Admin' && eventToDelete.organizerId !== user.id) {
-        throw new Error("You are not authorized to delete this event.");
+  const isOwner = eventToDelete.organizerId === user.id;
+  const isAdmin = user.role.name === 'Admin';
+
+  if (!isOwner && !isAdmin) {
+      throw new Error("You are not authorized to delete this event.");
   }
 
   await prisma.$transaction([
