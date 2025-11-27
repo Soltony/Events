@@ -72,7 +72,12 @@ export default function TicketConfirmationPage() {
 
         setTicket(ticketDetails);
 
-        const qrCodeData = ticketDetails.qrCode || ticketDetails.id.toString();
+        // Use the secure, server-generated QR code identifier
+        const qrCodeData = ticketDetails.qrCode;
+        if (!qrCodeData) {
+          throw new Error("Secure QR code identifier not found for this ticket.");
+        }
+        
         const dataUrl = await QRCode.toDataURL(qrCodeData, {
           errorCorrectionLevel: 'H',
           type: 'image/png',
@@ -83,8 +88,13 @@ export default function TicketConfirmationPage() {
           },
         });
         setQrCodeDataUrl(dataUrl);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to fetch ticket or generate QR code:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Error Loading Ticket',
+          description: error.message || 'Could not load ticket details. Please try again.',
+        });
       } finally {
         setLoading(false);
       }
