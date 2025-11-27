@@ -67,7 +67,7 @@ export default function TicketConfirmationPage() {
                     localStorage.setItem('myTickets', JSON.stringify(myTickets));
                 }
 
-                const qrCodeData = ticketDetails.id.toString();
+                const qrCodeData = ticketDetails.qrCode || ticketDetails.id.toString();
 
                 const dataUrl = await QRCode.toDataURL(qrCodeData, {
                     errorCorrectionLevel: 'H',

@@ -31,18 +31,12 @@ export default function ScanQrPage() {
         setResult(null);
         
         try {
-            let ticketId;
-            try {
-                // Standard flow: QR code contains the ticket ID as a simple string/number
-                ticketId = parseInt(decodedText, 10);
-                if (isNaN(ticketId)) {
-                   throw new Error("QR code contains invalid data.");
-                }
-            } catch (e) {
-                 throw new Error("QR code contains invalid data.");
+            const ticketCode = decodedText.trim();
+            if (!ticketCode) {
+                throw new Error("QR code contains invalid data.");
             }
-            
-            const checkInResult = await checkInAttendee(ticketId);
+
+            const checkInResult = await checkInAttendee(ticketCode);
 
             if (checkInResult.error) {
                 setResult({ data: checkInResult.data, error: checkInResult.error });

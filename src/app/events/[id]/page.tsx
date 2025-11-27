@@ -1,4 +1,6 @@
 
+
+
 'use client';
 
 import { getEventById, validatePromoCode, getTicketDetailsForConfirmation } from '@/lib/actions';
@@ -33,14 +35,13 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import CartSheet from '@/components/cart-sheet';
-import { cn, normalizePhoneNumber } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Autoplay from "embla-carousel-autoplay";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth, ensureCsrfToken } from '@/context/auth-context';
 import api from '@/lib/api';
 import QRCode from 'qrcode';
-import Cookies from 'js-cookie';
 
 
 interface EventWithTickets extends Event {
@@ -54,15 +55,11 @@ interface TicketDetails extends Attendee {
 }
 
 declare global {
-  interface Window {
-    myJsChannel?: {
-      postMessage: (
-        message:
-          | { type: 'PAYMENT'; token: string }
-          | { token: string }
-      ) => void;
-    };
-  }
+    interface Window {
+        myJsChannel?: {
+            postMessage: (message: { token: string }) => void;
+        };
+    }
 }
 
 export type SelectedTicket = {
@@ -94,7 +91,7 @@ export default function PublicEventDetailPage() {
   const eventId = params ? parseInt(params.id, 10) : NaN;
 
   const [isPending, startTransition] = useTransition();
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user } = useAuth();
   const [event, setEvent] = useState<EventWithTickets | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTickets, setSelectedTickets] = useState<Record<number, SelectedTicket>>({});
@@ -164,65 +161,40 @@ export default function PublicEventDetailPage() {
   }, [selectedLocation]);
 
   useEffect(() => {
-    // Do not override a value the user has already typed manually
-    if (attendeePhone) {
-      return;
-    }
-
-    async function fetchSessionPhone() {
-      // Don't run until auth state is resolved to avoid race conditions
-      if (isAuthLoading) return;
-
-      try {
-        // 1) Primary source: cookie-based session data (includes SuperApp guests)
-        const response = await api.get("/api/auth/cookie-data").catch(() => null);
-
-        const cookiePhone: string | undefined =
-          response?.data?.success && response.data.data?.phoneNumber
-            ? response.data.data.phoneNumber
-            : undefined;
-
-        if (cookiePhone) {
-          const normalized = normalizePhoneNumber(cookiePhone);
-          if (normalized) {
-            setAttendeePhone(normalized);
-            setIsPhoneFromSession(true);
-
-            // If we also have a full user, use it to prefill the name
-            if (user && !user.isGuest) {
-              setAttendeeName(
-                `${user.firstName} ${user.lastName || ""}`.trim()
-              );
+    async function fetchSessionData() {
+        if (user) {
+            if (user.phoneNumber) {
+                let phone = user.phoneNumber;
+                 if (phone.startsWith('251')) {
+                    phone = '0' + phone.substring(3);
+                }
+                setAttendeePhone(phone);
+                setIsPhoneFromSession(true);
             }
-            return; // We successfully pre-populated from cookie-data
-          }
-        }
-
-        // 2) Fallback: authenticated user from AuthContext
-        if (user && !user.isGuest && user.phoneNumber) {
-          const normalized = normalizePhoneNumber(user.phoneNumber);
-          if (normalized) {
-            setAttendeePhone(normalized);
-            setAttendeeName(
-              `${user.firstName} ${user.lastName || ""}`.trim()
-            );
-            setIsPhoneFromSession(true);
+             if (!user.isGuest && user.firstName) {
+                setAttendeeName(`${user.firstName} ${user.lastName || ''}`.trim());
+            } else {
+                setAttendeeName(''); 
+            }
             return;
-          }
         }
 
-        // 3) If we reach here, we could not pre-populate a phone number.
-        //    Leave `attendeePhone` empty and keep the field editable.
-        setIsPhoneFromSession(false);
-      } catch (e) {
-        console.log("[Attendee Phone] No session phone found from any source.");
-        setIsPhoneFromSession(false);
-      }
+        try {
+            const response = await api.get('/api/auth/cookie-data');
+            if (response.data.success && response.data.data.phoneNumber) {
+                let phone = response.data.data.phoneNumber;
+                if (phone.startsWith('251')) {
+                    phone = '0' + phone.substring(3);
+                }
+                setAttendeePhone(phone);
+                setIsPhoneFromSession(true);
+            }
+        } catch (error) {
+            console.log("No guest session phone number found.");
+        }
     }
-
-    fetchSessionPhone();
-  }, [user, isAuthLoading, attendeePhone]);
-
+    fetchSessionData();
+  }, [user]);
 
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
@@ -380,7 +352,7 @@ export default function PublicEventDetailPage() {
         }
     };
   
-  if (loading || isAuthLoading) {
+  if (loading || !event) {
     return (
       <div className="min-h-screen bg-gray-50">
         <header className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-sm">
@@ -420,10 +392,6 @@ export default function PublicEventDetailPage() {
         </main>
       </div>
     )
-  }
-
-  if (!event) {
-    return notFound();
   }
   
   const imageSource = event.image || DEFAULT_IMAGE_PLACEHOLDER;
@@ -653,13 +621,13 @@ export default function PublicEventDetailPage() {
               <Label htmlFor="phone">Phone Number</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="phone"
-                  placeholder="Phone Number"
-                  value={attendeePhone}
-                  disabled={isPhoneFromSession}
-                  readOnly={isPhoneFromSession}
-                  className={cn("pl-10", isPhoneFromSession && "bg-muted cursor-not-allowed")}
+                <Input 
+                    id="phone" 
+                    placeholder="e.g., 0912345678" 
+                    value={attendeePhone} 
+                    onChange={e => setAttendeePhone(e.target.value)} 
+                    className={cn("pl-10", isPhoneFromSession && "bg-muted cursor-not-allowed")}
+                    readOnly={isPhoneFromSession}
                 />
               </div>
             </div>
@@ -696,19 +664,11 @@ export default function PublicEventDetailPage() {
 
         const { transactionId } = pendingOrderRes.data;
         setPaymentTransactionId(transactionId);
-        
-        // Fetch the superapp_token from cookies
-        const superAppToken = Cookies.get('superapp_token');
-
-        if (!superAppToken) {
-          throw new Error('User session not found. Please log in through the SuperApp.');
-        }
 
         // Step 2: Initiate payment
         const paymentRes = await api.post('/api/payment/nib/initiate', {
           total,
           transactionId,
-          superAppToken, // Pass the token to the backend
         });
 
         if (!paymentRes.data.success || !paymentRes.data.paymentToken) {

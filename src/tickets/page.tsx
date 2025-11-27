@@ -6,12 +6,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
+import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowUpRight, Ticket } from 'lucide-react';
 import api from '@/lib/api';
-import { getTicketsForUser } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 
 interface Event {
@@ -70,16 +70,28 @@ export default function MyTicketsPage() {
           return;
         }
 
-        const fetchedTickets = await getTicketsForUser(userId, phoneNumber);
-        setTickets(fetchedTickets);
-      } catch (error) {
-        console.error('❌ Failed to fetch tickets:', error);
-        toast({
-          variant: "destructive",
-          title: "Could not load tickets",
-          description: "There was a problem retrieving your tickets. Please try again later.",
+        const ticketResponse = await api.get('/api/tickets', {
+          params: {
+            ...(userId ? { userId } : {}),
+            ...(phoneNumber ? { phoneNumber } : {}),
+          },
         });
-        setTickets([]);
+
+        setTickets(ticketResponse.data?.data ?? []);
+      } catch (error) {
+        const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+
+        if (status === 404) {
+          setTickets([]);
+        } else {
+          console.error('❌ Failed to fetch tickets:', error);
+          toast({
+            variant: "destructive",
+            title: "Could not load tickets",
+            description: "There was a problem retrieving your tickets. Please try again later.",
+          });
+          setTickets([]);
+        }
       } finally {
         setLoading(false);
       }

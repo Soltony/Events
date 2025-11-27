@@ -7,7 +7,6 @@ import { nanoid } from 'nanoid';
 import { sendTempPassword } from '@/lib/email';
 import { getCurrentUser } from '@/lib/actions';
 import cuid from 'cuid';
-import { normalizePhoneNumber } from '@/lib/utils';
 
 interface AddUserResult {
   success: boolean;
@@ -31,11 +30,9 @@ export async function addUser(
         return { success: false, error: 'You must be logged in to perform this action.' };
     }
 
-    const normalizedPhone = normalizePhoneNumber(data.phoneNumber);
-
     try {
         const existingUserByPhone = await prisma.user.findUnique({
-            where: { phoneNumber: normalizedPhone },
+            where: { phoneNumber: data.phoneNumber },
         });
         if (existingUserByPhone) {
             return { success: false, error: 'Phone number is already registered.' };
@@ -70,7 +67,7 @@ export async function addUser(
                 id: cuid(),
                 firstName: data.firstName,
                 lastName: data.lastName,
-                phoneNumber: normalizedPhone,
+                phoneNumber: data.phoneNumber,
                 email: data.email,
                 password: hashedPassword,
                 roleId: roleId,
@@ -84,7 +81,7 @@ export async function addUser(
         
         await sendTempPassword({
             email: data.email,
-            phoneNumber: normalizedPhone,
+            phoneNumber: data.phoneNumber,
             tempPassword: tempPassword,
         });
 

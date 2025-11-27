@@ -10,22 +10,19 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { eventId, tickets, promoCode, attendeeDetails } = body;
 
-        if (!eventId || !tickets?.length || !attendeeDetails || !attendeeDetails.phone) {
+        if (!eventId || !tickets?.length || !attendeeDetails) {
             return NextResponse.json({
                 error: 'Invalid request payload',
-                detail: 'Required fields: eventId, tickets[], attendeeDetails with name and phone.'
+                detail: 'Required fields: eventId, tickets[], attendeeDetails.'
             }, { status: 400 });
-        }
-        
-        const normalizedPhone = normalizePhoneNumber(attendeeDetails.phone);
-        if (!normalizedPhone) {
-            return NextResponse.json({ error: 'Invalid phone number provided.' }, { status: 400 });
         }
 
         const totalQuantity = (tickets as Array<{ quantity: number }>).reduce((sum: number, t) => sum + Number(t.quantity), 0);
         
         // This transactionId is our internal reference for the entire purchase flow.
         const transactionId = randomUUID();
+
+        const normalizedPhone = normalizePhoneNumber(attendeeDetails.phone);
 
         const pendingOrder = await prisma.pendingOrder.create({
             data: {
@@ -34,7 +31,7 @@ export async function POST(req: NextRequest) {
                 ticketTypeId: tickets[0].id, // Store primary ticket type
                 attendeeData: {
                     name: attendeeDetails.name,
-                    phone: normalizedPhone, // Store normalized phone number
+                    phoneNumber: normalizedPhone,
                     userId: attendeeDetails.userId,
                     quantity: totalQuantity,
                     tickets: tickets, // Store all selected ticket details

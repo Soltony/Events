@@ -1,3 +1,4 @@
+
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -5,7 +6,6 @@ import crypto from 'crypto';
 import { format } from 'date-fns';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
-import Cookies from 'js-cookie';
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,11 +13,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     console.log('[NIB INITIATE] Received body:', body);
 
-    const {
-      total,
-      transactionId: pendingOrderTransactionId,
-      superAppToken,
-    } = body;
+    const { total, transactionId: pendingOrderTransactionId } = body;
 
     if (!total || !pendingOrderTransactionId) {
       return NextResponse.json(
@@ -26,25 +22,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // --- 2. Get SuperApp User Token from the new 'superapp_token' cookie ---
+    const cookieStore = cookies();
+    const superAppToken = cookieStore.get('superapp_token')?.value;
+
+console.log({superAppToken});
+
     if (!superAppToken) {
-      console.error(
-        '[NIB INITIATE] Error: SuperApp authorization token not found in request body.'
-      );
-      return NextResponse.json(
-        {
-          error:
-            'User session not found. Please log in through the SuperApp or provide superAppToken for testing.',
-        },
-        { status: 401 }
-      );
+        console.error('[NIB INITIATE] Error: SuperApp authorization token (superapp_token) not found in cookie.');
+        return NextResponse.json({ error: 'User session not found. Please log in through the SuperApp.' }, { status: 401 });
     }
-    
-    console.log('[NIB INITIATE] Using SuperApp user token from request body.');
+    console.log('[NIB INITIATE] Using SuperApp user token from cookie.');
+
 
     // --- 3. Fetch pending order and event ---
     const pendingOrder = await prisma.pendingOrder.findUnique({
       where: { transactionId: pendingOrderTransactionId },
-      include: { event: true },
+      include: { event: true }
     });
 
     if (!pendingOrder || !pendingOrder.event?.nibBankAccount) {
@@ -70,10 +64,7 @@ export async function POST(req: NextRequest) {
     // --- 4. Generate transaction info & build signature ---
     const transactionId = crypto.randomUUID();
     const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
-    const callBackURL = `${process.env.NIB_CALLBACK}?transactionId=${transactionId}`;
-
-
-console.log(callBackURL);
+    const callBackURL = process.env.NIB_CALLBACK;
 
     const signatureString = [
       `accountNo=${ACCOUNT_NO}`,
@@ -93,7 +84,7 @@ console.log({signatureString});
     const payload = {
       accountNo: ACCOUNT_NO,
       amount: String(total),
-      callBackURL, // now contains transactionId
+      callBackURL: callBackURL,
       companyName: COMPANY_NAME,
       token: superAppToken, // The user's token goes in the payload
       transactionId,
@@ -101,7 +92,7 @@ console.log({signatureString});
       signature,
     };
 
-console.log(payload);
+console.log({payload});
 
     // --- 5. Create EventPayment record ---
     const eventPayment = await prisma.eventPayment.create({
@@ -128,6 +119,9 @@ console.log(payload);
       },
       body: JSON.stringify(payload),
     });
+
+
+console.log({payload,superAppToken, NIB_PAYMENT_URL});
 
       console.log('[NIB INITIATE] Payment API Status:', response.status);
       const responseText = await response.text();

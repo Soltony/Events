@@ -57,7 +57,7 @@ export default function TicketConfirmation() {
 				setTicket(ticketDetails);
 
 				// Generate QR from the paid ticket id (scanner expects attendee id)
-				const qrCodeData = ticketDetails.id.toString();
+				const qrCodeData = ticketDetails.qrCode || ticketDetails.id.toString();
 				const dataUrl = await QRCode.toDataURL(qrCodeData, { errorCorrectionLevel: 'H', type: 'image/png', margin: 1 });
 				setQrCodeDataUrl(dataUrl);
 				setLoading(false);

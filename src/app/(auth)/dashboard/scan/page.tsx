@@ -30,8 +30,12 @@ export default function ScanQrPage() {
         setResult(null);
         
         try {
-            // The decodedText is the qrCode UUID string
-            const checkInResult = await checkInAttendee(decodedText);
+            const ticketCode = decodedText.trim();
+            if (!ticketCode) {
+                throw new Error("QR code contains invalid data.");
+            }
+
+            const checkInResult = await checkInAttendee(ticketCode);
 
             if (checkInResult.error) {
                 setResult({ data: checkInResult.data, error: checkInResult.error });

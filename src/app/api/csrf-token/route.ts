@@ -2,6 +2,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { nanoid } from 'nanoid';
 import jwt from 'jsonwebtoken';
+import { normalizePhoneNumber } from '@/lib/utils';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -32,15 +33,16 @@ export async function GET(req: NextRequest) {
   if (superAppToken && JWT_SECRET) {
       try {
           const decoded = jwt.verify(superAppToken, JWT_SECRET) as { phoneNumber: string, userId: string };
-          if (decoded.phoneNumber) {
-              response.cookies.set('phone_number', decoded.phoneNumber, {
+          const normalized = normalizePhoneNumber(decoded.phoneNumber);
+          if (normalized) {
+              response.cookies.set('phone_number', normalized, {
                   httpOnly: false, // Make it readable by client-side JS
                   secure: process.env.NODE_ENV === 'production',
                   sameSite: 'lax',
                   path: '/',
                   maxAge: 60 * 60 * 24 * 7, // Set for 1 week
               });
-              console.log('[CSRF Endpoint] SuperApp phone number cookie set for', decoded.phoneNumber);
+              console.log('[CSRF Endpoint] SuperApp phone number cookie set for', normalized);
           }
       } catch (error) {
           console.error('[CSRF Endpoint] Invalid SuperApp token provided:', error);

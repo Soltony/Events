@@ -48,11 +48,13 @@ function SuccessContent() {
             
             try {
                 const response = await api.get(`/api/payment/status/${transactionId}`);
-                if (response.data.status === 'COMPLETED' && response.data.attendeeId) {
-                    setStatus('redirecting');
-                    // Set a flag for the toast before redirecting
-                    sessionStorage.setItem('showSuccessToast', 'true');
-                    router.replace(`/ticket/${response.data.attendeeId}/confirmation`);
+                if (response.data.status === 'COMPLETED') {
+                    if (response.data.attendeeId) {
+                        setStatus('redirecting');
+                        router.replace(`/ticket/${response.data.attendeeId}/confirmation`);
+                    } else {
+                        throw new Error("Could not retrieve ticket details after confirmation.");
+                    }
                     isCancelled = true; // Stop polling
                 } else {
                     setTimeout(poll, 2000);

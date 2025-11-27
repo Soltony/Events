@@ -5,24 +5,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 import prisma from '@/lib/prisma';
+import { normalizePhoneNumber } from '@/lib/utils';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // This route provides non-sensitive session data for the client,
-// prioritizing the SuperApp guest cookie.
+// including data from the secure auth token and the insecure guest cookie.
 export async function GET(req: NextRequest) {
     const cookieStore = cookies();
     let responseData: { [key: string]: any } = {};
 
-    // 1. ALWAYS read from SuperApp cookie first
-    const guestPhoneCookie = cookieStore.get('phone_number')?.value;
-    if (guestPhoneCookie) {
-        responseData.phoneNumber = guestPhoneCookie;
-    }
-    
-    // 2. Only if the guest cookie does NOT exist, fallback to the logged-in user's auth token
+    // 1. Try to get data from the secure JWT auth token (for logged-in users)
     const authToken = cookieStore.get('auth_token')?.value;
-    if (!responseData.phoneNumber && authToken && JWT_SECRET) {
+    if (authToken && JWT_SECRET) {
         try {
             const decoded = jwt.verify(authToken, JWT_SECRET) as { userId: string, phoneNumber?: string };
             if (decoded.userId) {
@@ -31,11 +26,24 @@ export async function GET(req: NextRequest) {
                     select: { phoneNumber: true }
                 });
                 if (user?.phoneNumber) {
-                    responseData.phoneNumber = user.phoneNumber;
+                    const normalized = normalizePhoneNumber(user.phoneNumber);
+                    if (normalized) {
+                        responseData.phoneNumber = normalized;
+                    }
                 }
             }
         } catch (error) {
-            console.log("[COOKIE_DATA_API] Auth token is present but invalid. Proceeding as guest.");
+            console.log("Auth token is present but invalid. Proceeding as guest.");
+        }
+    }
+
+    // 2. Check for the client-readable phone_number cookie (for SuperApp guests)
+    const guestPhoneCookie = cookieStore.get('phone_number')?.value;
+    if (guestPhoneCookie && !responseData.phoneNumber) {
+        // Only use the guest cookie if a logged-in user's phone isn't already set
+        const normalized = normalizePhoneNumber(guestPhoneCookie);
+        if (normalized) {
+            responseData.phoneNumber = normalized;
         }
     }
     

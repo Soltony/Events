@@ -1,9 +1,11 @@
+
 'use server';
 
 import { headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { normalizePhoneNumber } from '@/lib/utils';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const VALIDATE_TOKEN_URL = process.env.VALIDATE_TOKEN_URL;
@@ -44,7 +46,7 @@ export async function GET(req: NextRequest) {
     }
 
     const responseData = await externalResponse.json();
-    const phoneNumber = responseData.phone;
+    const phoneNumber = normalizePhoneNumber(responseData.phone);
 
     if (!phoneNumber) {
       throw new Error('Phone number not found in token validation response.');
@@ -53,9 +55,10 @@ export async function GET(req: NextRequest) {
     // Always redirect to the homepage. The AuthProvider on the client will handle routing.
     const response = NextResponse.redirect(new URL('/', req.url));
     
+    // --- CORRECTED LOGIC ---
     // Store the raw SuperApp token in its own cookie for payment initiation
     response.cookies.set('superapp_token', superAppToken, {
-        httpOnly: false, // CRITICAL: Must be readable by client-side JS
+        httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
@@ -67,26 +70,42 @@ export async function GET(req: NextRequest) {
         where: { phoneNumber }
     });
 
-    // If the user exists, create a session for them.
-    // If not, they remain a guest. The phone number will be read
-    // from the SuperApp token on the client for ticket purchases.
+    let internalTokenPayload: any;
     if (user) {
-        const internalTokenPayload = {
+        internalTokenPayload = {
             userId: user.id,
             isGuest: false,
         };
-        const internalToken = jwt.sign(internalTokenPayload, JWT_SECRET, {
-            expiresIn: '1d',
-        });
-        
-        response.cookies.set('auth_token', internalToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            path: '/',
-            maxAge: COOKIE_MAX_AGE,
-        });
+    } else {
+        internalTokenPayload = {
+            userId: `guest_${phoneNumber}`,
+            phoneNumber: phoneNumber,
+            isGuest: true,
+        };
     }
+
+    // Create our app's internal JWT
+    const internalToken = jwt.sign(internalTokenPayload, JWT_SECRET, {
+        expiresIn: '1d',
+    });
+    
+    // Set our app's internal auth token cookie
+    response.cookies.set('auth_token', internalToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: COOKIE_MAX_AGE,
+    });
+
+    // Mirror phone number for guest lookups
+    response.cookies.set('phone_number', phoneNumber, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: COOKIE_MAX_AGE,
+    });
 
     return response;
 

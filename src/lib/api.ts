@@ -20,7 +20,15 @@ export const setAuthToken = (token: string | null) => {
 
 // Add a request interceptor to automatically include required tokens.
 api.interceptors.request.use(config => {
-  // CSRF token for state-changing methods.
+  // 1. Attach the Authorization token (SuperApp token or our JWT)
+  const authToken = Cookies.get('auth_token');
+  if (authToken) {
+      config.headers['Authorization'] = `Bearer ${authToken}`;
+  } else {
+      console.warn('[API Interceptor] Auth token cookie not found.');
+  }
+
+  // 2. Attach the CSRF token for state-changing methods.
   const method = config.method?.toUpperCase();
   if (method === 'POST' || method === 'PUT' || method === 'DELETE' || method === 'PATCH') {
     const csrfToken = Cookies.get('csrf_token');

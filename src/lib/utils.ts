@@ -1,28 +1,36 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
-export function normalizePhoneNumber(phone: string): string {
-  if (!phone) return '';
-  let normalized = phone.trim().replace(/\s+/g, ''); // Remove spaces
-  
-  if (normalized.startsWith('+251')) {
-    normalized = '0' + normalized.substring(4);
-  } else if (normalized.startsWith('251')) {
-    normalized = '0' + normalized.substring(3);
+export function normalizePhoneNumber(phone?: string | null): string | null {
+  if (!phone) return null;
+  const digitsOnly = phone.replace(/\D+/g, "");
+  if (!digitsOnly) return null;
+
+  // Ethiopian numbers come back either as 09... or +2519...
+  if (digitsOnly.length === 12 && digitsOnly.startsWith("2519")) {
+    return `0${digitsOnly.slice(-9)}`;
   }
 
-  // Ensure it's in the format 09... or 07... etc.
-  if (!normalized.startsWith('0')) {
-      // If it's a 9-digit number like 912345678, prepend 0
-      if (normalized.length === 9) {
-          normalized = '0' + normalized;
-      }
+  if (digitsOnly.length === 10 && digitsOnly.startsWith("09")) {
+    return digitsOnly;
   }
-  
-  // Final cleanup to remove any non-numeric characters that might remain
-  return normalized.replace(/[^0-9]/g, ''); 
+
+  return digitsOnly;
+}
+
+export function buildPhoneVariants(phone?: string | null): string[] {
+  if (!phone) return [];
+  const normalized = normalizePhoneNumber(phone);
+  const variants = new Set<string>();
+  variants.add(phone);
+  if (normalized) variants.add(normalized);
+  if (normalized && normalized.startsWith("0") && normalized.length === 10) {
+    variants.add(`251${normalized.slice(1)}`);
+    variants.add(`+251${normalized.slice(1)}`);
+  }
+  return Array.from(variants);
 }
