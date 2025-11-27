@@ -39,9 +39,9 @@ interface AttendeeTicket {
 // --- Permission Definitions ---
 const VALID_PERMISSIONS = new Set([
   'Dashboard:Create', 'Dashboard:Read', 'Dashboard:Update', 'Dashboard:Delete',
-  'Scan QR:Create', 'Scan QR:Read', 'Scan QR:Update', 'Dashboard:Delete',
+  'Scan QR:Create', 'Scan QR:Read', 'Scan QR:Update', 'Scan QR:Delete',
   'Events:Create', 'Events:Read', 'Events:Update', 'Events:Delete',
-  'Reports:Create', 'Reports:Read', 'Reports:Update', 'Dashboard:Delete',
+  'Reports:Create', 'Reports:Read', 'Reports:Update', 'Reports:Delete',
   'User Registration:Create', 'User Registration:Read', 'User Registration:Update', 'User Registration:Delete',
   'User Management:Create', 'User Management:Read', 'User Management:Update', 'User Management:Delete',
   'Role Management:Create', 'Role Management:Read', 'Role Management:Update', 'Role Management:Delete',
@@ -821,7 +821,7 @@ export async function createRole(data: { name: string; description: string; perm
         data: {
             name,
             description,
-            permissions: sanitizedPermissions.join(','),
+            permissions: JSON.stringify(sanitizedPermissions),
         },
     });
     revalidatePath('/dashboard/settings/roles');
@@ -830,9 +830,20 @@ export async function createRole(data: { name: string; description: string; perm
 }
 
 export async function updateRole(id: string, data: Partial<Role> & { permissions: string }) {
-    const permissionsArray = Array.isArray(data.permissions) 
-        ? data.permissions 
-        : (data.permissions || '').split(',');
+    const permissionsString = data.permissions || '[]';
+    
+    let permissionsArray: string[] = [];
+    try {
+        // Handle both comma-separated strings and JSON arrays
+        if(permissionsString.startsWith('[')) {
+            permissionsArray = JSON.parse(permissionsString);
+        } else {
+            permissionsArray = permissionsString.split(',').filter(p => p);
+        }
+    } catch (e) {
+        console.error("Could not parse permissions string:", permissionsString);
+        permissionsArray = [];
+    }
 
     // Filter incoming permissions against the valid list
     const sanitizedPermissions = permissionsArray.filter(p => VALID_PERMISSIONS.has(p));
@@ -842,7 +853,7 @@ export async function updateRole(id: string, data: Partial<Role> & { permissions
         data: {
             name: data.name,
             description: data.description,
-            permissions: sanitizedPermissions.join(','),
+            permissions: JSON.stringify(sanitizedPermissions),
         },
     });
     revalidatePath('/dashboard/settings/roles');

@@ -212,7 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     try {
       let userPermissions: string[];
-      if (permissions.startsWith('[')) {
+      if (permissions.startsWith('[') && permissions.endsWith(']')) {
         // Handle cases where the string is a valid JSON array or an empty array "[]"
         userPermissions = JSON.parse(permissions);
       } else if (permissions) {
