@@ -1137,7 +1137,7 @@ export async function checkInAttendee(attendeeIdentifier: number | string) {
         }
 
         const updatedAttendee = await prisma.attendee.update({
-            where: { id: attendeeId },
+            where: { id: attendee.id },
             data: { checkedIn: true },
             include: { event: true, ticketType: true }
         });
