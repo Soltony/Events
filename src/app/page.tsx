@@ -198,7 +198,7 @@ export default function PublicHomePage({ searchParams }: { searchParams: { [key:
   }, [filteredEvents]);
   
   const navbarStyle = { background: '#fefce5' };
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -232,7 +232,7 @@ export default function PublicHomePage({ searchParams }: { searchParams: { [key:
               </Tooltip>
             </TooltipProvider>
 
-            {isAuthenticated && (
+            {isAuthenticated && !user?.isGuest && (
                 <UserNav />
             )}
 
@@ -482,3 +482,6 @@ const Footer = () => (
 
 
 
+
+
+    
