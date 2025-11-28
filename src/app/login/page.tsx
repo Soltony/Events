@@ -27,6 +27,9 @@ type LoginFormValues = z.infer<typeof loginFormSchema>;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_DURATION_SECONDS = 30;
 
+const FAILED_ATTEMPTS_KEY = 'loginFailedAttempts';
+const LOCKOUT_UNTIL_KEY = 'loginLockoutUntil';
+
 export default function LoginPage() {
   const { login, isLoading } = useAuth();
   const { toast } = useToast();
@@ -34,6 +37,17 @@ export default function LoginPage() {
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutUntil, setLockoutUntil] = useState<Date | null>(null);
   const [countdown, setCountdown] = useState(0);
+  
+  useEffect(() => {
+    const attempts = parseInt(localStorage.getItem(FAILED_ATTEMPTS_KEY) || '0', 10);
+    const lockoutTime = localStorage.getItem(LOCKOUT_UNTIL_KEY);
+    const lockoutDate = lockoutTime ? new Date(parseInt(lockoutTime, 10)) : null;
+
+    setFailedAttempts(attempts);
+    if (lockoutDate && lockoutDate > new Date()) {
+        setLockoutUntil(lockoutDate);
+    }
+  }, []);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -44,6 +58,8 @@ export default function LoginPage() {
             if (remaining === 0) {
                 setLockoutUntil(null);
                 setFailedAttempts(0);
+                localStorage.removeItem(FAILED_ATTEMPTS_KEY);
+                localStorage.removeItem(LOCKOUT_UNTIL_KEY);
                 clearInterval(interval);
             }
         };
@@ -78,9 +94,12 @@ export default function LoginPage() {
     if (!success) {
       const newAttemptCount = failedAttempts + 1;
       setFailedAttempts(newAttemptCount);
+      localStorage.setItem(FAILED_ATTEMPTS_KEY, newAttemptCount.toString());
+
       if (newAttemptCount >= MAX_LOGIN_ATTEMPTS) {
         const lockoutTime = new Date(Date.now() + LOCKOUT_DURATION_SECONDS * 1000);
         setLockoutUntil(lockoutTime);
+        localStorage.setItem(LOCKOUT_UNTIL_KEY, lockoutTime.getTime().toString());
         toast({
           variant: 'destructive',
           title: 'Login Locked',
@@ -95,6 +114,9 @@ export default function LoginPage() {
       }
     } else {
         setFailedAttempts(0);
+        setLockoutUntil(null);
+        localStorage.removeItem(FAILED_ATTEMPTS_KEY);
+        localStorage.removeItem(LOCKOUT_UNTIL_KEY);
     }
   };
 
