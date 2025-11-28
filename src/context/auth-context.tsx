@@ -66,10 +66,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async (options?: { reason?: string }) => {
     const { reason } = options || {};
     
-    await clearAuthData();
-    
-    const isProtectedRoute = pathname.startsWith('/dashboard');
+    // Immediately redirect to prevent blank screen
+    router.push('/login');
 
+    const isProtectedRoute = pathname.startsWith('/dashboard');
     if (reason && isProtectedRoute) {
         toast({
             title: 'Session Expired',
@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
     }
     
-    router.push('/login');
+    await clearAuthData();
     router.refresh();
 
   }, [router, toast, clearAuthData, pathname]);
