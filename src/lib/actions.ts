@@ -878,7 +878,7 @@ export async function updateRole(id: string, data: Partial<Role> & { permissions
 export async function deleteRole(id: string) {
     const usersWithRole = await prisma.user.count({ where: { roleId: id } });
     if (usersWithRole > 0) {
-        throw new Error("Cannot delete role as it is currently assigned to users.");
+        throw new Error("Cannot delete role. It is assigned to one or more users. Please reassign users before deleting.");
     }
     const role = await prisma.role.delete({ where: { id } });
     revalidatePath('/dashboard/settings');
