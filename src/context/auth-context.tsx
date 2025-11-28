@@ -23,7 +23,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   hasPermission: (permission: string) => boolean;
-  login: (data: any) => Promise<void>;
+  login: (data: any) => Promise<boolean>;
   logout: (options?: { reason?: string }) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -144,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user, logout]);
 
-  const login = async (data: any) => {
+  const login = async (data: any): Promise<boolean> => {
     setIsLoading(true);
     try {
       const response = await api.post('/api/auth/login', {
@@ -176,18 +176,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             router.push('/dashboard');
         }
         router.refresh();
-
+        return true;
       } else {
         throw new Error('Login failed: Invalid response from server.');
       }
     } catch (error: any) {
         const errorMessage = error.response?.data?.message || error.message || 'An error occurred during login.';
-        toast({
-            variant: 'destructive',
-            title: 'Login Failed',
-            description: errorMessage,
-        });
-        console.error('Login error:', error);
+        // Don't show toast here, let the calling component handle it
+        console.error('Login error:', errorMessage);
+        return false;
     } finally {
         setIsLoading(false);
     }
