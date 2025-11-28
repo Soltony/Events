@@ -30,7 +30,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SESSION_TIMEOUT_DURATION = 15 * 60 * 1000;
+const SESSION_TIMEOUT_DURATION = 15 * 60 * 1000; // 15 minutes
 
 export async function ensureCsrfToken() {
   if (!Cookies.get('csrf_token') || !Cookies.get('csrf_secret')) {
@@ -127,22 +127,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    const events = ['mousemove', 'keydown', 'click', 'scroll'];
-
     const handleActivity = () => {
         resetTimeout();
     };
     
     // Only set up activity listeners if there's a logged-in (non-guest) user
     if (user && !user.isGuest) { 
+      const events = ['mousemove', 'keydown', 'click', 'scroll'];
       events.forEach(event => window.addEventListener(event, handleActivity));
       resetTimeout();
-    }
 
-    return () => {
-      clearTimeout(timeoutId);
-      events.forEach(event => window.removeEventListener(event, handleActivity));
-    };
+      return () => {
+        clearTimeout(timeoutId);
+        events.forEach(event => window.removeEventListener(event, handleActivity));
+      };
+    }
   }, [user, logout]);
 
   const login = async (data: any) => {
