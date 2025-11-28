@@ -66,9 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async (options?: { reason?: string }) => {
     const { reason } = options || {};
     
-    // Immediately redirect to prevent blank screen
-    router.push('/login');
-
+    // Force a full page reload to the login page to avoid UI flickers.
+    window.location.href = '/login';
+    
     const isProtectedRoute = pathname.startsWith('/dashboard');
     if (reason && isProtectedRoute) {
         toast({
@@ -78,9 +78,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     
     await clearAuthData();
-    router.refresh();
 
-  }, [router, toast, clearAuthData, pathname]);
+  }, [toast, clearAuthData, pathname]);
 
   const refreshUser = useCallback(async () => {
     try {
