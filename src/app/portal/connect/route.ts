@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
 
     // Create our app's internal JWT
     const internalToken = jwt.sign(internalTokenPayload, JWT_SECRET, {
-        expiresIn: '1d',
+        expiresIn: '15m',
     });
     
     // Set our app's internal auth token cookie

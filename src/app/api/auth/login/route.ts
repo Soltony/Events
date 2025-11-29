@@ -9,7 +9,7 @@ import { serialize } from 'cookie';
 import { headers } from 'next/headers';
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_EXPIRES_IN = '1d';
+const JWT_EXPIRES_IN = '15m';
 
 export async function POST(req: NextRequest) {
   try {
