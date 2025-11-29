@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -687,7 +688,10 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
     return serialize(user);
 }
 
-export async function getStaffForUser(organizerId: string) {
+export async function getStaffForUser(organizerId: string | undefined) {
+    if (!organizerId) {
+        return [];
+    }
     const staff = await prisma.user.findMany({
         where: {
             organizerId: organizerId,

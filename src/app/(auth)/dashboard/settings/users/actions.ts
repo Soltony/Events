@@ -49,7 +49,7 @@ export async function addUser(
         const hashedPassword = await bcrypt.hash(tempPassword, 10);
         
         let roleId = data.roleId;
-        let organizerId = isStaff ? creator.id : undefined;
+        let organizerId: string | undefined = undefined;
 
         if (isStaff) {
              const staffRole = await prisma.role.findFirst({ where: { name: 'Staff' } });
@@ -57,6 +57,7 @@ export async function addUser(
                 return { success: false, error: 'Default role "Staff" not found.' };
             }
             roleId = staffRole.id;
+            organizerId = creator.id; // Assign the creator as the organizer for the staff member
         } else if (!roleId) {
             return { success: false, error: 'A role must be selected for the user.' };
         }
