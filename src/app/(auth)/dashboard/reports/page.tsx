@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { FileDown, Loader2, Search } from 'lucide-react';
+import { FileDown, Loader2, Search, Printer } from 'lucide-react';
 import { getReportsData } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
@@ -167,6 +167,9 @@ export default function ReportsPage() {
         }
     };
 
+    const handlePrint = () => {
+        window.print();
+    };
 
     if (loading && !data) {
         return (
@@ -197,7 +200,7 @@ export default function ReportsPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 print:hidden">
         <div className="space-y-2">
             <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
             <p className="text-muted-foreground">
@@ -215,6 +218,10 @@ export default function ReportsPage() {
                 />
             </div>
             <DateRangePicker date={dateRange} setDate={setDateRange} />
+            <Button variant="outline" onClick={handlePrint}>
+                <Printer className="mr-2 h-4 w-4" />
+                Print Report
+            </Button>
         </div>
       </div>
 
@@ -229,7 +236,7 @@ export default function ReportsPage() {
                 variant="outline" 
                 onClick={() => handleDownload('daily')} 
                 disabled={downloading === 'daily' || loading}
-                className="w-full md:w-auto"
+                className="w-full md:w-auto print:hidden"
             >
                 {downloading === 'daily' || loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
                 Download Report
@@ -275,7 +282,7 @@ export default function ReportsPage() {
               <CardTitle>Product Sales</CardTitle>
               <CardDescription>Product sales, revenue, and other metrics.</CardDescription>
             </div>
-            <Button variant="outline" onClick={() => handleDownload('product')} disabled={downloading === 'product'} className="w-full sm:w-auto">
+            <Button variant="outline" onClick={() => handleDownload('product')} disabled={downloading === 'product'} className="w-full sm:w-auto print:hidden">
                 {downloading === 'product' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
                 Download Report
             </Button>
@@ -317,7 +324,7 @@ export default function ReportsPage() {
               <CardTitle>Promo Codes Report</CardTitle>
               <CardDescription>Promo code usage and discount breakdown.</CardDescription>
             </div>
-             <Button variant="outline" onClick={() => handleDownload('promo')} disabled={downloading === 'promo'} className="w-full sm:w-auto">
+             <Button variant="outline" onClick={() => handleDownload('promo')} disabled={downloading === 'promo'} className="w-full sm:w-auto print:hidden">
                 {downloading === 'promo' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
                 Download Report
             </Button>
