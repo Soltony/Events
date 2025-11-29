@@ -37,7 +37,7 @@ export async function GET(
       return NextResponse.json({
         status: order.status,
         transactionId: order.transactionId,
-        // OMIT attendeeId from the response to prevent leaking internal IDs
+        attendeeId: order.attendeeId,
       });
     }
 
@@ -64,7 +64,7 @@ export async function GET(
       return NextResponse.json({
         status: payment.pendingOrder.status,
         transactionId: payment.pendingOrder.transactionId,
-        // OMIT attendeeId from the response to prevent leaking internal IDs
+        attendeeId: payment.pendingOrder.attendeeId,
       });
     }
 

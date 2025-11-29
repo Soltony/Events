@@ -1,29 +1,52 @@
 
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import QRCode from 'qrcode';
-import { format } from 'date-fns';
-import { CheckCircle2, Download, Calendar, MapPin, Ticket as TicketIcon, Loader2 } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { CheckCircle2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getTicketDetailsForConfirmation } from '@/lib/actions';
-import type { Attendee, Event, TicketType } from '@prisma/client';
 import Link from 'next/link';
 import api from '@/lib/api';
 
-interface TicketDetails extends Attendee {
-    event: Event;
-    ticketType: TicketType;
-}
-
 function SuccessContent() {
     const searchParams = useSearchParams();
-    const router = useRouter();
     const transactionId = searchParams.get('transaction_id');
-    const [status, setStatus] = useState<'polling' | 'redirecting' | 'error'>('polling');
+    const [status, setStatus] = useState<'polling' | 'opened' | 'error'>('polling');
     const [error, setError] = useState<string | null>(null);
+    const [attendeeId, setAttendeeId] = useState<string | null>(null);
+    const [popupBlocked, setPopupBlocked] = useState(false);
+    const popupAttemptedRef = useRef(false);
+
+    const confirmationPath = attendeeId ? `/ticket/${attendeeId}/confirmation` : null;
+
+    const openConfirmationPage = useCallback(() => {
+        if (!confirmationPath || typeof window === 'undefined') {
+            return false;
+        }
+
+        try {
+            if (attendeeId) {
+                const storageKey = `confirmation-opened-${attendeeId}`;
+                if (!sessionStorage.getItem(storageKey)) {
+                    sessionStorage.setItem(storageKey, 'true');
+                }
+            }
+            sessionStorage.setItem('showSuccessToast', 'true');
+        } catch (storageError) {
+            console.warn('Unable to access sessionStorage while opening confirmation page.', storageError);
+        }
+
+        const popup = window.open(confirmationPath, '_blank', 'noopener,noreferrer');
+        if (!popup) {
+            setPopupBlocked(true);
+            return false;
+        }
+
+        popup.focus?.();
+        setPopupBlocked(false);
+        return true;
+    }, [attendeeId, confirmationPath]);
 
     useEffect(() => {
         if (!transactionId) {
@@ -34,7 +57,7 @@ function SuccessContent() {
 
         let isCancelled = false;
         let pollCount = 0;
-        const maxPolls = 20; // Poll for 40 seconds
+        const maxPolls = 30; // Poll for up to 60 seconds (30 * 2s)
 
         const poll = async () => {
             if (isCancelled || pollCount >= maxPolls) {
@@ -50,12 +73,11 @@ function SuccessContent() {
                 const response = await api.get(`/api/payment/status/${transactionId}`);
                 if (response.data.status === 'COMPLETED') {
                     if (response.data.attendeeId) {
-                        setStatus('redirecting');
-                        router.replace(`/ticket/${response.data.attendeeId}/confirmation`);
+                        setAttendeeId(response.data.attendeeId.toString());
+                        isCancelled = true; // Stop polling
                     } else {
                         throw new Error("Could not retrieve ticket details after confirmation.");
                     }
-                    isCancelled = true; // Stop polling
                 } else {
                     setTimeout(poll, 2000);
                 }
@@ -68,7 +90,20 @@ function SuccessContent() {
         poll();
 
         return () => { isCancelled = true; };
-    }, [transactionId, router]);
+    }, [transactionId]);
+
+    // Open popup when attendeeId is available
+    useEffect(() => {
+        if (attendeeId && !popupAttemptedRef.current && confirmationPath) {
+            popupAttemptedRef.current = true;
+            const opened = openConfirmationPage();
+            if (opened) {
+                setStatus('opened');
+            } else {
+                setStatus('opened'); // Still mark as opened even if blocked, show button
+            }
+        }
+    }, [attendeeId, confirmationPath, openConfirmationPage]);
 
 
     if (status === 'error') {
@@ -84,7 +119,40 @@ function SuccessContent() {
                     </Button>
                 </CardContent>
             </Card>
-        )
+        );
+    }
+
+    if (status === 'opened') {
+        return (
+            <Card className="shadow-lg">
+                <CardHeader className="text-center items-center bg-secondary/30 p-8">
+                    <CheckCircle2 className="h-16 w-16 text-green-600 mb-4" />
+                    <CardTitle className="text-3xl">Ticket Ready!</CardTitle>
+                    <CardDescription className="text-lg">
+                        {popupBlocked 
+                            ? "Your ticket confirmation is ready. Please allow pop-ups or use the button below to view it."
+                            : "We opened your confirmation page in a new window. The SuperApp thank-you page remains here."}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="p-8 text-center space-y-4">
+                    {popupBlocked && (
+                        <p className="text-muted-foreground text-sm">
+                            Pop-ups seem to be blocked. Tap the button below to open your ticket manually.
+                        </p>
+                    )}
+                    {confirmationPath && (
+                        <Button onClick={openConfirmationPage} className="w-full" asChild>
+                            <Link href={confirmationPath} target="_blank" rel="noopener noreferrer">
+                                View Confirmation Page
+                            </Link>
+                        </Button>
+                    )}
+                    <Button variant="outline" asChild className="w-full">
+                        <Link href="/tickets">Go to My Tickets</Link>
+                    </Button>
+                </CardContent>
+            </Card>
+        );
     }
 
     return (
