@@ -25,7 +25,24 @@ export default function ScanQrPage() {
     const { toast } = useToast();
     const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
 
+    const stopScanning = () => {
+        if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+            html5QrCodeRef.current.stop()
+                .then(() => {
+                    console.log("QR scanner stopped.");
+                    setIsScanning(false);
+                })
+                .catch(err => {
+                    console.error("Failed to stop scanner cleanly", err);
+                    setIsScanning(false); // Force state update even on error
+                });
+        } else {
+            setIsScanning(false);
+        }
+    };
+    
     const processScan = async (decodedText: string) => {
+        stopScanning();
         setIsLoading(true);
         setResult(null);
         
@@ -51,25 +68,9 @@ export default function ScanQrPage() {
             toast({ variant: 'destructive', title: 'Scan Error', description: errorMessage });
         } finally {
             setIsLoading(false);
-            if (isScanning) {
-                stopScanning();
-            }
         }
     };
     
-    const stopScanning = () => {
-        if (html5QrCodeRef.current && html5QrCodeRef.current.getState() === Html5QrcodeScannerState.SCANNING) {
-            html5QrCodeRef.current.stop().then(() => {
-                setIsScanning(false);
-                // Do not nullify the ref here, so we can potentially restart it
-            }).catch(err => {
-                console.error("Failed to stop scanner", err);
-                 setIsScanning(false);
-            });
-        } else {
-             setIsScanning(false);
-        }
-    };
     
     const startScanning = () => {
         setResult(null);
@@ -88,7 +89,6 @@ export default function ScanQrPage() {
             config,
             (decodedText, decodedResult) => {
                 // success
-                scanner.pause(true); // Pause scanner on success
                 processScan(decodedText);
             },
             (errorMessage) => {
@@ -184,16 +184,22 @@ export default function ScanQrPage() {
                 <CardContent className="p-4 sm:p-6">
                     <div className="w-full aspect-square bg-muted rounded-lg border-dashed border-2 flex items-center justify-center overflow-hidden relative">
                          <div id={QR_REGION_ID} className="w-full h-full" />
-                         {!isScanning && (
+                         {!isScanning && !isLoading && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-muted-foreground p-4 bg-muted">
                                 <CameraOff className="mx-auto h-12 w-12" />
                                 <p className="mt-2">Camera is off. Press "Start Camera" to begin.</p>
                             </div>
                          )}
+                         {isLoading && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-muted-foreground p-4 bg-muted/50 backdrop-blur-sm">
+                                <Loader2 className="mx-auto h-12 w-12 animate-spin" />
+                                <p className="mt-2 font-semibold">Processing...</p>
+                            </div>
+                         )}
                     </div>
                     
                     <div className="grid grid-cols-1 gap-4 mt-4">
-                        <Button onClick={handleStartStopClick} variant={isScanning ? "destructive" : "default"} className="w-full">
+                        <Button onClick={handleStartStopClick} variant={isScanning ? "destructive" : "default"} className="w-full" disabled={isLoading}>
                              {isScanning ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Stop Scanning</> : <><Video className="mr-2 h-4 w-4" /> Start Camera</>}
                         </Button>
                     </div>
