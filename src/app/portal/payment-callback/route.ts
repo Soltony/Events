@@ -145,6 +145,7 @@ export async function POST(request: NextRequest) {
     revalidatePath(`/payment/success?transaction_id=${eventPayment.pendingOrder.transactionId}`);
 
     console.log(`Successfully processed payment for transaction ${txnRef}.`);
+    
 
     return NextResponse.json({ message: 'Payment confirmed and updated.', attendeeId: createdAttendee?.id }, { status: 200 });
 
