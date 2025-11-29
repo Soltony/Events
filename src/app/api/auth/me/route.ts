@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
+import { headers } from 'next/headers';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -23,6 +24,8 @@ export async function GET(req: NextRequest) {
       userId: string;
       isGuest?: boolean;
       phoneNumber?: string;
+      ip?: string;
+      userAgent?: string;
     };
 
     if (!decoded.userId) {
@@ -42,6 +45,20 @@ export async function GET(req: NextRequest) {
 
       return NextResponse.json({ user: guestUser }, { status: 200 });
     }
+    
+    // --- Session Binding Verification ---
+    const headersList = headers();
+    const currentIp = headersList.get('x-forwarded-for') ?? '127.0.0.1';
+    const currentUserAgent = headersList.get('user-agent') ?? '';
+    
+    if (decoded.ip !== currentIp || decoded.userAgent !== currentUserAgent) {
+        console.warn(`Session hijacking attempt detected for user ${decoded.userId}. Token IP: ${decoded.ip}, Request IP: ${currentIp}. Token UA: ${decoded.userAgent}, Request UA: ${currentUserAgent}`);
+        // Invalidate cookie by sending an expired one
+        const response = NextResponse.json({ message: 'Invalid session. Please log in again.' }, { status: 401 });
+        response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+        return response;
+    }
+
 
     // -----------------------------
     // Normal User
@@ -66,7 +83,9 @@ export async function GET(req: NextRequest) {
     console.error('[ME_ERROR]', error);
 
     if (error instanceof jwt.JsonWebTokenError) {
-      return NextResponse.json({ message: 'Invalid token.' }, { status: 401 });
+      const response = NextResponse.json({ message: 'Invalid token.' }, { status: 401 });
+      response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      return response;
     }
 
     return new NextResponse('Internal Server Error', { status: 500 });

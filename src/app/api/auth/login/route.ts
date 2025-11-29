@@ -6,6 +6,7 @@ import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { serialize } from 'cookie';
+import { headers } from 'next/headers';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = '1d';
@@ -36,6 +37,11 @@ export async function POST(req: NextRequest) {
     if (!isPasswordValid) {
       return NextResponse.json({ message: 'Invalid credentials.' }, { status: 401 });
     }
+    
+    const headersList = headers();
+    const ip = headersList.get('x-forwarded-for') ?? '127.0.0.1';
+    const userAgent = headersList.get('user-agent') ?? '';
+
 
     const tokenPayload = {
       userId: user.id,
@@ -43,6 +49,8 @@ export async function POST(req: NextRequest) {
       permissions: user.role.permissions,
       phoneNumber: user.phoneNumber,
       isGuest: false,
+      ip,
+      userAgent,
     };
 
     const token = jwt.sign(tokenPayload, JWT_SECRET, {
