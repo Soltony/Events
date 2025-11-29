@@ -251,7 +251,7 @@ export default function EditUserPage() {
                             render={({ field }) => (
                             <FormItem>
                                 <FormLabel>
-                                    NIB Account <span className="text-muted-foreground">(Optional)</span>
+                                    NIB Account <span className="text-muted-foreground"></span>
                                 </FormLabel>
                                 <FormControl>
                                     <Input placeholder="700***********" {...field} />
