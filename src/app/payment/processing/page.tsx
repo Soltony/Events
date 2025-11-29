@@ -40,30 +40,25 @@ function ProcessingPaymentContent() {
                 const response = await api.get(`/api/payment/status/${idToUse}`);
 
                 if (response.data.status === 'COMPLETED') {
-                    console.log('Payment completed successfully, redirecting to ticket page...');
                     if (!isCancelled && response.data.attendeeId) {
                         isCancelled = true;
+                        // Set a flag for the toast
+                        sessionStorage.setItem('showSuccessToast', 'true');
                         // Redirect directly to the final ticket confirmation page
                         router.replace(`/ticket/${response.data.attendeeId}/confirmation`);
                     } else {
-                        // Fallback to old success page if attendeeId is missing for some reason
+                        // Fallback to old success page if attendeeId is missing
                         console.warn("Attendee ID not found in payment status response, falling back to success page.");
-                        const attendeeIdParam = response.data.attendeeId ? `&attendee_id=${response.data.attendeeId}` : '';
-                        // Redirect to confirmation page using transaction identifier; it will poll until ready
-                        router.replace(`/ticket/0/confirmation?transaction_id=${idToUse}${attendeeIdParam}`);
+                        router.replace(`/payment/success?transaction_id=${idToUse}`);
                     }
                     return; // Stop polling
-                } else if (response.data.status === 'FAILED') {
-                    console.log('Payment failed');
-                    // Stay on this page and show processing UI; user can navigate away
-                    return; // Stop polling for now
                 }
             } catch (error) {
                 console.error('Error polling payment status:', error);
                 // Continue polling on error until max attempts
             }
 
-            // If not completed or failed, schedule the next poll
+            // If not completed, schedule the next poll
             if (!isCancelled) {
                 setTimeout(pollStatus, 2000);
             }

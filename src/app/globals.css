@@ -59,3 +59,30 @@
     @apply overflow-hidden;
   }
 }
+
+@media print {
+  .print\:hidden {
+    display: none;
+  }
+  .print\:block {
+    display: block;
+  }
+  body {
+    background-color: white;
+  }
+  .print\:p-0 {
+    padding: 0;
+  }
+  .print\:shadow-none {
+    box-shadow: none;
+  }
+  .print\:border-none {
+    border: none;
+  }
+  .print\:break-before-page {
+    break-before: page;
+  }
+  .print\:h-auto {
+    height: auto;
+  }
+}
