@@ -37,8 +37,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Loader2, ArrowLeft, UserPlus, Check, Trash2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast"
-import { getStaffForUser, deleteUser } from '@/lib/actions';
-import { addUser } from '@/app/(auth)/dashboard/settings/users/actions';
+import { getStaffForUser, deleteUser, addUser } from '@/lib/actions';
 import { useAuth } from '@/context/auth-context';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHeader, TableRow, TableHead } from '@/components/ui/table';

@@ -3,21 +3,18 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
-import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee, EventStatus, UserStatus, District, Branch } from '@prisma/client';
-import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
+import type { Role, User, TicketType, PromoCode, Event, Attendee, EventStatus, UserStatus, District, Branch } from '@prisma/client';
 import type { DateRange } from 'react-day-picker';
 import { randomUUID } from 'crypto';
 import { buildPhoneVariants, normalizePhoneNumber } from './utils';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import bcrypt from 'bcryptjs';
 import { nanoid } from 'nanoid';
 import { sendTempPassword } from '@/lib/email';
 import cuid from 'cuid';
 
 
-// Helper to ensure data is serializable
+// This is an internal helper function and should not be exported.
 function serialize(data: any) {
     if (data === null || data === undefined) {
         return data;
@@ -1170,4 +1167,102 @@ export async function getDistricts(): Promise<District[]> {
 export async function getBranches(): Promise<Branch[]> {
   const branches = await prisma.branch.findMany({ include: { district: true }});
   return serialize(branches);
+}
+
+interface AddUserResult {
+  success: boolean;
+  error?: string;
+}
+
+export async function addUser(
+  data: {
+    firstName: string;
+    lastName: string;
+    phoneNumber: string;
+    email: string;
+    roleId?: string;
+    branchId?: string;
+    nibBankAccount?: string | null;
+  },
+  isStaff: boolean = false
+): Promise<AddUserResult> {
+    const creator = await getCurrentUser();
+    if (!creator) {
+        return { success: false, error: 'You must be logged in to perform this action.' };
+    }
+
+    try {
+        const existingUserByPhone = await prisma.user.findUnique({
+            where: { phoneNumber: data.phoneNumber },
+        });
+        if (existingUserByPhone) {
+            return { success: false, error: 'Phone number is already registered.' };
+        }
+
+        const existingUserByEmail = await prisma.user.findUnique({
+            where: { email: data.email },
+        });
+        if (existingUserByEmail) {
+            return { success: false, error: 'Email is already registered.' };
+        }
+        
+        const tempPassword = nanoid(10);
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        
+        let roleId = data.roleId;
+        let organizerId: string | undefined = undefined;
+
+        if (isStaff) {
+             const staffRole = await prisma.role.findFirst({ where: { name: 'Staff' } });
+             if (!staffRole) {
+                return { success: false, error: 'Default role "Staff" not found.' };
+            }
+            roleId = staffRole.id;
+            organizerId = creator.id; // Assign the creator as the organizer for the staff member
+        } else if (!roleId) {
+            return { success: false, error: 'A role must be selected for the user.' };
+        }
+        
+
+        const user = await prisma.user.create({
+            data: {
+                id: cuid(),
+                firstName: data.firstName,
+                lastName: data.lastName,
+                phoneNumber: data.phoneNumber,
+                email: data.email,
+                password: hashedPassword,
+                roleId: roleId,
+                branchId: data.branchId || null,
+                nibBankAccount: data.nibBankAccount || null,
+                status: 'ACTIVE',
+                passwordChangeRequired: true,
+                tokenVersion: 1,
+                organizerId: organizerId,
+            },
+        });
+        
+        await sendTempPassword({
+            email: data.email,
+            phoneNumber: data.phoneNumber,
+            tempPassword: tempPassword,
+        });
+
+        return { success: true };
+
+    } catch (error: any) {
+        console.error("Failed to add user:", error);
+        
+        // Check for specific Prisma unique constraint errors
+        if (error.code === 'P2002') {
+             if (error.meta?.target?.includes('phoneNumber')) {
+                return { success: false, error: "This phone number is already in use." };
+            }
+            if (error.meta?.target?.includes('email')) {
+                return { success: false, error: "This email address is already in use." };
+            }
+        }
+
+        return { success: false, error: error.message || "An unexpected error occurred." };
+    }
 }
