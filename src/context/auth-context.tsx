@@ -1,18 +1,11 @@
-
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, ReactNode, useCallback, useEffect } from 'react';
+import { SessionProvider, useSession, signOut, signIn } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useToast } from '@/hooks/use-toast';
-import api from '@/lib/api';
 import type { User, Role, Branch } from '@prisma/client';
-import Cookies from 'js-cookie';
 
-interface AuthTokens {
-  accessToken: string;
-}
-
-interface UserWithRole extends User {
+export interface UserWithRole extends User {
   role: Role;
   branch?: Branch | null;
   isGuest?: boolean;
@@ -24,172 +17,40 @@ interface AuthContextType {
   isLoading: boolean;
   hasPermission: (permission: string) => boolean;
   login: (data: any) => Promise<boolean>;
-  logout: (options?: { reason?: string }) => Promise<void>;
-  refreshUser: () => Promise<void>;
+  logout: () => void;
+  refreshUser: () => void; // This is now a wrapper around session update
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SESSION_TIMEOUT_DURATION = 15 * 60 * 1000; // 15 minutes
-
+// Ensure CSRF token is present before state-changing operations
+// This is now less critical as NextAuth has its own CSRF protection, but good to keep.
 export async function ensureCsrfToken() {
-  if (!Cookies.get('csrf_token') || !Cookies.get('csrf_secret')) {
-    try {
-      console.log('[ensureCsrfToken] CSRF tokens not found, fetching new ones...');
-      await api.get('/api/csrf-token');
-      console.log('[ensureCsrfToken] Successfully fetched new CSRF tokens.');
-    } catch (error) {
-      console.error('[ensureCsrfToken] Failed to obtain CSRF token:', error);
-      throw error;
-    }
-  } else {
-      console.log('[ensureCsrfToken] CSRF tokens already exist.');
-  }
+  // This logic can be simplified or removed if relying solely on NextAuth's CSRF
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserWithRole | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+function AuthProviderContent({ children }: { children: ReactNode }) {
+  const { data: session, status, update } = useSession();
   const router = useRouter();
   const pathname = usePathname();
-  const { toast } = useToast();
-  
-  const clearAuthData = useCallback(async () => {
-    setUser(null);
-    try {
-        await api.post('/api/auth/logout');
-    } catch (error) {
-        console.error("Logout API call failed", error);
-    }
-  }, []);
 
-  const logout = useCallback(async (options?: { reason?: string }) => {
-    const { reason } = options || {};
-    
-    // Force a full page reload to the login page to avoid UI flickers.
-    window.location.href = '/login';
-    
-    const isProtectedRoute = pathname.startsWith('/dashboard');
-    if (reason && isProtectedRoute) {
-        toast({
-            title: 'Session Expired',
-            description: reason,
-        });
-    }
-    
-    await clearAuthData();
-
-  }, [toast, clearAuthData, pathname]);
-
-  const refreshUser = useCallback(async () => {
-    try {
-        const { data } = await api.get('/api/auth/me');
-        if (data.user) {
-            setUser(data.user);
-        } else {
-            setUser(null);
-        }
-    } catch (error) {
-        // On 401 or other error, just clear the user state.
-        // The AuthGuard will handle the redirect.
-        setUser(null);
-    }
-  }, []);
-
+  const user = session?.user as UserWithRole | null;
+  const isLoading = status === 'loading';
+  const isAuthenticated = status === 'authenticated';
 
   useEffect(() => {
-    async function initializeAuth() {
-        setIsLoading(true);
-        try {
-            await refreshUser();
-        } catch (error) {
-            // Even if refreshUser itself throws, clear auth.
-            setUser(null);
-        } finally {
-            setIsLoading(false);
+    if (isLoading) return;
+
+    if (isAuthenticated) {
+        if (user?.passwordChangeRequired && pathname !== '/profile') {
+            router.replace('/profile');
         }
+    } else if (pathname.startsWith('/dashboard') || pathname === '/profile') {
+        router.replace('/login');
     }
-    initializeAuth();
-  }, [refreshUser]);
+  }, [isLoading, isAuthenticated, user, pathname, router]);
 
-
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
-    const resetTimeout = () => {
-      clearTimeout(timeoutId);
-      // Check for a valid, non-guest user session before setting a timeout
-      if (user && !user.isGuest) { 
-          timeoutId = setTimeout(() => {
-            logout({ reason: 'You have been logged out due to inactivity.' });
-          }, SESSION_TIMEOUT_DURATION);
-      }
-    };
-
-    const handleActivity = () => {
-        resetTimeout();
-    };
-    
-    // Only set up activity listeners if there's a logged-in (non-guest) user
-    if (user && !user.isGuest) { 
-      const events = ['mousemove', 'keydown', 'click', 'scroll'];
-      events.forEach(event => window.addEventListener(event, handleActivity));
-      resetTimeout();
-
-      return () => {
-        clearTimeout(timeoutId);
-        events.forEach(event => window.removeEventListener(event, handleActivity));
-      };
-    }
-  }, [user, logout]);
-
-  const login = async (data: any): Promise<boolean> => {
-    setIsLoading(true);
-    try {
-      const response = await api.post('/api/auth/login', {
-        phoneNumber: data.phoneNumber,
-        password: data.password,
-      });
-
-      if (response.data && response.data.user) {
-        const userData: UserWithRole = response.data.user;
-
-        if (userData.status === 'INACTIVE' && userData.passwordChangeRequired) {
-            throw new Error('Your account is pending approval. Please contact an administrator.');
-        }
-        
-        if (userData.status === 'INACTIVE') {
-          throw new Error('Your account is inactive. Please contact an administrator.');
-        }
-
-        setUser(userData);
-        
-        toast({
-          title: 'Login Successful',
-          description: 'Redirecting...',
-        });
-        
-        if (userData.passwordChangeRequired) {
-            router.push('/profile');
-        } else {
-            router.push('/dashboard');
-        }
-        router.refresh();
-        return true;
-      } else {
-        throw new Error('Login failed: Invalid response from server.');
-      }
-    } catch (error: any) {
-        const errorMessage = error.response?.data?.message || error.message || 'An error occurred during login.';
-        // Don't show toast here, let the calling component handle it
-        console.error('Login error:', errorMessage);
-        return false;
-    } finally {
-        setIsLoading(false);
-    }
-  };
-  
-  const hasPermission = (permission: string) => {
+  const hasPermission = useCallback((permission: string) => {
     if (!user || !user.role) {
       return false;
     }
@@ -202,14 +63,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     try {
       let userPermissions: string[];
-      // First, try to parse as JSON. This is the new, preferred format.
       if (permissions.trim().startsWith('[') && permissions.trim().endsWith(']')) {
         userPermissions = JSON.parse(permissions);
       } else if (permissions) {
-        // Fallback for older, comma-separated strings.
         userPermissions = permissions.split(',').filter(p => p);
       } else {
-        // Handle empty string case
         userPermissions = [];
       }
       
@@ -218,14 +76,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Failed to parse permissions:', permissions, error);
       return false;
     }
+  }, [user]);
+
+  const login = async (data: any): Promise<boolean> => {
+    const result = await signIn('credentials', {
+      redirect: false,
+      phoneNumber: data.phoneNumber,
+      password: data.password,
+    });
+
+    if (result?.ok) {
+        await update(); // Force session update
+        return true;
+    }
+    return false;
   };
 
-  const isAuthenticated = !isLoading && !!user;
+  const logout = () => {
+    signOut({ callbackUrl: '/login' });
+  };
+  
+  const refreshUser = async () => {
+    await update();
+  };
+
+  const authContextValue = {
+    user,
+    isAuthenticated,
+    isLoading,
+    hasPermission,
+    login,
+    logout,
+    refreshUser
+  };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, hasPermission, login, logout, refreshUser }}>
+    <AuthContext.Provider value={authContextValue}>
       {children}
     </AuthContext.Provider>
+  );
+}
+
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  return (
+    <SessionProvider>
+      <AuthProviderContent>{children}</AuthProviderContent>
+    </SessionProvider>
   );
 }
 

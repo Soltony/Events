@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -8,13 +7,14 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { Loader2, ArrowRight, Phone, Lock, ArrowLeft } from 'lucide-react';
+import { signIn } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
-import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
 
 const loginFormSchema = z.object({
@@ -31,21 +31,24 @@ const FAILED_ATTEMPTS_KEY = 'loginFailedAttempts';
 const LOCKOUT_UNTIL_KEY = 'loginLockoutUntil';
 
 export default function LoginPage() {
-  const { login, isLoading } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutUntil, setLockoutUntil] = useState<Date | null>(null);
   const [countdown, setCountdown] = useState(0);
   
   useEffect(() => {
-    const attempts = parseInt(localStorage.getItem(FAILED_ATTEMPTS_KEY) || '0', 10);
-    const lockoutTime = localStorage.getItem(LOCKOUT_UNTIL_KEY);
-    const lockoutDate = lockoutTime ? new Date(parseInt(lockoutTime, 10)) : null;
+    // Client-side only check for localStorage
+    if (typeof window !== 'undefined') {
+        const attempts = parseInt(localStorage.getItem(FAILED_ATTEMPTS_KEY) || '0', 10);
+        const lockoutTime = localStorage.getItem(LOCKOUT_UNTIL_KEY);
+        const lockoutDate = lockoutTime ? new Date(parseInt(lockoutTime, 10)) : null;
 
-    setFailedAttempts(attempts);
-    if (lockoutDate && lockoutDate > new Date()) {
-        setLockoutUntil(lockoutDate);
+        setFailedAttempts(attempts);
+        if (lockoutDate && lockoutDate > new Date()) {
+            setLockoutUntil(lockoutDate);
+        }
     }
   }, []);
 
@@ -88,35 +91,50 @@ export default function LoginPage() {
     }
 
     setIsSubmitting(true);
-    const success = await login(data);
+    
+    const result = await signIn('credentials', {
+      redirect: false,
+      phoneNumber: data.phoneNumber,
+      password: data.password,
+    });
+
     setIsSubmitting(false);
 
-    if (!success) {
-      const newAttemptCount = failedAttempts + 1;
-      setFailedAttempts(newAttemptCount);
-      localStorage.setItem(FAILED_ATTEMPTS_KEY, newAttemptCount.toString());
+    if (result?.error) {
+        const newAttemptCount = failedAttempts + 1;
+        setFailedAttempts(newAttemptCount);
+        localStorage.setItem(FAILED_ATTEMPTS_KEY, newAttemptCount.toString());
 
-      if (newAttemptCount >= MAX_LOGIN_ATTEMPTS) {
-        const lockoutTime = new Date(Date.now() + LOCKOUT_DURATION_SECONDS * 1000);
-        setLockoutUntil(lockoutTime);
-        localStorage.setItem(LOCKOUT_UNTIL_KEY, lockoutTime.getTime().toString());
-        toast({
-          variant: 'destructive',
-          title: 'Login Locked',
-          description: `Too many failed attempts. Please wait ${LOCKOUT_DURATION_SECONDS} seconds.`,
-        });
-      } else {
-        toast({
-            variant: 'destructive',
-            title: 'Login Failed',
-            description: `Invalid credentials. You have ${MAX_LOGIN_ATTEMPTS - newAttemptCount} attempts remaining.`
-        });
-      }
-    } else {
+        if (newAttemptCount >= MAX_LOGIN_ATTEMPTS) {
+            const lockoutTime = new Date(Date.now() + LOCKOUT_DURATION_SECONDS * 1000);
+            setLockoutUntil(lockoutTime);
+            localStorage.setItem(LOCKOUT_UNTIL_KEY, lockoutTime.getTime().toString());
+            toast({
+                variant: 'destructive',
+                title: 'Login Locked',
+                description: `Too many failed attempts. Please wait ${LOCKOUT_DURATION_SECONDS} seconds.`,
+            });
+        } else {
+             toast({
+                variant: 'destructive',
+                title: 'Login Failed',
+                description: result.error || `Invalid credentials. You have ${MAX_LOGIN_ATTEMPTS - newAttemptCount} attempts remaining.`
+            });
+        }
+    } else if(result?.ok) {
         setFailedAttempts(0);
         setLockoutUntil(null);
         localStorage.removeItem(FAILED_ATTEMPTS_KEY);
         localStorage.removeItem(LOCKOUT_UNTIL_KEY);
+
+        toast({
+            title: 'Login Successful',
+            description: 'Redirecting...',
+        });
+        
+        // NextAuth will redirect to the callbackUrl, or we can push manually.
+        // The AuthProvider will handle routing based on passwordChangeRequired status.
+        router.refresh(); // Refresh to ensure session is picked up by server components
     }
   };
 
@@ -185,10 +203,10 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full h-12 text-base font-bold" disabled={isLoading || isSubmitting || isLockedOut}>
+              <Button type="submit" className="w-full h-12 text-base font-bold" disabled={isSubmitting || isLockedOut}>
                 {isLockedOut ? (
                     `Try again in ${countdown}s`
-                ) : (isLoading || isSubmitting) ? (
+                ) : isSubmitting ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                     <>

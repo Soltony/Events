@@ -11,10 +11,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { PasswordInput } from '@/components/ui/password-input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
-import { updatePasswordFlag } from '@/lib/actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import api from '@/lib/api';
-import { useRouter } from 'next/navigation';
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, { message: 'Current password is required.' }),
@@ -33,8 +31,7 @@ type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
 
 export default function ProfilePage() {
   const { toast } = useToast();
-  const router = useRouter();
-  const { user, logout, refreshUser } = useAuth();
+  const { user, logout } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<ChangePasswordFormValues>({
@@ -61,14 +58,6 @@ export default function ProfilePage() {
         });
         
         if (response.status === 200 && response.data.success) {
-            const wasFirstTime = user.passwordChangeRequired;
-            
-            if (wasFirstTime) {
-                await updatePasswordFlag(user.id, false);
-            }
-
-            await refreshUser();
-
             toast({
                 title: 'Success!',
                 description: 'Your password has been changed successfully. You will be logged out for security.'
@@ -79,7 +68,6 @@ export default function ProfilePage() {
             }, 1500);
 
         } else {
-             // This branch is now unlikely to be hit due to axios throwing on non-2xx statuses, but is kept for safety.
              throw new Error(response.data.errors?.join(', ') || 'Password change failed. Please check your current password and try again.');
         }
 

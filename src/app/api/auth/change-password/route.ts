@@ -4,17 +4,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../[...nextauth]/route';
 
 export async function POST(req: NextRequest) {
   try {
-    const { phoneNumber, currentPassword, newPassword } = await req.json();
+    const session = await getServerSession(authOptions);
 
-    if (!phoneNumber || !currentPassword || !newPassword) {
+    if (!session?.user?.id) {
+        return NextResponse.json({ errors: ['Unauthorized'] }, { status: 401 });
+    }
+
+    const { currentPassword, newPassword } = await req.json();
+
+    if (!currentPassword || !newPassword) {
       return NextResponse.json({ errors: ['All fields are required.'] }, { status: 400 });
     }
 
     const user = await prisma.user.findUnique({
-      where: { phoneNumber },
+      where: { id: session.user.id },
     });
 
     if (!user || !user.password) {
@@ -34,7 +42,7 @@ export async function POST(req: NextRequest) {
       data: {
         password: newHashedPassword,
         passwordChangeRequired: false,
-        tokenVersion: { increment: 1 }, // Invalidate old tokens
+        tokenVersion: { increment: 1 },
       },
     });
 
