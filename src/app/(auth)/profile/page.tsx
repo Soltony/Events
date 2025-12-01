@@ -79,7 +79,7 @@ export default function ProfilePage() {
             }, 1500);
 
         } else {
-             // This branch should now be hit for validation errors from the API
+             // This branch is now unlikely to be hit due to axios throwing on non-2xx statuses, but is kept for safety.
              throw new Error(response.data.errors?.join(', ') || 'Password change failed. Please check your current password and try again.');
         }
 
