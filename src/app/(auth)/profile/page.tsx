@@ -61,7 +61,7 @@ export default function ProfilePage() {
             newPassword: data.newPassword,
         });
         
-        if (response.data.success) {
+        if (response.status === 200 && response.data.success) {
             const wasFirstTime = user.passwordChangeRequired;
             
             if (wasFirstTime) {
@@ -80,6 +80,7 @@ export default function ProfilePage() {
             }, 1500);
 
         } else {
+             // This branch should now be hit for validation errors from the API
              throw new Error(response.data.errors?.join(', ') || 'Password change failed. Please check your current password and try again.');
         }
 

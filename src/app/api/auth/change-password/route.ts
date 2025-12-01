@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return new NextResponse(null, { status: 200 });
+    return NextResponse.json({ success: true }, { status: 200 });
 
   } catch (error) {
     console.error('[CHANGE_PASSWORD_ERROR]', error);
