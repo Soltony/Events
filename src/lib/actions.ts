@@ -65,7 +65,7 @@ export async function getCurrentUser(): Promise<(User & { role: Role, branch: Br
       return null;
     }
 
-    const decoded = jwt.verify(tokenCookie.value, JWT_SECRET) as { userId: string };
+    const decoded = jwt.verify(tokenCookie.value, JWT_SECRET) as { userId: string, tokenVersion?: number };
 
     if (!decoded || !decoded.userId) {
         return null;
@@ -78,6 +78,16 @@ export async function getCurrentUser(): Promise<(User & { role: Role, branch: Br
             branch: true 
         },
     });
+
+    if (!user) {
+        return null;
+    }
+
+    // --- CRITICAL: Enforce token version check ---
+    if (user.tokenVersion !== decoded.tokenVersion) {
+        console.warn(`Token revocation check failed for user ${user.id}. Token version: ${decoded.tokenVersion}, DB version: ${user.tokenVersion}`);
+        return null; // Invalid token, treat as logged out
+    }
     
     return serialize(user);
 

@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
       data: {
         password: newHashedPassword,
         passwordChangeRequired: false,
+        tokenVersion: { increment: 1 }, // Invalidate old tokens
       },
     });
 
