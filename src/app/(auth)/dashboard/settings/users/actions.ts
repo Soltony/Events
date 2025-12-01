@@ -76,6 +76,7 @@ export async function addUser(
                 nibBankAccount: data.nibBankAccount || null,
                 status: 'ACTIVE',
                 passwordChangeRequired: true,
+                tokenVersion: 1,
                 organizerId: organizerId,
             },
         });
