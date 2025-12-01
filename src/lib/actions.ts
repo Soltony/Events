@@ -11,13 +11,23 @@ import { randomUUID } from 'crypto';
 import { buildPhoneVariants, normalizePhoneNumber } from './utils';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import bcrypt from 'bcryptjs';
+import { nanoid } from 'nanoid';
+import { sendTempPassword } from '@/lib/email';
+import cuid from 'cuid';
+
 
 // Helper to ensure data is serializable
-const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
-    typeof value === 'bigint'
-        ? value.toString()
-        : value
-));
+function serialize(data: any) {
+    if (data === null || data === undefined) {
+        return data;
+    }
+    return JSON.parse(JSON.stringify(data, (key, value) =>
+        typeof value === 'bigint'
+            ? value.toString()
+            : value
+    ));
+}
 
 interface AttendeeTicket {
   id: string;
@@ -54,16 +64,13 @@ export async function getCurrentUser(): Promise<(User & { role: Role, branch: Br
 
     if (!user) return null;
 
-    // Compare token versions to invalidate old sessions
     if (session.user.passwordChangeRequired !== user.passwordChangeRequired && user.passwordChangeRequired) {
-        // This check is a bit redundant if we trust hasPermission, but it's a good fallback.
-        // A more robust check would involve a token version number.
+        // This logic can be enhanced with token versioning if needed
     }
 
 
     return serialize(user);
 }
-
 
 // Event Actions
 export async function getEvents(status?: EventStatus | 'all') {
@@ -98,7 +105,6 @@ export async function getEvents(status?: EventStatus | 'all') {
 
     return serialize(events);
 }
-
 
 export async function getPublicEvents(): Promise<(Event & { ticketTypes: TicketType[] })[]> {
     const today = new Date();
@@ -144,7 +150,6 @@ export async function getEventById(id: number) {
 
     if (event) {
         const serializedEvent = serialize(event) as any;
-         // Manually construct the organizer name from the fetched fields
         if (serializedEvent.organizer) {
             serializedEvent.organizerName = `${serializedEvent.organizer.firstName || ''} ${serializedEvent.organizer.lastName || ''}`.trim();
         }
@@ -378,7 +383,6 @@ export async function deleteEvent(id: number) {
   revalidatePath('/');
 }
 
-
 export async function addTicketType(eventId: number, data: { name: string; description?: string; locationPrices: { location: string; price: number; quantity: number }[] }) {
     for (const config of data.locationPrices) {
         if (config.location && config.price >= 0 && config.quantity >= 0) {
@@ -424,7 +428,6 @@ export async function deleteTicketType(ticketTypeId: number) {
   await prisma.ticketType.delete({ where: { id: ticketTypeId } });
   revalidatePath(`/dashboard/events/${ticketType.eventId}`);
 }
-
 
 export async function addPromoCode(eventId: number, data: any, allTicketTypes?: TicketType[]) {
     let finalCode = data.code;
@@ -486,7 +489,6 @@ export async function deletePromoCode(promoCodeId: number) {
   revalidatePath(`/dashboard/events/${promoCode.eventId}`);
 }
 
-// Dashboard Actions
 export async function getDashboardData() {
     const user = await getCurrentUser();
     if (!user) {
@@ -541,8 +543,6 @@ export async function getDashboardData() {
     });
 }
 
-
-// Reports Actions
 export async function getReportsData(dateRange?: DateRange, eventNameSearch?: string) {
     const user = await getCurrentUser();
     if (!user) {
@@ -738,10 +738,6 @@ export async function deleteUser(userId: string, phoneNumber: string) {
       };
     }
     
-    // In a real app with external auth, you'd delete the user there first.
-    // For this prototype, we'll just delete from the local DB.
-    
-    // Also, if this user is an organizer, we might need to delete their staff.
     const userToDelete = await prisma.user.findUnique({
         where: { id: userId },
         include: { role: true }
@@ -779,8 +775,6 @@ export async function deleteUser(userId: string, phoneNumber: string) {
   }
 }
 
-
-
 export async function getRoles() {
     try {
         const roles = await prisma.role.findMany();
@@ -812,7 +806,6 @@ export async function createRole(data: { name: string; description: string; perm
     
     const { name, description, permissions } = data;
 
-    // Validate that all incoming permissions are known and valid
     for (const perm of permissions) {
         if (!VALID_PERMISSIONS.has(perm)) {
             throw new Error(`Invalid permission provided: ${perm}`);
@@ -847,7 +840,6 @@ export async function updateRole(id: string, data: Partial<Role> & { permissions
     
     let permissionsArray: string[] = [];
     try {
-        // Handle both comma-separated strings and JSON arrays for robustness
         if(permissionsString.startsWith('[')) {
             permissionsArray = JSON.parse(permissionsString);
         } else {
@@ -857,7 +849,6 @@ export async function updateRole(id: string, data: Partial<Role> & { permissions
         throw new Error("Could not parse permissions string.");
     }
 
-    // Validate that all incoming permissions are known and valid
     for (const perm of permissionsArray) {
         if (!VALID_PERMISSIONS.has(perm)) {
             throw new Error(`Invalid permission provided: ${perm}`);
@@ -876,7 +867,6 @@ export async function updateRole(id: string, data: Partial<Role> & { permissions
     revalidatePath(`/dashboard/settings/roles/${id}/edit`);
     return serialize(role);
 }
-
 
 export async function deleteRole(id: string) {
     const usersWithRole = await prisma.user.count({ where: { roleId: id } });
@@ -898,7 +888,6 @@ export async function updatePasswordFlag(userId: string, passwordChangeRequired:
 }
 
 
-// Ticket/Attendee Actions
 export interface PurchaseRequest {
   eventId: number;
   tickets: { id: number; quantity: number, name: string; price: number }[];
@@ -951,11 +940,9 @@ export async function purchaseTickets(request: PurchaseRequest) {
         
         const finalAmount = totalAmount;
         
-        // This is a placeholder for the actual payment gateway interaction
         console.log(`Initiating payment for ${finalAmount.toFixed(2)} ETB...`);
         const paymentSessionId = `MOCK_${randomUUID()}`;
 
-        // Create a single attendee record for the entire purchase
         const firstTicket = tickets[0];
         if (!firstTicket) throw new Error("No tickets in purchase request.");
 
@@ -967,12 +954,11 @@ export async function purchaseTickets(request: PurchaseRequest) {
                 phoneNumber: attendeeDetails.phone,
                 userId: attendeeDetails.userId || user?.id,
                 eventId: eventId,
-                ticketTypeId: firstTicket.id, // Primary ticket type
+                ticketTypeId: firstTicket.id,
                 qrCode: randomUUID(),
             }
         });
 
-        // Update ticket counts
         for (const ticket of tickets) {
              await tx.ticketType.update({
                 where: { id: ticket.id },
@@ -983,7 +969,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
         const order = await tx.pendingOrder.create({
             data: {
                 arifpaySessionId: paymentSessionId,
-                transactionId: paymentSessionId, // Using the same for simplicity in mock
+                transactionId: paymentSessionId,
                 eventId: eventId,
                 ticketTypeId: firstTicket.id,
                 attendeeData: {
@@ -992,7 +978,7 @@ export async function purchaseTickets(request: PurchaseRequest) {
                     tickets: tickets,
                 },
                 attendeeId: newAttendee.id,
-                status: 'COMPLETED' // Mocking completion
+                status: 'COMPLETED'
             }
         });
 
@@ -1010,7 +996,6 @@ export async function getTicketDetailsForConfirmation(identifier: string) {
     if (isNumericId) {
         whereClause = { id: parseInt(identifier, 10) };
     } else {
-        // If it's not numeric, assume it's a transactionId from the payment success page
         const order = await prisma.pendingOrder.findFirst({
             where: { 
                 OR: [
@@ -1076,7 +1061,6 @@ export async function getTicketsForUser(userId?: string, phoneNumber?: string) {
     return serialize(attendees);
 }
 
-
 export async function getTicketsByUserId(userId: string | null) {
   if (!userId) {
     return [];
@@ -1105,10 +1089,8 @@ export async function validatePromoCode(code: string, eventId: number, location?
     });
 
     for (const promo of promos) {
-        // No restrictions, just match the code
         if (promo.code === code) return serialize(promo);
 
-        // Check for structured codes
         if (promo.code.includes(':')) {
             const parts = promo.code.split(':');
             const type = parts[0];
@@ -1133,9 +1115,7 @@ export async function validatePromoCode(code: string, eventId: number, location?
     return null;
 }
 
-
 export async function checkInAttendee(attendeeIdentifier: number | string) {
-    'use server';
     try {
         const normalizedIdentifier =
             typeof attendeeIdentifier === 'number'
@@ -1179,7 +1159,6 @@ export async function checkInAttendee(attendeeIdentifier: number | string) {
     }
 }
 
-// Branch and District Actions
 export async function createDistrict(data: { districtName: string; contactPersonName: string; contactPersonPhone: string; }) {
   const { districtName, ...rest } = data;
   const district = await prisma.district.create({
@@ -1212,4 +1191,100 @@ export async function getDistricts(): Promise<District[]> {
 export async function getBranches(): Promise<Branch[]> {
   const branches = await prisma.branch.findMany({ include: { district: true }});
   return serialize(branches);
+}
+
+interface AddUserResult {
+  success: boolean;
+  error?: string;
+}
+
+export async function addUser(
+  data: {
+    firstName: string;
+    lastName: string;
+    phoneNumber: string;
+    email: string;
+    roleId?: string;
+    branchId?: string;
+    nibBankAccount?: string | null;
+  },
+  isStaff: boolean = false
+): Promise<AddUserResult> {
+    const creator = await getCurrentUser();
+    if (!creator) {
+        return { success: false, error: 'You must be logged in to perform this action.' };
+    }
+
+    try {
+        const existingUserByPhone = await prisma.user.findUnique({
+            where: { phoneNumber: data.phoneNumber },
+        });
+        if (existingUserByPhone) {
+            return { success: false, error: 'Phone number is already registered.' };
+        }
+
+        const existingUserByEmail = await prisma.user.findUnique({
+            where: { email: data.email },
+        });
+        if (existingUserByEmail) {
+            return { success: false, error: 'Email is already registered.' };
+        }
+        
+        const tempPassword = nanoid(10);
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        
+        let roleId = data.roleId;
+        let organizerId: string | undefined = undefined;
+
+        if (isStaff) {
+             const staffRole = await prisma.role.findFirst({ where: { name: 'Staff' } });
+             if (!staffRole) {
+                return { success: false, error: 'Default role "Staff" not found.' };
+            }
+            roleId = staffRole.id;
+            organizerId = creator.id;
+        } else if (!roleId) {
+            return { success: false, error: 'A role must be selected for the user.' };
+        }
+        
+        const user = await prisma.user.create({
+            data: {
+                id: cuid(),
+                firstName: data.firstName,
+                lastName: data.lastName,
+                phoneNumber: data.phoneNumber,
+                email: data.email,
+                password: hashedPassword,
+                roleId: roleId,
+                branchId: data.branchId || null,
+                nibBankAccount: data.nibBankAccount || null,
+                status: 'ACTIVE',
+                passwordChangeRequired: true,
+                tokenVersion: 1,
+                organizerId: organizerId,
+            },
+        });
+        
+        await sendTempPassword({
+            email: data.email,
+            phoneNumber: data.phoneNumber,
+            tempPassword: tempPassword,
+        });
+
+        return { success: true };
+
+    } catch (error: any) {
+        console.error("Failed to add user:", error);
+        
+        if (error.code === 'P2002') {
+             if (error.meta?.target?.includes('phoneNumber')) {
+                return { success: false, error: "This phone number is already in use." };
+            }
+            if (error.meta?.target?.includes('email')) {
+                return { success: false, error: "This email address is already in use." };
+            }
+        }
+
+        return { success: false, error: error.message || "An unexpected error occurred." };
+    }
 }
