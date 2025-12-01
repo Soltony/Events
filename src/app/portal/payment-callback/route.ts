@@ -66,9 +66,24 @@ export async function POST(request: NextRequest) {
         throw new Error('No ticket information found in pending order.');
       }
       
+      // 2. Validate and normalize userId
+      // Guest users have userId like "guest_phonenumber" which is not a valid foreign key
+      // Only use userId if it's a real user ID that exists in the User table
+      let validUserId: string | null = null;
+      if (userId && !userId.startsWith('guest_')) {
+        // Check if the user exists in the database
+        const user = await tx.user.findUnique({ where: { id: userId } });
+        if (user) {
+          validUserId = userId;
+        } else {
+          console.warn(`User with ID ${userId} not found in database. Setting userId to null.`);
+        }
+      }
+      // If userId starts with 'guest_' or is invalid, validUserId remains null
+      
       let lastAttendee = null;
 
-      // 2. Create Attendee record(s)
+      // 3. Create Attendee record(s)
       for (const ticketInfo of tickets) {
         const ticketTypeId = ticketInfo.id;
         const quantity = ticketInfo.quantity || 1;
@@ -84,7 +99,7 @@ export async function POST(request: NextRequest) {
         const attendeesToCreate = Array.from({ length: quantity }).map(() => ({
           name,
           phoneNumber: normalizedPhone,
-          userId: userId,
+          userId: validUserId, // Use validated userId (null for guests)
           eventId: eventPayment.eventId,
           ticketTypeId: ticketTypeId,
           checkedIn: false,
@@ -95,7 +110,13 @@ export async function POST(request: NextRequest) {
 
         // Get the last created attendee for this batch
         lastAttendee = await tx.attendee.findFirst({
-            where: { eventId: eventPayment.eventId, name, phoneNumber, userId, ticketTypeId: ticketTypeId },
+            where: { 
+              eventId: eventPayment.eventId, 
+              name, 
+              phoneNumber: normalizedPhone, 
+              userId: validUserId, 
+              ticketTypeId: ticketTypeId 
+            },
             orderBy: { createdAt: 'desc' }
         });
 
@@ -145,6 +166,7 @@ export async function POST(request: NextRequest) {
     revalidatePath(`/payment/success?transaction_id=${eventPayment.pendingOrder.transactionId}`);
 
     console.log(`Successfully processed payment for transaction ${txnRef}.`);
+    
 
     return NextResponse.json({ message: 'Payment confirmed and updated.', attendeeId: createdAttendee?.id }, { status: 200 });
 

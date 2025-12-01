@@ -54,14 +54,6 @@ interface TicketDetails extends Attendee {
     ticketType: TicketType;
 }
 
-declare global {
-    interface Window {
-        myJsChannel?: {
-            postMessage: (message: { token: string }) => void;
-        };
-    }
-}
-
 export type SelectedTicket = {
   id: number;
   name: string;
@@ -298,16 +290,31 @@ export default function PublicEventDetailPage() {
             try {
                 const response = await api.get(`/api/payment/status/${paymentTransactionId}`);
                 if (response.data.status === 'COMPLETED') {
-                    const ticketDetails = await getTicketDetailsForConfirmation(paymentTransactionId);
-                    if (ticketDetails) {
-                        setConfirmedTicket(ticketDetails);
-                        const qrUrl = await QRCode.toDataURL(ticketDetails.qrCode, { errorCorrectionLevel: 'H', type: 'image/png', margin: 1 });
-                        setQrCodeDataUrl(qrUrl);
-                        setPaymentStatus('success');
+                    if (response.data.attendeeId) {
+                        // Set success toast flag for confirmation page
+                        try {
+                            sessionStorage.setItem('showSuccessToast', 'true');
+                        } catch (e) {
+                            console.warn('Could not set sessionStorage flag');
+                        }
+                        // Redirect to confirmation page
+                        router.push(`/ticket/${response.data.attendeeId}/confirmation`);
+                        isCancelled = true; // Stop polling
                     } else {
-                        throw new Error("Could not retrieve ticket details after confirmation.");
+                        // Fallback: try to get ticket details the old way
+                        const ticketDetails = await getTicketDetailsForConfirmation(paymentTransactionId);
+                        if (ticketDetails) {
+                            try {
+                                sessionStorage.setItem('showSuccessToast', 'true');
+                            } catch (e) {
+                                console.warn('Could not set sessionStorage flag');
+                            }
+                            router.push(`/ticket/${ticketDetails.id}/confirmation`);
+                        } else {
+                            throw new Error("Could not retrieve ticket details after confirmation.");
+                        }
+                        isCancelled = true; // Stop polling
                     }
-                    isCancelled = true; // Stop polling
                 } else {
                     setTimeout(poll, 2000);
                 }
@@ -320,7 +327,7 @@ export default function PublicEventDetailPage() {
         poll();
 
         return () => { isCancelled = true; };
-    }, [paymentStatus, paymentTransactionId]);
+    }, [paymentStatus, paymentTransactionId, router]);
 
 
     const eventLocations = useMemo(() => {
@@ -682,8 +689,10 @@ export default function PublicEventDetailPage() {
           throw new Error('NIB SuperApp channel is not available.');
         }
 
-        window.myJsChannel.postMessage({ token: paymentToken });
+        window.myJsChannel.postMessage({ type: 'PAYMENT', token: paymentToken });
         toast({ title: "Processing Payment", description: "Handing off to NIBtera Super App..." });
+
+        
 
       } catch (err: any) {
         console.error("Payment initiation error:", err);
