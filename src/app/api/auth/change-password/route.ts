@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     const { phoneNumber, currentPassword, newPassword } = await req.json();
 
     if (!phoneNumber || !currentPassword || !newPassword) {
-      return NextResponse.json({ message: 'All fields are required.' }, { status: 400 });
+      return NextResponse.json({ errors: ['All fields are required.'] }, { status: 400 });
     }
 
     const user = await prisma.user.findUnique({
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!user || !user.password) {
-      return NextResponse.json({ message: 'Invalid credentials.' }, { status: 401 });
+      return NextResponse.json({ errors: ['Invalid credentials.'] }, { status: 401 });
     }
 
     const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
@@ -34,10 +34,11 @@ export async function POST(req: NextRequest) {
       data: {
         password: newHashedPassword,
         passwordChangeRequired: false,
+        tokenVersion: { increment: 1 }, // Invalidate old tokens
       },
     });
 
-    return NextResponse.json({ success: true }, { status: 200 });
+    return NextResponse.json({ success: true, message: 'Password updated successfully.' }, { status: 200 });
 
   } catch (error) {
     console.error('[CHANGE_PASSWORD_ERROR]', error);

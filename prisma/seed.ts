@@ -93,6 +93,7 @@ async function main() {
       nibBankAccount: '7000000000000', // Placeholder account
       status: 'ACTIVE',
       passwordChangeRequired: true,
+      tokenVersion: 1,
     },
   });
 

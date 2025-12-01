@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
       phoneNumber?: string;
       ip?: string;
       userAgent?: string;
+      tokenVersion?: number;
     };
 
     if (!decoded.userId) {
@@ -70,6 +71,14 @@ export async function GET(req: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ message: 'User not found.' }, { status: 404 });
+    }
+
+    // --- Token Version Verification ---
+    if (user.tokenVersion !== decoded.tokenVersion) {
+        console.warn(`Token revocation check failed for user ${user.id}. Token version: ${decoded.tokenVersion}, DB version: ${user.tokenVersion}`);
+        const response = NextResponse.json({ message: 'Session has been invalidated. Please log in again.' }, { status: 401 });
+        response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+        return response;
     }
 
     const { password: _, ...userWithoutPassword } = user;

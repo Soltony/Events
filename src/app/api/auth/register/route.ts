@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
         roleId: organizerRole.id,
         status: 'INACTIVE', // Accounts are inactive until approved by an admin
         passwordChangeRequired: true,
+        tokenVersion: 1,
       },
     });
 

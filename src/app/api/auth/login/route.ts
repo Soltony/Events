@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
       role: user.role.name,
       permissions: user.role.permissions,
       phoneNumber: user.phoneNumber,
+      tokenVersion: user.tokenVersion, // Include token version
       isGuest: false,
       ip,
       userAgent,
