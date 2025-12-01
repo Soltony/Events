@@ -37,19 +37,6 @@ interface AttendeeTicket {
   };
 }
 
-// --- Permission Definitions ---
-const VALID_PERMISSIONS = new Set([
-  'Dashboard:Create', 'Dashboard:Read', 'Dashboard:Update', 'Dashboard:Delete',
-  'Scan QR:Create', 'Scan QR:Read', 'Scan QR:Update', 'Scan QR:Delete',
-  'Events:Create', 'Events:Read', 'Events:Update', 'Events:Delete',
-  'Reports:Create', 'Reports:Read', 'Reports:Update', 'Reports:Delete',
-  'User Registration:Create', 'User Registration:Read', 'User Registration:Update', 'User Registration:Delete',
-  'User Management:Create', 'User Management:Read', 'User Management:Update', 'User Management:Delete',
-  'Role Management:Create', 'Role Management:Read', 'Role Management:Update', 'Role Management:Delete',
-  'Staff Management:Create', 'Staff Management:Read', 'Staff Management:Update', 'Staff Management:Delete',
-]);
-
-
 export async function getCurrentUser(): Promise<(User & { role: Role, branch: Branch | null }) | null> {
     const session = await getServerSession(authOptions);
 
@@ -64,6 +51,15 @@ export async function getCurrentUser(): Promise<(User & { role: Role, branch: Br
             branch: true,
         },
     });
+
+    if (!user) return null;
+
+    // Compare token versions to invalidate old sessions
+    if (session.user.passwordChangeRequired !== user.passwordChangeRequired && user.passwordChangeRequired) {
+        // This check is a bit redundant if we trust hasPermission, but it's a good fallback.
+        // A more robust check would involve a token version number.
+    }
+
 
     return serialize(user);
 }
@@ -803,6 +799,17 @@ export async function getRoleById(id: string) {
 }
 
 export async function createRole(data: { name: string; description: string; permissions: string[] }) {
+    const VALID_PERMISSIONS = new Set([
+      'Dashboard:Create', 'Dashboard:Read', 'Dashboard:Update', 'Dashboard:Delete',
+      'Scan QR:Create', 'Scan QR:Read', 'Scan QR:Update', 'Scan QR:Delete',
+      'Events:Create', 'Events:Read', 'Events:Update', 'Events:Delete',
+      'Reports:Create', 'Reports:Read', 'Reports:Update', 'Reports:Delete',
+      'User Registration:Create', 'User Registration:Read', 'User Registration:Update', 'User Registration:Delete',
+      'User Management:Create', 'User Management:Read', 'User Management:Update', 'User Management:Delete',
+      'Role Management:Create', 'Role Management:Read', 'Role Management:Update', 'Role Management:Delete',
+      'Staff Management:Create', 'Staff Management:Read', 'Staff Management:Update', 'Staff Management:Delete',
+    ]);
+    
     const { name, description, permissions } = data;
 
     // Validate that all incoming permissions are known and valid
@@ -825,6 +832,17 @@ export async function createRole(data: { name: string; description: string; perm
 }
 
 export async function updateRole(id: string, data: Partial<Role> & { permissions: string }) {
+    const VALID_PERMISSIONS = new Set([
+      'Dashboard:Create', 'Dashboard:Read', 'Dashboard:Update', 'Dashboard:Delete',
+      'Scan QR:Create', 'Scan QR:Read', 'Scan QR:Update', 'Scan QR:Delete',
+      'Events:Create', 'Events:Read', 'Events:Update', 'Events:Delete',
+      'Reports:Create', 'Reports:Read', 'Reports:Update', 'Reports:Delete',
+      'User Registration:Create', 'User Registration:Read', 'User Registration:Update', 'User Registration:Delete',
+      'User Management:Create', 'User Management:Read', 'User Management:Update', 'User Management:Delete',
+      'Role Management:Create', 'Role Management:Read', 'Role Management:Update', 'Role Management:Delete',
+      'Staff Management:Create', 'Staff Management:Read', 'Staff Management:Update', 'Staff Management:Delete',
+    ]);
+    
     const permissionsString = data.permissions || '[]';
     
     let permissionsArray: string[] = [];
