@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     }
     
     const headersList = headers();
-    const ip = headersList.get('x-forwarded-for') ?? '127.0.0.1';
+    const ip = req.ip ?? headersList.get('x-forwarded-for') ?? '127.0.0.1';
     const userAgent = headersList.get('user-agent') ?? '';
 
 
@@ -48,10 +48,10 @@ export async function POST(req: NextRequest) {
       role: user.role.name,
       permissions: user.role.permissions,
       phoneNumber: user.phoneNumber,
-      tokenVersion: user.tokenVersion, // Include token version
+      tokenVersion: user.tokenVersion, // Include token version for revocation
       isGuest: false,
-      ip,
-      userAgent,
+      ip, // Session Binding
+      userAgent, // Session Binding
     };
 
     const token = jwt.sign(tokenPayload, JWT_SECRET, {
