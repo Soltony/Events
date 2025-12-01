@@ -73,20 +73,21 @@ async function main() {
   console.log(`Created/updated essential roles: Admin, Staff, Organizer.`);
 
   // Create Admin User with a hashed password
-  const adminPassword = 'admin123';
+  const adminPassword = 'Admin@123';
   const hashedPassword = await bcrypt.hash(adminPassword, 10);
   
   await prisma.user.upsert({
     where: { email: 'admin@example.com' }, // Using email as the unique identifier for upsert
     update: {
         password: hashedPassword,
+        phoneNumber: '0912345678',
         roleId: adminRole.id,
     },
     create: {
       id: cuid(),
       firstName: 'Admin',
       lastName: 'User',
-      phoneNumber: '0900000000', // Using a clear placeholder number
+      phoneNumber: '0912345678',
       email: 'admin@example.com',
       password: hashedPassword,
       roleId: adminRole.id,
