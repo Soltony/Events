@@ -10,6 +10,8 @@ import jwt from 'jsonwebtoken';
 import type { DateRange } from 'react-day-picker';
 import { randomUUID } from 'crypto';
 import { buildPhoneVariants, normalizePhoneNumber } from './utils';
+import { verifyAuth } from './auth-middleware';
+import { NextRequest } from 'next/server';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -50,50 +52,17 @@ const VALID_PERMISSIONS = new Set([
 
 
 export async function getCurrentUser(): Promise<(User & { role: Role, branch: Branch | null }) | null> {
-  try {
-    const cookieStore = cookies();
-    const tokenCookie = cookieStore.get('auth_token');
+  // We need a mock request object for verifyAuth to work in server components/actions
+  const req = new NextRequest(new URL('http://localhost/api/internal-call'), {
+      headers: {
+          cookie: cookies().toString(),
+          'user-agent': 'internal-server-call',
+          'x-forwarded-for': '127.0.0.1'
+      }
+  });
 
-    if (!tokenCookie?.value) {
-      return null;
-    }
-    
-    const JWT_SECRET = process.env.JWT_SECRET;
-    if (!JWT_SECRET) {
-      console.error("JWT_SECRET is not set in environment variables.");
-      return null;
-    }
-
-    const decoded = jwt.verify(tokenCookie.value, JWT_SECRET) as { userId: string, tokenVersion?: number };
-
-    if (!decoded || !decoded.userId) {
-        return null;
-    }
-
-    const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-        include: { 
-            role: true,
-            branch: true 
-        },
-    });
-
-    if (!user) {
-        return null;
-    }
-
-    // --- CRITICAL: Enforce token version check ---
-    if (user.tokenVersion !== decoded.tokenVersion) {
-        console.warn(`Token revocation check failed for user ${user.id}. Token version: ${decoded.tokenVersion}, DB version: ${user.tokenVersion}`);
-        return null; // Invalid token, treat as logged out
-    }
-    
-    return serialize(user);
-
-  } catch(e) {
-      console.error("Error decoding token or finding user", e);
-      return null;
-  }
+  const user = await verifyAuth(req);
+  return serialize(user);
 }
 
 

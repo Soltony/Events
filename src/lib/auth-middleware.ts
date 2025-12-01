@@ -39,6 +39,7 @@ export async function verifyAuth(req: NextRequest): Promise<VerifiedUser | null>
     const decoded = jwt.verify(token, JWT_SECRET) as {
       userId: string;
       isGuest?: boolean;
+      phoneNumber?: string;
       ip?: string;
       userAgent?: string;
       tokenVersion?: number;
