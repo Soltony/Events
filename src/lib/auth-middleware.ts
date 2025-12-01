@@ -118,38 +118,3 @@ export async function verifyAuth(req: NextRequest): Promise<VerifiedUser | null>
     return null;
   }
 }
-
-
-// These functions are no longer used in middleware but can be adapted for server components if needed.
-type AuthenticatedRequestHandler = (req: NextRequest, user: VerifiedUser) => Promise<NextResponse>;
-
-export function requireAuth(handler: AuthenticatedRequestHandler) {
-    return async (req: NextRequest) => {
-        const user = await verifyAuth(req);
-        if (!user) {
-            return NextResponse.json({ message: 'Authentication required.' }, { status: 401 });
-        }
-        return handler(req, user);
-    };
-}
-
-export function requirePermission(permission: string) {
-    return function(handler: AuthenticatedRequestHandler) {
-        return requireAuth(async (req: NextRequest, user: VerifiedUser) => {
-            if (user.role.name === 'Admin') {
-                return handler(req, user);
-            }
-            
-            try {
-                const permissions: string[] = JSON.parse(user.role.permissions);
-                if (permissions.includes(permission)) {
-                    return handler(req, user);
-                }
-            } catch (e) {
-                console.error("Failed to parse permissions for user:", user.id);
-            }
-
-            return NextResponse.json({ message: 'Permission denied.' }, { status: 403 });
-        });
-    };
-}
