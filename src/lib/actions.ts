@@ -6,12 +6,11 @@ import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, PromoCodeType, Event, Attendee, EventStatus, UserStatus, District, Branch } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import jwt from 'jsonwebtoken';
 import type { DateRange } from 'react-day-picker';
 import { randomUUID } from 'crypto';
 import { buildPhoneVariants, normalizePhoneNumber } from './utils';
-import { verifyAuth } from './auth-middleware';
-import { NextRequest } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 // Helper to ensure data is serializable
 const serialize = (data: any) => JSON.parse(JSON.stringify(data, (key, value) =>
@@ -52,17 +51,21 @@ const VALID_PERMISSIONS = new Set([
 
 
 export async function getCurrentUser(): Promise<(User & { role: Role, branch: Branch | null }) | null> {
-  // We need a mock request object for verifyAuth to work in server components/actions
-  const req = new NextRequest(new URL('http://localhost/api/internal-call'), {
-      headers: {
-          cookie: cookies().toString(),
-          'user-agent': 'internal-server-call',
-          'x-forwarded-for': '127.0.0.1'
-      }
-  });
+    const session = await getServerSession(authOptions);
 
-  const user = await verifyAuth(req);
-  return serialize(user);
+    if (!session?.user?.id) {
+        return null;
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        include: {
+            role: true,
+            branch: true,
+        },
+    });
+
+    return serialize(user);
 }
 
 

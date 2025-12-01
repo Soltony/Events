@@ -1,22 +1,17 @@
-// This example file has been removed as it was causing build errors
-// by referencing deprecated functions (requireAuth, requirePermission).
-// The correct way to protect API routes now is to manually call `verifyAuth`
-// from within the route handler.
 
-import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth-middleware';
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
-export async function GET(req: NextRequest) {
-  const user = await verifyAuth(req);
+export async function GET() {
+  const session = await getServerSession(authOptions);
 
-  if (!user) {
-    return NextResponse.json({ message: 'Authentication required' }, { status: 401 });
+  if (!session) {
+    return NextResponse.json({ message: 'You must be logged in.' }, { status: 401 });
   }
 
-  // Example of a permission check:
-  if (user.role.name !== 'Admin' && !user.role.permissions.includes('Events:Read')) {
-     return NextResponse.json({ message: 'Permission denied' }, { status: 403 });
-  }
-
-  return NextResponse.json({ message: 'Access granted', user: { id: user.id, role: user.role.name } });
+  return NextResponse.json({
+    message: 'Access granted!',
+    user: session.user,
+  });
 }
