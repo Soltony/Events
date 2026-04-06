@@ -58,7 +58,7 @@ export default function ScanQrPageContent() {
                 toast({ variant: 'destructive', title: 'Check-in Failed', description: checkInResult.error });
             } else if(checkInResult.data) {
                 setResult({ data: checkInResult.data, error: null });
-                toast({ title: 'Check-in Successful!', description: `${checkInResult.data.name} has been checked in.` });
+                toast({ title: 'Check-in Successful!', description: `${checkInResult.data.name}'s ticket is now marked as Used.` });
             }
         } catch (error: any) {
             console.error("Scan processing error:", error);
@@ -139,7 +139,7 @@ export default function ScanQrPageContent() {
             return (
                 <Alert variant="default" className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <AlertTitle className="text-green-800 dark:text-green-300">Check-in Successful</AlertTitle>
+                    <AlertTitle className="text-green-800 dark:text-green-300">Check-in Successful (Marked as Used)</AlertTitle>
                     <AlertDescription className="text-green-700 dark:text-green-400">
                        <div className="font-semibold text-lg">{result.data.name}</div>
                        <p><span className="font-medium">Event:</span> {result.data.event.name}</p>

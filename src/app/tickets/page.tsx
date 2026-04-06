@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { format } from 'date-fns';
-import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,12 +29,14 @@ interface Attendee {
   id: number;
   userId: string | null;
   phoneNumber: string | null;
+  checkedIn: boolean;
   createdAt: Date;
   event: Event;
   ticketType: TicketType;
 }
 
 const DEFAULT_IMAGE_PLACEHOLDER = '/images/nibtickets.jpg';
+type TicketStatus = 'Used' | 'Expired' | 'Active' | 'Upcoming';
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
   const startDateFormat = 'LLL dd, y, hh:mm a';
@@ -52,8 +53,36 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 export default function MyTicketsPage() {
   const [tickets, setTickets] = useState<Attendee[]>([]);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
   const { toast } = useToast();
+
+  const getTicketStatus = (ticket: Attendee): TicketStatus => {
+    if (ticket.checkedIn) return 'Used';
+
+    const now = new Date();
+    const start = new Date(ticket.event.startDate);
+    const end = ticket.event.endDate ? new Date(ticket.event.endDate) : null;
+
+    if (end && end < now) return 'Expired';
+    if (start <= now) return 'Active';
+    return 'Upcoming';
+  };
+
+  const activeTickets = tickets.filter((ticket) => {
+    const status = getTicketStatus(ticket);
+    return status === 'Active' || status === 'Upcoming';
+  });
+
+  const purchasedAndExpiredTickets = tickets.filter((ticket) => {
+    const status = getTicketStatus(ticket);
+    return status === 'Used' || status === 'Expired';
+  });
+
+  const statusClassMap: Record<TicketStatus, string> = {
+    Upcoming: 'bg-blue-100 text-blue-700',
+    Active: 'bg-green-100 text-green-700',
+    Used: 'bg-amber-100 text-amber-700',
+    Expired: 'bg-gray-200 text-gray-700',
+  };
 
   useEffect(() => {
     async function fetchTickets() {
@@ -123,6 +152,59 @@ export default function MyTicketsPage() {
     );
   }
 
+  const renderTicketGrid = (ticketList: Attendee[]) => (
+    <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
+      {ticketList.map((ticket) => {
+        const imageSource = ticket.event.image || DEFAULT_IMAGE_PLACEHOLDER;
+        const status = getTicketStatus(ticket);
+
+        return (
+          <Card
+            key={ticket.id}
+            className="bg-white shadow-md hover:shadow-lg transition-all rounded-2xl overflow-hidden border border-gray-200"
+          >
+            <CardHeader className="p-0 relative aspect-video">
+              <Image
+                src={imageSource}
+                alt={ticket.event.name}
+                fill
+                className="object-cover rounded-t-2xl"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = DEFAULT_IMAGE_PLACEHOLDER;
+                  target.srcset = '';
+                }}
+              />
+            </CardHeader>
+            <CardContent className="p-5 text-left">
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="text-xl font-bold text-[#864b20]">{ticket.event.name}</CardTitle>
+                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusClassMap[status]}`}>
+                  {status}
+                </span>
+              </div>
+              <CardDescription className="text-sm text-gray-500 mt-1">
+                {formatEventDate(ticket.event.startDate, ticket.event.endDate)}
+              </CardDescription>
+              <p className="font-semibold mt-3 text-[#f6b313]">{ticket.ticketType.name}</p>
+            </CardContent>
+            <CardFooter className="p-5 pt-0">
+              <Button
+                asChild
+                className="w-full bg-[#864b20] hover:bg-[#6e3f1b] text-white font-semibold rounded-xl"
+              >
+                <Link href={`/ticket/${ticket.id}/confirmation`}>
+                  View QR Code & Details
+                  <ArrowUpRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </CardFooter>
+          </Card>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-white py-10 px-4">
       <div className="max-w-5xl mx-auto text-center mb-10">
@@ -131,48 +213,34 @@ export default function MyTicketsPage() {
       </div>
 
       {tickets.length > 0 ? (
-        <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
-          {tickets.map((ticket) => {
-            const imageSource = ticket.event.image || DEFAULT_IMAGE_PLACEHOLDER;
-            return (
-              <Card
-                key={ticket.id}
-                className="bg-white shadow-md hover:shadow-lg transition-all rounded-2xl overflow-hidden border border-gray-200"
-              >
-                <CardHeader className="p-0 relative aspect-video">
-                  <Image
-                    src={imageSource}
-                    alt={ticket.event.name}
-                    fill
-                    className="object-cover rounded-t-2xl"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = DEFAULT_IMAGE_PLACEHOLDER;
-                      target.srcset = '';
-                    }}
-                  />
-                </CardHeader>
-                <CardContent className="p-5 text-left">
-                  <CardTitle className="text-xl font-bold text-[#864b20]">{ticket.event.name}</CardTitle>
-                  <CardDescription className="text-sm text-gray-500 mt-1">
-                    {formatEventDate(ticket.event.startDate, ticket.event.endDate)}
-                  </CardDescription>
-                  <p className="font-semibold mt-3 text-[#f6b313]">{ticket.ticketType.name}</p>
-                </CardContent>
-                <CardFooter className="p-5 pt-0">
-                  <Button
-                    asChild
-                    className="w-full bg-[#864b20] hover:bg-[#6e3f1b] text-white font-semibold rounded-xl"
-                  >
-                    <Link href={`/ticket/${ticket.id}/confirmation`}>
-                      View QR Code & Details
-                      <ArrowUpRight className="ml-2 h-4 w-4" />
-                    </Link>
-                  </Button>
-                </CardFooter>
-              </Card>
-            );
-          })}
+        <div className="space-y-10 max-w-6xl mx-auto">
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-[#864b20]">Upcoming / Active</h2>
+              <span className="text-sm text-gray-500">{activeTickets.length} ticket(s)</span>
+            </div>
+            {activeTickets.length > 0 ? (
+              renderTicketGrid(activeTickets)
+            ) : (
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-gray-500">
+                No upcoming or active tickets.
+              </div>
+            )}
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-[#864b20]">Purchased & Expired</h2>
+              <span className="text-sm text-gray-500">{purchasedAndExpiredTickets.length} ticket(s)</span>
+            </div>
+            {purchasedAndExpiredTickets.length > 0 ? (
+              renderTicketGrid(purchasedAndExpiredTickets)
+            ) : (
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-gray-500">
+                No used or expired tickets yet.
+              </div>
+            )}
+          </section>
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center text-center py-20 border-2 border-dashed border-gray-300 rounded-2xl bg-gray-50 max-w-xl mx-auto">
