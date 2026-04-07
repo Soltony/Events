@@ -38,6 +38,7 @@ interface Attendee {
 
 const DEFAULT_IMAGE_PLACEHOLDER = '/images/nibtickets.jpg';
 type TicketStatus = 'Used' | 'Expired' | 'Active' | 'Upcoming';
+type TicketTab = 'Active' | 'Used' | 'Expired';
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
   const startDateFormat = 'LLL dd, y, hh:mm a';
@@ -54,6 +55,7 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 export default function MyTicketsPage() {
   const [tickets, setTickets] = useState<Attendee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTab, setSelectedTab] = useState<TicketTab>('Active');
   const { toast } = useToast();
 
   const getTicketStatus = (ticket: Attendee): TicketStatus => {
@@ -77,6 +79,17 @@ export default function MyTicketsPage() {
     const status = getTicketStatus(ticket);
     return status === 'Used' || status === 'Expired';
   });
+
+  const usedTickets = tickets.filter((ticket) => getTicketStatus(ticket) === 'Used');
+  const expiredTickets = tickets.filter((ticket) => getTicketStatus(ticket) === 'Expired');
+
+  const ticketsByTab: Record<TicketTab, Attendee[]> = {
+    Active: activeTickets,
+    Used: usedTickets,
+    Expired: expiredTickets,
+  };
+
+  const selectedTickets = ticketsByTab[selectedTab];
 
   const statusClassMap: Record<TicketStatus, string> = {
     Upcoming: 'bg-blue-100 text-blue-700',
@@ -214,31 +227,37 @@ export default function MyTicketsPage() {
       </div>
 
       {tickets.length > 0 ? (
-        <div className="space-y-10 max-w-6xl mx-auto">
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-[#864b20]">Upcoming / Active</h2>
-              <span className="text-sm text-gray-500">{activeTickets.length} ticket(s)</span>
-            </div>
-            {activeTickets.length > 0 ? (
-              renderTicketGrid(activeTickets)
-            ) : (
-              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-gray-500">
-                No upcoming or active tickets.
-              </div>
-            )}
-          </section>
+        <div className="space-y-6 max-w-6xl mx-auto">
+          <div className="flex flex-wrap gap-2 justify-center md:justify-start">
+            {(['Active', 'Used', 'Expired'] as TicketTab[]).map((tab) => {
+              const isActive = selectedTab === tab;
+              const count = ticketsByTab[tab].length;
+              return (
+                <Button
+                  key={tab}
+                  type="button"
+                  onClick={() => setSelectedTab(tab)}
+                  variant={isActive ? 'default' : 'outline'}
+                  className={isActive ? 'bg-[#864b20] hover:bg-[#6e3f1b] text-white rounded-full px-5' : 'rounded-full px-5'}
+                >
+                  {tab} ({count})
+                </Button>
+              );
+            })}
+          </div>
 
           <section className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-[#864b20]">Purchased & Expired</h2>
-              <span className="text-sm text-gray-500">{purchasedAndExpiredTickets.length} ticket(s)</span>
+              <h2 className="text-2xl font-bold text-[#864b20]">{selectedTab} Tickets</h2>
+              <span className="text-sm text-gray-500">{selectedTickets.length} ticket(s)</span>
             </div>
-            {purchasedAndExpiredTickets.length > 0 ? (
-              renderTicketGrid(purchasedAndExpiredTickets)
+            {selectedTickets.length > 0 ? (
+              renderTicketGrid(selectedTickets)
             ) : (
               <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-gray-500">
-                No used or expired tickets yet.
+                {selectedTab === 'Active' && 'No active tickets waiting to be scanned.'}
+                {selectedTab === 'Used' && 'No used tickets yet.'}
+                {selectedTab === 'Expired' && 'No expired tickets yet.'}
               </div>
             )}
           </section>
