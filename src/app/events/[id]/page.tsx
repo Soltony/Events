@@ -38,12 +38,10 @@ import Link from 'next/link';
 import CartSheet from '@/components/cart-sheet';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import Autoplay from "embla-carousel-autoplay";
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAuth, ensureCsrfToken } from '@/context/auth-context';
 import api from '@/lib/api';
 import QRCode from 'qrcode';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 
 interface EventWithTickets extends Event {
@@ -107,10 +105,6 @@ export default function PublicEventDetailPage() {
   const [confirmedTicket, setConfirmedTicket] = useState<TicketDetails | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   
-  const plugin = useRef(
-    Autoplay({ delay: 3000, stopOnInteraction: true, stopOnMouseEnter: true })
-  );
-
   useEffect(() => {
     if (isNaN(eventId)) {
         notFound();
@@ -388,6 +382,11 @@ export default function PublicEventDetailPage() {
         return [];
     }, [event, selectedLocation, eventLocations]);
 
+    const showFreeBadge = useMemo(() => {
+      if (!event) return false;
+      return event.ticketTypes.some((ticket) => Number(ticket.basePrice) === 0);
+    }, [event]);
+
     const handleDownloadQRCode = () => {
         const qrImage = document.getElementById('qr-code-image') as HTMLImageElement;
         if (qrImage && confirmedTicket) {
@@ -444,8 +443,6 @@ export default function PublicEventDetailPage() {
   
   const eventImageUrls = getEventImageUrls(event.image);
   const posterImage = eventImageUrls[0] || DEFAULT_IMAGE_PLACEHOLDER;
-  // Show all uploaded images in the rotator; the first one is also used as the main poster.
-  const rotatorImages = eventImageUrls;
   const imageSource = posterImage;
   const homeLink = `/`;
 
@@ -482,52 +479,25 @@ export default function PublicEventDetailPage() {
               >
                   <div className="grid md:grid-cols-5 gap-8">
                       <div className="md:col-span-3 space-y-8">
-                          <div className="w-full aspect-video relative rounded-lg overflow-hidden shadow-lg">
-                            <Image src={imageSource} alt={`${event.name} image`} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
+                          <div className="relative -mx-4 -mt-4 w-[calc(100%+2rem)] sm:-mx-8 sm:-mt-8 sm:w-[calc(100%+4rem)] aspect-video overflow-hidden">
+                            <Image src={imageSource} alt={`${event.name} image`} fill className="h-full w-full object-cover object-center" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
+                            {showFreeBadge && (
+                              <div className="pointer-events-none absolute left-[-3.2rem] top-4 z-10 w-36 rotate-[-35deg] bg-[#f4b619] py-1 text-center text-xs font-extrabold tracking-[0.18em] text-black shadow-lg sm:left-[-2.8rem] sm:top-5 sm:w-40 sm:py-1.5 sm:text-sm">
+                                FREE
+                              </div>
+                            )}
                           </div>
 
-                          {rotatorImages.length > 0 && (
-                            <div className="rounded-lg">
-                              <Label className="text-sm font-semibold mb-2 block">More Photos</Label>
-                              <Carousel
-                                opts={{ loop: true }}
-                                className="relative isolate z-0 w-full px-10 sm:px-0"
-                              >
-                                <CarouselContent>
-                                  {rotatorImages.map((src, idx) => (
-                                    <CarouselItem key={`${src}-${idx}`} className="basis-1/2 sm:basis-1/3">
-                                      <div className="relative w-full aspect-video overflow-hidden rounded-md border">
-                                        <Image
-                                          src={src}
-                                          alt={`${event.name} photo ${idx + 2}`}
-                                          fill
-                                          className="object-cover"
-                                          onError={(e) => {
-                                            const target = e.target as HTMLImageElement;
-                                            target.src = DEFAULT_IMAGE_PLACEHOLDER;
-                                            target.srcset = '';
-                                          }}
-                                        />
-                                      </div>
-                                    </CarouselItem>
-                                  ))}
-                                </CarouselContent>
-                                <CarouselPrevious className="left-2 top-1/2 z-10 h-9 w-9 -translate-y-1/2 sm:-left-12 sm:h-8 sm:w-8" />
-                                <CarouselNext className="right-2 top-1/2 z-10 h-9 w-9 -translate-y-1/2 sm:-right-12 sm:h-8 sm:w-8" />
-                              </Carousel>
-                            </div>
-                          )}
-                          
                           <div className="rounded-lg p-0">
                               <Badge variant="outline" className={`mb-2 w-min whitespace-nowrap ${getCategoryBadgeClass(event.category)}`}>{event.category}</Badge>
-                              <h1 className="text-4xl font-bold tracking-tight text-card-foreground">{event.name}</h1>
+                              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-card-foreground">{event.name}</h1>
                               {event.organizerName && (
-                                  <div className="flex items-center gap-2 text-lg text-muted-foreground pt-3">
+                                  <div className="flex items-center gap-2 text-base sm:text-lg text-muted-foreground pt-3">
                                   <UserCircle className="h-5 w-5" />
                                   <span>By {event.organizerName}</span>
                                   </div>
                               )}
-                              <div className="text-lg text-muted-foreground space-y-2 pt-4">
+                              <div className="text-base sm:text-lg text-muted-foreground space-y-2 pt-4">
                                   <div className="flex items-center gap-3">
                                       <Calendar className="h-5 w-5" />
                                       <span className="whitespace-pre-line">{formatEventDate(event.startDate, event.endDate)}</span>
@@ -548,8 +518,8 @@ export default function PublicEventDetailPage() {
                           </div>
 
                           <div className="rounded-lg p-0">
-                              <h3 className="text-2xl font-semibold mb-4 text-card-foreground">About this Event</h3>
-                              <p className="text-base text-muted-foreground whitespace-pre-wrap leading-relaxed">{event.description}</p>
+                              <h3 className="text-xl sm:text-2xl font-semibold mb-4 text-card-foreground">About this Event</h3>
+                              <p className="text-sm sm:text-base text-muted-foreground whitespace-pre-wrap leading-relaxed">{event.description}</p>
                           </div>
                       </div>
 
@@ -557,7 +527,7 @@ export default function PublicEventDetailPage() {
                           <div className="rounded-lg p-0">
                               {eventLocations.length > 1 && (
                                   <div className="mb-6">
-                                      <Label htmlFor="location-select" className="text-lg font-semibold mb-2 block">Location</Label>
+                                      <Label htmlFor="location-select" className="text-base sm:text-lg font-semibold mb-2 block">Location</Label>
                                       <Select
                                           value={selectedLocation || ''}
                                           onValueChange={(value) => setSelectedLocation(value)}
@@ -579,7 +549,7 @@ export default function PublicEventDetailPage() {
                                         </Alert>
                                   </div>
                               )}
-                              <h3 className="text-2xl font-semibold mb-4 text-card-foreground">Tickets</h3>
+                              <h3 className="text-xl sm:text-2xl font-semibold mb-4 text-card-foreground">Tickets</h3>
                               <div key={selectedLocation || 'default-location'} className="space-y-4">
                                       {locationSpecificTickets.length > 0 ? (
                                       locationSpecificTickets.map(ticket => {
@@ -607,8 +577,8 @@ export default function PublicEventDetailPage() {
                                               >
                                                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                                                       <div className="mb-3 sm:mb-0">
-                                                          <h4 className="font-semibold text-lg">{baseName}</h4>
-                                                          <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-xl">
+                                                          <h4 className="font-semibold text-base sm:text-lg">{baseName}</h4>
+                                                          <p style={{ color: 'hsl(var(--accent))' }} className="font-bold text-lg sm:text-xl">
                                                               {Number(ticket.basePrice) === 0 ? 'Free' : `${Number(ticket.basePrice).toFixed(2)} ETB`}
                                                           </p>
                                                           <p className="text-sm text-muted-foreground">

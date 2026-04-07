@@ -391,12 +391,18 @@ export default function PublicHomePage({ searchParams }: { searchParams: { [key:
                     upcomingEvents.map((event) => {
                       const imageSource = getPrimaryEventImage(event.image) || DEFAULT_IMAGE_PLACEHOLDER;
                       const eventLink = `/events/${event.id}`;
+                      const hasFreeTicket = event.ticketTypes.some((ticket) => Number(ticket.basePrice) === 0);
                       return (
                         <CardContainer key={event.id} className="inter-var w-full h-[420px]">
                           <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col justify-between">
                             <CardItem translateZ="50" className="w-full">
                                <div className="relative w-full h-[200px] bg-muted rounded-t-xl overflow-hidden">
                                   <Image src={imageSource} alt={event.name} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
+                                  {hasFreeTicket && (
+                                    <div className="pointer-events-none absolute left-[-2.7rem] top-3 z-10 w-32 rotate-[-35deg] bg-[#f4b619] py-1 text-center text-[11px] font-extrabold tracking-[0.16em] text-black shadow-lg sm:left-[-2.9rem] sm:top-4 sm:w-36 sm:text-xs">
+                                      FREE
+                                    </div>
+                                  )}
                                </div>
                             </CardItem>
                             <div className="p-4 flex flex-col flex-grow justify-between rounded-b-xl" style={getContentGradient()}>
@@ -455,12 +461,18 @@ export default function PublicHomePage({ searchParams }: { searchParams: { [key:
                     topSellingEvents.slice(0, 4).map((event) => {
                       const imageSource = getPrimaryEventImage(event.image) || DEFAULT_IMAGE_PLACEHOLDER;
                       const eventLink = `/events/${event.id}`;
+                      const hasFreeTicket = event.ticketTypes.some((ticket) => Number(ticket.basePrice) === 0);
                       return (
                          <CardContainer key={event.id} className="inter-var w-full h-[420px]">
                           <CardBody className="bg-white relative group/card w-full h-full rounded-xl p-0 border border-black/[0.1] flex flex-col justify-between">
                             <CardItem translateZ="50" className="w-full">
                                <div className="relative w-full h-[200px] bg-muted rounded-t-xl overflow-hidden">
                                   <Image src={imageSource} alt={event.name} fill className="object-cover" data-ai-hint={event.hint ?? 'event'} onError={(e) => { const target = e.target as HTMLImageElement; target.src = DEFAULT_IMAGE_PLACEHOLDER; target.srcset = ''; }} />
+                                  {hasFreeTicket && (
+                                    <div className="pointer-events-none absolute left-[-2.7rem] top-3 z-10 w-32 rotate-[-35deg] bg-[#f4b619] py-1 text-center text-[11px] font-extrabold tracking-[0.16em] text-black shadow-lg sm:left-[-2.9rem] sm:top-4 sm:w-36 sm:text-xs">
+                                      FREE
+                                    </div>
+                                  )}
                                </div>
                             </CardItem>
                             <div className="p-4 flex flex-col flex-grow justify-between rounded-b-xl" style={getContentGradient()}>
