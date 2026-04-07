@@ -221,9 +221,8 @@ export default function MyTicketsPage() {
 
   return (
     <div className="min-h-screen bg-white py-10 px-4">
-      <div className="max-w-5xl mx-auto text-center mb-10">
-        <h1 className="text-4xl font-extrabold text-[#864b20]">🎟️ My Tickets</h1>
-        <p className="text-gray-600 mt-2">View and manage your purchased event tickets.</p>
+      <div className="max-w-5xl mx-auto text-center mb-8">
+        <h1 className="text-3xl font-semibold text-[#864b20]">🎟️ My Tickets</h1>
       </div>
 
       {tickets.length > 0 ? (

@@ -100,11 +100,8 @@ export default function CartSheet({
                 </div>
             </ScrollArea>
             <SheetFooter className="mt-auto flex shrink-0 flex-col gap-4 !space-x-0 border-t border-border bg-card px-6 pb-[max(1.75rem,calc(env(safe-area-inset-bottom,0px)+1.25rem))] pt-4 sm:px-0">
-                 <div className="space-y-2">
-                    <div className="text-sm">
-                        <div className="text-muted-foreground">Subtotal:</div>
-                        <div className="font-normal">{subtotal.toFixed(2)} ETB</div>
-                    </div>
+                <div className="space-y-2">
+                    {/* Subtotal removed — showing Total only to avoid duplicate values */}
                     {appliedPromo && (
                         <div className="text-sm flex justify-between text-green-600 dark:text-green-400">
                             <span>Discount ({appliedPromo.code})</span>

@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowUpRight, Ticket } from 'lucide-react';
 import api from '@/lib/api';
+import { getPrimaryEventImage } from '@/lib/event-images';
 import { useToast } from '@/hooks/use-toast';
 
 interface Event {
@@ -53,6 +54,7 @@ function formatEventDate(startDate: Date, endDate: Date | null | undefined): str
 export default function MyTicketsPage() {
   const [tickets, setTickets] = useState<Attendee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erroredImages, setErroredImages] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -124,10 +126,9 @@ export default function MyTicketsPage() {
 
   return (
     <div className="min-h-screen bg-white py-10 px-4">
-      <div className="max-w-5xl mx-auto text-center mb-10">
-        <h1 className="text-4xl font-extrabold text-[#864b20]">🎟️ My Tickets</h1>
-        <p className="text-gray-600 mt-2">View and manage your purchased event tickets.</p>
-      </div>
+      <div className="max-w-5xl mx-auto text-center mb-6">
+            <h1 className="text-2xl sm:text-3xl font-semibold text-[#864b20]">🎟️ My Tickets</h1>
+          </div>
 
       {tickets.length > 0 ? (
         <div className="space-y-10 max-w-6xl mx-auto">
@@ -142,34 +143,31 @@ export default function MyTicketsPage() {
               return eventEndDate < now;
             });
             const renderTicketCard = (ticket: Attendee) => {
-            const imageSource = ticket.event.image || DEFAULT_IMAGE_PLACEHOLDER;
+            const primary = getPrimaryEventImage(ticket.event.image) || DEFAULT_IMAGE_PLACEHOLDER;
+            const imageSource = erroredImages[ticket.id] ? DEFAULT_IMAGE_PLACEHOLDER : primary;
             return (
               <Card
                 key={ticket.id}
                 className="bg-white shadow-md hover:shadow-lg transition-all rounded-2xl overflow-hidden border border-gray-200"
               >
-                <CardHeader className="p-0 relative aspect-video">
+                <CardHeader className="p-0 relative h-36 sm:h-48">
                   <Image
                     src={imageSource}
                     alt={ticket.event.name}
                     fill
                     className="object-cover rounded-t-2xl"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = DEFAULT_IMAGE_PLACEHOLDER;
-                      target.srcset = '';
-                    }}
+                    onError={() => setErroredImages(prev => ({ ...prev, [ticket.id]: true }))}
                   />
                 </CardHeader>
-                <CardContent className="p-5 text-left">
-                  <CardTitle className="text-xl font-bold text-[#864b20]">{ticket.event.name}</CardTitle>
+                <CardContent className="p-4 text-left">
+                  <CardTitle className="text-lg font-semibold text-[#864b20]">{ticket.event.name}</CardTitle>
                   <CardDescription className="text-sm text-gray-500 mt-1">
                     {formatEventDate(ticket.event.startDate, ticket.event.endDate)}
                   </CardDescription>
                   <p className="text-sm text-gray-600 mt-2">Location: {ticket.event.location?.replace(/\|\|/g, ', ') || 'TBD'}</p>
-                  <p className="font-semibold mt-3 text-[#f6b313]">{ticket.ticketType.name}</p>
+                  <p className="font-semibold mt-2 text-[#f6b313]">{ticket.ticketType.name}</p>
                 </CardContent>
-                <CardFooter className="p-5 pt-0">
+                <CardFooter className="p-4 pt-0">
                   <Button
                     asChild
                     className="w-full bg-[#864b20] hover:bg-[#6e3f1b] text-white font-semibold rounded-xl"
