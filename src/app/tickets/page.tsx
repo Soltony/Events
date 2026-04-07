@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowUpRight, Ticket } from 'lucide-react';
 import api from '@/lib/api';
+import { getPrimaryEventImage } from '@/lib/event-images';
 import { useToast } from '@/hooks/use-toast';
 
 interface Event {
@@ -56,6 +57,7 @@ export default function MyTicketsPage() {
   const [tickets, setTickets] = useState<Attendee[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState<TicketTab>('Active');
+  const [erroredImages, setErroredImages] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
   const getTicketStatus = (ticket: Attendee): TicketStatus => {
@@ -167,45 +169,42 @@ export default function MyTicketsPage() {
   }
 
   const renderTicketGrid = (ticketList: Attendee[]) => (
-    <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
+    <div className="grid gap-3 sm:gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
       {ticketList.map((ticket) => {
-        const imageSource = ticket.event.image || DEFAULT_IMAGE_PLACEHOLDER;
+        const primaryImage = getPrimaryEventImage(ticket.event.image) || DEFAULT_IMAGE_PLACEHOLDER;
+        const imageSource = erroredImages[ticket.id] ? DEFAULT_IMAGE_PLACEHOLDER : primaryImage;
         const status = getTicketStatus(ticket);
 
         return (
           <Card
             key={ticket.id}
-            className="bg-white shadow-md hover:shadow-lg transition-all rounded-2xl overflow-hidden border border-gray-200"
+            className="bg-white shadow-md hover:shadow-lg transition-all rounded-xl sm:rounded-2xl overflow-hidden border border-gray-200"
           >
-            <CardHeader className="p-0 relative aspect-video">
+            <CardHeader className="p-0 relative h-24 sm:h-40">
               <Image
                 src={imageSource}
                 alt={ticket.event.name}
                 fill
-                className="object-cover rounded-t-2xl"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.src = DEFAULT_IMAGE_PLACEHOLDER;
-                  target.srcset = '';
-                }}
+                className="object-cover rounded-t-xl sm:rounded-t-2xl"
+                onError={() => setErroredImages((prev) => ({ ...prev, [ticket.id]: true }))}
               />
             </CardHeader>
-            <CardContent className="p-5 text-left">
+            <CardContent className="p-3 sm:p-4 text-left">
               <div className="flex items-center justify-between gap-3">
-                <CardTitle className="text-xl font-bold text-[#864b20]">{ticket.event.name}</CardTitle>
+                <CardTitle className="text-base sm:text-lg font-bold text-[#864b20] leading-tight">{ticket.event.name}</CardTitle>
                 <span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusClassMap[status]}`}>
                   {status}
                 </span>
               </div>
-              <CardDescription className="text-sm text-gray-500 mt-1">
+              <CardDescription className="text-xs sm:text-sm text-gray-500 mt-1">
                 {formatEventDate(ticket.event.startDate, ticket.event.endDate)}
               </CardDescription>
-              <p className="font-semibold mt-3 text-[#f6b313]">{ticket.ticketType.name}</p>
+              <p className="font-semibold mt-1.5 text-sm sm:text-base text-[#f6b313]">{ticket.ticketType.name}</p>
             </CardContent>
-            <CardFooter className="p-5 pt-0">
+            <CardFooter className="p-3 sm:p-4 pt-0">
               <Button
                 asChild
-                className="w-full bg-[#864b20] hover:bg-[#6e3f1b] text-white font-semibold rounded-xl"
+                className="w-full h-9 sm:h-10 bg-[#864b20] hover:bg-[#6e3f1b] text-white text-sm font-semibold rounded-lg sm:rounded-xl"
               >
                 <Link href={`/ticket/${ticket.id}/confirmation`}>
                   View QR Code & Details
