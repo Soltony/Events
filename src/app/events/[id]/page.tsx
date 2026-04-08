@@ -657,11 +657,18 @@ export default function PublicEventDetailPage() {
       </div>
 
       {!isEventEnded && !isCartOpen && (
-        <div className="fixed inset-x-0 bottom-14 z-[1000] border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90 md:hidden">
-          <div className="w-full px-2 py-3.5">
+        <div className="fixed inset-x-0 bottom-0 z-[1000] border-t bg-background/75 backdrop-blur-md supports-[backdrop-filter]:bg-background/65 md:hidden">
+          <div className="w-full px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
             {locationSpecificTickets.length > 0 ? (
-              <Carousel opts={{ align: 'start' }} className="relative isolate z-0 w-full px-9">
-                <CarouselContent>
+              <>
+                <Carousel opts={{ align: 'start' }} className="relative isolate z-0 w-full px-9">
+                  {locationSpecificTickets.length > 1 && (
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute right-0 top-0 z-5 h-full w-12 bg-gradient-to-l from-background/95 via-background/70 to-transparent backdrop-blur-sm"
+                    />
+                  )}
+                  <CarouselContent>
                   {locationSpecificTickets.map((ticket) => {
                     const selectedQuantity = selectedTickets[ticket.id]?.quantity || 0;
                     const remaining = ticket.total - ticket.sold;
@@ -730,10 +737,16 @@ export default function PublicEventDetailPage() {
                       </CarouselItem>
                     );
                   })}
-                </CarouselContent>
-                <CarouselPrevious className="left-0 top-1/2 z-10 h-8 w-8 -translate-y-1/2" />
-                <CarouselNext className="right-0 top-1/2 z-10 h-8 w-8 -translate-y-1/2" />
-              </Carousel>
+                  </CarouselContent>
+                  <CarouselPrevious className="left-0 top-1/2 z-10 h-8 w-8 -translate-y-1/2" />
+                  <CarouselNext className="right-0 top-1/2 z-10 h-8 w-8 -translate-y-1/2" />
+                </Carousel>
+                {locationSpecificTickets.length > 1 && (
+                  <p className="mt-1 px-1 text-sm font-medium text-[#864b20]">
+                    Swipe for more.
+                  </p>
+                )}
+              </>
             ) : (
               <p className="text-xs text-muted-foreground px-2">Tickets are not yet available for this event.</p>
             )}
