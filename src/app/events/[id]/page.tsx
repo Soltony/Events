@@ -725,7 +725,7 @@ export default function PublicEventDetailPage() {
                             <Button
                               size="icon"
                               variant="outline"
-                              className="h-9 w-9"
+                              className="h-9 w-9 -translate-y-[3px]"
                               onClick={() => updateTicketQuantity(ticket, Math.min(effectiveMax, selectedQuantity + 1))}
                               disabled={isUnavailable || (typeof effectiveMax === 'number' ? selectedQuantity >= effectiveMax : selectedQuantity >= remaining)}
                             >
