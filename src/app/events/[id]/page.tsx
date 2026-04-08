@@ -656,7 +656,7 @@ export default function PublicEventDetailPage() {
       </div>
 
       {!isEventEnded && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90 md:hidden">
+        <div className="fixed inset-x-0 bottom-14 z-[1000] border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90 md:hidden">
           <div className="w-full px-2 py-3.5">
             {locationSpecificTickets.length > 0 ? (
               <Carousel opts={{ align: 'start' }} className="relative isolate z-0 w-full px-9">
