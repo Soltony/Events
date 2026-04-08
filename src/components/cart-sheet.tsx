@@ -34,6 +34,8 @@ interface CartSheetProps {
   removePromoCode: () => void;
   updateTicketQuantity: (ticket: SelectedTicket, quantity: number) => void;
   eventColor?: string | null;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export default function CartSheet({
@@ -50,11 +52,13 @@ export default function CartSheet({
   handleApplyPromoCode,
   removePromoCode,
   updateTicketQuantity,
+  open,
+  onOpenChange,
 }: CartSheetProps) {
 
   return (
     <>
-    <Sheet>
+    <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetTrigger asChild>
             <div className="fixed right-4 top-1/2 z-[90] -translate-y-1/2 transition-opacity duration-200 data-[state=open]:pointer-events-none data-[state=open]:opacity-0 sm:right-6">
                 <Button className="h-14 w-14 rounded-full shadow-lg" size="icon">

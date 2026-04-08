@@ -94,6 +94,7 @@ export default function PublicEventDetailPage() {
   const [discount, setDiscount] = useState(0);
   const [isPromoLoading, setIsPromoLoading] = useState(false);
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const [attendeeName, setAttendeeName] = useState('');
   const [attendeePhone, setAttendeePhone] = useState('');
   const [isPhoneFromSession, setIsPhoneFromSession] = useState(false);
@@ -655,7 +656,7 @@ export default function PublicEventDetailPage() {
         </main>
       </div>
 
-      {!isEventEnded && (
+      {!isEventEnded && !isCartOpen && (
         <div className="fixed inset-x-0 bottom-14 z-[1000] border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/90 md:hidden">
           <div className="w-full px-2 py-3.5">
             {locationSpecificTickets.length > 0 ? (
@@ -753,6 +754,8 @@ export default function PublicEventDetailPage() {
             isPromoLoading={isPromoLoading}
             handleApplyPromoCode={handleApplyPromoCode}
             removePromoCode={removePromoCode}
+            open={isCartOpen}
+            onOpenChange={setIsCartOpen}
             updateTicketQuantity={(ticket: SelectedTicket, quantity: number) => {
                  const originalTicket = event?.ticketTypes.find(t => t.id === ticket.id);
                  if (originalTicket) {
