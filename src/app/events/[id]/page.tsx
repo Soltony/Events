@@ -657,7 +657,7 @@ export default function PublicEventDetailPage() {
       </div>
 
       {!isEventEnded && !isCartOpen && (
-        <div className="fixed inset-x-0 bottom-0 z-[1000] border-t bg-background/75 backdrop-blur-md supports-[backdrop-filter]:bg-background/65 md:hidden">
+        <div className="fixed inset-x-0 bottom-3 z-[1000] border-t bg-background/75 backdrop-blur-md supports-[backdrop-filter]:bg-background/65 md:hidden">
           <div className="w-full px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
             {locationSpecificTickets.length > 0 ? (
               <>
