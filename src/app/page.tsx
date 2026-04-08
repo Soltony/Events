@@ -22,7 +22,7 @@ import HomeUserActions from '@/components/home-user-actions';
 interface EventWithTickets extends Event {
     ticketTypes: TicketType[];
 }
-const TOP_SELLING_MIN_TICKETS_SOLD = 5;
+const TOP_SELLING_MIN_TICKETS_SOLD = 50;
 
 function formatEventDate(startDate: Date, endDate: Date | null | undefined): string {
     const startDateFormat = 'LLL dd, y, hh:mm a';

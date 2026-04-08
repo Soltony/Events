@@ -18,7 +18,7 @@ export default function SettingsPageContent() {
       description:
         'Manage promotional slides on the public homepage. These images are separate from event photos.',
       buttonText: 'Manage Carousel',
-      href: '/dashboard/settings/home-ads',
+      href: '/dashboard/settings/homeads',
       color: '#FBBF24',
       textColor: '#422006',
       adminOnly: true,

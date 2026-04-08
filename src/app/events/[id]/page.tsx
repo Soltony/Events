@@ -390,6 +390,10 @@ export default function PublicEventDetailPage() {
         return [];
     }, [event, selectedLocation, eventLocations]);
 
+    const remainingTicketCount = useMemo(() => {
+      return Math.max(locationSpecificTickets.length - 1, 0);
+    }, [locationSpecificTickets.length]);
+
     const handleDownloadQRCode = () => {
         const qrImage = document.getElementById('qr-code-image') as HTMLImageElement;
         if (qrImage && confirmedTicket) {
@@ -657,8 +661,8 @@ export default function PublicEventDetailPage() {
       </div>
 
       {!isEventEnded && !isCartOpen && (
-        <div className="fixed inset-x-0 bottom-3 z-[1000] border-t bg-background/75 backdrop-blur-md supports-[backdrop-filter]:bg-background/65 md:hidden">
-          <div className="w-full px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
+        <div className="fixed inset-x-0 bottom-0 z-[1000] border-t bg-background/75 backdrop-blur-md supports-[backdrop-filter]:bg-background/65 md:hidden">
+          <div className="w-full -translate-y-[3mm] px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
             {locationSpecificTickets.length > 0 ? (
               <>
                 <Carousel opts={{ align: 'start' }} className="relative isolate z-0 w-full px-9">
@@ -741,11 +745,14 @@ export default function PublicEventDetailPage() {
                   <CarouselPrevious className="left-0 top-1/2 z-10 h-8 w-8 -translate-y-1/2" />
                   <CarouselNext className="right-0 top-1/2 z-10 h-8 w-8 -translate-y-1/2" />
                 </Carousel>
-                {locationSpecificTickets.length > 1 && (
-                  <p className="mt-1 px-1 text-sm font-medium text-[#864b20]">
-                    Swipe for more.
-                  </p>
-                )}
+                <p className="mt-1 px-1 text-sm font-medium text-[#864b20]">
+                  {remainingTicketCount > 0
+                    ? `Swipe for ${remainingTicketCount} more ${remainingTicketCount === 1 ? 'ticket' : 'tickets'}.`
+                    : 'Swipe for more.'}
+                </p>
+                <p className="mt-0.5 text-center text-[11px] text-muted-foreground">
+                  Powered by <span className="text-[#FDE047]">Nib International Bank</span>
+                </p>
               </>
             ) : (
               <p className="text-xs text-muted-foreground px-2">Tickets are not yet available for this event.</p>
