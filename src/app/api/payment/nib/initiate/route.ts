@@ -5,6 +5,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { format } from 'date-fns';
 import { cookies } from 'next/headers';
+
+
 import prisma from '@/lib/prisma';
 
 export async function POST(req: NextRequest) {
@@ -75,7 +77,7 @@ console.log({superAppToken});
     const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
     const callBackURL = process.env.NIB_CALLBACK;
 
-    const signatureString = [
+     const signatureString = [
       `accountNo=${ACCOUNT_NO}`,
       `amount=${total}`,
       `callBackURL=${callBackURL}`,
@@ -86,11 +88,12 @@ console.log({superAppToken});
       `transactionTime=${transactionTime}`,
     ].join('&');
 
+
 console.log({signatureString});
 
     const signature = crypto.createHash('sha256').update(signatureString, 'utf8').digest('hex');
 
-    const payload = {
+     const payload = {
       accountNo: ACCOUNT_NO,
       amount: String(total),
       callBackURL: callBackURL,
@@ -100,6 +103,7 @@ console.log({signatureString});
       transactionTime,
       signature,
     };
+
 
 console.log({payload});
 
@@ -120,19 +124,42 @@ console.log({payload});
     console.log('[NIB INITIATE] Calling NIB Payment API...');
     console.log(superAppToken);
     let responseData: any;
+    let fetchStartMs: number | null = null;
+
     try {
-      const response = await fetch(NIB_PAYMENT_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${superAppToken}`,
-      },
-      body: JSON.stringify(payload),
-    });
+      const controller = new AbortController();
+      const timeoutMs = 60000; // 60 seconds
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+      let response: Response;
+      try {
+        fetchStartMs = Date.now();
+        response = await fetch(NIB_PAYMENT_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${superAppToken}`,
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        const elapsedMs = fetchStartMs ? Date.now() - fetchStartMs : null;
+        if (elapsedMs != null) {
+          console.log(`[NIB INITIATE] Fetch failed after ${ (elapsedMs/1000).toFixed(3) }s`);
+        }
+        throw err;
+      }
 
-console.log({payload,superAppToken, NIB_PAYMENT_URL});
+      clearTimeout(timeoutId);
 
+      const elapsedMs = fetchStartMs ? Date.now() - fetchStartMs : null;
+      if (elapsedMs != null) {
+        console.log(`[NIB INITIATE] NIB payment roundtrip time: ${ (elapsedMs/1000).toFixed(3) }s`);
+      }
+
+      console.log({ payload, superAppToken, NIB_PAYMENT_URL });
       console.log('[NIB INITIATE] Payment API Status:', response.status);
       const responseText = await response.text();
       console.log('[NIB INITIATE] NIB Payment raw response:', responseText);
@@ -141,7 +168,7 @@ console.log({payload,superAppToken, NIB_PAYMENT_URL});
         return NextResponse.json({ error: 'NIB payment request failed', details: responseText }, { status: response.status });
       }
 
-       if (!responseText) {
+      if (!responseText) {
         return NextResponse.json({ error: 'NIB payment response was empty.' }, { status: 502 });
       }
 
@@ -151,6 +178,9 @@ console.log({payload,superAppToken, NIB_PAYMENT_URL});
       }
     } catch (err: any) {
       console.error('[NIB INITIATE] Payment request to NIB failed:', err);
+      if (err?.name === 'AbortError') {
+        return NextResponse.json({ error: 'NIB payment request timed out after 60s.' }, { status: 504 });
+      }
       return NextResponse.json({ error: 'Could not connect to NIB payment service.', details: err.message }, { status: 503 });
     }
 

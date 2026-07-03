@@ -33,7 +33,13 @@ export async function GET(
     }
     if (user.phoneNumber) {
       const phoneVariants = buildPhoneVariants(user.phoneNumber);
-      ownershipClauses.push({ attendeeData: { path: ['phoneNumber'], in: phoneVariants } });
+      if (phoneVariants.length > 0) {
+        ownershipClauses.push({
+          OR: phoneVariants.map((phone) => ({
+            attendeeData: { path: ['phoneNumber'], equals: phone },
+          })),
+        });
+      }
     }
 
     if (ownershipClauses.length === 0) {
