@@ -173,7 +173,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const hasPermission = (permission: string) => {
     if (!user || !user.role || !user.role.permissions) return false;
-    if (user.role.name === 'Admin') return true;
 
     try {
       const userPermissions = Array.isArray(user.role.permissions) ? user.role.permissions : JSON.parse(user.role.permissions);

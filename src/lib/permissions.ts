@@ -6,9 +6,12 @@ export const PERMISSIONS_GROUPS: Record<string, string[]> = {
   'Scan QR': ['Access'],
   Events: ['Create', 'Read', 'Update', 'Delete'],
   Reports: ['Access'],
-  'User Management': ['Create', 'Read', 'Update', 'Delete'],
-  'Role Management': ['Create', 'Read', 'Update', 'Delete'],
-  'Staff Management': ['Access'],
+  Users: ['Create', 'Read', 'Update', 'Delete'],
+  Roles: ['Create', 'Read', 'Update', 'Delete'],
+  Staff: ['Create', 'Read', 'Update', 'Delete'],
+  Organization: ['Create', 'Read', 'Update', 'Delete'],
+  'Homepage Carousel': ['Create', 'Read', 'Update', 'Delete'],
+  Performance: ['Access'],
 };
 
 export const FLAT_PERMISSIONS: string[] = Object.entries(PERMISSIONS_GROUPS).flatMap(([cat, actions]) =>
@@ -44,7 +47,10 @@ export function hasPermission(role: Role & { permissions: string[] }, permission
   if (!role || !permission) {
     return false;
   }
-  if (role.name === 'Admin') {
+
+  // The reserved "Super Admin" role is the single unrestricted identity in the
+  // application; this is the only hardcoded bypass anywhere in the RBAC system.
+  if (role.name === 'Super Admin') {
     return true;
   }
 
@@ -52,7 +58,6 @@ export function hasPermission(role: Role & { permissions: string[] }, permission
   if (permission === 'Dashboard:Read') permission = 'Dashboard:Access';
   if (permission === 'Scan QR:Read') permission = 'Scan QR:Access';
   if (permission === 'Reports:Read') permission = 'Reports:Access';
-  if (permission === 'Staff Management:Read') permission = 'Staff Management:Access';
 
   return role.permissions?.includes(permission);
 }

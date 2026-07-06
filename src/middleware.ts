@@ -38,7 +38,6 @@ export function middleware(request: NextRequest) {
   // Full permission checks still happen server-side in pages/actions/routes.
   if (
     pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/api/permissions") ||
     pathname.startsWith("/api/upload")
   ) {
     const token = request.cookies.get("auth_token")?.value;

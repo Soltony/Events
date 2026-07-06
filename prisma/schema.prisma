@@ -69,6 +69,7 @@ model Role {
   // New relation to store permissions in relational form
   rolePermissions RolePermission[]
   users       User[]
+  superAdmins SuperAdmin[]
 }
 
 // Permission model represents a single permission identifier, e.g. "Events:Create"
@@ -258,4 +259,28 @@ model HomeCarouselAd {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Standalone identity for the isolated Super Admin Portal. Intentionally
+// separate from User so it has its own authentication, independent of the
+// main app's session system — but its access is governed by the SAME
+// Role/Permission/RolePermission tables the Admin Portal uses, via a
+// reserved "Super Admin" Role linked to this single account.
+model SuperAdmin {
+  id          String           @id @default(cuid())
+  fullName    String
+  phoneNumber String           @unique
+  email       String?          @unique
+  password    String
+  status      SuperAdminStatus @default(ACTIVE)
+  lastLoginAt DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  roleId      String
+  role        Role             @relation(fields: [roleId], references: [id])
+}
+
+enum SuperAdminStatus {
+  ACTIVE
+  INACTIVE
 }

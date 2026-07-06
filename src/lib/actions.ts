@@ -1,19 +1,23 @@
-
+﻿
 'use server';
 
 import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
-import type { Role, User, TicketType, PromoCode, Event, EventStatus, UserStatus, District, Branch } from '@prisma/client';
+import type { Role, User, TicketType, PromoCode, Event, EventStatus, Branch } from '@prisma/client';
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import { nanoid } from 'nanoid';
+import cuid from 'cuid';
 import type { DateRange } from 'react-day-picker';
 import { randomUUID } from 'crypto';
 import { buildPhoneVariants, normalizeEthiopianPhoneStrict, normalizePhoneNumber } from './utils';
-import { nanoid } from 'nanoid';
-import { sendTempPassword, sendPendingEventNotification } from '@/lib/email';
-import cuid from 'cuid';
-import bcrypt from 'bcryptjs';
-import { hasPermission, validatePermissions } from './permissions';
+import { sendPendingEventNotification, sendTempPassword } from '@/lib/email';
+import { hasPermission } from './permissions';
+
+// Roles an Admin (or any user with Users:Create) may assign to a newly
+// registered user — excludes Admin/Super Admin to prevent privilege escalation.
+const RESTRICTED_ASSIGNABLE_ROLE_NAMES = ['Admin', 'Super Admin'];
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -102,53 +106,87 @@ async function requireAdmin() {
   return user;
 }
 
-/**
- * Predefined Access Control Policy for Role Assignment.
- * Defines which requester roles are authorized to assign which target roles.
- */
-const ROLE_ASSIGNMENT_POLICY: Record<string, string[]> = {
-  'Admin': ['Admin', 'Organizer', 'Staff', 'Sub-admin'],
-  'Organizer': ['Staff'],
-};
+// --- User registration (Admin Portal) ---
+// Lets a User with Users:Create (e.g. an Admin) register a new User scoped to
+// their own branch (no Branch selector), with a required NIB Account field.
 
-/**
- * Validates if a requester is authorized to assign a specific role to a target user.
- * Implements strict server-side RBAC enforcement for privilege modification.
- */
-async function validateRoleAssignment(
-  requester: User & { role: Role & { permissions: string[] } },
-  targetUserId: string | undefined, // undefined if creating a new user
-  newRoleId: string | undefined
-) {
-  if (!newRoleId) return;
-
-  // 1. Verify that the sensitive roleId field is valid and exists in the database.
-  // We do not trust the client-supplied ID without server-side verification.
-  const targetRole = await prisma.role.findUnique({
-    where: { id: newRoleId },
-    select: { name: true }
+export async function getAssignableRoles() {
+  await requirePermission('Users:Create');
+  return prisma.role.findMany({
+    where: { name: { notIn: RESTRICTED_ASSIGNABLE_ROLE_NAMES } },
+    orderBy: { name: 'asc' },
   });
-
-  if (!targetRole) {
-    throw new Error('Invalid roleId: The specified role does not exist.');
-  }
-
-  const requesterRoleName = requester.role.name;
-  const allowedRoles = ROLE_ASSIGNMENT_POLICY[requesterRoleName] || [];
-
-  // 2. Enforce RBAC: Check if the requester's role is authorized to assign the target role.
-  if (!allowedRoles.includes(targetRole.name)) {
-    throw new Error(`Permission denied: ${requesterRoleName}s are not authorized to assign the ${targetRole.name} role.`);
-  }
-
-  // 3. Strict Authorization Rule: Even authorized users (Admins) have restrictions.
-  // To prevent privilege escalation attacks, an Admin can only assign the Admin role to themselves.
-  // This prevents an attacker who compromised one Admin account from creating more Admins.
-  if (targetRole.name === 'Admin' && requester.id !== targetUserId) {
-    throw new Error('Permission denied: The Admin role can only be assigned to yourself by an existing administrator.');
-  }
 }
 
+export async function addUser(data: {
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  email: string;
+  roleId: string;
+  nibBankAccount: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const currentUser = await requirePermission('Users:Create');
+
+  try {
+    let normalizedPhone: string;
+    try {
+      normalizedPhone = normalizeEthiopianPhoneStrict(data.phoneNumber);
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Invalid phone number.' };
+    }
+
+    const existingUserByPhone = await prisma.user.findUnique({ where: { phoneNumber: normalizedPhone } });
+    if (existingUserByPhone) {
+      return { success: false, error: 'Phone number is already registered.' };
+    }
+
+    const existingUserByEmail = await prisma.user.findUnique({ where: { email: data.email } });
+    if (existingUserByEmail) {
+      return { success: false, error: 'Email is already registered.' };
+    }
+
+    const role = await prisma.role.findUnique({ where: { id: data.roleId } });
+    if (!role || RESTRICTED_ASSIGNABLE_ROLE_NAMES.includes(role.name)) {
+      return { success: false, error: 'You are not allowed to assign this role.' };
+    }
+
+    const tempPassword = nanoid(10);
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+    await prisma.user.create({
+      data: {
+        id: cuid(),
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phoneNumber: normalizedPhone,
+        email: data.email,
+        password: hashedPassword,
+        roleId: data.roleId,
+        branchId: currentUser.branchId,
+        nibBankAccount: data.nibBankAccount,
+        status: 'ACTIVE',
+        passwordChangeRequired: true,
+        tokenVersion: 1,
+      },
+    });
+
+    await sendTempPassword({ email: data.email, phoneNumber: normalizedPhone, tempPassword });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Failed to add user:', error);
+    if (error.code === 'P2002') {
+      if (error.meta?.target?.includes('phoneNumber')) {
+        return { success: false, error: 'This phone number is already in use.' };
+      }
+      if (error.meta?.target?.includes('email')) {
+        return { success: false, error: 'This email address is already in use.' };
+      }
+    }
+    return { success: false, error: error.message || 'An unexpected error occurred.' };
+  }
+}
 
 // Event Actions
 export async function getEvents(status?: EventStatus | 'all') {
@@ -228,96 +266,6 @@ export async function getPublicHomeCarouselAds() {
         isActive: boolean;
     }>;
 }
-
-export async function getHomeCarouselAdsAdmin() {
-    await requireAdmin();
-    const ads = await prisma.homeCarouselAd.findMany({
-        orderBy: { sortOrder: 'asc' },
-    });
-    return serialize(ads);
-}
-
-export async function createHomeCarouselAd(data: {
-    imageUrl: string;
-    title?: string | null;
-    caption?: string | null;
-    linkUrl?: string | null;
-    sortOrder?: number;
-    isActive?: boolean;
-}) {
-    await requireAdmin();
-    if (!data.imageUrl || typeof data.imageUrl !== 'string' || !data.imageUrl.trim()) {
-        throw new Error('Image is required.');
-    }
-    const maxRow = await prisma.homeCarouselAd.aggregate({
-        _max: { sortOrder: true },
-    });
-    const nextOrder =
-        typeof data.sortOrder === 'number' && !Number.isNaN(data.sortOrder)
-            ? data.sortOrder
-            : (maxRow._max.sortOrder ?? -1) + 1;
-
-    const ad = await prisma.homeCarouselAd.create({
-        data: {
-            imageUrl: data.imageUrl.trim(),
-            title: data.title?.trim() ? data.title.trim() : null,
-            caption: data.caption?.trim() ? data.caption.trim() : null,
-            linkUrl: data.linkUrl?.trim() ? data.linkUrl.trim() : null,
-            sortOrder: nextOrder,
-            isActive: data.isActive !== false,
-        },
-    });
-    revalidatePath('/');
-    revalidatePath('/dashboard/settings/homeads');
-    return serialize(ad);
-}
-
-export async function updateHomeCarouselAd(
-    id: number,
-    data: {
-        imageUrl?: string;
-        title?: string | null;
-        caption?: string | null;
-        linkUrl?: string | null;
-        sortOrder?: number;
-        isActive?: boolean;
-    }
-) {
-    await requireAdmin();
-    const payload: any = {};
-    if (data.imageUrl !== undefined) {
-        if (!data.imageUrl || !String(data.imageUrl).trim()) {
-            throw new Error('Image URL cannot be empty.');
-        }
-        payload.imageUrl = String(data.imageUrl).trim();
-    }
-    if (data.title !== undefined) payload.title = data.title?.trim() ? data.title.trim() : null;
-    if (data.caption !== undefined) payload.caption = data.caption?.trim() ? data.caption.trim() : null;
-    if (data.linkUrl !== undefined) payload.linkUrl = data.linkUrl?.trim() ? data.linkUrl.trim() : null;
-    if (data.sortOrder !== undefined && typeof data.sortOrder === 'number') {
-        payload.sortOrder = data.sortOrder;
-    }
-    if (data.isActive !== undefined) payload.isActive = data.isActive;
-
-    const ad = await prisma.homeCarouselAd.update({
-        where: { id },
-        data: payload,
-    });
-    revalidatePath('/');
-    revalidatePath('/dashboard/settings/home-ads');
-    return serialize(ad);
-}
-
-export async function deleteHomeCarouselAd(id: number) {
-    await requireAdmin();
-    await prisma.homeCarouselAd.delete({
-        where: { id },
-    });
-    revalidatePath('/');
-    revalidatePath('/dashboard/settings/home-ads');
-    return { ok: true };
-}
-
 
 export async function getEventById(id: number) {
     const event = await prisma.event.findUnique({
@@ -983,472 +931,6 @@ export async function getReportsData(dateRange?: DateRange, eventNameSearch?: st
 }
 
 // Settings Actions
-export async function getUsersAndRoles() {
-    await requireAdmin();
-    
-    const users = await prisma.user.findMany({
-      include: { 
-          role: true,
-          branch: {
-              include: {
-                  district: true
-              }
-          }
-      },
-      orderBy: { createdAt: 'desc'}
-    });
-    
-    const roles = await prisma.role.findMany({
-        include: {
-            rolePermissions: {
-                select: {
-                    permission: {
-                        select: { name: true }
-                    }
-                }
-            }
-        }
-    });
-    
-    const serializedRoles = roles.map(r => ({
-        ...r,
-        permissions: (r.rolePermissions || []).map(p => p.permission.name)
-    }));
-
-
-    const usersWithoutPasswords = users.map(({ password: _password, ...rest }) => rest);
-
-    return serialize({ users: usersWithoutPasswords, roles: serializedRoles });
-}
-
-
-export async function getUserById(userId: string) {
-    await requireAdmin();
-    const user = await prisma.user.findUnique({
-        where: { id: userId },
-        include: { role: true },
-    });
-    if (!user) return null;
-    const { password: _password, ...rest } = user;
-    return serialize(rest);
-}
-
-
-export async function getUserByPhoneNumber(phoneNumber: string) {
-    await requireAdmin();
-    let normalizedPhone: string;
-    try {
-        normalizedPhone = normalizeEthiopianPhoneStrict(phoneNumber);
-    } catch (e: any) {
-        throw new Error(e?.message || 'Invalid phone number.');
-    }
-    const user = await prisma.user.findUnique({
-        where: { phoneNumber: normalizedPhone },
-        include: {
-            role: true,
-        },
-    });
-    if (!user) return null;
-    const { password: _password, ...rest } = user;
-    return serialize(rest);
-}
-
-export async function getStaffForUser(organizerId: string | undefined) {
-    const requester = await requirePermission('Staff Management:Access');
-    if (!organizerId) return [];
-
-    if (requester.role.name !== 'Admin' && organizerId !== requester.id) {
-      throw new Error('Permission denied.');
-    }
-    const staff = await prisma.user.findMany({
-        where: {
-            organizerId: organizerId,
-        },
-        include: {
-            role: true,
-            branch: {
-                include: {
-                    district: true
-                }
-            }
-        }
-    });
-
-    const staffWithoutPasswords = staff.map(({ password: _password, ...rest }) => rest);
-    return serialize(staffWithoutPasswords);
-}
-
-export async function updateUser(userId: string, data: Partial<User>) {
-    const requester = await requireAuthenticatedUser();
-    
-    // Authorization: Admin can update anyone. Organizer can update their own staff.
-    const targetUser = await prisma.user.findUnique({ where: { id: userId } });
-    if (!targetUser) {
-        throw new Error('User not found.');
-    }
-
-    const isAdmin = requester.role.name === 'Admin';
-    const isOrganizerOfTarget = targetUser.organizerId === requester.id;
-
-    if (!isAdmin && !isOrganizerOfTarget) {
-        throw new Error('Permission denied.');
-    }
-
-    const { firstName, lastName, phoneNumber, roleId, nibBankAccount, email, branchId } = data;
-
-    // Prevent privilege escalation: only allow admins to assign the Admin role to themselves.
-    await validateRoleAssignment(requester, userId, roleId);
-
-    const normalizedPhoneNumber = typeof phoneNumber === 'string' && phoneNumber.trim().length > 0
-      ? normalizeEthiopianPhoneStrict(phoneNumber)
-      : undefined;
-    let updatedUser;
-    try {
-        updatedUser = await prisma.user.update({
-            where: { id: userId },
-            data: {
-                firstName,
-                lastName,
-                phoneNumber: normalizedPhoneNumber ?? phoneNumber,
-                roleId,
-                branchId: branchId || null,
-                nibBankAccount: nibBankAccount || null,
-                email: email || null,
-            },
-        });
-    } catch (err: any) {
-        // Handle unique constraint violations for friendlier errors
-        if (err?.code === 'P2002') {
-            const metaTarget = err?.meta?.target;
-            if (Array.isArray(metaTarget) && metaTarget.includes('email')) {
-                throw new Error('The provided email address is already in use.');
-            }
-            if (Array.isArray(metaTarget) && metaTarget.includes('phoneNumber')) {
-                throw new Error('The provided phone number is already registered.');
-            }
-            throw new Error('Unique constraint violation.');
-        }
-        throw err;
-    }
-
-    revalidatePath('/dashboard/settings/users');
-    revalidatePath(`/dashboard/settings/users/${userId}/edit`);
-    return serialize(updatedUser);
-}
-
-
-export async function updateUserRole(userId: string, newRoleId: string) {
-    const requester = await requireAuthenticatedUser();
-    
-    // Authorization: Admin can update anyone. Organizer can update their own staff.
-    const targetUser = await prisma.user.findUnique({ where: { id: userId } });
-    if (!targetUser) {
-        throw new Error('User not found.');
-    }
-
-    const isAdmin = requester.role.name === 'Admin';
-    const isOrganizerOfTarget = targetUser.organizerId === requester.id;
-
-    if (!isAdmin && !isOrganizerOfTarget) {
-        throw new Error('Permission denied.');
-    }
-
-    // Prevent privilege escalation: only allow authorized roles to assign specific roles.
-    await validateRoleAssignment(requester, userId, newRoleId);
-    const user = await prisma.user.update({
-        where: { id: userId },
-        data: { roleId: newRoleId },
-    });
-
-    // Privilege update: revoke sessions + bump tokenVersion (kills access tokens)
-    await prisma.user.update({
-      where: { id: userId },
-      data: { tokenVersion: { increment: 1 } },
-    });
-    await prisma.session.updateMany({
-      where: { userId: userId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
-
-    revalidatePath('/dashboard/settings/users');
-    // Ensure global/server components that depend on permissions are refreshed
-    revalidatePath('/');
-    revalidatePath('/dashboard');
-    const { password: _password, ...rest } = user;
-    return serialize(rest);
-}
-
-export async function updateUserStatus(userId: string, status: UserStatus) {
-    const requester = await requireAuthenticatedUser();
-    
-    // Authorization: Admin can update anyone. Organizer can update their own staff.
-    const targetUser = await prisma.user.findUnique({ where: { id: userId } });
-    if (!targetUser) {
-        throw new Error('User not found.');
-    }
-
-    const isAdmin = requester.role.name === 'Admin';
-    const isOrganizerOfTarget = targetUser.organizerId === requester.id;
-
-    if (!isAdmin && !isOrganizerOfTarget) {
-        throw new Error('Permission denied.');
-    }
-
-    const user = await prisma.user.update({
-        where: { id: userId },
-        data: { status },
-    });
-
-    // Status change can affect access: revoke sessions + bump tokenVersion
-    await prisma.user.update({
-      where: { id: userId },
-      data: { tokenVersion: { increment: 1 } },
-    });
-    await prisma.session.updateMany({
-      where: { userId: userId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
-
-    revalidatePath('/dashboard/settings/users');
-    const { password: _password, ...rest } = user;
-    return serialize(rest);
-}
-
-export async function deleteUser(userId: string, phoneNumber: string) {
-  try {
-    const currentUser = await requireAuthenticatedUser();
-
-        // Allow self-delete. Admins can delete anyone. Organizers may delete their own staff.
-        const isSelfRequest = currentUser.id === userId;
-
-        const userToDelete = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
-        if (!userToDelete) {
-            return { ok: false, message: 'User not found.' };
-        }
-
-        const isAdmin = currentUser.role.name === 'Admin';
-        const isOrganizerOfTarget = userToDelete.organizerId === currentUser.id;
-
-        if (!isSelfRequest && !isAdmin && !isOrganizerOfTarget) {
-            return { ok: false, message: 'Permission denied.' };
-        }
-
-        const count = await prisma.event.count({ where: { organizerId: userId } });
-
-    if (count > 0) {
-      return {
-        ok: false,
-        message: `Cannot delete user. They are the organizer of ${count} event(s). Please delete or reassign the events first.`,
-      };
-    }
-    
-    // In a real app with external auth, you'd delete the user there first.
-    // For this prototype, we'll just delete from the local DB.
-    
-    // Also, if this user is an organizer, we might need to delete their staff.
-    if (userToDelete?.role?.name === 'Organizer') {
-        if (currentUser.role.name !== 'Admin') {
-          return { ok: false, message: 'Permission denied.' };
-        }
-        await prisma.user.deleteMany({
-            where: { organizerId: userId }
-        });
-    }
-
-    await prisma.attendee.deleteMany({ where: { userId }});
-
-    await prisma.user.delete({
-      where: { id: userId },
-    });
-    
-    revalidatePath('/dashboard/settings/users');
-    
-    return { ok: true };
-  } catch (err: any) {
-    console.error('Error deleting user:', err);
-
-    if (err.code === 'P2003') { 
-        return {
-            ok: false,
-            message: "Cannot delete user. They are still linked to other records in the database (e.g., as an event organizer). Please reassign or delete those records first."
-        };
-    }
-
-    return {
-      ok: false,
-      message: err.message ?? "Unexpected server error.",
-    };
-  }
-}
-
-
-
-export async function getRoles() {
-    try {
-        await requireAdmin();
-        const roles = await prisma.role.findMany({ include: { rolePermissions: { include: { permission: true } } } });
-        // Normalize permissions into an array for easier use on the client
-        const normalized = roles.map(r => {
-            // Prefer explicit join rows, but fall back to legacy `permissions` column if present.
-            let perms: string[] = [];
-            if (r.rolePermissions && r.rolePermissions.length > 0) {
-                perms = r.rolePermissions.map(rp => rp.permission.name);
-            } else if (r.permissions) {
-                try {
-                    const parsed = typeof r.permissions === 'string' ? JSON.parse(r.permissions) : r.permissions;
-                    if (Array.isArray(parsed)) perms = parsed;
-                } catch (e) {
-                    // If parsing fails, try comma-split as a last resort
-                    if (typeof r.permissions === 'string') {
-                        perms = r.permissions.split(',').map(s => s.trim()).filter(Boolean);
-                    }
-                }
-            }
-
-            return { ...r, permissions: perms };
-        });
-        return serialize(normalized);
-    } catch (error: any) {
-        console.error("Failed to fetch roles from database:", error);
-        throw new Error("Could not load roles. Please check the database connection and try again.");
-    }
-}
-
-export async function getRoleById(id: string) {
-    await requireAdmin();
-    const role = await prisma.role.findUnique({
-        where: { id },
-        include: { rolePermissions: { include: { permission: true } } },
-    });
-
-    if (!role) return null;
-
-    let perms: string[] = [];
-    if (role.rolePermissions && role.rolePermissions.length > 0) {
-        perms = role.rolePermissions.map(rp => rp.permission.name);
-    } else if (role.permissions) {
-        try {
-            // Ensure permissions is a string before trying to parse
-            const permissionsString = Array.isArray(role.permissions)
-                ? JSON.stringify(role.permissions)
-                : String(role.permissions);
-
-            const parsed = JSON.parse(permissionsString);
-            if (Array.isArray(parsed)) {
-                perms = parsed.map(String); // Ensure all elements are strings
-            }
-        } catch (e) {
-            console.warn(`Failed to parse permissions for role ${id}:`, role.permissions, e);
-            if (typeof role.permissions === 'string') {
-                perms = role.permissions.split(',').map(s => s.trim()).filter(Boolean);
-            }
-        }
-    }
-
-    const normalized = { ...role, permissions: perms };
-    return serialize(normalized);
-}
-
-
-export async function createRole(data: { name: string; description: string; permissions: string[] }) {
-    await requireAdmin();
-    const { name, description, permissions } = data;
-    // Normalize incoming permissions: enforce string type, trim whitespace, remove empty and duplicates
-    const normalizedPermissions = Array.isArray(permissions)
-        ? Array.from(new Set(permissions.map(p => String(p ?? '').trim()).filter(Boolean)))
-        : [];
-
-    const validation = validatePermissions(normalizedPermissions);
-    if (!validation.valid) {
-        throw new Error(`Invalid permissions submitted: ${(validation.invalid || []).join(', ')}`);
-    }
-
-    const dbPerms = await prisma.permission.findMany({ where: { name: { in: normalizedPermissions } } });
-    if (dbPerms.length !== normalizedPermissions.length) {
-        const dbPermNames = new Set(dbPerms.map(p => p.name));
-        const missingPerms = normalizedPermissions.filter(p => !dbPermNames.has(p));
-        throw new Error(`Some submitted permissions do not exist in the database: ${missingPerms.join(', ')}`);
-    }
-
-    const role = await prisma.role.create({ data: { name, description } });
-
-    if (dbPerms.length > 0) {
-      await prisma.rolePermission.createMany({
-        data: dbPerms.map(p => ({ roleId: role.id, permissionId: p.id })),
-      });
-    }
-
-    revalidatePath('/dashboard/settings/roles');
-    revalidatePath('/dashboard/settings/roles/new');
-    revalidatePath('/');
-    revalidatePath('/dashboard');
-    return serialize(role);
-}
-
-export async function updateRole(id: string, data: Partial<Role> & { permissions: string | string[] }) {
-    await requireAdmin();
-    let permissionsArray: string[];
-    
-    if (typeof data.permissions === 'string') {
-        try {
-            permissionsArray = JSON.parse(data.permissions);
-        } catch (e) {
-            throw new Error('Invalid permissions format: expected a JSON string array.');
-        }
-    } else {
-        permissionsArray = data.permissions ?? [];
-    }
-
-    permissionsArray = Array.isArray(permissionsArray)
-      ? Array.from(new Set(permissionsArray.map(p => String(p ?? '').trim()).filter(Boolean)))
-      : [];
-
-    const validation = validatePermissions(permissionsArray);
-    if (!validation.valid) {
-        throw new Error(`Invalid permissions provided: ${(validation.invalid || []).join(', ')}`);
-    }
-
-    const dbPerms = await prisma.permission.findMany({ where: { name: { in: permissionsArray } } });
-    if (dbPerms.length !== permissionsArray.length) {
-        const dbPermNames = new Set(dbPerms.map(p => p.name));
-        const missingPerms = permissionsArray.filter(p => !dbPermNames.has(p));
-        throw new Error(`Some submitted permissions do not exist in the database: ${missingPerms.join(', ')}`);
-    }
-
-    await prisma.role.update({ where: { id }, data: { name: data.name, description: data.description } });
-
-    await prisma.rolePermission.deleteMany({ where: { roleId: id } });
-    
-    if (dbPerms.length > 0) {
-      await prisma.rolePermission.createMany({
-        data: dbPerms.map(p => ({ roleId: id, permissionId: p.id })),
-      });
-    }
-
-    const role = await prisma.role.findUnique({ where: { id }, include: { rolePermissions: { include: { permission: true } } } });
-    
-    revalidatePath('/dashboard/settings/roles');
-    revalidatePath(`/dashboard/settings/roles/${id}/edit`);
-    revalidatePath('/');
-    revalidatePath('/dashboard');
-    
-    return serialize(role);
-}
-
-
-export async function deleteRole(id: string) {
-    await requireAdmin();
-    const usersWithRole = await prisma.user.count({ where: { roleId: id } });
-    if (usersWithRole > 0) {
-        throw new Error("Cannot delete role. It is assigned to one or more users. Please reassign users before deleting.");
-    }
-    await prisma.rolePermission.deleteMany({ where: { roleId: id } });
-    const role = await prisma.role.delete({ where: { id } });
-    revalidatePath('/dashboard/settings');
-    revalidatePath('/dashboard/settings/roles');
-    return serialize(role);
-}
-
 export async function updatePasswordFlag(userId: string, passwordChangeRequired: boolean): Promise<void> {
     const current = await requireAuthenticatedUser();
     if (current.id !== userId && current.role.name !== 'Admin') {
@@ -1459,93 +941,6 @@ export async function updatePasswordFlag(userId: string, passwordChangeRequired:
         data: { passwordChangeRequired: passwordChangeRequired },
     });
     revalidatePath('/profile');
-}
-
-
-export async function resetUserPassword(userId: string) {
-    const currentUser = await getCurrentUser();
-    if (!currentUser || currentUser.role.name !== 'Admin') {
-        throw new Error('You are not authorized to perform this action.');
-    }
-
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-        return { ok: false, message: 'User not found.' };
-    }
-
-    // Generate a temporary password
-    const tempPassword = nanoid(8);
-    const hashed = await bcrypt.hash(tempPassword, 10);
-
-    await prisma.user.update({
-        where: { id: userId },
-        data: {
-            password: hashed,
-            passwordUpdatedAt: new Date(),
-            passwordChangeRequired: true,
-            tokenVersion: { increment: 1 },
-        },
-    });
-
-    // Send the temporary password to the user's email (if present)
-    try {
-        if (user.email) {
-            await sendTempPassword({ email: user.email, phoneNumber: user.phoneNumber, tempPassword });
-        }
-    } catch (err) {
-        console.error('Failed to send temporary password email:', err);
-        return { ok: false, message: 'Password reset but failed to send email.' };
-    }
-
-    revalidatePath('/dashboard/settings/users');
-    return { ok: true };
-}
-
-export async function resetStaffPassword(userId: string) {
-    const currentUser = await getCurrentUser();
-    if (!currentUser) {
-        throw new Error('You are not authorized to perform this action.');
-    }
-
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-        return { ok: false, message: 'User not found.' };
-    }
-
-    // Allow if current user is Admin or the organizer who created this staff member
-    const isAdmin = currentUser.role?.name === 'Admin';
-    const isCreator = user.organizerId && user.organizerId === currentUser.id;
-    if (!isAdmin && !isCreator) {
-        throw new Error('You are not authorized to perform this action.');
-    }
-
-    // Generate a temporary password
-    const tempPassword = nanoid(8);
-    const hashed = await bcrypt.hash(tempPassword, 10);
-
-    await prisma.user.update({
-        where: { id: userId },
-        data: {
-            password: hashed,
-            passwordUpdatedAt: new Date(),
-            passwordChangeRequired: true,
-            tokenVersion: { increment: 1 },
-        },
-    });
-
-    // Send the temporary password to the user's email (if present)
-    try {
-        if (user.email) {
-            await sendTempPassword({ email: user.email, phoneNumber: user.phoneNumber, tempPassword });
-        }
-    } catch (err) {
-        console.error('Failed to send temporary password email:', err);
-        return { ok: false, message: 'Password reset but failed to send email.' };
-    }
-
-    revalidatePath('/dashboard/settings/staff');
-    revalidatePath('/dashboard/settings/users');
-    return { ok: true };
 }
 
 
@@ -1919,177 +1314,3 @@ export async function checkInAttendee(attendeeIdentifier: number | string) {
     }
 }
 
-// Branch and District Actions
-export async function createDistrict(data: { districtName: string; contactPersonName: string; contactPersonPhone: string; }) {
-  await requirePermission('Staff Management:Access');
-  const { districtName, ...rest } = data;
-  const normalizedPhone = normalizeEthiopianPhoneStrict(rest.contactPersonPhone);
-  const district = await prisma.district.create({
-    data: {
-      name: districtName,
-      ...rest,
-      contactPersonPhone: normalizedPhone,
-    },
-  });
-  revalidatePath('/dashboard/settings/branch-district-registration');
-  return serialize(district);
-}
-
-export async function createBranch(data: { branchName: string; districtId: string; contactPersonName: string; contactPersonPhone: string; }) {
-  await requirePermission('Staff Management:Access');
-  const { branchName, ...rest } = data;
-  const normalizedPhone = normalizeEthiopianPhoneStrict(rest.contactPersonPhone);
-  const branch = await prisma.branch.create({
-    data: {
-      name: branchName,
-      ...rest,
-      contactPersonPhone: normalizedPhone,
-    },
-  });
-  revalidatePath('/dashboard/settings/branch-district-registration');
-  return serialize(branch);
-}
-
-export async function getDistricts(): Promise<District[]> {
-    const requester = await requireAuthenticatedUser();
-    const canAccess =
-      hasPermission(requester.role, 'Staff Management:Access') ||
-      ['User Management:Read', 'User Management:Create', 'User Management:Update', 'User Management:Delete'].some(p =>
-        hasPermission(requester.role, p)
-      );
-
-    if (!canAccess) {
-      throw new Error('Permission denied.');
-    }
-
-    const districts = await prisma.district.findMany();
-    return serialize(districts);
-}
-
-export async function getBranches(): Promise<Branch[]> {
-    const requester = await requireAuthenticatedUser();
-    const canAccess =
-      hasPermission(requester.role, 'Staff Management:Access') ||
-      ['User Management:Read', 'User Management:Create', 'User Management:Update', 'User Management:Delete'].some(p =>
-        hasPermission(requester.role, p)
-      );
-
-    if (!canAccess) {
-      throw new Error('Permission denied.');
-    }
-
-    const branches = await prisma.branch.findMany({ include: { district: true }});
-    return serialize(branches);
-}
-
-export async function addUser(
-  data: {
-    firstName: string;
-    lastName: string;
-    phoneNumber: string;
-    email: string;
-    roleId?: string;
-    branchId?: string;
-    nibBankAccount?: string | null;
-  },
-  isStaff: boolean = false
-): Promise<{ success: boolean; error?: string }> {
-    const creator = await requireAuthenticatedUser();
-    if (isStaff) {
-        if (!hasPermission(creator.role, 'Staff Management:Access')) {
-            return { success: false, error: 'Permission denied.' };
-        }
-    } else {
-        if (!hasPermission(creator.role, 'User Management:Create')) {
-            return { success: false, error: 'Permission denied.' };
-        }
-    }
-
-    try {
-        let normalizedPhone: string;
-        try {
-            normalizedPhone = normalizeEthiopianPhoneStrict(data.phoneNumber);
-        } catch (e: any) {
-            return { success: false, error: e?.message || 'Invalid phone number.' };
-        }
-
-        const existingUserByPhone = await prisma.user.findUnique({
-            where: { phoneNumber: normalizedPhone },
-        });
-        if (existingUserByPhone) {
-            return { success: false, error: 'Phone number is already registered.' };
-        }
-
-        const existingUserByEmail = await prisma.user.findUnique({
-            where: { email: data.email },
-        });
-        if (existingUserByEmail) {
-            return { success: false, error: 'Email is already registered.' };
-        }
-        
-        const tempPassword = nanoid(10);
-        const hashedPassword = await bcrypt.hash(tempPassword, 10);
-        
-        let roleId = data.roleId;
-        let organizerId: string | undefined = undefined;
-
-        if (isStaff) {
-             const staffRole = await prisma.role.findFirst({ where: { name: 'Staff' } });
-             if (!staffRole) {
-                return { success: false, error: 'Default role "Staff" not found.' };
-            }
-            roleId = staffRole.id;
-            organizerId = creator.id; // Assign the creator as the organizer for the staff member
-        } else {
-            // Validate the role assignment against the centralized security policy.
-            // This ensures only authorized roles can be assigned by the creator.
-            try {
-                await validateRoleAssignment(creator, undefined, roleId);
-            } catch (e: any) {
-                return { success: false, error: e?.message || 'Permission denied.' };
-            }
-        }
-        
-
-        const user = await prisma.user.create({
-            data: {
-                id: cuid(),
-                firstName: data.firstName,
-                lastName: data.lastName,
-                phoneNumber: normalizedPhone,
-                email: data.email,
-                password: hashedPassword,
-                roleId: roleId as string,
-                branchId: data.branchId || null,
-                nibBankAccount: data.nibBankAccount || null,
-                status: 'ACTIVE',
-                passwordChangeRequired: true,
-                organizerId: organizerId,
-                tokenVersion: 1, // Initialize token version
-            },
-        });
-        
-        await sendTempPassword({
-            email: data.email,
-            phoneNumber: normalizedPhone,
-            tempPassword: tempPassword,
-        });
-
-        return { success: true };
-
-    } catch (error: any) {
-        console.error("Failed to add user:", error);
-        
-        // Check for specific Prisma unique constraint errors
-        if (error.code === 'P2002') {
-             if (error.meta?.target?.includes('phoneNumber')) {
-                return { success: false, error: "This phone number is already in use." };
-            }
-            if (error.meta?.target?.includes('email')) {
-                return { success: false, error: "This email address is already in use." };
-            }
-        }
-
-        return { success: false, error: error.message || "An unexpected error occurred." };
-    }
-}

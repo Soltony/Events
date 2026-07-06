@@ -16,30 +16,19 @@ import {
 import { useAuth } from "@/context/auth-context";
 
 export function UserNav() {
-  const { user, logout, hasPermission } = useAuth();
+  const { user, logout } = useAuth();
   const router = useRouter();
 
   const handleLogout = async () => {
     await logout();
   };
-  
+
   const getInitials = () => {
     if (user?.firstName && user?.lastName) {
         return `${user.firstName[0]}${user.lastName[0]}`;
     }
     return 'U';
   }
-
-  const isAdmin = user?.role?.name === 'Admin';
-  
-  const canViewSettings = isAdmin || [
-    'User Management:Create',
-    'User Management:Read',
-    'User Management:Update',
-    'User Management:Delete',
-    'Role Management:Read',
-    'Staff Management:Access'
-  ].some(p => hasPermission(p));
 
   const sanitizedPhoneNumber = user?.phoneNumber?.replace(/[^0-9+]/g, '');
 
@@ -75,9 +64,6 @@ export function UserNav() {
         <DropdownMenuGroup>
           <DropdownMenuItem onClick={() => router.push('/dashboard')}>Dashboard</DropdownMenuItem>
           <DropdownMenuItem onClick={() => router.push('/profile')}>Profile</DropdownMenuItem>
-          {canViewSettings && (
-            <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>Settings</DropdownMenuItem>
-          )}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>

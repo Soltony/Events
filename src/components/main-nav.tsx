@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Ticket, PlusCircle, LineChart, Settings, QrCode } from 'lucide-react';
+import { Home, Ticket, PlusCircle, LineChart, QrCode, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSidebar } from '@/components/ui/sidebar';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
@@ -15,15 +15,14 @@ export const navItems = [
     { href: "/dashboard/events/new", icon: <PlusCircle className="h-5 w-5" />, label: "Create Event", permission: 'Events:Create' },
     { href: "/dashboard/events", icon: <Ticket className="h-5 w-5" />, label: "Manage Events", permission: ['Events:Read', 'Events:Update', 'Events:Delete'] },
     { href: "/dashboard/reports", icon: <LineChart className="h-5 w-5" />, label: "Reports", permission: 'Reports:Access' },
-    { href: "/dashboard/settings", icon: <Settings className="h-5 w-5" />, label: "Settings", permission: ['User Management:Create', 'User Management:Read', 'User Management:Update', 'User Management:Delete', 'Role Management:Read', 'Staff Management:Access'] },
+    { href: "/dashboard/users/new", icon: <UserPlus className="h-5 w-5" />, label: "Register User", permission: 'Users:Create' },
 ];
 
 export function MainNav() {
   const pathname = usePathname();
   const { state } = useSidebar();
-  const { user, hasPermission } = useAuth();
+  const { hasPermission } = useAuth();
   const isCollapsed = state === 'collapsed';
-  const isAdmin = user?.role?.name === 'Admin';
 
   const hasAnyPermission = (permissions: string | string[]) => {
       if (Array.isArray(permissions)) {
@@ -32,14 +31,11 @@ export function MainNav() {
       return hasPermission(permissions);
   }
 
-  const visibleNavItems = isAdmin ? navItems : navItems.filter(item => hasAnyPermission(item.permission));
+  const visibleNavItems = navItems.filter(item => hasAnyPermission(item.permission));
 
   const isRouteActive = (href: string) => {
     if (href === '/dashboard/events') {
       return (pathname === '/dashboard/events' || pathname.startsWith('/dashboard/events/')) && pathname !== '/dashboard/events/new';
-    }
-    if (href === '/dashboard/settings') {
-      return pathname.startsWith('/dashboard/settings');
     }
     return pathname === href;
   }
@@ -54,7 +50,7 @@ export function MainNav() {
                 <Link
                   href={item.href}
                   className={cn(
-                    'flex h-10 w-10 items-center justify-center rounded-lg text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                    'flex h-10 w-10 items-center justify-center rounded-lg text-sidebar-foreground transition-colors duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                     isRouteActive(item.href) && 'bg-sidebar-accent text-sidebar-accent-foreground'
                   )}
                 >
@@ -71,7 +67,7 @@ export function MainNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground transition-all duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                 isRouteActive(item.href) && 'bg-sidebar-accent text-sidebar-accent-foreground'
               )}
             >

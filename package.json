@@ -9,7 +9,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "postinstall": "patch-package && prisma generate",
-    "db:seed-perms": "tsx scripts/seed-permissions.ts"
+    "db:seed-perms": "tsx scripts/seed-permissions.ts",
+    "seed:super-admin": "tsx prisma/seed-super-admin.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

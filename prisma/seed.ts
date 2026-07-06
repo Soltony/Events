@@ -14,9 +14,9 @@ async function main() {
   await prisma.rolePermission.deleteMany({});
   await prisma.permission.deleteMany({});
   
-  // Keep the Admin user, but clear out roles that will be recreated
+  // Keep the Admin user and the reserved Super Admin role, but clear out roles that will be recreated
   await prisma.role.deleteMany({
-    where: { name: { notIn: ['Admin'] } },
+    where: { name: { notIn: ['Admin', 'Super Admin'] } },
   });
   console.log('Old data cleared.');
 
@@ -60,13 +60,33 @@ async function main() {
     skipDuplicates: true,
   });
   console.log('Admin role configured with all permissions.');
-  
+
+  // Super Admin Role (reserved system role, full permissions) — the single
+  // Super Admin account is linked to this role; it is never assigned to
+  // regular users and must always retain every permission.
+  const superAdminRole = await prisma.role.upsert({
+    where: { name: 'Super Admin' },
+    update: {},
+    create: {
+        name: 'Super Admin',
+        description: 'Reserved system role for the single Super Admin account. Cannot be renamed, deleted, or assigned to another account.',
+    }
+  });
+
+  await prisma.rolePermission.createMany({
+    data: allPermissionsFromDb.map(p => ({
+        roleId: superAdminRole.id,
+        permissionId: p.id,
+    })),
+    skipDuplicates: true,
+  });
+  console.log('Super Admin role configured with all permissions.');
+
   // Organizer Role
   const organizerPermNames = [
     'Dashboard:Access',
     'Events:Create', 'Events:Read', 'Events:Update', 'Events:Delete',
     'Reports:Access',
-    'Staff Management:Access',
   ];
   const organizerPerms = await prisma.permission.findMany({ where: { name: { in: organizerPermNames } } });
   
