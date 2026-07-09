@@ -3,11 +3,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Ticket, PlusCircle, LineChart, QrCode, UserPlus } from 'lucide-react';
+import { Home, Ticket, PlusCircle, LineChart, QrCode } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSidebar } from '@/components/ui/sidebar';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { useAuth } from '@/context/auth-context';
+import { SettingsNavLink } from '@/components/settings-nav-link';
 
 export const navItems = [
     { href: "/dashboard", icon: <Home className="h-5 w-5" />, label: "Dashboard", permission: 'Dashboard:Access' },
@@ -15,7 +16,6 @@ export const navItems = [
     { href: "/dashboard/events/new", icon: <PlusCircle className="h-5 w-5" />, label: "Create Event", permission: 'Events:Create' },
     { href: "/dashboard/events", icon: <Ticket className="h-5 w-5" />, label: "Manage Events", permission: ['Events:Read', 'Events:Update', 'Events:Delete'] },
     { href: "/dashboard/reports", icon: <LineChart className="h-5 w-5" />, label: "Reports", permission: 'Reports:Access' },
-    { href: "/dashboard/users/new", icon: <UserPlus className="h-5 w-5" />, label: "Register User", permission: 'Users:Create' },
 ];
 
 export function MainNav() {
@@ -76,6 +76,7 @@ export function MainNav() {
             </Link>
           )
         ))}
+        <SettingsNavLink basePath="/dashboard" hasPermission={hasPermission} collapsedRail={isCollapsed} />
       </nav>
     </TooltipProvider>
   );

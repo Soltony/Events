@@ -2,11 +2,11 @@
 'use client';
 
 import { Settings } from 'lucide-react';
-import { useSuperAdminAuth } from '@/context/super-admin-auth-context';
+import { useAuth } from '@/context/auth-context';
 import { SettingsHubCards } from '@/components/settings-hub-cards';
 
-export default function SettingsPageContent() {
-  const { hasPermission } = useSuperAdminAuth();
+export default function DashboardSettingsPageContent() {
+  const { hasPermission } = useAuth();
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
@@ -20,7 +20,7 @@ export default function SettingsPageContent() {
         </div>
       </div>
 
-      <SettingsHubCards basePath="/super-admin" hasPermission={hasPermission} />
+      <SettingsHubCards basePath="/dashboard" hasPermission={hasPermission} />
     </div>
   );
 }

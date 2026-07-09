@@ -38,7 +38,7 @@ const roleFormSchema = z.object({
 
 type RoleFormValues = z.infer<typeof roleFormSchema>;
 
-export default function CreateRolePageContent() {
+export default function CreateRolePageContent({ basePath = '/super-admin' }: { basePath?: string }) {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,7 +68,7 @@ export default function CreateRolePageContent() {
     try {
       await createRole(data);
       toast({ title: 'Role Created!', description: `Successfully created the "${data.name}" role.` });
-      router.push('/super-admin/roles');
+      router.push(`${basePath}/roles`);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to create role. Please try again.' });
     } finally {
