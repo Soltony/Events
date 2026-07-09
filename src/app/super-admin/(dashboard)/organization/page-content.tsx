@@ -10,7 +10,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
-import { Save, Loader2, Building, Users } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Save, Loader2, Building, Users } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
@@ -39,6 +40,7 @@ type BranchFormValues = z.infer<typeof branchFormSchema>;
 
 export default function OrganizationPageContent() {
   const { toast } = useToast();
+  const router = useRouter();
   const [isSubmittingDistrict, setIsSubmittingDistrict] = useState(false);
   const [isSubmittingBranch, setIsSubmittingBranch] = useState(false);
   const [districts, setDistricts] = useState<District[]>([]);
@@ -99,9 +101,15 @@ export default function OrganizationPageContent() {
 
   return (
     <div className="flex-1 space-y-4">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Organization Management</h1>
-        <p className="text-muted-foreground">Manage branches, districts, and Head Office organizational units. Add new districts first, then add branches under them.</p>
+      <div className="flex items-center gap-4">
+        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
+          <ArrowLeft className="h-4 w-4" />
+          <span className="sr-only">Back</span>
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Organization Management</h1>
+          <p className="text-muted-foreground">Manage branches, districts, and Head Office organizational units. Add new districts first, then add branches under them.</p>
+        </div>
       </div>
       <div className="grid gap-8 md:grid-cols-2">
         <Tabs defaultValue="district" className="w-full">

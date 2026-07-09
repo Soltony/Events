@@ -39,9 +39,10 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-import { Check, Loader2, Mail, Trash2, UserPlus } from 'lucide-react';
+import { ArrowLeft, Check, Loader2, Mail, Trash2, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { addStaff, deleteUser, getOrganizers, getStaffForUser, resetStaffPassword } from '@/lib/super-admin-user-actions';
+import { useRouter } from 'next/navigation';
 
 const addStaffFormSchema = z.object({
   firstName: z.string().min(1, { message: 'First name is required.' }),
@@ -67,6 +68,7 @@ interface OrganizerOption {
 
 export default function StaffPageContent() {
   const { toast } = useToast();
+  const router = useRouter();
 
   const [organizers, setOrganizers] = useState<OrganizerOption[]>([]);
   const [selectedOrganizerId, setSelectedOrganizerId] = useState<string>('');
@@ -171,9 +173,15 @@ export default function StaffPageContent() {
   return (
     <>
       <div className="flex flex-1 flex-col gap-4 md:gap-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Staff Management</h1>
-          <p className="text-muted-foreground">Register and manage staff members for any organizer.</p>
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4" />
+            <span className="sr-only">Back</span>
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Staff Management</h1>
+            <p className="text-muted-foreground">Register and manage staff members for any organizer.</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">

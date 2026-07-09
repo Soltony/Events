@@ -3,7 +3,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import {
+  ArrowLeft,
   ImageIcon,
   Loader2,
   Pencil,
@@ -78,6 +80,7 @@ const emptyForm = {
 
 export default function HomeAdsPageContent() {
   const { toast } = useToast();
+  const router = useRouter();
   const [ads, setAds] = useState<HomeCarouselAdRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -223,6 +226,10 @@ export default function HomeAdsPageContent() {
     <div className="flex flex-1 flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
+          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4" />
+            <span className="sr-only">Back</span>
+          </Button>
           <ImageIcon className="h-8 w-8" />
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Homepage Carousel</h1>
