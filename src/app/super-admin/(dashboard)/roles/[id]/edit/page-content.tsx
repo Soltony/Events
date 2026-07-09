@@ -40,7 +40,7 @@ const roleFormSchema = z.object({
 
 type RoleFormValues = z.infer<typeof roleFormSchema>;
 
-export default function EditRolePageContent() {
+export default function EditRolePageContent({ basePath = '/super-admin' }: { basePath?: string }) {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const roleId = params.id;
@@ -58,7 +58,7 @@ export default function EditRolePageContent() {
   useEffect(() => {
     async function fetchRole() {
       if (!roleId) {
-        router.push('/super-admin/roles');
+        router.push(`${basePath}/roles`);
         return;
       }
       try {
@@ -93,7 +93,7 @@ export default function EditRolePageContent() {
           });
         } else {
           toast({ variant: 'destructive', title: 'Error', description: 'Role not found.' });
-          router.push('/super-admin/roles');
+          router.push(`${basePath}/roles`);
         }
       } catch (error) {
         console.error('Failed to fetch role:', error);
@@ -125,7 +125,7 @@ export default function EditRolePageContent() {
     try {
       await updateRole(roleId, { ...data, permissions: JSON.stringify(data.permissions) });
       toast({ title: 'Role Updated!', description: `Successfully updated the "${data.name}" role.` });
-      router.push('/super-admin/roles');
+      router.push(`${basePath}/roles`);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to update role. Please try again.' });
     } finally {

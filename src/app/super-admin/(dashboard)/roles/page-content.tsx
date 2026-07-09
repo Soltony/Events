@@ -26,7 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { deleteRole, getRoles } from '@/lib/super-admin-user-actions';
 import { FLAT_PERMISSIONS } from '@/lib/permissions';
 
-export default function RolesPageContent() {
+export default function RolesPageContent({ basePath = '/super-admin' }: { basePath?: string }) {
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -91,7 +91,7 @@ export default function RolesPageContent() {
             <CardDescription>A list of all user roles in the system.</CardDescription>
           </div>
           <Button asChild style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
-            <Link href="/super-admin/roles/new">
+            <Link href={`${basePath}/roles/new`}>
               <PlusCircle className="mr-2 h-4 w-4" /> Add New Role
             </Link>
           </Button>
@@ -124,7 +124,7 @@ export default function RolesPageContent() {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="ghost" size="icon" asChild disabled={role.name === 'Admin' || role.name === 'Super Admin'}>
-                          <Link href={`/super-admin/roles/${role.id}/edit`}>
+                          <Link href={`${basePath}/roles/${role.id}/edit`}>
                             <Pencil className="h-4 w-4" />
                             <span className="sr-only">Edit</span>
                           </Link>

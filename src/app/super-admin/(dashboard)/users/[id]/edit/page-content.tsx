@@ -58,7 +58,7 @@ interface UserWithRole extends User {
   role: Role;
 }
 
-export default function EditUserPageContent() {
+export default function EditUserPageContent({ basePath = '/super-admin' }: { basePath?: string }) {
   const { toast } = useToast();
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -86,7 +86,7 @@ export default function EditUserPageContent() {
   useEffect(() => {
     const fetchData = async () => {
       if (!userId) {
-        router.push('/super-admin/users');
+        router.push(`${basePath}/users`);
         return;
       }
       try {
@@ -114,7 +114,7 @@ export default function EditUserPageContent() {
           });
         } else {
           toast({ variant: 'destructive', title: 'Error', description: 'User not found.' });
-          router.push('/super-admin/users');
+          router.push(`${basePath}/users`);
         }
       } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to load user data.' });
@@ -132,7 +132,7 @@ export default function EditUserPageContent() {
     try {
       await updateUser(userId, data);
       toast({ title: 'User Updated', description: `Successfully updated ${data.firstName} ${data.lastName}.` });
-      router.push('/super-admin/users');
+      router.push(`${basePath}/users`);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to update user.' });
     } finally {

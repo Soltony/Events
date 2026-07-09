@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 import prisma from '@/lib/prisma';
 import { hasPermission } from '@/lib/permissions';
+import { getCurrentUser } from '@/lib/auth';
 import type { SuperAdmin, Role } from '@prisma/client';
 
 const SUPER_ADMIN_JWT_SECRET = process.env.SUPER_ADMIN_JWT_SECRET;
@@ -77,10 +78,33 @@ export async function requireSuperAdmin() {
   return superAdmin;
 }
 
+interface AdminPortalActor {
+  id: string;
+  role: Role & { permissions: string[] };
+}
+
+// Resolves the acting identity for the shared admin-portal action layer
+// (src/lib/super-admin-user-actions.ts, super-admin-actions.ts). Tries a
+// SuperAdmin session first, then falls back to a regular User session — both
+// share the same Role/Permission/RolePermission tables, so a User whose Role
+// carries the right permission string is just as valid an actor here as a
+// SuperAdmin. Callers only ever read `.id` and `.role` off the result (verified
+// across both action files — narrowed to that shape here).
+async function getCurrentAdminActor(): Promise<AdminPortalActor | null> {
+  const superAdmin = await getCurrentSuperAdmin();
+  if (superAdmin) {
+    return superAdmin;
+  }
+  return getCurrentUser();
+}
+
 export async function requireSuperAdminPermission(permission: string) {
-  const superAdmin = await requireSuperAdmin();
-  if (!hasPermission(superAdmin.role, permission)) {
+  const actor = await getCurrentAdminActor();
+  if (!actor) {
+    throw new Error('Not authenticated.');
+  }
+  if (!hasPermission(actor.role, permission)) {
     throw new Error('Permission denied.');
   }
-  return superAdmin;
+  return actor;
 }

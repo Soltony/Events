@@ -57,7 +57,7 @@ interface UserWithDetails extends User {
   roleId: string;
 }
 
-export default function UserManagementPage() {
+export default function UserManagementPage({ basePath = '/super-admin' }: { basePath?: string }) {
   const { toast } = useToast();
   const [users, setUsers] = useState<UserWithDetails[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -202,7 +202,7 @@ export default function UserManagementPage() {
                 <CardDescription>Assign roles and manage status for users across the application.</CardDescription>
               </div>
               <Button asChild style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
-                <Link href="/super-admin/users/new">
+                <Link href={`${basePath}/users/new`}>
                   <UserPlus className="mr-2 h-4 w-4" /> Add User
                 </Link>
               </Button>
@@ -286,7 +286,7 @@ export default function UserManagementPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onSelect={() => (window.location.href = `/super-admin/users/${user.id}/edit`)}>
+                              <DropdownMenuItem onSelect={() => (window.location.href = `${basePath}/users/${user.id}/edit`)}>
                                 <Edit className="mr-2 h-4 w-4" /> Edit
                               </DropdownMenuItem>
                               <DropdownMenuItem onSelect={() => handleResetPassword(user)}>
