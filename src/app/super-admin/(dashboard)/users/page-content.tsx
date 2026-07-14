@@ -42,11 +42,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { UserPlus, MoreHorizontal, Edit, Trash2, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { UserPlus, MoreHorizontal, Edit, Trash2, CheckCircle2, XCircle, Loader2, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getUsersAndRoles, updateUserRole, updateUserStatus, deleteUser, resetUserPassword } from '@/lib/super-admin-user-actions';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -59,6 +60,7 @@ interface UserWithDetails extends User {
 
 export default function UserManagementPage({ basePath = '/super-admin' }: { basePath?: string }) {
   const { toast } = useToast();
+  const router = useRouter();
   const [users, setUsers] = useState<UserWithDetails[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
@@ -185,9 +187,15 @@ export default function UserManagementPage({ basePath = '/super-admin' }: { base
   return (
     <>
       <div className="flex flex-1 flex-col gap-4 md:gap-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-          <p className="text-muted-foreground">View and manage all user accounts and their roles.</p>
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4" />
+            <span className="sr-only">Back</span>
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
+            <p className="text-muted-foreground">View and manage all user accounts and their roles.</p>
+          </div>
         </div>
         {loading ? (
           <Card>

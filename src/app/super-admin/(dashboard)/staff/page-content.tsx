@@ -38,7 +38,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-import { Check, Loader2, Mail, Trash2, UserPlus } from 'lucide-react';
+import { ArrowLeft, Check, Loader2, Mail, Trash2, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { addStaff, deleteStaff, getStaff, resetStaffPassword } from '@/lib/super-admin-user-actions';
 
@@ -58,6 +58,7 @@ interface StaffWithDetails extends User {
 
 export default function StaffPageContent() {
   const { toast } = useToast();
+  const router = useRouter();
 
   const [staffMembers, setStaffMembers] = useState<StaffWithDetails[]>([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
