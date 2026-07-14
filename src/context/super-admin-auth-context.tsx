@@ -18,6 +18,7 @@ interface SuperAdmin {
   email: string | null;
   status: string;
   lastLoginAt: string | null;
+  passwordChangeRequired: boolean;
   role: SuperAdminRole;
 }
 

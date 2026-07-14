@@ -75,7 +75,8 @@ export async function verifyAuth(req: NextRequest): Promise<VerifiedUser | null>
         tokenVersion: 1,
         createdAt: new Date(),
         updatedAt: new Date(),
-        organizerId: null,
+        createdById: null,
+        createdBySuperAdminId: null,
         isGuest: true,
         role: {
           id: 'guest-role',

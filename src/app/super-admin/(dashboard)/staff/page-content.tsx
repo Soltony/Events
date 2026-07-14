@@ -34,21 +34,19 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 import { Check, Loader2, Mail, Trash2, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { addStaff, deleteUser, getOrganizers, getStaffForUser, resetStaffPassword } from '@/lib/super-admin-user-actions';
+import { addStaff, deleteStaff, getStaff, resetStaffPassword } from '@/lib/super-admin-user-actions';
 
 const addStaffFormSchema = z.object({
   firstName: z.string().min(1, { message: 'First name is required.' }),
   lastName: z.string().min(1, { message: 'Last name is required.' }),
   phoneNumber: z.string().min(10, { message: 'Phone number must be at least 10 digits.' }),
   email: z.string().email({ message: 'Invalid email address.' }),
-  organizerId: z.string({ required_error: 'Please select an organizer.' }),
 });
 
 type AddStaffFormValues = z.infer<typeof addStaffFormSchema>;
@@ -58,41 +56,23 @@ interface StaffWithDetails extends User {
   branch?: (Branch & { district: District }) | null;
 }
 
-interface OrganizerOption {
-  id: string;
-  firstName: string;
-  lastName: string;
-  phoneNumber: string;
-}
-
 export default function StaffPageContent() {
   const { toast } = useToast();
 
-  const [organizers, setOrganizers] = useState<OrganizerOption[]>([]);
-  const [selectedOrganizerId, setSelectedOrganizerId] = useState<string>('');
   const [staffMembers, setStaffMembers] = useState<StaffWithDetails[]>([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [loadingStaff, setLoadingStaff] = useState(false);
+  const [loadingStaff, setLoadingStaff] = useState(true);
   const [userToDelete, setUserToDelete] = useState<StaffWithDetails | null>(null);
   const [isResettingId, setIsResettingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    getOrganizers().then(setOrganizers).catch(() => {
-      toast({ variant: 'destructive', title: 'Error', description: 'Could not load organizers.' });
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fetchStaff = async (organizerId: string) => {
-    if (!organizerId) {
-      setStaffMembers([]);
-      return;
-    }
+  const fetchStaff = async () => {
     setLoadingStaff(true);
     try {
-      const staff = await getStaffForUser(organizerId);
-      setStaffMembers(staff);
+      const result = await getStaff();
+      setStaffMembers(result.staff);
+      setIsSuperAdmin(result.isSuperAdmin);
     } catch {
       toast({ variant: 'destructive', title: 'Error', description: 'Could not load staff members.' });
     } finally {
@@ -101,13 +81,13 @@ export default function StaffPageContent() {
   };
 
   useEffect(() => {
-    fetchStaff(selectedOrganizerId);
+    fetchStaff();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedOrganizerId]);
+  }, []);
 
   const addStaffForm = useForm<AddStaffFormValues>({
     resolver: zodResolver(addStaffFormSchema),
-    defaultValues: { firstName: '', lastName: '', phoneNumber: '', email: '', organizerId: '' },
+    defaultValues: { firstName: '', lastName: '', phoneNumber: '', email: '' },
   });
 
   async function onAddStaffSubmit(data: AddStaffFormValues) {
@@ -120,10 +100,8 @@ export default function StaffPageContent() {
       if (result.success) {
         toast({ title: 'Staff Member Added', description: `An email with credentials has been sent to ${data.email}.` });
         setIsSuccess(true);
-        addStaffForm.reset({ ...addStaffForm.getValues(), firstName: '', lastName: '', phoneNumber: '', email: '' });
-        if (data.organizerId === selectedOrganizerId) {
-          fetchStaff(selectedOrganizerId);
-        }
+        addStaffForm.reset({ firstName: '', lastName: '', phoneNumber: '', email: '' });
+        fetchStaff();
       } else {
         toast({ variant: 'destructive', title: 'Failed to Add Staff', description: result.error || 'An unknown error occurred.' });
       }
@@ -137,10 +115,10 @@ export default function StaffPageContent() {
   const handleDelete = async () => {
     if (!userToDelete) return;
     try {
-      const result = await deleteUser(userToDelete.id, userToDelete.phoneNumber);
+      const result = await deleteStaff(userToDelete.id);
       if (result?.ok) {
         toast({ title: 'Staff Member Deleted', description: `Successfully deleted ${userToDelete.firstName} ${userToDelete.lastName}.` });
-        fetchStaff(selectedOrganizerId);
+        fetchStaff();
       } else {
         toast({ variant: 'destructive', title: 'Delete Failed', description: result?.message || 'Failed to delete staff member.' });
       }
@@ -157,7 +135,7 @@ export default function StaffPageContent() {
       const result = await resetStaffPassword(staff.id);
       if (result?.ok) {
         toast({ title: 'Password Reset', description: `A temporary password has been sent to ${staff.email}.` });
-        fetchStaff(selectedOrganizerId);
+        fetchStaff();
       } else {
         toast({ variant: 'destructive', title: 'Reset Failed', description: result?.message || 'Failed to reset password.' });
       }
@@ -173,7 +151,7 @@ export default function StaffPageContent() {
       <div className="flex flex-1 flex-col gap-4 md:gap-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Staff Management</h1>
-          <p className="text-muted-foreground">Register and manage staff members for any organizer.</p>
+          <p className="text-muted-foreground">Register new staff members and manage existing accounts.</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -200,20 +178,6 @@ export default function StaffPageContent() {
                 ) : (
                   <Form {...addStaffForm}>
                     <form onSubmit={addStaffForm.handleSubmit(onAddStaffSubmit)} className="space-y-4">
-                      <FormField control={addStaffForm.control} name="organizerId" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Organizer</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Assign to organizer" /></SelectTrigger></FormControl>
-                            <SelectContent>
-                              {organizers.map((o) => (
-                                <SelectItem key={o.id} value={o.id}>{o.firstName} {o.lastName} ({o.phoneNumber})</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={addStaffForm.control} name="firstName" render={({ field }) => (
                           <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="John" {...field} /></FormControl><FormMessage /></FormItem>
@@ -243,18 +207,12 @@ export default function StaffPageContent() {
           <div className="lg:col-span-3">
             <Card>
               <CardHeader>
-                <CardTitle>Staff Members</CardTitle>
-                <CardDescription>Select an organizer to view their registered staff.</CardDescription>
-                <div className="pt-2">
-                  <Select value={selectedOrganizerId} onValueChange={setSelectedOrganizerId}>
-                    <SelectTrigger className="w-full sm:w-[300px]"><SelectValue placeholder="View staff for organizer" /></SelectTrigger>
-                    <SelectContent>
-                      {organizers.map((o) => (
-                        <SelectItem key={o.id} value={o.id}>{o.firstName} {o.lastName} ({o.phoneNumber})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <CardTitle>{isSuperAdmin ? 'All Staff Members' : 'Your Staff Members'}</CardTitle>
+                <CardDescription>
+                  {isSuperAdmin
+                    ? 'Staff members registered across the system.'
+                    : 'List of staff members you have registered.'}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -267,11 +225,7 @@ export default function StaffPageContent() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {!selectedOrganizerId ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center h-24">Select an organizer to view their staff.</TableCell>
-                      </TableRow>
-                    ) : loadingStaff ? (
+                    {loadingStaff ? (
                       <TableRow>
                         <TableCell colSpan={4} className="h-24 text-center">
                           <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
@@ -300,7 +254,9 @@ export default function StaffPageContent() {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center h-24">This organizer has no registered staff members yet.</TableCell>
+                        <TableCell colSpan={4} className="text-center h-24">
+                          {isSuperAdmin ? 'No staff members have been registered yet.' : 'You have not registered any staff members yet.'}
+                        </TableCell>
                       </TableRow>
                     )}
                   </TableBody>

@@ -58,6 +58,11 @@ export default function SuperAdminLoginPage() {
           Back to Homepage
         </Link>
       </Button>
+      <Button asChild variant="ghost" className="absolute top-4 right-4">
+        <Link href="/login">
+          Back to Main Login
+        </Link>
+      </Button>
       <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="items-center text-center pt-8 pb-4">
           <Image

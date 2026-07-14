@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useSuperAdminAuth } from '@/context/super-admin-auth-context';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -16,6 +18,7 @@ import {
 
 export function SuperAdminHeader() {
   const { superAdmin, logout } = useSuperAdminAuth();
+  const router = useRouter();
 
   const getInitials = () => {
     if (superAdmin?.fullName) {
@@ -51,6 +54,10 @@ export function SuperAdminHeader() {
               <p className="text-xs leading-none text-muted-foreground">{superAdmin?.phoneNumber}</p>
             </div>
           </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuItem onClick={() => router.push('/super-admin/profile')}>Profile</DropdownMenuItem>
+          </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => logout()}>Log out</DropdownMenuItem>
         </DropdownMenuContent>

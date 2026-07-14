@@ -8,31 +8,33 @@ datasource db {
 }
 
 model User {
-  id                     String     @id @default(cuid())
+  id                     String      @id @default(cuid())
   firstName              String
   lastName               String
-  phoneNumber            String     @unique
-  email                  String?    @unique
+  phoneNumber            String      @unique
+  email                  String?     @unique
   password               String?
-  passwordUpdatedAt      DateTime?  @default(now())
-  failedLoginAttempts    Int        @default(0)
+  passwordUpdatedAt      DateTime?   @default(now())
+  failedLoginAttempts    Int         @default(0)
   lockoutUntil           DateTime?
   roleId                 String
   branchId               String?
   nibBankAccount         String?
-  status                 UserStatus @default(ACTIVE)
-  passwordChangeRequired Boolean    @default(false)
-  tokenVersion           Int        @default(1)
-  createdAt              DateTime   @default(now())
-  updatedAt              DateTime   @updatedAt
-  organizerId            String?
+  status                 UserStatus  @default(ACTIVE)
+  passwordChangeRequired Boolean     @default(false)
+  tokenVersion           Int         @default(1)
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
+  createdById            String?
+  createdBySuperAdminId  String?
   attendees              Attendee[]
-  events                 Event[]    @relation("EventOrganizer")
+  events                 Event[]     @relation("EventOrganizer")
   sessions               Session[]
-  branch                 Branch?    @relation(fields: [branchId], references: [id])
-  organizer              User?      @relation("OrganizerStaff", fields: [organizerId], references: [id])
-  organizedStaff         User[]     @relation("OrganizerStaff")
-  role                   Role       @relation(fields: [roleId], references: [id])
+  branch                 Branch?     @relation(fields: [branchId], references: [id])
+  createdBy              User?       @relation("UserCreatedBy", fields: [createdById], references: [id])
+  createdUsers           User[]      @relation("UserCreatedBy")
+  createdBySuperAdmin    SuperAdmin? @relation(fields: [createdBySuperAdminId], references: [id])
+  role                   Role        @relation(fields: [roleId], references: [id])
 }
 
 model Session {
@@ -219,17 +221,19 @@ model HomeCarouselAd {
 }
 
 model SuperAdmin {
-  id          String           @id @default(cuid())
-  fullName    String
-  phoneNumber String           @unique
-  email       String?          @unique
-  password    String
-  status      SuperAdminStatus @default(ACTIVE)
-  lastLoginAt DateTime?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  roleId      String
-  role        Role             @relation(fields: [roleId], references: [id])
+  id                     String           @id @default(cuid())
+  fullName               String
+  phoneNumber            String           @unique
+  email                  String?          @unique
+  password               String
+  passwordChangeRequired Boolean          @default(false)
+  status                 SuperAdminStatus @default(ACTIVE)
+  lastLoginAt            DateTime?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  roleId                 String
+  role                   Role             @relation(fields: [roleId], references: [id])
+  createdUsers           User[]
 }
 
 enum UserStatus {

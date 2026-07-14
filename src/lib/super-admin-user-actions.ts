@@ -225,10 +225,6 @@ export async function deleteUser(userId: string, phoneNumber: string) {
       };
     }
 
-    if (userToDelete?.role?.name === 'Organizer') {
-      await prisma.user.deleteMany({ where: { organizerId: userId } });
-    }
-
     await prisma.attendee.deleteMany({ where: { userId } });
     await prisma.user.delete({ where: { id: userId } });
 
@@ -353,32 +349,30 @@ export async function addUser(
   }
 }
 
-// --- Staff management (Super Admin explicitly assigns which Organizer a Staff member belongs to) ---
+// --- Staff management ---
+// Ownership model: every staff member is linked to the admin-portal actor (a User
+// with Staff:Create permission, or a SuperAdmin) who registered them via
+// createdById / createdBySuperAdminId. Non-Super-Admin actors may only read/update/
+// delete the staff they created; Super Admin sees and manages all staff.
 
-export async function getStaffForUser(organizerId: string | undefined) {
-  await requireSuperAdminPermission('Staff:Read');
-  if (!organizerId) return [];
+export async function getStaff() {
+  const actor = await requireSuperAdminPermission('Staff:Read');
+  const isSuperAdmin = actor.role.name === 'Super Admin';
 
   const staff = await prisma.user.findMany({
-    where: { organizerId },
+    where: {
+      role: { name: 'Staff' },
+      ...(isSuperAdmin ? {} : { createdById: actor.id }),
+    },
     include: {
       role: true,
       branch: { include: { district: true } },
     },
+    orderBy: { createdAt: 'desc' },
   });
 
   const staffWithoutPasswords = staff.map(({ password: _password, ...rest }) => rest);
-  return serialize(staffWithoutPasswords);
-}
-
-export async function getOrganizers() {
-  await requireSuperAdminPermission('Staff:Read');
-  const organizers = await prisma.user.findMany({
-    where: { role: { name: 'Organizer' } },
-    select: { id: true, firstName: true, lastName: true, phoneNumber: true },
-    orderBy: { firstName: 'asc' },
-  });
-  return serialize(organizers);
+  return { staff: serialize(staffWithoutPasswords), isSuperAdmin };
 }
 
 export async function addStaff(
@@ -387,10 +381,10 @@ export async function addStaff(
     lastName: string;
     phoneNumber: string;
     email: string;
-    organizerId: string;
   }
 ): Promise<{ success: boolean; error?: string }> {
-  await requireSuperAdminPermission('Staff:Create');
+  const actor = await requireSuperAdminPermission('Staff:Create');
+  const isSuperAdmin = actor.role.name === 'Super Admin';
 
   try {
     let normalizedPhone: string;
@@ -415,11 +409,6 @@ export async function addStaff(
       return { success: false, error: 'Default role "Staff" not found.' };
     }
 
-    const organizer = await prisma.user.findUnique({ where: { id: data.organizerId } });
-    if (!organizer) {
-      return { success: false, error: 'Selected organizer not found.' };
-    }
-
     const tempPassword = nanoid(10);
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
@@ -432,15 +421,18 @@ export async function addStaff(
         email: data.email,
         password: hashedPassword,
         roleId: staffRole.id,
-        organizerId: data.organizerId,
         status: 'ACTIVE',
         passwordChangeRequired: true,
         tokenVersion: 1,
+        createdById: isSuperAdmin ? null : actor.id,
+        createdBySuperAdminId: isSuperAdmin ? actor.id : null,
       },
     });
 
     await sendTempPassword({ email: data.email, phoneNumber: normalizedPhone, tempPassword });
 
+    revalidatePath('/super-admin/staff');
+    revalidatePath('/dashboard/staff');
     return { success: true };
   } catch (error: any) {
     console.error('Failed to add staff:', error);
@@ -457,11 +449,15 @@ export async function addStaff(
 }
 
 export async function resetStaffPassword(userId: string) {
-  await requireSuperAdminPermission('Staff:Update');
+  const actor = await requireSuperAdminPermission('Staff:Update');
+  const isSuperAdmin = actor.role.name === 'Super Admin';
 
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) {
-    return { ok: false, message: 'User not found.' };
+  const user = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
+  if (!user || user.role.name !== 'Staff') {
+    return { ok: false, message: 'Staff member not found.' };
+  }
+  if (!isSuperAdmin && user.createdById !== actor.id) {
+    return { ok: false, message: 'You do not have permission to manage this staff member.' };
   }
 
   const tempPassword = nanoid(8);
@@ -487,7 +483,39 @@ export async function resetStaffPassword(userId: string) {
   }
 
   revalidatePath('/super-admin/staff');
+  revalidatePath('/dashboard/staff');
   return { ok: true };
+}
+
+export async function deleteStaff(userId: string) {
+  try {
+    const actor = await requireSuperAdminPermission('Staff:Delete');
+    const isSuperAdmin = actor.role.name === 'Super Admin';
+
+    const staffToDelete = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
+    if (!staffToDelete || staffToDelete.role.name !== 'Staff') {
+      return { ok: false, message: 'Staff member not found.' };
+    }
+    if (!isSuperAdmin && staffToDelete.createdById !== actor.id) {
+      return { ok: false, message: 'You do not have permission to delete this staff member.' };
+    }
+
+    await prisma.attendee.deleteMany({ where: { userId } });
+    await prisma.user.delete({ where: { id: userId } });
+
+    revalidatePath('/super-admin/staff');
+    revalidatePath('/dashboard/staff');
+    return { ok: true };
+  } catch (err: any) {
+    console.error('Error deleting staff member:', err);
+    if (err.code === 'P2003') {
+      return {
+        ok: false,
+        message: 'Cannot delete staff member. They are still linked to other records in the database.',
+      };
+    }
+    return { ok: false, message: err.message ?? 'Unexpected server error.' };
+  }
 }
 
 // --- Role management ---

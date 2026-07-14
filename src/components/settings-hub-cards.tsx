@@ -26,7 +26,7 @@ const cardDetails: Record<string, { icon: ReactNode; description: string; button
   },
   '/staff': {
     icon: <UserCog className="h-5 w-5" />,
-    description: 'Register and manage staff members assigned to branches or organizations.',
+    description: 'Register and manage the staff members you oversee.',
     buttonText: 'Go to Staff Management',
   },
   '/organization': {
