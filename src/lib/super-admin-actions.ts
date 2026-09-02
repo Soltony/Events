@@ -4,8 +4,14 @@ import { requireSuperAdminPermission } from '@/lib/super-admin-auth';
 import prisma from '@/lib/prisma';
 import type { EventStatus } from '@prisma/client';
 
-async function requireSuperAdmin() {
-  return requireSuperAdminPermission('Performance:Access');
+const PERFORMANCE_PERMISSIONS = [
+  'Performance:Overview',
+  'Performance:Branch Comparison',
+  'Performance:District Comparison',
+];
+
+async function requireSuperAdmin(permission: string | string[] = PERFORMANCE_PERMISSIONS) {
+  return requireSuperAdminPermission(permission);
 }
 
 export interface PerformanceFilters {
@@ -51,7 +57,7 @@ export async function getSuperAdminFilters() {
 }
 
 export async function getPerformanceOverview(filters: PerformanceFilters = {}) {
-  await requireSuperAdmin();
+  await requireSuperAdmin('Performance:Overview');
 
   const where = buildEventWhere(filters);
 
@@ -102,7 +108,7 @@ interface GroupPerformance {
 }
 
 export async function getBranchPerformance(filters: PerformanceFilters = {}): Promise<GroupPerformance[]> {
-  await requireSuperAdmin();
+  await requireSuperAdmin('Performance:Branch Comparison');
 
   const branches = await prisma.branch.findMany({
     where: filters.districtId
@@ -146,7 +152,7 @@ export async function getBranchPerformance(filters: PerformanceFilters = {}): Pr
 }
 
 export async function getDistrictPerformance(filters: PerformanceFilters = {}): Promise<GroupPerformance[]> {
-  await requireSuperAdmin();
+  await requireSuperAdmin('Performance:District Comparison');
 
   const districts = await prisma.district.findMany({
     where: filters.districtId ? { id: filters.districtId } : {},

@@ -8,7 +8,7 @@ import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowUpRight, Ticket } from 'lucide-react';
+import { ArrowUpRight, Ticket, Gift } from 'lucide-react';
 import api from '@/lib/api';
 import { getPrimaryEventImage } from '@/lib/event-images';
 import { useToast } from '@/hooks/use-toast';
@@ -33,6 +33,8 @@ interface Attendee {
   phoneNumber: string | null;
   checkedIn: boolean;
   createdAt: Date;
+  isGift: boolean;
+  purchasedByName: string | null;
   event: Event;
   ticketType: TicketType;
 }
@@ -200,6 +202,11 @@ export default function MyTicketsPage() {
                 {formatEventDate(ticket.event.startDate, ticket.event.endDate)}
               </CardDescription>
               <p className="font-semibold mt-1.5 text-sm sm:text-base text-[#f6b313]">{ticket.ticketType.name}</p>
+              {ticket.isGift && (
+                <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
+                  <Gift className="h-3 w-3" /> {ticket.purchasedByName ? `Gift from ${ticket.purchasedByName}` : 'Gift'}
+                </span>
+              )}
             </CardContent>
             <CardFooter className="p-3 sm:p-4 pt-0">
               <Button

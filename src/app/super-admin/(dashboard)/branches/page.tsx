@@ -9,7 +9,7 @@ export default async function SuperAdminBranchesPage() {
   if (!superAdmin) {
     redirect('/super-admin/login');
   }
-  if (!hasPermission(superAdmin.role, 'Performance:Access')) {
+  if (!hasPermission(superAdmin.role, 'Performance:Branch Comparison')) {
     redirect('/super-admin/dashboard');
   }
   return <BranchesPageContent />;

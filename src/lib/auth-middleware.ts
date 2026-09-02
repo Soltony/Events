@@ -71,6 +71,7 @@ export async function verifyAuth(req: NextRequest): Promise<VerifiedUser | null>
         branchId: null,
         nibBankAccount: null,
         status: 'ACTIVE',
+        rejectionReason: null,
         passwordChangeRequired: false,
         tokenVersion: 1,
         createdAt: new Date(),

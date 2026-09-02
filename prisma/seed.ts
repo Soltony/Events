@@ -52,14 +52,20 @@ async function main() {
     }
   });
 
+  // "Event Approvals" is deliberately excluded from the Admin role's default
+  // permission set — it must be granted explicitly through the Roles UI to
+  // whichever role(s) should review/approve events, rather than being
+  // implicit for anyone named "Admin".
+  const adminDefaultPermissions = allPermissionsFromDb.filter(p => p.name !== 'Event Approvals:Access');
+
   await prisma.rolePermission.createMany({
-    data: allPermissionsFromDb.map(p => ({
+    data: adminDefaultPermissions.map(p => ({
         roleId: adminRole.id,
         permissionId: p.id,
     })),
     skipDuplicates: true,
   });
-  console.log('Admin role configured with all permissions.');
+  console.log('Admin role configured with default permissions (excluding Event Approvals).');
 
   // Super Admin Role (reserved system role, full permissions) — the single
   // Super Admin account is linked to this role; it is never assigned to

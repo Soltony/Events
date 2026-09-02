@@ -39,6 +39,7 @@ export default function UserRegistrationPageContent() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isPendingApproval, setIsPendingApproval] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -69,7 +70,12 @@ export default function UserRegistrationPageContent() {
       const result = await addUser(data);
 
       if (result.success) {
-        toast({ title: 'User Added', description: `An email with credentials has been sent to ${data.email}.` });
+        setIsPendingApproval(!!result.pendingApproval);
+        toast(
+          result.pendingApproval
+            ? { title: 'Registration Submitted', description: 'The organizer registration is now pending approval.' }
+            : { title: 'User Added', description: `An email with credentials has been sent to ${data.email}.` }
+        );
         setIsSuccess(true);
       } else {
         toast({ variant: 'destructive', title: 'Failed to Add User', description: result.error || 'An unknown error occurred.' });
@@ -86,15 +92,23 @@ export default function UserRegistrationPageContent() {
       <div className="flex flex-1 items-center justify-center p-4">
         <Card className="w-full max-w-2xl">
           <CardHeader>
-            <CardTitle>User Registered Successfully!</CardTitle>
-            <CardDescription>The user has been created and their temporary password has been sent to their email address.</CardDescription>
+            <CardTitle>{isPendingApproval ? 'Registration Submitted!' : 'User Registered Successfully!'}</CardTitle>
+            <CardDescription>
+              {isPendingApproval
+                ? 'The organizer registration has been submitted and is now pending approval before it becomes active.'
+                : 'The user has been created and their temporary password has been sent to their email address.'}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <Alert variant="default" className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
               <Check className="h-4 w-4 text-green-600 dark:text-green-300" />
-              <AlertTitle className="text-green-800 dark:text-green-300">Email Sent</AlertTitle>
+              <AlertTitle className="text-green-800 dark:text-green-300">
+                {isPendingApproval ? 'Pending Approval' : 'Email Sent'}
+              </AlertTitle>
               <AlertDescription className="text-green-700 dark:text-green-400">
-                An email containing the login credentials and next steps has been sent to the user.
+                {isPendingApproval
+                  ? 'An approver with Organizer Approvals access will review this registration. Login credentials will be emailed once it is approved.'
+                  : 'An email containing the login credentials and next steps has been sent to the user.'}
               </AlertDescription>
             </Alert>
             <div className="flex justify-end gap-2 pt-4">

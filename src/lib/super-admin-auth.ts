@@ -98,13 +98,26 @@ async function getCurrentAdminActor(): Promise<AdminPortalActor | null> {
   return getCurrentUser();
 }
 
-export async function requireSuperAdminPermission(permission: string) {
+export async function requireSuperAdminPermission(permission: string | string[]) {
   const actor = await getCurrentAdminActor();
   if (!actor) {
     throw new Error('Not authenticated.');
   }
-  if (!hasPermission(actor.role, permission)) {
+  const permissions = Array.isArray(permission) ? permission : [permission];
+  if (!permissions.some((p) => hasPermission(actor.role, p))) {
     throw new Error('Permission denied.');
   }
   return actor;
+}
+
+// Non-throwing capability check for the shared admin-portal UI (e.g. deciding
+// whether to render a "Review" shortcut on the Users list) — unlike
+// requireSuperAdminPermission, an unauthenticated or under-permissioned actor
+// just gets `false` rather than an error.
+export async function currentActorHasPermission(permission: string): Promise<boolean> {
+  const actor = await getCurrentAdminActor();
+  if (!actor) {
+    return false;
+  }
+  return hasPermission(actor.role, permission);
 }

@@ -21,6 +21,7 @@ model User {
   branchId               String?
   nibBankAccount         String?
   status                 UserStatus  @default(ACTIVE)
+  rejectionReason        String?
   passwordChangeRequired Boolean     @default(false)
   tokenVersion           Int         @default(1)
   createdAt              DateTime    @default(now())
@@ -28,6 +29,7 @@ model User {
   createdById            String?
   createdBySuperAdminId  String?
   attendees              Attendee[]
+  purchasedTickets       Attendee[]  @relation("PurchasedTickets")
   events                 Event[]     @relation("EventOrganizer")
   sessions               Session[]
   branch                 Branch?     @relation(fields: [branchId], references: [id])
@@ -139,20 +141,24 @@ model TicketType {
 }
 
 model Attendee {
-  id           Int           @id @default(autoincrement())
-  name         String
-  phoneNumber  String?
-  userId       String?
-  eventId      Int
-  ticketTypeId Int
-  checkedIn    Boolean       @default(false)
-  qrCode       String        @unique @default(cuid())
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  event        Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  ticketType   TicketType    @relation(fields: [ticketTypeId], references: [id])
-  user         User?         @relation(fields: [userId], references: [id])
-  pendingOrder PendingOrder?
+  id              Int           @id @default(autoincrement())
+  name            String
+  phoneNumber     String?
+  userId          String?
+  eventId         Int
+  ticketTypeId    Int
+  checkedIn       Boolean       @default(false)
+  qrCode          String        @unique @default(cuid())
+  isGift          Boolean       @default(false)
+  purchasedById   String?
+  purchasedByName String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  event           Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ticketType      TicketType    @relation(fields: [ticketTypeId], references: [id])
+  user            User?         @relation(fields: [userId], references: [id])
+  purchasedBy     User?         @relation("PurchasedTickets", fields: [purchasedById], references: [id])
+  pendingOrder    PendingOrder?
 }
 
 model PromoCode {
@@ -240,6 +246,8 @@ enum UserStatus {
   ACTIVE
   INACTIVE
   DELETED
+  PENDING
+  REJECTED
 }
 
 enum EventStatus {

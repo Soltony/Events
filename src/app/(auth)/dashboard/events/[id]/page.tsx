@@ -145,8 +145,8 @@ export default function EventDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const eventId = params.id ? parseInt(params.id, 10) : -1;
-  const { user } = useAuth();
-  const isAdmin = user?.role?.name === 'Admin';
+  const { hasPermission, user } = useAuth();
+  const canApproveEvents = hasPermission('Event Approvals:Access');
   const [event, setEvent] = useState<EventDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAddTicketTypeOpen, setIsAddTicketTypeOpen] = useState(false);
@@ -502,6 +502,14 @@ export default function EventDetailPage() {
     );
   }
   
+  // Maker-Checker: while an event is PENDING, only its original organizer may
+  // manage its ticket tiers / promo codes — an approver reviewing it (even
+  // one who also holds Events:Update) gets a read-only view, so reviewing a
+  // submission can never double as editing it. Once decided, the normal
+  // Admin-or-owner management rule applies.
+  const isOwner = event.organizerId === user?.id;
+  const canManageEventContent = event.status === 'PENDING' ? isOwner : (user?.role?.name === 'Admin' || isOwner);
+
   const chartData = event.ticketTypes.map(item => ({
     name: item.name,
     sold: item.sold,
@@ -564,7 +572,7 @@ export default function EventDetailPage() {
                 </div>
             </div>
             <div className="flex justify-end gap-2">
-                 {isAdmin && event.status === 'PENDING' && (
+                 {canApproveEvents && event.status === 'PENDING' && (
                   <div className="flex gap-2">
                       <Button variant="outline" onClick={handleApprove} disabled={actionLoading}>
                           <CheckCircle2 className="mr-2 h-4 w-4" />
@@ -698,8 +706,11 @@ export default function EventDetailPage() {
                 <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <CardTitle>Ticket Tiers</CardTitle>
-                        <CardDescription>Manage ticket types and quantities for your event.</CardDescription>
+                        <CardDescription>
+                          {canManageEventContent ? 'Manage ticket types and quantities for your event.' : 'Ticket tiers for this event (read-only).'}
+                        </CardDescription>
                     </div>
+                    {canManageEventContent && (
                     <Dialog open={isAddTicketTypeOpen} onOpenChange={setIsAddTicketTypeOpen}>
                       <DialogTrigger asChild>
                         <Button><PlusCircle className="mr-2 h-4 w-4" /> Add Ticket Type</Button>
@@ -793,6 +804,7 @@ export default function EventDetailPage() {
                         </Form>
                       </DialogContent>
                     </Dialog>
+                    )}
                 </CardHeader>
                 <CardContent>
                     <ScrollArea className="h-[400px]">
@@ -804,7 +816,7 @@ export default function EventDetailPage() {
                                     <TableHead>Price</TableHead>
                                     <TableHead>Sold / Total</TableHead>
                                     <TableHead>Revenue</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
+                                    {canManageEventContent && <TableHead className="text-right">Actions</TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -819,16 +831,18 @@ export default function EventDetailPage() {
                                             <TableCell>ETB {Number(ticket.basePrice).toFixed(2)}</TableCell>
                                             <TableCell>{ticket.sold} / {ticket.total}</TableCell>
                                             <TableCell>ETB {(ticket.sold * Number(ticket.basePrice)).toLocaleString()}</TableCell>
-                                            <TableCell className="text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    <Button variant="ghost" size="icon" onClick={() => { setTicketToEdit(ticket); setIsEditTicketTypeOpen(true); }}>
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button variant="ghost" size="icon" onClick={() => handleOpenDeleteDialog({ id: ticket.id, name: ticket.name, type: 'ticket' })}>
-                                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                                    </Button>
-                                                </div>
-                                            </TableCell>
+                                            {canManageEventContent && (
+                                                <TableCell className="text-right">
+                                                    <div className="flex justify-end gap-2">
+                                                        <Button variant="ghost" size="icon" onClick={() => { setTicketToEdit(ticket); setIsEditTicketTypeOpen(true); }}>
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button variant="ghost" size="icon" onClick={() => handleOpenDeleteDialog({ id: ticket.id, name: ticket.name, type: 'ticket' })}>
+                                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            )}
                                         </TableRow>
                                     )
                                 })}
@@ -844,8 +858,11 @@ export default function EventDetailPage() {
                  <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <CardTitle>Promotional Codes</CardTitle>
-                        <CardDescription>Create and manage discount codes to boost sales.</CardDescription>
+                        <CardDescription>
+                          {canManageEventContent ? 'Create and manage discount codes to boost sales.' : 'Promotional codes for this event (read-only).'}
+                        </CardDescription>
                     </div>
+                    {canManageEventContent && (
                     <Dialog open={isAddPromoCodeOpen} onOpenChange={setIsAddPromoCodeOpen}>
                         <DialogTrigger asChild>
                             <Button><PlusCircle className="mr-2 h-4 w-4" /> Create Code</Button>
@@ -945,6 +962,7 @@ export default function EventDetailPage() {
                             </Form>
                         </DialogContent>
                     </Dialog>
+                    )}
                 </CardHeader>
                 <CardContent>
                     <ScrollArea className="h-[400px]">
@@ -956,7 +974,7 @@ export default function EventDetailPage() {
                                     <TableHead>Type</TableHead>
                                     <TableHead>Value</TableHead>
                                     <TableHead>Usage</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
+                                    {canManageEventContent && <TableHead className="text-right">Actions</TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -977,16 +995,18 @@ export default function EventDetailPage() {
                                             {code.type === 'PERCENTAGE' ? `${code.value}% off` : `ETB ${Number(code.value).toFixed(2)} off`}
                                         </TableCell>
                                         <TableCell>{code.uses} / {code.maxUses}</TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <Button variant="ghost" size="icon" onClick={() => { setPromoToEdit(code); setIsEditPromoCodeOpen(true); }}>
-                                                    <Pencil className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => handleOpenDeleteDialog({ id: code.id, name: code.code, type: 'promo' })}>
-                                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
+                                        {canManageEventContent && (
+                                            <TableCell className="text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <Button variant="ghost" size="icon" onClick={() => { setPromoToEdit(code); setIsEditPromoCodeOpen(true); }}>
+                                                        <Pencil className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button variant="ghost" size="icon" onClick={() => handleOpenDeleteDialog({ id: code.id, name: code.code, type: 'promo' })}>
+                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        )}
                                     </TableRow>
                                 )})}
                             </TableBody>

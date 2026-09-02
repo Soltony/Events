@@ -1,13 +1,21 @@
 
 import type { Metadata } from 'next';
 import Image from 'next/image';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/auth-context';
 import { ConditionalFooter } from '@/components/conditional-footer';
 import { headers } from 'next/headers'
 import React from 'react';
- 
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
   title: 'NibTera Tickets',
   description: 'The ultimate solution for event ticketing.',
@@ -15,7 +23,7 @@ export const metadata: Metadata = {
     icon: '/images/favicon.ico',
   },
 };
- 
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -24,11 +32,8 @@ export default async function RootLayout({
   const headersList = await headers();
   const nonce = headersList.get('x-nonce') ?? ""
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={inter.variable}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <link
           rel="stylesheet"
           href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"

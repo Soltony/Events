@@ -5,7 +5,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { notFound, useSearchParams } from 'next/navigation';
 import QRCode from 'qrcode';
 import { format } from 'date-fns';
-import { User, Calendar, MapPin, Ticket as TicketIcon, X, Loader2 } from 'lucide-react';
+import { User, Calendar, MapPin, Ticket as TicketIcon, X, Loader2, Gift } from 'lucide-react';
 import { getTicketDetailsForConfirmation } from '@/lib/actions';
 import type { Attendee, Event, TicketType } from '@prisma/client';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -146,6 +146,14 @@ function ConfirmationContent() {
           </div>
 
           <div className="px-6 pb-6 text-sm text-gray-700 space-y-3 border-t border-gray-100">
+            {(ticket as any).isGift && (
+              <div className="pt-4 -mb-1 flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-amber-800">
+                <Gift className="h-4 w-4 shrink-0" />
+                <span className="text-xs font-medium">
+                  Gifted ticket{(ticket as any).purchasedByName ? ` from ${(ticket as any).purchasedByName}` : ''}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between items-center pt-4">
               <span className="flex items-center gap-2 text-gray-500">
                 <User className="h-4 w-4" /> Attendee

@@ -7,6 +7,7 @@ import prisma from '@/lib/prisma';
 import { normalizeEthiopianPhoneStrict, normalizePhoneNumber } from '@/lib/utils';
 import { revalidatePath } from 'next/cache';
 import { randomUUID } from 'crypto';
+import { notifyGiftPurchase } from '@/lib/gift-notifications';
 
 export async function POST(request: NextRequest) {
   let requestBody;
@@ -55,24 +56,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Already handled' }, { status: 200 });
     }
 
+    // 1. Get attendee data from pending order
+    const attendeeData = eventPayment.pendingOrder.attendeeData as {
+      name: string, phoneNumber?: string, userId?: string, tickets: any[],
+      isGift?: boolean, purchasedById?: string | null, purchasedByName?: string | null,
+    };
+    const { name, phoneNumber, userId, tickets, isGift, purchasedById, purchasedByName } = attendeeData;
+
+    // Phone numbers should already be normalized at order creation time.
+    // Keep a safe fallback for legacy rows to avoid storing malformed data.
+    const normalizedPhone = phoneNumber
+      ? (() => {
+          try {
+            return normalizeEthiopianPhoneStrict(phoneNumber);
+          } catch {
+            const maybe = normalizePhoneNumber(phoneNumber);
+            return maybe ? normalizeEthiopianPhoneStrict(maybe) : null;
+          }
+        })()
+      : null;
+
     // Use a transaction to ensure atomicity
     const createdAttendee = await prisma.$transaction(async (tx) => {
-      // 1. Get attendee data from pending order
-      const attendeeData = eventPayment.pendingOrder.attendeeData as { name: string, phoneNumber?: string, userId?: string, tickets: any[] };
-      const { name, phoneNumber, userId, tickets } = attendeeData;
-      // Phone numbers should already be normalized at order creation time.
-      // Keep a safe fallback for legacy rows to avoid storing malformed data.
-      const normalizedPhone = phoneNumber
-        ? (() => {
-            try {
-              return normalizeEthiopianPhoneStrict(phoneNumber);
-            } catch {
-              const maybe = normalizePhoneNumber(phoneNumber);
-              return maybe ? normalizeEthiopianPhoneStrict(maybe) : null;
-            }
-          })()
-        : null;
-
       if (!tickets || tickets.length === 0) {
         throw new Error('No ticket information found in pending order.');
       }
@@ -93,6 +98,7 @@ export async function POST(request: NextRequest) {
       // If userId starts with 'guest_' or is invalid, validUserId remains null
       
       let lastAttendee = null;
+      let lastTicketTypeName: string | null = null;
 
       // 3. Create Attendee record(s)
       for (const ticketInfo of tickets) {
@@ -106,6 +112,7 @@ export async function POST(request: NextRequest) {
         if ((ticketType.total - ticketType.sold) < quantity) {
           throw new Error(`Not enough tickets available for "${ticketType.name}".`);
         }
+        lastTicketTypeName = ticketType.name;
 
         const attendeesToCreate = Array.from({ length: quantity }).map(() => ({
           name,
@@ -115,6 +122,9 @@ export async function POST(request: NextRequest) {
           ticketTypeId: ticketTypeId,
           checkedIn: false,
           qrCode: randomUUID(), // Generate a unique QR code
+          isGift: !!isGift,
+          purchasedById: purchasedById ?? null,
+          purchasedByName: purchasedByName ?? null,
         }));
 
         await tx.attendee.createMany({ data: attendeesToCreate });
@@ -167,7 +177,7 @@ export async function POST(request: NextRequest) {
         },
       });
       
-      return lastAttendee;
+      return { attendee: lastAttendee, ticketTypeName: lastTicketTypeName };
     });
 
     // Revalidate paths to show updated data
@@ -177,9 +187,20 @@ export async function POST(request: NextRequest) {
     revalidatePath(`/payment/success?transaction_id=${eventPayment.pendingOrder.transactionId}`);
 
     console.log(`Successfully processed payment for transaction ${txnRef}.`);
-    
 
-    return NextResponse.json({ message: 'Payment confirmed and updated.', attendeeId: createdAttendee?.id }, { status: 200 });
+    if (isGift && normalizedPhone) {
+      const event = await prisma.event.findUnique({ where: { id: eventPayment.eventId }, select: { name: true } });
+      notifyGiftPurchase({
+        recipientPhone: normalizedPhone,
+        buyerId: purchasedById ?? null,
+        buyerName: purchasedByName ?? null,
+        eventName: event?.name ?? 'the event',
+        ticketTypeName: createdAttendee.ticketTypeName ?? 'ticket',
+        quantity: tickets.reduce((sum: number, t: any) => sum + (t.quantity || 1), 0),
+      }).catch((err) => console.error('Gift notification error:', err));
+    }
+
+    return NextResponse.json({ message: 'Payment confirmed and updated.', attendeeId: createdAttendee.attendee?.id }, { status: 200 });
 
   } catch (error: any) {
     console.error('Webhook processing error:', error);

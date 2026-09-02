@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const refreshTokenFromCookie = cookieStore.get('refresh_token')?.value;
 
   if (!refreshTokenFromCookie) {

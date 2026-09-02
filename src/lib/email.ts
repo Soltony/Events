@@ -16,6 +16,23 @@ interface SendPendingEventNotificationParams {
   eventId: number;
 }
 
+interface SendGiftReceivedNotificationParams {
+  email: string;
+  recipientName: string;
+  buyerName: string | null;
+  eventName: string;
+  ticketTypeName: string;
+  quantity: number;
+}
+
+interface SendGiftPurchaseConfirmationParams {
+  email: string;
+  recipientName: string;
+  eventName: string;
+  ticketTypeName: string;
+  quantity: number;
+}
+
 // 🔹 Create reusable transporter
 function createTransporter() {
   const SMTP_HOST = process.env.SMTP_HOST;
@@ -162,4 +179,83 @@ export async function sendTempPassword(params: SendTempPasswordParams) {
   return {
     success: true,
   };
+}
+
+// 🔹 Notify a recipient that a ticket was gifted to them
+export async function sendGiftReceivedNotification(params: SendGiftReceivedNotificationParams) {
+  const { email, recipientName, buyerName, eventName, ticketTypeName, quantity } = params;
+
+  const EMAIL_FROM = process.env.EMAIL_FROM;
+  const APP_URL = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
+
+  if (!EMAIL_FROM) {
+    console.error('EMAIL_FROM is not configured.');
+    return;
+  }
+
+  try {
+    const transporter = createTransporter();
+    const ticketsLink = `${APP_URL}/tickets`;
+
+    await transporter.sendMail({
+      from: EMAIL_FROM,
+      to: email,
+      subject: `🎁 You've received a gifted ticket to ${eventName}!`,
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <h2 style="color: #864b20;">You've got a gift, ${recipientName}!</h2>
+          <p>${buyerName ? `<strong>${buyerName}</strong> has` : 'Someone has'} gifted you ${quantity > 1 ? `${quantity} tickets` : 'a ticket'} to <strong>${eventName}</strong> (${ticketTypeName}).</p>
+          <p style="margin-top:20px;">
+            <a href="${ticketsLink}" style="background:#f6b313;padding:10px 15px;border-radius:5px;text-decoration:none;">
+              View My Tickets
+            </a>
+          </p>
+          <p style="font-size: 12px; color: #777;">
+            NibTera Tickets
+          </p>
+        </div>
+      `,
+    });
+
+    console.log(`✅ Gift received email sent to ${email}`);
+  } catch (error) {
+    console.error('❌ Failed to send gift received email:', error);
+    // Do NOT throw → notification failure must not affect the completed purchase.
+  }
+}
+
+// 🔹 Confirm to the purchaser that their gift was sent
+export async function sendGiftPurchaseConfirmation(params: SendGiftPurchaseConfirmationParams) {
+  const { email, recipientName, eventName, ticketTypeName, quantity } = params;
+
+  const EMAIL_FROM = process.env.EMAIL_FROM;
+
+  if (!EMAIL_FROM) {
+    console.error('EMAIL_FROM is not configured.');
+    return;
+  }
+
+  try {
+    const transporter = createTransporter();
+
+    await transporter.sendMail({
+      from: EMAIL_FROM,
+      to: email,
+      subject: `Your gift to ${recipientName} is on its way!`,
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <h2 style="color: #864b20;">Ticket gifted successfully!</h2>
+          <p>${quantity > 1 ? `${quantity} tickets` : 'A ticket'} to <strong>${eventName}</strong> (${ticketTypeName}) ${quantity > 1 ? 'have' : 'has'} been sent to <strong>${recipientName}</strong>.</p>
+          <p style="font-size: 12px; color: #777;">
+            NibTera Tickets
+          </p>
+        </div>
+      `,
+    });
+
+    console.log(`✅ Gift purchase confirmation email sent to ${email}`);
+  } catch (error) {
+    console.error('❌ Failed to send gift purchase confirmation email:', error);
+    // Do NOT throw → notification failure must not affect the completed purchase.
+  }
 }

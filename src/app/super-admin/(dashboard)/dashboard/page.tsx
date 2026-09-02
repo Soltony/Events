@@ -9,7 +9,7 @@ export default async function SuperAdminOverviewPage() {
   if (!superAdmin) {
     redirect('/super-admin/login');
   }
-  if (!hasPermission(superAdmin.role, 'Performance:Access')) {
+  if (!hasPermission(superAdmin.role, 'Performance:Overview')) {
     return (
       <div className="flex flex-1 items-center justify-center p-8 text-center text-muted-foreground">
         You don&apos;t have permission to view this module.

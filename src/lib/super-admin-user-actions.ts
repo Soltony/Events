@@ -3,10 +3,11 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/prisma';
-import type { Role, User, UserStatus } from '@prisma/client';
+import type { Role, User, UserStatus, District, Branch } from '@prisma/client';
 import { nanoid } from 'nanoid';
 import bcrypt from 'bcryptjs';
 import cuid from 'cuid';
+import { Prisma } from '@prisma/client';
 import { normalizeEthiopianPhoneStrict } from '@/lib/utils';
 import { sendTempPassword } from '@/lib/email';
 import { validatePermissions } from '@/lib/permissions';
@@ -24,7 +25,7 @@ const serialize = (data: any) => {
  * below, since it has no User.id and is the top trust tier.
  */
 async function validateRoleAssignment(newRoleId: string | undefined) {
-  if (!newRoleId) return;
+  if (!newRoleId) return undefined;
 
   const targetRole = await prisma.role.findUnique({
     where: { id: newRoleId },
@@ -40,6 +41,7 @@ async function validateRoleAssignment(newRoleId: string | undefined) {
     throw new Error('The "Super Admin" role is reserved and cannot be assigned to this account.');
   }
   // Otherwise Super Admin may assign any role, including Admin — no further restriction.
+  return targetRole;
 }
 
 // --- User management ---
@@ -104,19 +106,35 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
 export async function updateUser(userId: string, data: Partial<User>) {
   await requireSuperAdminPermission('Users:Update');
 
-  const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+  const targetUser = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
   if (!targetUser) {
     throw new Error('User not found.');
   }
 
   const { firstName, lastName, phoneNumber, roleId, nibBankAccount, email, branchId } = data;
 
-  await validateRoleAssignment(roleId);
+  const targetRole = await validateRoleAssignment(roleId);
 
   const normalizedPhoneNumber =
     typeof phoneNumber === 'string' && phoneNumber.trim().length > 0
       ? normalizeEthiopianPhoneStrict(phoneNumber)
       : undefined;
+
+  // Event Organizer Maker-Checker: switching an existing user's role to
+  // Organizer, or editing any detail of a user who is (or remains) an
+  // Organizer, must (re-)enter the Pending Approval queue exactly like a
+  // fresh registration — an edited registration is re-reviewed just like a
+  // new one, rather than silently keeping whatever status it already had.
+  const becomesOrganizer = !!roleId && roleId !== targetUser.roleId && targetRole?.name === 'Organizer';
+  const remainsOrganizer = targetUser.role.name === 'Organizer' && (!roleId || roleId === targetUser.roleId);
+  const hasProfileChanges =
+    (firstName !== undefined && firstName !== targetUser.firstName) ||
+    (lastName !== undefined && lastName !== targetUser.lastName) ||
+    (normalizedPhoneNumber !== undefined && normalizedPhoneNumber !== targetUser.phoneNumber) ||
+    (email !== undefined && (email || null) !== targetUser.email) ||
+    (branchId !== undefined && (branchId || null) !== targetUser.branchId) ||
+    (nibBankAccount !== undefined && (nibBankAccount || null) !== targetUser.nibBankAccount);
+  const requiresReapproval = becomesOrganizer || (remainsOrganizer && hasProfileChanges);
 
   let updatedUser;
   try {
@@ -130,8 +148,20 @@ export async function updateUser(userId: string, data: Partial<User>) {
         branchId: branchId || null,
         nibBankAccount: nibBankAccount || null,
         email: email || null,
+        ...(requiresReapproval
+          ? { status: 'PENDING' as UserStatus, rejectionReason: null, tokenVersion: { increment: 1 } }
+          : {}),
       },
     });
+
+    if (requiresReapproval) {
+      await prisma.session.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      revalidatePath('/dashboard/organizer-approvals');
+      revalidatePath('/super-admin/organizer-approvals');
+    }
   } catch (err: any) {
     if (err?.code === 'P2002') {
       const metaTarget = err?.meta?.target;
@@ -159,10 +189,19 @@ export async function updateUserRole(userId: string, newRoleId: string) {
     throw new Error('User not found.');
   }
 
-  await validateRoleAssignment(newRoleId);
+  const newRole = await validateRoleAssignment(newRoleId);
+
+  // Event Organizer Maker-Checker: switching an existing user's role to
+  // Organizer must re-enter the Pending Approval queue exactly like a fresh
+  // registration, rather than keeping whatever status they already had.
+  const becomesOrganizer = newRoleId !== targetUser.roleId && newRole?.name === 'Organizer';
+
   const user = await prisma.user.update({
     where: { id: userId },
-    data: { roleId: newRoleId },
+    data: {
+      roleId: newRoleId,
+      ...(becomesOrganizer ? { status: 'PENDING' as UserStatus, rejectionReason: null } : {}),
+    },
   });
 
   // Privilege update: revoke sessions + bump tokenVersion (kills access tokens)
@@ -183,9 +222,17 @@ export async function updateUserRole(userId: string, newRoleId: string) {
 export async function updateUserStatus(userId: string, status: UserStatus) {
   await requireSuperAdminPermission('Users:Update');
 
-  const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+  const targetUser = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
   if (!targetUser) {
     throw new Error('User not found.');
+  }
+
+  // Event Organizer Maker-Checker: the PENDING -> ACTIVE/REJECTED decision is
+  // reserved for holders of 'Organizer Approvals:Access' via approveOrganizer/
+  // rejectOrganizer (which also reissue credentials and notify the user) —
+  // it must not be doable by anyone who merely has Users:Update.
+  if (targetUser.role.name === 'Organizer' && (targetUser.status === 'PENDING' || targetUser.status === 'REJECTED')) {
+    throw new Error('Event Organizer registrations must be approved or rejected from the Organizer Approvals page.');
   }
 
   const user = await prisma.user.update({
@@ -286,7 +333,7 @@ export async function addUser(
     roleId?: string;
     branchId?: string;
   }
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; pendingApproval?: boolean }> {
   await requireSuperAdminPermission('Users:Create');
 
   try {
@@ -307,14 +354,20 @@ export async function addUser(
       return { success: false, error: 'Email is already registered.' };
     }
 
+    let targetRole;
     try {
-      await validateRoleAssignment(data.roleId);
+      targetRole = await validateRoleAssignment(data.roleId);
     } catch (e: any) {
       return { success: false, error: e?.message || 'Permission denied.' };
     }
 
     const tempPassword = nanoid(10);
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+    // Event Organizer registrations go through Maker-Checker approval: they are
+    // created PENDING (blocked from login) and only receive credentials once an
+    // approver with Organizer Approvals:Access approves them.
+    const isOrganizer = targetRole?.name === 'Organizer';
 
     const user = await prisma.user.create({
       data: {
@@ -326,15 +379,17 @@ export async function addUser(
         password: hashedPassword,
         roleId: data.roleId as string,
         branchId: data.branchId || null,
-        status: 'ACTIVE',
+        status: isOrganizer ? 'PENDING' : 'ACTIVE',
         passwordChangeRequired: true,
         tokenVersion: 1,
       },
     });
 
-    await sendTempPassword({ email: data.email, phoneNumber: normalizedPhone, tempPassword });
+    if (!isOrganizer) {
+      await sendTempPassword({ email: data.email, phoneNumber: normalizedPhone, tempPassword });
+    }
 
-    return { success: true };
+    return { success: true, pendingApproval: isOrganizer };
   } catch (error: any) {
     console.error('Failed to add user:', error);
     if (error.code === 'P2002') {
@@ -481,6 +536,82 @@ export async function resetStaffPassword(userId: string) {
     console.error('Failed to send temporary password email:', err);
     return { ok: false, message: 'Password reset but failed to send email.' };
   }
+
+  revalidatePath('/super-admin/staff');
+  revalidatePath('/dashboard/staff');
+  return { ok: true };
+}
+
+export async function updateStaff(
+  userId: string,
+  data: { firstName: string; lastName: string; phoneNumber: string; email: string }
+): Promise<{ success: boolean; error?: string }> {
+  const actor = await requireSuperAdminPermission('Staff:Update');
+  const isSuperAdmin = actor.role.name === 'Super Admin';
+
+  const staffToUpdate = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
+  if (!staffToUpdate || staffToUpdate.role.name !== 'Staff') {
+    return { success: false, error: 'Staff member not found.' };
+  }
+  if (!isSuperAdmin && staffToUpdate.createdById !== actor.id) {
+    return { success: false, error: 'You do not have permission to manage this staff member.' };
+  }
+
+  let normalizedPhone: string;
+  try {
+    normalizedPhone = normalizeEthiopianPhoneStrict(data.phoneNumber);
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'Invalid phone number.' };
+  }
+
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phoneNumber: normalizedPhone,
+        email: data.email,
+      },
+    });
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      if (error.meta?.target?.includes('phoneNumber')) {
+        return { success: false, error: 'This phone number is already in use.' };
+      }
+      if (error.meta?.target?.includes('email')) {
+        return { success: false, error: 'This email address is already in use.' };
+      }
+    }
+    return { success: false, error: error.message || 'An unexpected error occurred.' };
+  }
+
+  revalidatePath('/super-admin/staff');
+  revalidatePath('/dashboard/staff');
+  return { success: true };
+}
+
+export async function updateStaffStatus(userId: string, status: 'ACTIVE' | 'INACTIVE') {
+  const actor = await requireSuperAdminPermission('Staff:Update');
+  const isSuperAdmin = actor.role.name === 'Super Admin';
+
+  const staffToUpdate = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
+  if (!staffToUpdate || staffToUpdate.role.name !== 'Staff') {
+    return { ok: false, message: 'Staff member not found.' };
+  }
+  if (!isSuperAdmin && staffToUpdate.createdById !== actor.id) {
+    return { ok: false, message: 'You do not have permission to manage this staff member.' };
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { status, tokenVersion: { increment: 1 } },
+  });
+
+  await prisma.session.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
 
   revalidatePath('/super-admin/staff');
   revalidatePath('/dashboard/staff');
@@ -685,34 +816,251 @@ export async function deleteRole(id: string) {
 
 // --- Organization (Branch/District) management ---
 
-export async function createDistrict(data: { districtName: string; contactPersonName: string; contactPersonPhone: string }) {
-  await requireSuperAdminPermission('Organization:Create');
-  const { districtName, ...rest } = data;
-  const normalizedPhone = normalizeEthiopianPhoneStrict(rest.contactPersonPhone);
-  const district = await prisma.district.create({
-    data: {
-      name: districtName,
-      ...rest,
-      contactPersonPhone: normalizedPhone,
-    },
-  });
-  revalidatePath('/super-admin/organization');
-  return serialize(district);
+// Next.js redacts the message of any error thrown from a Server Action in
+// production builds (only a digest reaches the client). These org actions
+// return a `{ error }` result instead of throwing so validation messages
+// (duplicate names, FK constraints, bad phone numbers) still reach the UI.
+export type OrgActionResult<T> = { data: T; error?: undefined } | { data?: undefined; error: string };
+
+function toOrgActionError(error: unknown, fallback: string): string {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2002') return 'A record with that name already exists.';
+    if (error.code === 'P2003' || error.code === 'P2014') {
+      return 'This record is still referenced by other records and cannot be modified.';
+    }
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
 }
 
-export async function createBranch(data: { branchName: string; districtId: string; contactPersonName: string; contactPersonPhone: string }) {
-  await requireSuperAdminPermission('Organization:Create');
-  const { branchName, ...rest } = data;
-  const normalizedPhone = normalizeEthiopianPhoneStrict(rest.contactPersonPhone);
-  const branch = await prisma.branch.create({
-    data: {
-      name: branchName,
-      ...rest,
-      contactPersonPhone: normalizedPhone,
-    },
-  });
-  revalidatePath('/super-admin/organization');
-  return serialize(branch);
+export async function createDistrict(data: { districtName: string; contactPersonName: string; contactPersonPhone: string }): Promise<OrgActionResult<District>> {
+  try {
+    await requireSuperAdminPermission('Organization:Create');
+    const { districtName, ...rest } = data;
+    const normalizedPhone = normalizeEthiopianPhoneStrict(rest.contactPersonPhone);
+    const district = await prisma.district.create({
+      data: {
+        name: districtName,
+        ...rest,
+        contactPersonPhone: normalizedPhone,
+      },
+    });
+    revalidatePath('/super-admin/organization');
+    return { data: serialize(district) };
+  } catch (error) {
+    return { error: toOrgActionError(error, 'Failed to save the district.') };
+  }
+}
+
+export async function createBranch(data: { branchName: string; districtId: string; contactPersonName: string; contactPersonPhone: string }): Promise<OrgActionResult<Branch>> {
+  try {
+    await requireSuperAdminPermission('Organization:Create');
+    const { branchName, ...rest } = data;
+    const normalizedPhone = normalizeEthiopianPhoneStrict(rest.contactPersonPhone);
+    const branch = await prisma.branch.create({
+      data: {
+        name: branchName,
+        ...rest,
+        contactPersonPhone: normalizedPhone,
+      },
+    });
+    revalidatePath('/super-admin/organization');
+    return { data: serialize(branch) };
+  } catch (error) {
+    return { error: toOrgActionError(error, 'Failed to save the branch.') };
+  }
+}
+
+export async function updateDistrict(id: string, data: { districtName: string; contactPersonName: string; contactPersonPhone: string }): Promise<OrgActionResult<District>> {
+  try {
+    await requireSuperAdminPermission('Organization:Update');
+    const { districtName, ...rest } = data;
+    const normalizedPhone = normalizeEthiopianPhoneStrict(rest.contactPersonPhone);
+    const district = await prisma.district.update({
+      where: { id },
+      data: {
+        name: districtName,
+        ...rest,
+        contactPersonPhone: normalizedPhone,
+      },
+    });
+    revalidatePath('/super-admin/organization');
+    return { data: serialize(district) };
+  } catch (error) {
+    return { error: toOrgActionError(error, 'Failed to update the district.') };
+  }
+}
+
+export async function deleteDistrict(id: string): Promise<OrgActionResult<District>> {
+  try {
+    await requireSuperAdminPermission('Organization:Delete');
+    const branchCount = await prisma.branch.count({ where: { districtId: id } });
+    if (branchCount > 0) {
+      return { error: 'This district still has branches assigned to it. Remove or reassign its branches before deleting it.' };
+    }
+    const district = await prisma.district.delete({ where: { id } });
+    revalidatePath('/super-admin/organization');
+    return { data: serialize(district) };
+  } catch (error) {
+    return { error: toOrgActionError(error, 'Failed to delete the district.') };
+  }
+}
+
+export async function updateBranch(id: string, data: { branchName: string; districtId: string; contactPersonName: string; contactPersonPhone: string }): Promise<OrgActionResult<Branch>> {
+  try {
+    await requireSuperAdminPermission('Organization:Update');
+    const { branchName, ...rest } = data;
+    const normalizedPhone = normalizeEthiopianPhoneStrict(rest.contactPersonPhone);
+    const branch = await prisma.branch.update({
+      where: { id },
+      data: {
+        name: branchName,
+        ...rest,
+        contactPersonPhone: normalizedPhone,
+      },
+    });
+    revalidatePath('/super-admin/organization');
+    return { data: serialize(branch) };
+  } catch (error) {
+    return { error: toOrgActionError(error, 'Failed to update the branch.') };
+  }
+}
+
+export async function deleteBranch(id: string): Promise<OrgActionResult<Branch>> {
+  try {
+    await requireSuperAdminPermission('Organization:Delete');
+    const userCount = await prisma.user.count({ where: { branchId: id } });
+    if (userCount > 0) {
+      return { error: 'This branch still has users assigned to it. Reassign or remove its users before deleting it.' };
+    }
+    const branch = await prisma.branch.delete({ where: { id } });
+    revalidatePath('/super-admin/organization');
+    return { data: serialize(branch) };
+  } catch (error) {
+    return { error: toOrgActionError(error, 'Failed to delete the branch.') };
+  }
+}
+
+export async function bulkCreateDistricts(
+  rows: { name: string; contactPersonName: string; contactPersonPhone: string }[]
+): Promise<OrgActionResult<{ created: number; skipped: string[] }>> {
+  try {
+    await requireSuperAdminPermission('Organization:Create');
+
+    const cleanedRows = rows
+      .map((row) => ({
+        name: (row.name ?? '').trim(),
+        contactPersonName: (row.contactPersonName ?? '').trim(),
+        contactPersonPhone: (row.contactPersonPhone ?? '').trim(),
+      }))
+      .filter((row) => row.name);
+    if (cleanedRows.length === 0) {
+      return { error: 'No valid district rows were found in the file.' };
+    }
+
+    // De-dupe by name (case-insensitive), keeping the first occurrence.
+    const seenNames = new Set<string>();
+    const dedupedRows = cleanedRows.filter((row) => {
+      const key = row.name.toLowerCase();
+      if (seenNames.has(key)) return false;
+      seenNames.add(key);
+      return true;
+    });
+
+    const existing = await prisma.district.findMany({
+      where: { name: { in: dedupedRows.map((r) => r.name), mode: 'insensitive' } },
+      select: { name: true },
+    });
+    const existingNames = new Set(existing.map((d) => d.name.toLowerCase()));
+
+    const toCreate: { name: string; contactPersonName: string; contactPersonPhone: string }[] = [];
+    const skipped: string[] = [];
+
+    for (const row of dedupedRows) {
+      if (existingNames.has(row.name.toLowerCase())) {
+        skipped.push(`${row.name} (already exists)`);
+        continue;
+      }
+      if (!row.contactPersonName) {
+        skipped.push(`${row.name} (missing Contact Person Name)`);
+        continue;
+      }
+      if (!row.contactPersonPhone) {
+        skipped.push(`${row.name} (missing Contact Person Phone)`);
+        continue;
+      }
+      try {
+        const normalizedPhone = normalizeEthiopianPhoneStrict(row.contactPersonPhone);
+        toCreate.push({ name: row.name, contactPersonName: row.contactPersonName, contactPersonPhone: normalizedPhone });
+      } catch (err) {
+        skipped.push(`${row.name} (${err instanceof Error ? err.message : 'invalid Contact Person Phone'})`);
+      }
+    }
+
+    if (toCreate.length > 0) {
+      await prisma.district.createMany({ data: toCreate, skipDuplicates: true });
+    }
+
+    revalidatePath('/super-admin/organization');
+    return { data: { created: toCreate.length, skipped } };
+  } catch (error) {
+    return { error: toOrgActionError(error, 'Failed to bulk upload districts.') };
+  }
+}
+
+export async function bulkCreateBranches(
+  rows: { name: string; district: string; contactPersonName: string; contactPersonPhone: string }[]
+): Promise<OrgActionResult<{ created: number; skipped: string[] }>> {
+  try {
+    await requireSuperAdminPermission('Organization:Create');
+    const cleanedRows = rows
+      .map((row) => ({
+        name: (row.name ?? '').trim(),
+        district: (row.district ?? '').trim(),
+        contactPersonName: (row.contactPersonName ?? '').trim(),
+        contactPersonPhone: (row.contactPersonPhone ?? '').trim(),
+      }))
+      .filter((row) => row.name && row.district);
+    if (cleanedRows.length === 0) {
+      return { error: 'No valid branch rows were found in the file. Each row needs a "name" and a "district".' };
+    }
+
+    const districts = await prisma.district.findMany({ select: { id: true, name: true } });
+    const districtIdByName = new Map(districts.map((d) => [d.name.toLowerCase(), d.id]));
+
+    const toCreate: { name: string; districtId: string; contactPersonName: string; contactPersonPhone: string }[] = [];
+    const skipped: string[] = [];
+    for (const row of cleanedRows) {
+      const districtId = districtIdByName.get(row.district.toLowerCase());
+      if (!districtId) {
+        skipped.push(`${row.name} (district "${row.district}" not found)`);
+        continue;
+      }
+      if (!row.contactPersonName) {
+        skipped.push(`${row.name} (missing Contact Person Name)`);
+        continue;
+      }
+      if (!row.contactPersonPhone) {
+        skipped.push(`${row.name} (missing Contact Person Phone)`);
+        continue;
+      }
+      try {
+        const normalizedPhone = normalizeEthiopianPhoneStrict(row.contactPersonPhone);
+        toCreate.push({ name: row.name, districtId, contactPersonName: row.contactPersonName, contactPersonPhone: normalizedPhone });
+      } catch (err) {
+        skipped.push(`${row.name} (${err instanceof Error ? err.message : 'invalid Contact Person Phone'})`);
+      }
+    }
+
+    if (toCreate.length > 0) {
+      await prisma.branch.createMany({ data: toCreate });
+    }
+
+    revalidatePath('/super-admin/organization');
+    return { data: { created: toCreate.length, skipped } };
+  } catch (error) {
+    return { error: toOrgActionError(error, 'Failed to bulk upload branches.') };
+  }
 }
 
 async function requireOrgReadAccess() {

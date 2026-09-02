@@ -76,41 +76,82 @@ export default function CreateRolePageContent({ basePath = '/super-admin' }: { b
     }
   }
 
-  const isFeatureAccessModule = (actions: string[]) => actions.length === 1 && actions[0] === 'Access';
+  const CRUD_ACTIONS = ['Create', 'Update', 'Delete'];
+  const isFeatureAccessModule = (actions: string[]) => !actions.some((a) => CRUD_ACTIONS.includes(a));
 
   const permissionEntries = Object.entries(permissionCategories);
   const administrativeEntries = permissionEntries.filter(([, actions]) => !isFeatureAccessModule(actions));
   const featureAccessEntries = permissionEntries.filter(([, actions]) => isFeatureAccessModule(actions));
 
   const renderPermissionCard = (category: string, actions: string[]) => {
-    const isSingleAction = isFeatureAccessModule(actions);
-    const permissionId = `${category}:Access`;
+    const isFeatureModule = isFeatureAccessModule(actions);
 
-    if (isSingleAction) {
+    if (isFeatureModule) {
+      if (actions.length === 1) {
+        const permissionId = `${category}:${actions[0]}`;
+        return (
+          <Card key={category}>
+            <CardContent className="p-4 flex flex-row items-center justify-between rounded-lg">
+              <FormLabel htmlFor={`switch-${category}`} className="text-base font-semibold">{category}</FormLabel>
+              <FormField
+                control={form.control}
+                name="permissions"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Switch
+                        id={`switch-${category}`}
+                        checked={field.value?.includes(permissionId)}
+                        onCheckedChange={(checked) => {
+                          const updated = checked
+                            ? [...(field.value || []), permissionId]
+                            : (field.value || []).filter((p) => p !== permissionId);
+                          field.onChange(updated);
+                        }}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+        );
+      }
+
       return (
         <Card key={category}>
-          <CardContent className="p-4 flex flex-row items-center justify-between rounded-lg">
-            <FormLabel htmlFor={`switch-${category}`} className="text-base font-semibold">{category}</FormLabel>
-            <FormField
-              control={form.control}
-              name="permissions"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <Switch
-                      id={`switch-${category}`}
-                      checked={field.value?.includes(permissionId)}
-                      onCheckedChange={(checked) => {
-                        const updated = checked
-                          ? [...(field.value || []), permissionId]
-                          : (field.value || []).filter((p) => p !== permissionId);
-                        field.onChange(updated);
-                      }}
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-base font-semibold">{category}</h4>
+            <div className="space-y-2">
+              {actions.map((action) => {
+                const permissionId = `${category}:${action}`;
+                return (
+                  <div key={permissionId} className="flex flex-row items-center justify-between rounded-lg border p-3">
+                    <FormLabel htmlFor={`switch-${permissionId}`} className="font-normal">{action}</FormLabel>
+                    <FormField
+                      control={form.control}
+                      name="permissions"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <Switch
+                              id={`switch-${permissionId}`}
+                              checked={field.value?.includes(permissionId)}
+                              onCheckedChange={(checked) => {
+                                const updated = checked
+                                  ? [...(field.value || []), permissionId]
+                                  : (field.value || []).filter((p) => p !== permissionId);
+                                field.onChange(updated);
+                              }}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
                     />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+                  </div>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
       );

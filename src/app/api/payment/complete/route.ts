@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { randomUUID } from 'crypto';
+import { notifyGiftPurchase } from '@/lib/gift-notifications';
 
 export async function POST(req: NextRequest) {
     try {
@@ -22,6 +23,7 @@ export async function POST(req: NextRequest) {
             include: {
                 event: {
                     select: {
+                        name: true,
                         startDate: true,
                         endDate: true,
                         status: true,
@@ -52,7 +54,10 @@ export async function POST(req: NextRequest) {
         }
 
         // Simulate success by calling the notify logic via DB operations
-        const { name, phoneNumber, userId, quantity } = order.attendeeData as { name: string, phoneNumber?: string, userId?: string, quantity: number };
+        const { name, phoneNumber, userId, quantity, isGift, purchasedById, purchasedByName } = order.attendeeData as {
+            name: string, phoneNumber?: string, userId?: string, quantity: number,
+            isGift?: boolean, purchasedById?: string | null, purchasedByName?: string | null,
+        };
 
         const createdAttendee = await prisma.$transaction(async (tx) => {
             if (!order.ticketTypeId) {
@@ -102,6 +107,9 @@ export async function POST(req: NextRequest) {
                 userId,
                 checkedIn: false,
                 qrCode: randomUUID(),
+                isGift: !!isGift,
+                purchasedById: purchasedById ?? null,
+                purchasedByName: purchasedByName ?? null,
             }));
             await tx.attendee.createMany({ data: attendees });
             await tx.ticketType.update({ where: { id: ticketType.id }, data: { sold: { increment: qty } } });
@@ -116,14 +124,25 @@ export async function POST(req: NextRequest) {
                 }
             }
             await tx.pendingOrder.update({ where: { id: order.id }, data: { status: 'COMPLETED', attendeeId: last?.id } });
-            return last;
+            return { attendee: last, ticketTypeName: ticketType.name };
         });
 
         revalidatePath(`/events/${order.eventId}`);
         revalidatePath('/');
         revalidatePath('/tickets');
 
-        return NextResponse.json({ message: 'Completed', attendeeId: createdAttendee?.id });
+        if (isGift && phoneNumber) {
+            notifyGiftPurchase({
+                recipientPhone: phoneNumber,
+                buyerId: purchasedById ?? null,
+                buyerName: purchasedByName ?? null,
+                eventName: order.event.name,
+                ticketTypeName: createdAttendee.ticketTypeName,
+                quantity: quantity || 1,
+            }).catch((err) => console.error('Gift notification error:', err));
+        }
+
+        return NextResponse.json({ message: 'Completed', attendeeId: createdAttendee.attendee?.id });
     } catch (e: any) {
         console.error('Complete payment error', e);
         const message = e?.message || 'An error occurred while issuing ticket(s) and finalizing the order.';

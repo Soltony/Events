@@ -13,23 +13,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, ArrowUpRight, Pencil, Trash2, MapPin, CheckCircle2, XCircle, Loader2, Eye, User } from "lucide-react";
+import { PlusCircle, ArrowUpRight, Pencil, Trash2, MapPin, Loader2, User, Search, FileDown } from "lucide-react";
 import Link from 'next/link';
 import Image from 'next/image';
-import { getEvents, deleteEvent, updateEventStatus } from '@/lib/actions';
+import { getEvents, deleteEvent } from '@/lib/actions';
 import { Badge } from '@/components/ui/badge';
-import type { Event as EventType, EventStatus, User as UserType } from '@prisma/client';
+import { Input } from '@/components/ui/input';
+import type { Event as EventType, User as UserType } from '@prisma/client';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from '@/lib/utils';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { getPrimaryEventImage } from '@/lib/event-images';
 
@@ -68,7 +65,28 @@ const getCategoryBadgeClass = (category: string) => {
     }
 }
 
-const EventCard = ({ event, isAdmin, onDelete }: { event: EventWithOrganizer, isAdmin: boolean, onDelete: (e: EventWithOrganizer) => void }) => {
+function convertEventsToCSV(events: EventWithOrganizer[]): string {
+    const headers = ['Name', 'Category', 'Status', 'Start Date', 'End Date', 'Location', 'Creator', 'Rejection Reason'];
+    const rows = events.map((event) => {
+        const organizerName = event.organizer
+            ? `${event.organizer.firstName ?? ''} ${event.organizer.lastName ?? ''}`.trim()
+            : '';
+        const values = [
+            event.name,
+            event.category,
+            event.status ?? '',
+            format(new Date(event.startDate), 'yyyy-MM-dd HH:mm'),
+            event.endDate ? format(new Date(event.endDate), 'yyyy-MM-dd HH:mm') : '',
+            event.location.replace(/\|\|/g, ', '),
+            organizerName,
+            event.rejectionReason ?? '',
+        ];
+        return values.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(',');
+    });
+    return [headers.join(','), ...rows].join('\n');
+}
+
+const EventCard = ({ event, onDelete }: { event: EventWithOrganizer, onDelete: (e: EventWithOrganizer) => void }) => {
     const { hasPermission } = useAuth();
     const displayImage = getPrimaryEventImage(event.image) || DEFAULT_IMAGE_PLACEHOLDER;
 
@@ -87,7 +105,7 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: EventWithOrganizer, is
     
     return (
         <Card className="flex flex-col hover:shadow-lg transition-shadow duration-300 relative overflow-hidden group">
-            {isAdmin && event.status && statusBadge(event.status)}
+            {event.status && statusBadge(event.status)}
             <div className="relative aspect-[16/9] w-full">
               <Image 
                 src={displayImage} 
@@ -112,7 +130,7 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: EventWithOrganizer, is
                           <MapPin className="h-3 w-3" />
                           {event.location}
                       </CardDescription>
-                      {isAdmin && event.organizer?.firstName && (
+                      {event.organizer?.firstName && (
                           <CardDescription className="flex items-center gap-1.5 pt-1 text-xs">
                               <User className="h-3 w-3" />
                               Creator: {event.organizer.firstName} {event.organizer.lastName}
@@ -127,40 +145,30 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: EventWithOrganizer, is
                 </div>
             </CardContent>
             <CardFooter className="p-2 border-t flex justify-end gap-1 bg-card rounded-b-lg">
-                {event.status === 'PENDING' && isAdmin ? (
-                    <Button asChild className="w-full">
-                        <Link href={`/dashboard/events/${''}${event.id}`}>
-                            <Eye className="h-4 w-4 mr-2" /> Review Event
+                {hasPermission('Events:Update') && (
+                    <Button asChild variant="ghost" size="icon">
+                        <Link href={`/dashboard/events/${''}${event.id}/edit`} aria-label="Edit Event">
+                            <Pencil className="h-4 w-4" />
                         </Link>
                     </Button>
-                ) : (
-                    <>
-                        {hasPermission('Events:Update') && (
-                            <Button asChild variant="ghost" size="icon">
-                                <Link href={`/dashboard/events/${''}${event.id}/edit`} aria-label="Edit Event">
-                                    <Pencil className="h-4 w-4" />
-                                </Link>
-                            </Button>
-                        )}
-                        {hasPermission('Events:Delete') && (
-                            <Button 
-                                variant="ghost" 
-                                size="icon"
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => onDelete(event)}
-                                aria-label="Delete Event"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        )}
-                        {hasPermission('Events:Read') && (
-                            <Button asChild size="icon" className="ml-auto">
-                                <Link href={`/dashboard/events/${''}${event.id}`} aria-label="Manage Event">
-                                    <ArrowUpRight className="h-4 w-4" />
-                                </Link>
-                            </Button>
-                        )}
-                    </>
+                )}
+                {hasPermission('Events:Delete') && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => onDelete(event)}
+                        aria-label="Delete Event"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                )}
+                {hasPermission('Events:Read') && (
+                    <Button asChild size="icon" className="ml-auto">
+                        <Link href={`/dashboard/events/${''}${event.id}`} aria-label="Manage Event">
+                            <ArrowUpRight className="h-4 w-4" />
+                        </Link>
+                    </Button>
                 )}
             </CardFooter>
         </Card>
@@ -168,7 +176,7 @@ const EventCard = ({ event, isAdmin, onDelete }: { event: EventWithOrganizer, is
 };
 
 
-const EventGrid = ({ events, isLoading, isAdmin, onDelete }: { events: EventWithOrganizer[], isLoading: boolean, isAdmin: boolean, onDelete: (e: EventWithOrganizer) => void }) => {
+const EventGrid = ({ events, isLoading, onDelete }: { events: EventWithOrganizer[], isLoading: boolean, onDelete: (e: EventWithOrganizer) => void }) => {
     if (isLoading) {
         return (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -202,10 +210,9 @@ const EventGrid = ({ events, isLoading, isAdmin, onDelete }: { events: EventWith
     return (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {events.map(event => (
-                <EventCard 
+                <EventCard
                     key={event.id}
                     event={event}
-                    isAdmin={isAdmin}
                     onDelete={onDelete}
                 />
             ))}
@@ -214,23 +221,21 @@ const EventGrid = ({ events, isLoading, isAdmin, onDelete }: { events: EventWith
 }
 
 function ManageEventsPageContent() {
-  const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
-  
+
   const [loading, setLoading] = useState(true);
   const [eventToModify, setEventToModify] = useState<EventWithOrganizer | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
-  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
 
   const [allEvents, setAllEvents] = useState<EventWithOrganizer[]>([]);
-  
-  const isAdmin = user?.role?.name === 'Admin';
-  const [activeTab, setActiveTab] = useState(tabFromUrl || (isAdmin ? 'pending' : 'all'));
+
+  const [activeTab, setActiveTab] = useState(tabFromUrl || 'pending');
   
   useEffect(() => {
     if (tabFromUrl) {
@@ -251,9 +256,33 @@ function ManageEventsPageContent() {
     }
   }, [toast]);
   
-  const pendingEvents = allEvents.filter(e => e.status === 'PENDING');
-  const approvedEvents = allEvents.filter(e => e.status === 'APPROVED');
-  const rejectedEvents = allEvents.filter(e => e.status === 'REJECTED');
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const searchedEvents = normalizedQuery
+    ? allEvents.filter((event) => {
+        const organizerName = event.organizer
+          ? `${event.organizer.firstName ?? ''} ${event.organizer.lastName ?? ''}`.trim()
+          : '';
+        return (
+          event.name.toLowerCase().includes(normalizedQuery) ||
+          event.category.toLowerCase().includes(normalizedQuery) ||
+          event.location.toLowerCase().includes(normalizedQuery) ||
+          organizerName.toLowerCase().includes(normalizedQuery)
+        );
+      })
+    : allEvents;
+
+  const pendingEvents = searchedEvents.filter(e => e.status === 'PENDING');
+  const approvedEvents = searchedEvents.filter(e => e.status === 'APPROVED');
+  const rejectedEvents = searchedEvents.filter(e => e.status === 'REJECTED');
+
+  const eventsForTab = (tab: string) => {
+    switch (tab) {
+      case 'pending': return pendingEvents;
+      case 'approved': return approvedEvents;
+      case 'rejected': return rejectedEvents;
+      default: return searchedEvents;
+    }
+  };
 
 
   useEffect(() => {
@@ -263,11 +292,6 @@ function ManageEventsPageContent() {
   const handleOpenDeleteDialog = (event: EventWithOrganizer) => {
     setEventToModify(event);
     setIsAlertOpen(true);
-  };
-
-  const handleOpenRejectDialog = (event: EventWithOrganizer) => {
-    setEventToModify(event);
-    setIsRejectDialogOpen(true);
   };
 
   const handleDelete = async () => {
@@ -294,37 +318,32 @@ function ManageEventsPageContent() {
     }
   };
 
-  const handleApprove = async (event: EventWithOrganizer) => {
-    setActionLoading(true);
+  const handleExport = () => {
+    const eventsToExport = eventsForTab(activeTab);
+    if (eventsToExport.length === 0) {
+      toast({ variant: 'destructive', title: 'Nothing to Export', description: 'There are no events in the current view.' });
+      return;
+    }
+    setIsExporting(true);
     try {
-      await updateEventStatus(event.id, 'APPROVED');
-      toast({ title: 'Event Approved', description: `"${event.name}" is now live.`});
-      await fetchAllEvents();
-      setActiveTab('approved');
+      const csvContent = convertEventsToCSV(eventsToExport);
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `events_${activeTab}_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to approve event.' });
+      console.error('Failed to export events:', error);
+      toast({ variant: 'destructive', title: 'Export Failed', description: 'Could not generate the export file.' });
     } finally {
-      setActionLoading(false);
+      setIsExporting(false);
     }
   };
-
-  const handleReject = async () => {
-    if (!eventToModify) return;
-    setActionLoading(true);
-    try {
-      await updateEventStatus(eventToModify.id, 'REJECTED', rejectionReason);
-      toast({ title: 'Event Rejected' });
-      await fetchAllEvents();
-      setActiveTab('rejected');
-    } catch (error) {
-       toast({ variant: 'destructive', title: 'Error', description: 'Failed to reject event.' });
-    } finally {
-      setActionLoading(false);
-      setIsRejectDialogOpen(false);
-      setEventToModify(null);
-      setRejectionReason('');
-    }
-  }
 
   const onTabChange = (value: string) => {
     setActiveTab(value);
@@ -337,39 +356,45 @@ function ManageEventsPageContent() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Manage Events</h1>
-          <p className="text-muted-foreground">
-            {isAdmin ? 'Review, approve, and manage all events.' : 'Select an event to view its details and manage it.'}
-          </p>
+          <p className="text-muted-foreground">View, edit, and manage your events.</p>
+        </div>
+        <div className="flex w-full sm:w-auto items-center gap-2">
+          <div className="relative flex-1 sm:flex-none sm:w-64">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search events..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+          <Button variant="outline" onClick={handleExport} disabled={isExporting}>
+            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+            Export
+          </Button>
         </div>
       </div>
-      
+
       <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-        {isAdmin ? (
-            <TabsList>
-                <TabsTrigger value="pending">Pending ({pendingEvents.length})</TabsTrigger>
-                <TabsTrigger value="approved">Approved ({approvedEvents.length})</TabsTrigger>
-                <TabsTrigger value="rejected">Rejected ({rejectedEvents.length})</TabsTrigger>
-                <TabsTrigger value="all">All Events ({allEvents.length})</TabsTrigger>
-            </TabsList>
-        ) : (
-             <TabsList>
-                 <TabsTrigger value="all">My Events ({allEvents.length})</TabsTrigger>
-            </TabsList>
-        )}
+        <TabsList>
+            <TabsTrigger value="pending">Pending ({pendingEvents.length})</TabsTrigger>
+            <TabsTrigger value="approved">Approved ({approvedEvents.length})</TabsTrigger>
+            <TabsTrigger value="rejected">Rejected ({rejectedEvents.length})</TabsTrigger>
+            <TabsTrigger value="all">All Events ({searchedEvents.length})</TabsTrigger>
+        </TabsList>
         <TabsContent value="pending" className="mt-4">
-            <EventGrid events={pendingEvents} isLoading={loading} isAdmin={isAdmin} onDelete={handleOpenDeleteDialog} />
+            <EventGrid events={pendingEvents} isLoading={loading} onDelete={handleOpenDeleteDialog} />
         </TabsContent>
         <TabsContent value="approved" className="mt-4">
-            <EventGrid events={approvedEvents} isLoading={loading} isAdmin={isAdmin} onDelete={handleOpenDeleteDialog} />
+            <EventGrid events={approvedEvents} isLoading={loading} onDelete={handleOpenDeleteDialog} />
         </TabsContent>
         <TabsContent value="rejected" className="mt-4">
-            <EventGrid events={rejectedEvents} isLoading={loading} isAdmin={isAdmin} onDelete={handleOpenDeleteDialog} />
+            <EventGrid events={rejectedEvents} isLoading={loading} onDelete={handleOpenDeleteDialog} />
         </TabsContent>
         <TabsContent value="all" className="mt-4">
-            <EventGrid events={allEvents} isLoading={loading} isAdmin={isAdmin} onDelete={handleOpenDeleteDialog} />
+            <EventGrid events={searchedEvents} isLoading={loading} onDelete={handleOpenDeleteDialog} />
         </TabsContent>
       </Tabs>
-
 
        <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent>
@@ -389,34 +414,6 @@ function ManageEventsPageContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-        <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Reject Event: {eventToModify?.name}</DialogTitle>
-                    <DialogDescription>Please provide a reason for rejecting this event. This will be visible to the organizer.</DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="rejection-reason" className="text-right">Reason</Label>
-                        <Textarea 
-                            id="rejection-reason"
-                            value={rejectionReason}
-                            onChange={(e) => setRejectionReason(e.target.value)}
-                            className="col-span-3"
-                            placeholder="e.g., Missing required information, event not suitable for platform."
-                        />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="ghost" onClick={() => setIsRejectDialogOpen(false)}>Cancel</Button>
-                    <Button variant="destructive" onClick={handleReject} disabled={actionLoading}>
-                        {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Confirm Rejection
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
     </div>
   );
 }

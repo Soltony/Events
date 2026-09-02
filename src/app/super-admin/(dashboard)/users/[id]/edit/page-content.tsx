@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import type { Role, User, Branch } from '@prisma/client';
+import type { Role, User, Branch, District } from '@prisma/client';
 import { useRouter, useParams } from 'next/navigation';
 
 import {
@@ -34,7 +34,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Loader2, ArrowLeft, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getRoles, getUserById, updateUser, getBranches } from '@/lib/super-admin-user-actions';
+import { getRoles, getUserById, updateUser, getBranches, getDistricts } from '@/lib/super-admin-user-actions';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const editUserFormSchema = z.object({
@@ -66,7 +66,9 @@ export default function EditUserPageContent({ basePath = '/super-admin' }: { bas
 
   const [user, setUser] = useState<UserWithRole | null>(null);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [districts, setDistricts] = useState<District[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [selectedDistrictId, setSelectedDistrictId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -91,10 +93,11 @@ export default function EditUserPageContent({ basePath = '/super-admin' }: { bas
       }
       try {
         setLoading(true);
-        const [userData, rolesData, branchesData] = await Promise.all([
+        const [userData, rolesData, branchesData, districtsData] = await Promise.all([
           getUserById(userId),
           getRoles(),
           getBranches(),
+          getDistricts(),
         ]);
 
         if (userData) {
@@ -103,6 +106,11 @@ export default function EditUserPageContent({ basePath = '/super-admin' }: { bas
           // account and must never appear as an assignable option for a User.
           setRoles(rolesData.filter((r: Role) => r.name !== 'Super Admin'));
           setBranches(branchesData);
+          setDistricts(districtsData);
+          // Pre-filter the Branch dropdown to the district the user's current
+          // branch already belongs to, so editing doesn't reset the selection.
+          const currentBranch = branchesData.find((b: Branch) => b.id === userData.branchId);
+          setSelectedDistrictId(currentBranch?.districtId ?? '');
           form.reset({
             firstName: userData.firstName,
             lastName: userData.lastName,
@@ -126,12 +134,24 @@ export default function EditUserPageContent({ basePath = '/super-admin' }: { bas
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
+  const branchesForSelectedDistrict = branches.filter((branch) => branch.districtId === selectedDistrictId);
+
   async function onSubmit(data: EditUserFormValues) {
     if (!userId) return;
     setIsSubmitting(true);
     try {
-      await updateUser(userId, data);
-      toast({ title: 'User Updated', description: `Successfully updated ${data.firstName} ${data.lastName}.` });
+      const updated = await updateUser(userId, data);
+      // Event Organizer Maker-Checker: editing an Organizer's role or details
+      // sends them back into the Pending Approval queue, so let the editor
+      // know a re-review is now required instead of implying it's final.
+      toast(
+        updated?.status === 'PENDING'
+          ? {
+              title: 'Sent for Re-Approval',
+              description: `${data.firstName} ${data.lastName} was updated and now requires review on the Organizer Approvals page.`,
+            }
+          : { title: 'User Updated', description: `Successfully updated ${data.firstName} ${data.lastName}.` }
+      );
       router.push(`${basePath}/users`);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to update user.' });
@@ -223,20 +243,46 @@ export default function EditUserPageContent({ basePath = '/super-admin' }: { bas
                       <FormMessage />
                     </FormItem>
                   )} />
-                  <FormField control={form.control} name="branchId" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Branch</FormLabel>
-                      <Select onValueChange={(value) => field.onChange(value === 'none' ? null : value)} value={field.value ?? 'none'}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select a branch" /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          <SelectItem value="none">No Branch</SelectItem>
-                          {branches.map((branch) => (<SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
+                  <FormItem>
+                    <FormLabel>District</FormLabel>
+                    <Select
+                      value={selectedDistrictId || 'none'}
+                      onValueChange={(value) => {
+                        setSelectedDistrictId(value === 'none' ? '' : value);
+                        // Changing the district invalidates the previously selected
+                        // branch, since it may not belong to the new district.
+                        form.setValue('branchId', null);
+                      }}
+                    >
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select a district" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">No District</SelectItem>
+                        {districts.map((district) => (<SelectItem key={district.id} value={district.id}>{district.name}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
                 </div>
+                <FormField control={form.control} name="branchId" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Branch</FormLabel>
+                    <Select
+                      onValueChange={(value) => field.onChange(value === 'none' ? null : value)}
+                      value={field.value ?? 'none'}
+                      disabled={!selectedDistrictId}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={selectedDistrictId ? 'Select a branch' : 'Select a district first'} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">No Branch</SelectItem>
+                        {branchesForSelectedDistrict.map((branch) => (<SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
                 <div className="flex justify-end gap-2 pt-4">
                   <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
                   <Button type="submit" disabled={isSubmitting} style={{ backgroundColor: '#FBBF24', color: '#422006' }}>

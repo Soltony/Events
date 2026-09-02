@@ -9,7 +9,7 @@ export default async function SuperAdminDistrictsPage() {
   if (!superAdmin) {
     redirect('/super-admin/login');
   }
-  if (!hasPermission(superAdmin.role, 'Performance:Access')) {
+  if (!hasPermission(superAdmin.role, 'Performance:District Comparison')) {
     redirect('/super-admin/dashboard');
   }
   return <DistrictsPageContent />;

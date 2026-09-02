@@ -1,14 +1,42 @@
 
 
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { randomUUID } from 'crypto';
 import { normalizeEthiopianPhoneStrict } from '@/lib/utils';
+import { verifyAuth } from '@/lib/auth-middleware';
+
+interface BuyerIdentity {
+    purchasedById: string | null;
+    purchasedByName: string;
+}
+
+// Identifies the buyer for gift attribution. A full account or a JWT-based guest session
+// both resolve via verifyAuth. Many NIB SuperApp visitors, however, only ever carry the
+// SuperApp's plain, client-readable `phone_number` cookie with no JWT at all — that's still
+// a legitimate identified buyer, just with a phone number as their only identifier.
+async function resolveBuyerIdentity(req: NextRequest): Promise<BuyerIdentity | null> {
+    const verified = await verifyAuth(req);
+    if (verified) {
+        return verified.isGuest
+            ? { purchasedById: null, purchasedByName: verified.phoneNumber }
+            : { purchasedById: verified.id, purchasedByName: `${verified.firstName} ${verified.lastName}`.trim() };
+    }
+
+    const cookieStore = await cookies();
+    const guestPhone = cookieStore.get('phone_number')?.value;
+    if (guestPhone) {
+        return { purchasedById: null, purchasedByName: guestPhone };
+    }
+
+    return null;
+}
 
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { eventId, tickets, promoCode, attendeeDetails } = body;
+        const { eventId, tickets, promoCode, attendeeDetails, isGift } = body;
 
         if (!eventId || !tickets?.length || !attendeeDetails) {
             return NextResponse.json({
@@ -16,6 +44,11 @@ export async function POST(req: NextRequest) {
                 detail: 'Required fields: eventId, tickets[], attendeeDetails.'
             }, { status: 400 });
         }
+
+        // Best-effort buyer attribution for gifts — see resolveBuyerIdentity for the
+        // full/guest/cookie-only tiers this covers. Never blocks the purchase: if no identity
+        // is found, the gift still goes through with purchasedById/purchasedByName left null.
+        const buyerIdentity: BuyerIdentity | null = isGift ? await resolveBuyerIdentity(req) : null;
 
         const totalQuantity = (tickets as Array<{ quantity: number }>).reduce((sum: number, t) => sum + Number(t.quantity), 0);
         const eventRecord = await prisma.event.findUnique({
@@ -45,6 +78,13 @@ export async function POST(req: NextRequest) {
                 { status: 400 }
             );
         }
+
+        // For gifts, no recipient account is required at purchase time — the ticket is
+        // assigned by phone number alone (attendeeDetails.name is buyer-provided, same as
+        // the self-purchase path). It becomes visible to the recipient the moment they log
+        // in with a matching phone number (see getTicketsForUser's phone-match lookup).
+        const recipientName = attendeeDetails.name;
+        const recipientUserId: string | undefined = isGift ? undefined : attendeeDetails.userId;
 
         // Free-ticket limit enforcement (server-side):
         // Free limits are stored in `ticketType.locationPrices` JSON (to avoid schema migrations).
@@ -90,17 +130,23 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        const purchasedById = buyerIdentity?.purchasedById ?? null;
+        const purchasedByName = buyerIdentity?.purchasedByName ?? null;
+
         const pendingOrder = await prisma.pendingOrder.create({
             data: {
                 transactionId: transactionId,
                 eventId,
                 ticketTypeId: tickets[0].id, // Store primary ticket type
                 attendeeData: {
-                    name: attendeeDetails.name,
+                    name: recipientName,
                     phoneNumber: normalizedPhone,
-                    userId: attendeeDetails.userId,
+                    userId: recipientUserId,
                     quantity: totalQuantity,
                     tickets: tickets, // Store all selected ticket details
+                    isGift: !!isGift,
+                    purchasedById,
+                    purchasedByName,
                 },
                 promoCode,
                 status: 'PENDING',

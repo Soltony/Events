@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import type { Branch, Role } from '@prisma/client';
+import type { Branch, District, Role } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, ArrowLeft, UserPlus, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getBranches, getRoles, addUser } from '@/lib/super-admin-user-actions';
+import { getBranches, getDistricts, getRoles, addUser } from '@/lib/super-admin-user-actions';
 
 const addUserFormSchema = z.object({
   firstName: z.string().min(1, { message: 'First name is required.' }),
@@ -33,23 +33,29 @@ export default function UserRegistrationPageContent() {
   const { toast } = useToast();
   const router = useRouter();
   const [roles, setRoles] = useState<Role[]>([]);
+  const [districts, setDistricts] = useState<District[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [selectedDistrictId, setSelectedDistrictId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isPendingApproval, setIsPendingApproval] = useState(false);
 
   useEffect(() => {
     (async () => {
       try {
-        const [fetchedRoles, fetchedBranches] = await Promise.all([getRoles(), getBranches()]);
+        const [fetchedRoles, fetchedBranches, fetchedDistricts] = await Promise.all([getRoles(), getBranches(), getDistricts()]);
         // Super Admin can assign any role, including Admin and Staff, but the
         // reserved "Super Admin" role is exclusive to the one Super Admin account.
         setRoles(fetchedRoles.filter((r: Role) => r.name !== 'Super Admin'));
         setBranches(fetchedBranches);
+        setDistricts(fetchedDistricts);
       } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not load roles or branches.' });
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not load roles, districts, or branches.' });
       }
     })();
   }, [toast]);
+
+  const branchesForSelectedDistrict = branches.filter((branch) => branch.districtId === selectedDistrictId);
 
   const addUserForm = useForm<AddUserFormValues>({
     resolver: zodResolver(addUserFormSchema),
@@ -68,7 +74,12 @@ export default function UserRegistrationPageContent() {
       const result = await addUser(data);
 
       if (result.success) {
-        toast({ title: 'User Added', description: `An email with credentials has been sent to ${data.email}.` });
+        setIsPendingApproval(!!result.pendingApproval);
+        toast(
+          result.pendingApproval
+            ? { title: 'Registration Submitted', description: 'The organizer registration is now pending approval.' }
+            : { title: 'User Added', description: `An email with credentials has been sent to ${data.email}.` }
+        );
         setIsSuccess(true);
       } else {
         toast({ variant: 'destructive', title: 'Failed to Add User', description: result.error || 'An unknown error occurred.' });
@@ -85,15 +96,23 @@ export default function UserRegistrationPageContent() {
       <div className="flex flex-1 items-center justify-center p-4">
         <Card className="w-full max-w-2xl">
           <CardHeader>
-            <CardTitle>User Registered Successfully!</CardTitle>
-            <CardDescription>The user has been created and their temporary password has been sent to their email address.</CardDescription>
+            <CardTitle>{isPendingApproval ? 'Registration Submitted!' : 'User Registered Successfully!'}</CardTitle>
+            <CardDescription>
+              {isPendingApproval
+                ? 'The organizer registration has been submitted and is now pending approval before it becomes active.'
+                : 'The user has been created and their temporary password has been sent to their email address.'}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <Alert variant="default" className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
               <Check className="h-4 w-4 text-green-600 dark:text-green-300" />
-              <AlertTitle className="text-green-800 dark:text-green-300">Email Sent</AlertTitle>
+              <AlertTitle className="text-green-800 dark:text-green-300">
+                {isPendingApproval ? 'Pending Approval' : 'Email Sent'}
+              </AlertTitle>
               <AlertDescription className="text-green-700 dark:text-green-400">
-                An email containing the login credentials and next steps has been sent to the user.
+                {isPendingApproval
+                  ? 'An approver with Organizer Approvals access will review this registration. Login credentials will be emailed once it is approved.'
+                  : 'An email containing the login credentials and next steps has been sent to the user.'}
               </AlertDescription>
             </Alert>
             <div className="flex justify-end gap-2 pt-4">
@@ -156,19 +175,44 @@ export default function UserRegistrationPageContent() {
                       <FormMessage />
                     </FormItem>
                   )} />
-                  <FormField control={addUserForm.control} name="branchId" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Branch <span className="text-muted-foreground">(Optional)</span></FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select a branch" /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          {branches.map((branch) => (<SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
+                  <FormItem>
+                    <FormLabel>District <span className="text-muted-foreground">(Optional)</span></FormLabel>
+                    <Select
+                      value={selectedDistrictId}
+                      onValueChange={(value) => {
+                        setSelectedDistrictId(value);
+                        // Changing the district invalidates the previously selected
+                        // branch, since it may not belong to the new district.
+                        addUserForm.setValue('branchId', undefined);
+                      }}
+                    >
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select a district" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {districts.map((district) => (<SelectItem key={district.id} value={district.id}>{district.name}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
                 </div>
+                <FormField control={addUserForm.control} name="branchId" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Branch <span className="text-muted-foreground">(Optional)</span></FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled={!selectedDistrictId}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={selectedDistrictId ? 'Select a branch' : 'Select a district first'} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {branchesForSelectedDistrict.map((branch) => (<SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
                 <div className="flex justify-end gap-2 pt-4">
                   <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
                   <Button type="submit" disabled={isSubmitting} style={{ backgroundColor: '#FBBF24', color: '#422006' }}>

@@ -26,6 +26,20 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Form,
   FormControl,
   FormField,
@@ -35,12 +49,13 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-import { ArrowLeft, Check, Loader2, Mail, Trash2, UserPlus } from 'lucide-react';
+import { ArrowLeft, Check, Edit, Loader2, Mail, MoreHorizontal, Power, PowerOff, Trash2, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { addStaff, deleteStaff, getStaff, resetStaffPassword } from '@/lib/super-admin-user-actions';
+import { addStaff, deleteStaff, getStaff, resetStaffPassword, updateStaff, updateStaffStatus } from '@/lib/super-admin-user-actions';
+import { cn } from '@/lib/utils';
 
 const addStaffFormSchema = z.object({
   firstName: z.string().min(1, { message: 'First name is required.' }),
@@ -51,6 +66,9 @@ const addStaffFormSchema = z.object({
 
 type AddStaffFormValues = z.infer<typeof addStaffFormSchema>;
 
+const editStaffFormSchema = addStaffFormSchema;
+type EditStaffFormValues = z.infer<typeof editStaffFormSchema>;
+
 interface StaffWithDetails extends User {
   role: Role;
   branch?: (Branch & { district: District }) | null;
@@ -58,7 +76,6 @@ interface StaffWithDetails extends User {
 
 export default function StaffPageContent() {
   const { toast } = useToast();
-  const router = useRouter();
 
   const [staffMembers, setStaffMembers] = useState<StaffWithDetails[]>([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -67,6 +84,9 @@ export default function StaffPageContent() {
   const [loadingStaff, setLoadingStaff] = useState(true);
   const [userToDelete, setUserToDelete] = useState<StaffWithDetails | null>(null);
   const [isResettingId, setIsResettingId] = useState<string | null>(null);
+  const [staffToEdit, setStaffToEdit] = useState<StaffWithDetails | null>(null);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const [isTogglingStatusId, setIsTogglingStatusId] = useState<string | null>(null);
 
   const fetchStaff = async () => {
     setLoadingStaff(true);
@@ -127,6 +147,60 @@ export default function StaffPageContent() {
       toast({ variant: 'destructive', title: 'Error Deleting Staff Member', description: error.message || 'An unexpected error occurred.' });
     } finally {
       setUserToDelete(null);
+    }
+  };
+
+  const editStaffForm = useForm<EditStaffFormValues>({
+    resolver: zodResolver(editStaffFormSchema),
+    defaultValues: { firstName: '', lastName: '', phoneNumber: '', email: '' },
+  });
+
+  useEffect(() => {
+    if (staffToEdit) {
+      editStaffForm.reset({
+        firstName: staffToEdit.firstName,
+        lastName: staffToEdit.lastName,
+        phoneNumber: staffToEdit.phoneNumber,
+        email: staffToEdit.email ?? '',
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staffToEdit]);
+
+  async function onEditStaffSubmit(data: EditStaffFormValues) {
+    if (!staffToEdit) return;
+    setIsEditSubmitting(true);
+    try {
+      const result = await updateStaff(staffToEdit.id, data);
+      if (result.success) {
+        toast({ title: 'Staff Member Updated', description: `${data.firstName} ${data.lastName} has been updated.` });
+        setStaffToEdit(null);
+        fetchStaff();
+      } else {
+        toast({ variant: 'destructive', title: 'Update Failed', description: result.error || 'An unknown error occurred.' });
+      }
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Client Error', description: error.message || 'Something went wrong before the request could be completed.' });
+    } finally {
+      setIsEditSubmitting(false);
+    }
+  }
+
+  const handleToggleStatus = async (staff: StaffWithDetails) => {
+    const newStatus = staff.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    setIsTogglingStatusId(staff.id);
+    try {
+      const result = await updateStaffStatus(staff.id, newStatus);
+      if (result?.ok) {
+        toast({ title: 'Status Updated', description: `${staff.firstName} ${staff.lastName} is now ${newStatus.toLowerCase()}.` });
+        fetchStaff();
+      } else {
+        toast({ variant: 'destructive', title: 'Update Failed', description: result?.message || 'Failed to update status.' });
+      }
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message || 'An unexpected error occurred.' });
+    } finally {
+      setIsTogglingStatusId(null);
     }
   };
 
@@ -222,13 +296,14 @@ export default function StaffPageContent() {
                       <TableHead>Name</TableHead>
                       <TableHead>Phone Number</TableHead>
                       <TableHead>Email</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loadingStaff ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center">
+                        <TableCell colSpan={5} className="h-24 text-center">
                           <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
                         </TableCell>
                       </TableRow>
@@ -238,24 +313,47 @@ export default function StaffPageContent() {
                           <TableCell className="font-medium">{staff.firstName} {staff.lastName}</TableCell>
                           <TableCell>{staff.phoneNumber}</TableCell>
                           <TableCell>{staff.email}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={cn(staff.status === 'ACTIVE' ? 'border-green-500 text-green-700' : 'border-red-500 text-red-700')}>
+                              {staff.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE'}
+                            </Badge>
+                          </TableCell>
                           <TableCell className="text-right">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button aria-label="Resend email" variant="ghost" size="icon" onClick={() => handleResetPassword(staff)} disabled={isResettingId === staff.id}>
-                                  <Mail className="h-4 w-4" />
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" disabled={isResettingId === staff.id || isTogglingStatusId === staff.id}>
+                                  {isResettingId === staff.id || isTogglingStatusId === staff.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  )}
                                 </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Resend email</TooltipContent>
-                            </Tooltip>
-                            <Button variant="ghost" size="icon" onClick={() => setUserToDelete(staff)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={() => setStaffToEdit(staff)}>
+                                  <Edit className="mr-2 h-4 w-4" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => handleResetPassword(staff)}>
+                                  <Mail className="mr-2 h-4 w-4" /> Resend Email
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => handleToggleStatus(staff)}>
+                                  {staff.status === 'ACTIVE' ? (
+                                    <><PowerOff className="mr-2 h-4 w-4" /> Deactivate</>
+                                  ) : (
+                                    <><Power className="mr-2 h-4 w-4" /> Activate</>
+                                  )}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive" onSelect={() => setUserToDelete(staff)}>
+                                  <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center h-24">
+                        <TableCell colSpan={5} className="text-center h-24">
                           {isSuperAdmin ? 'No staff members have been registered yet.' : 'You have not registered any staff members yet.'}
                         </TableCell>
                       </TableRow>
@@ -267,6 +365,39 @@ export default function StaffPageContent() {
           </div>
         </div>
       </div>
+
+      <Dialog open={!!staffToEdit} onOpenChange={(open) => !open && setStaffToEdit(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Staff Member</DialogTitle>
+            <DialogDescription>Update {staffToEdit?.firstName} {staffToEdit?.lastName}&apos;s details.</DialogDescription>
+          </DialogHeader>
+          <Form {...editStaffForm}>
+            <form onSubmit={editStaffForm.handleSubmit(onEditStaffSubmit)} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={editStaffForm.control} name="firstName" render={({ field }) => (
+                  <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="John" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={editStaffForm.control} name="lastName" render={({ field }) => (
+                  <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Doe" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+              </div>
+              <FormField control={editStaffForm.control} name="phoneNumber" render={({ field }) => (
+                <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="0912345678" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={editStaffForm.control} name="email" render={({ field }) => (
+                <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" placeholder="john.doe@example.com" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <DialogFooter>
+                <Button type="button" variant="ghost" onClick={() => setStaffToEdit(null)}>Cancel</Button>
+                <Button type="submit" disabled={isEditSubmitting} style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
+                  {isEditSubmitting && <Loader2 className="animate-spin mr-2 h-4 w-4" />} Save Changes
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
         <AlertDialogContent>

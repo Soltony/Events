@@ -8,7 +8,7 @@ import { getEventImageUrls } from '@/lib/event-images';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone, ArrowLeft, X, UserCircle, GripVertical, AlertCircle, CheckCircle2, Download } from 'lucide-react';
+import { Ticket, Calendar, MapPin, Loader2, MinusCircle, PlusCircle, ShoppingCart, Info, User, Phone, ArrowLeft, X, UserCircle, GripVertical, AlertCircle, CheckCircle2, Download, Gift } from 'lucide-react';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import type { Event, TicketType, PromoCode, Attendee } from '@prisma/client';
@@ -99,6 +99,9 @@ export default function PublicEventDetailPage() {
   const [attendeePhone, setAttendeePhone] = useState('');
   const [isPhoneFromSession, setIsPhoneFromSession] = useState(false);
   const [existingClaimsCount, setExistingClaimsCount] = useState(0);
+  const [isGift, setIsGift] = useState(false);
+  const [recipientName, setRecipientName] = useState('');
+  const [recipientPhone, setRecipientPhone] = useState('');
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -230,6 +233,7 @@ export default function PublicEventDetailPage() {
     }
     fetchExistingClaims();
   }, [attendeePhone, eventId]);
+
 
   const getCategoryBadgeClass = (category: string) => {
     switch (category) {
@@ -794,60 +798,139 @@ export default function PublicEventDetailPage() {
         </CartSheet>
       }
 
-      <AlertDialog open={isPurchaseModalOpen} onOpenChange={setIsPurchaseModalOpen}>
+      <AlertDialog open={isPurchaseModalOpen} onOpenChange={(open) => {
+        setIsPurchaseModalOpen(open);
+        if (!open) {
+          setIsGift(false);
+          setRecipientName('');
+          setRecipientPhone('');
+        }
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Attendee Information</AlertDialogTitle>
+            <AlertDialogTitle>{isGift ? 'Gift This Ticket' : 'Attendee Information'}</AlertDialogTitle>
             <AlertDialogDescription>
-              Please provide your name and phone number for the ticket.
+              {isGift
+                ? "Enter the recipient's name and phone number. The ticket will appear in their account once they log in with this number."
+                : 'Please provide your name and phone number for the ticket.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Full Name</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="name" placeholder="Enter your full name" value={attendeeName} onChange={e => setAttendeeName(e.target.value)} className="pl-10" />
-              </div>
+            <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
+              <Button
+                type="button"
+                variant={!isGift ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setIsGift(false)}
+              >
+                For Myself
+              </Button>
+              <Button
+                type="button"
+                variant={isGift ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setIsGift(true)}
+              >
+                <Gift className="mr-2 h-4 w-4" />
+                Buy for Others
+              </Button>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                    id="phone" 
-                    placeholder="e.g., 0912345678" 
-                    value={attendeePhone} 
-                    onChange={e => setAttendeePhone(e.target.value)} 
-                    className={cn("pl-10", isPhoneFromSession && "bg-muted cursor-not-allowed")}
-                    readOnly={isPhoneFromSession}
-                />
-              </div>
-            </div>
+
+            {isGift ? (
+              <>
+                <div className="grid gap-2">
+                  <Label htmlFor="recipient-name">Recipient&apos;s Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="recipient-name"
+                      placeholder="Enter recipient's full name"
+                      value={recipientName}
+                      onChange={e => setRecipientName(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="recipient-phone">Recipient&apos;s Phone Number</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="recipient-phone"
+                      placeholder="e.g., 0912345678"
+                      value={recipientPhone}
+                      onChange={e => setRecipientPhone(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid gap-2">
+                  <Label htmlFor="name">Full Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input id="name" placeholder="Enter your full name" value={attendeeName} onChange={e => setAttendeeName(e.target.value)} className="pl-10" />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        id="phone"
+                        placeholder="e.g., 0912345678"
+                        value={attendeePhone}
+                        onChange={e => setAttendeePhone(e.target.value)}
+                        className={cn("pl-10", isPhoneFromSession && "bg-muted cursor-not-allowed")}
+                        readOnly={isPhoneFromSession}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+  disabled={isPending}
   onClick={() => {
     startTransition(async () => {
-      if (!attendeeName || !attendeePhone) {
-        toast({
-          variant: 'destructive',
-          title: "Missing Information",
-          description: "Please enter your name and phone number.",
-        });
-        return;
-      }
-
-      setIsPurchaseModalOpen(false);
-
+      // Everything below is wrapped in a single try/catch — an async function passed to
+      // startTransition has its rejections swallowed silently by React if left uncaught,
+      // which previously meant a thrown error before payment initiation (e.g. in the
+      // validation step) produced no visible feedback at all.
       try {
+        if (isGift) {
+          if (!recipientName || !recipientPhone) {
+            toast({
+              variant: 'destructive',
+              title: "Missing Information",
+              description: "Please enter the recipient's name and phone number.",
+            });
+            return;
+          }
+        } else if (!attendeeName || !attendeePhone) {
+          toast({
+            variant: 'destructive',
+            title: "Missing Information",
+            description: "Please enter your name and phone number.",
+          });
+          return;
+        }
+
+        setIsPurchaseModalOpen(false);
+
         // Step 1: Create pending order
         const pendingOrderRes = await api.post('/api/payment/pending-order', {
           eventId,
           tickets: Object.values(selectedTickets),
           promoCode: appliedPromo?.code,
-          attendeeDetails: { name: attendeeName, phone: attendeePhone, userId: user?.id },
+          isGift,
+          attendeeDetails: isGift
+            ? { name: recipientName, phone: recipientPhone }
+            : { name: attendeeName, phone: attendeePhone, userId: user?.id },
         });
 
         if (!pendingOrderRes.data.success) {
@@ -863,6 +946,9 @@ export default function PublicEventDetailPage() {
           const attendeeId = completeRes.data?.attendeeId;
           if (!attendeeId) {
             throw new Error('Ticket finalization failed for free ticket purchase.');
+          }
+          if (isGift) {
+            toast({ title: 'Ticket Gifted!', description: `Your ticket has been sent to ${recipientName}.` });
           }
           router.push(`/ticket/${attendeeId}/confirmation`);
           return;
@@ -907,10 +993,9 @@ export default function PublicEventDetailPage() {
       }
     });
   }}
-  disabled={isPending}
 >
   {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-  {isFreeTicketPurchase ? 'Get Free Ticket' : 'Proceed to Payment'}
+  {isFreeTicketPurchase ? (isGift ? 'Send Free Gift' : 'Get Free Ticket') : isGift ? 'Send Gift & Pay' : 'Proceed to Payment'}
 </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

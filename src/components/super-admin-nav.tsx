@@ -3,15 +3,16 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Building, Map } from 'lucide-react';
+import { LayoutDashboard, Building, Map, ClipboardCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSuperAdminAuth } from '@/context/super-admin-auth-context';
 import { SettingsNavLink } from '@/components/settings-nav-link';
 
 const topNavItems = [
-  { href: '/super-admin/dashboard', icon: <LayoutDashboard className="h-5 w-5" />, label: 'Overview', permission: 'Performance:Access' },
-  { href: '/super-admin/branches', icon: <Building className="h-5 w-5" />, label: 'Branch Comparison', permission: 'Performance:Access' },
-  { href: '/super-admin/districts', icon: <Map className="h-5 w-5" />, label: 'District Comparison', permission: 'Performance:Access' },
+  { href: '/super-admin/dashboard', icon: <LayoutDashboard className="h-5 w-5" />, label: 'Overview', permission: 'Performance:Overview' },
+  { href: '/super-admin/branches', icon: <Building className="h-5 w-5" />, label: 'Branch Comparison', permission: 'Performance:Branch Comparison' },
+  { href: '/super-admin/districts', icon: <Map className="h-5 w-5" />, label: 'District Comparison', permission: 'Performance:District Comparison' },
+  { href: '/super-admin/organizer-approvals', icon: <ClipboardCheck className="h-5 w-5" />, label: 'Organizer Approvals', permission: 'Organizer Approvals:Access' },
 ];
 
 export function SuperAdminNav() {

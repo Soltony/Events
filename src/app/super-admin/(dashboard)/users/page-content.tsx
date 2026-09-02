@@ -42,15 +42,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { UserPlus, MoreHorizontal, Edit, Trash2, CheckCircle2, XCircle, Loader2, ArrowLeft } from 'lucide-react';
+import { UserPlus, MoreHorizontal, Edit, Trash2, CheckCircle2, XCircle, Loader2, ArrowLeft, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getUsersAndRoles, updateUserRole, updateUserStatus, deleteUser, resetUserPassword } from '@/lib/super-admin-user-actions';
+import { currentActorHasPermission } from '@/lib/super-admin-auth';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+
+const STATUS_FILTER_OPTIONS: { value: 'all' | UserStatus; label: string }[] = [
+  { value: 'all', label: 'All Statuses' },
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'INACTIVE', label: 'Inactive' },
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'REJECTED', label: 'Rejected' },
+];
 
 interface UserWithDetails extends User {
   role: Omit<Role, 'permissions'> & { permissions?: string[] | null };
@@ -66,6 +76,10 @@ export default function UserManagementPage({ basePath = '/super-admin' }: { base
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [userToDelete, setUserToDelete] = useState<UserWithDetails | null>(null);
+  const [canReviewOrganizers, setCanReviewOrganizers] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | UserStatus>('all');
 
   const fetchData = async () => {
     try {
@@ -85,28 +99,39 @@ export default function UserManagementPage({ basePath = '/super-admin' }: { base
 
   useEffect(() => {
     fetchData();
+    // Event Organizer Maker-Checker: only surface the "Review" shortcut to
+    // actors who actually hold the Organizer Approvals permission — everyone
+    // else with just Users:Update should see the PENDING status, not a link
+    // implying they can act on it.
+    currentActorHasPermission('Organizer Approvals:Access').then(setCanReviewOrganizers);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleRoleChange = async (userId: string, newRoleId: string) => {
-    const oldUsers = [...users];
-    const newUsers = users.map((user) =>
-      user.id === userId
-        ? { ...user, roleId: newRoleId, role: (roles.find((r) => r.id === newRoleId)! as unknown) as UserWithDetails['role'] }
-        : user
-    );
-    setUsers(newUsers);
-
+    setActionLoading(userId);
     try {
-      await updateUserRole(userId, newRoleId);
-      toast({ title: 'User Role Updated' });
+      const updated = await updateUserRole(userId, newRoleId);
+      // Event Organizer Maker-Checker: switching a user's role to Organizer
+      // puts them in PENDING status until reviewed on the Organizer Approvals
+      // page — never optimistically render the row as an active Organizer,
+      // since that would look like the change took effect without approval.
+      if (updated?.status === 'PENDING') {
+        toast({
+          title: 'Role Change Pending Approval',
+          description: 'This user must be approved on the Organizer Approvals page before the change takes effect.',
+        });
+      } else {
+        toast({ title: 'User Role Updated' });
+      }
+      await fetchData();
     } catch (error) {
-      setUsers(oldUsers);
       toast({
         variant: 'destructive',
         title: 'Error',
         description: (error as any)?.message || 'Failed to update user role.',
       });
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -184,6 +209,24 @@ export default function UserManagementPage({ basePath = '/super-admin' }: { base
     }
   };
 
+  const getEffectiveStatus = (user: UserWithDetails): UserStatus => {
+    const isPendingApproval = user.status === 'INACTIVE' && user.passwordChangeRequired;
+    return isPendingApproval ? 'PENDING' : user.status;
+  };
+
+  const filteredUsers = users.filter((user) => {
+    if (roleFilter !== 'all' && user.roleId !== roleFilter) return false;
+    if (statusFilter !== 'all' && getEffectiveStatus(user) !== statusFilter) return false;
+    if (searchTerm.trim()) {
+      const term = searchTerm.trim().toLowerCase();
+      const haystack = [`${user.firstName} ${user.lastName}`, user.phoneNumber, user.email ?? '']
+        .join(' ')
+        .toLowerCase();
+      if (!haystack.includes(term)) return false;
+    }
+    return true;
+  });
+
   return (
     <>
       <div className="flex flex-1 flex-col gap-4 md:gap-8">
@@ -216,6 +259,38 @@ export default function UserManagementPage({ basePath = '/super-admin' }: { base
               </Button>
             </CardHeader>
             <CardContent>
+              <div className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center">
+                <div className="relative flex-1 sm:max-w-xs">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name, phone, or email..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                  <SelectTrigger className="sm:w-[180px]">
+                    <SelectValue placeholder="Filter by role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    {roles.map((role) => (
+                      <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as 'all' | UserStatus)}>
+                  <SelectTrigger className="sm:w-[180px]">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUS_FILTER_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -228,8 +303,13 @@ export default function UserManagementPage({ basePath = '/super-admin' }: { base
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((user) => {
+                  {filteredUsers.map((user) => {
                     const isPendingApproval = user.status === 'INACTIVE' && user.passwordChangeRequired;
+                    // Event Organizer Maker-Checker: a Pending organizer registration must be
+                    // reviewed via the Organizer Approvals page (which requires 'Organizer
+                    // Approvals:Access' and reissues credentials on approval) — never via the
+                    // generic status switch below, which only requires 'Users:Update'.
+                    const isPendingOrganizerApproval = user.role?.name === 'Organizer' && user.status === 'PENDING';
 
                     return (
                       <TableRow key={user.id}>
@@ -246,7 +326,11 @@ export default function UserManagementPage({ basePath = '/super-admin' }: { base
                           )}
                         </TableCell>
                         <TableCell>
-                          <Select value={user.roleId ?? ''} onValueChange={(newRoleId) => handleRoleChange(user.id, newRoleId)}>
+                          <Select
+                            value={user.roleId ?? ''}
+                            onValueChange={(newRoleId) => handleRoleChange(user.id, newRoleId)}
+                            disabled={actionLoading === user.id}
+                          >
                             <SelectTrigger>
                               <SelectValue placeholder={user.role?.name || 'Select role'} />
                             </SelectTrigger>
@@ -258,7 +342,16 @@ export default function UserManagementPage({ basePath = '/super-admin' }: { base
                           </Select>
                         </TableCell>
                         <TableCell>
-                          {isPendingApproval ? (
+                          {isPendingOrganizerApproval ? (
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="border-yellow-500 text-yellow-700">PENDING</Badge>
+                              {canReviewOrganizers && (
+                                <Button size="sm" variant="outline" asChild>
+                                  <Link href={`${basePath}/organizer-approvals`}>Review</Link>
+                                </Button>
+                              )}
+                            </div>
+                          ) : isPendingApproval ? (
                             <div className="flex items-center gap-2">
                               <Button size="sm" variant="outline" onClick={() => handleApproval(user.id, 'ACTIVE')} disabled={actionLoading === user.id}>
                                 {actionLoading === user.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-green-600" />}
@@ -269,6 +362,10 @@ export default function UserManagementPage({ basePath = '/super-admin' }: { base
                                 <span className="ml-2">Decline</span>
                               </Button>
                             </div>
+                          ) : user.role?.name === 'Organizer' && user.status === 'REJECTED' ? (
+                            // A rejected organizer's status can only be changed from the
+                            // Organizer Approvals page (maker-checker) — no toggle here.
+                            <Badge variant="outline" className="border-red-500 text-red-700">REJECTED</Badge>
                           ) : (
                             <div className="flex items-center space-x-2">
                               <Switch
@@ -279,7 +376,9 @@ export default function UserManagementPage({ basePath = '/super-admin' }: { base
                               <Badge variant="outline" className={cn(
                                 user.status === 'ACTIVE' && 'border-green-500 text-green-700',
                                 (user.status === 'INACTIVE' && user.passwordChangeRequired) && 'border-yellow-500 text-yellow-700',
-                                (user.status === 'INACTIVE' && !user.passwordChangeRequired) && 'border-red-500 text-red-700'
+                                (user.status === 'INACTIVE' && !user.passwordChangeRequired) && 'border-red-500 text-red-700',
+                                user.status === 'PENDING' && 'border-yellow-500 text-yellow-700',
+                                user.status === 'REJECTED' && 'border-red-500 text-red-700'
                               )}>
                                 {isPendingApproval ? 'PENDING' : user.status}
                               </Badge>
@@ -309,7 +408,7 @@ export default function UserManagementPage({ basePath = '/super-admin' }: { base
                       </TableRow>
                     );
                   })}
-                  {users.length === 0 && (
+                  {filteredUsers.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center h-24">No users found.</TableCell>
                     </TableRow>

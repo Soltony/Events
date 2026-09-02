@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Ticket, PlusCircle, LineChart, QrCode } from 'lucide-react';
+import { Home, Ticket, PlusCircle, LineChart, QrCode, Gauge, Building, Map, ClipboardCheck, CalendarCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSidebar } from '@/components/ui/sidebar';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
@@ -15,7 +15,12 @@ export const navItems = [
     { href: "/dashboard/scan", icon: <QrCode className="h-5 w-5" />, label: "Scan QR", permission: 'Scan QR:Access' },
     { href: "/dashboard/events/new", icon: <PlusCircle className="h-5 w-5" />, label: "Create Event", permission: 'Events:Create' },
     { href: "/dashboard/events", icon: <Ticket className="h-5 w-5" />, label: "Manage Events", permission: ['Events:Read', 'Events:Update', 'Events:Delete'] },
+    { href: "/dashboard/event-approvals", icon: <CalendarCheck className="h-5 w-5" />, label: "Event Approvals", permission: 'Event Approvals:Access' },
+    { href: "/dashboard/organizer-approvals", icon: <ClipboardCheck className="h-5 w-5" />, label: "Organizer Approvals", permission: 'Organizer Approvals:Access' },
     { href: "/dashboard/reports", icon: <LineChart className="h-5 w-5" />, label: "Reports", permission: 'Reports:Access' },
+    { href: "/dashboard/performance/overview", icon: <Gauge className="h-5 w-5" />, label: "Overview", permission: 'Performance:Overview' },
+    { href: "/dashboard/performance/branches", icon: <Building className="h-5 w-5" />, label: "Branch Comparison", permission: 'Performance:Branch Comparison' },
+    { href: "/dashboard/performance/districts", icon: <Map className="h-5 w-5" />, label: "District Comparison", permission: 'Performance:District Comparison' },
 ];
 
 export function MainNav() {
