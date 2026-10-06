@@ -8,6 +8,8 @@ import { getMaxActiveSessions, hashRefreshToken } from '@/lib/session';
 import crypto from 'crypto';
 import { shouldUseSecureCookies } from '@/lib/cookie';
 import { normalizeEthiopianPhoneStrict } from '@/lib/utils';
+import { verifyCsrf } from '@/lib/csrf';
+import { logAudit, auditRequestContext } from '@/lib/audit';
 import {
   checkIpLockout,
   checkUserLockout,
@@ -26,6 +28,10 @@ export async function POST(req: NextRequest) {
   try {
     if (!JWT_SECRET) {
       throw new Error('JWT_SECRET environment variable is not set.');
+    }
+
+    if (!verifyCsrf(req)) {
+      return NextResponse.json({ message: 'Invalid CSRF token.' }, { status: 403 });
     }
 
     const ip = getClientIp(req);
@@ -59,6 +65,14 @@ export async function POST(req: NextRequest) {
       await recordIpFailure(ip, {
         maxAttempts: Number(process.env.MAX_LOGIN_ATTEMPTS || 10),
         lockoutSeconds: Number(process.env.LOGIN_IP_LOCKOUT_SECONDS || 60),
+      });
+      await logAudit({
+        action: 'auth.login.failure',
+        severity: 'warning',
+        actorType: 'anonymous',
+        actorLabel: normalizedPhone,
+        detail: { reason: 'unknown_account' },
+        ...auditRequestContext(req),
       });
       return NextResponse.json({ message: 'Invalid credentials.' }, { status: 401 });
     }
@@ -94,6 +108,15 @@ export async function POST(req: NextRequest) {
       await recordUserFailure(user.id, {
         maxAttempts: Number(process.env.MAX_USER_LOGIN_ATTEMPTS || 5),
         lockoutSeconds: Number(process.env.USER_LOCKOUT_SECONDS || 300),
+      });
+      await logAudit({
+        action: 'auth.login.failure',
+        severity: 'warning',
+        actorType: 'user',
+        actorId: user.id,
+        actorLabel: user.phoneNumber,
+        detail: { reason: 'bad_password' },
+        ...auditRequestContext(req),
       });
       return NextResponse.json({ message: 'Invalid credentials.' }, { status: 401 });
     }
@@ -181,7 +204,18 @@ export async function POST(req: NextRequest) {
         lastUsedAt: new Date(),
       },
     });
-    
+
+    await logAudit({
+      action: 'auth.login.success',
+      actorType: 'user',
+      actorId: user.id,
+      actorLabel: user.phoneNumber,
+      targetType: 'session',
+      targetId: sessionId,
+      detail: { role: user.role.name },
+      ...auditRequestContext(req),
+    });
+
     const { password: _, ...userWithoutPassword } = user;
     const responseUser = { ...userWithoutPassword, tokenVersion: tokenVersion, permissions: userPermissions };
 

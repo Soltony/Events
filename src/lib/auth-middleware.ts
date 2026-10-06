@@ -7,6 +7,11 @@ import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 import type { Role, User, Permission, RolePermission } from '@prisma/client';
+import {
+  getUserIdleTimeoutSeconds,
+  getUserSessionAbsoluteMaxAgeSeconds,
+  SESSION_TOUCH_THROTTLE_MS,
+} from '@/lib/session';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -119,10 +124,30 @@ export async function verifyAuth(req: NextRequest): Promise<VerifiedUser | null>
     }
     const session = await prisma.session.findFirst({
       where: { id: decoded.sessionId, userId: user.id, revokedAt: null },
-      select: { id: true },
+      select: { id: true, createdAt: true, lastUsedAt: true },
     });
     if (!session) {
       return null;
+    }
+
+    // Server-side idle timeout + absolute session lifetime.
+    const nowMs = Date.now();
+    const idleMs = nowMs - session.lastUsedAt.getTime();
+    const ageMs = nowMs - session.createdAt.getTime();
+    if (
+      idleMs > getUserIdleTimeoutSeconds() * 1000 ||
+      ageMs > getUserSessionAbsoluteMaxAgeSeconds() * 1000
+    ) {
+      await prisma.session
+        .updateMany({ where: { id: session.id, revokedAt: null }, data: { revokedAt: new Date() } })
+        .catch(() => {});
+      return null;
+    }
+    // Throttled activity bump so the idle window tracks real usage.
+    if (idleMs > SESSION_TOUCH_THROTTLE_MS) {
+      prisma.session
+        .update({ where: { id: session.id }, data: { lastUsedAt: new Date() } })
+        .catch(() => {});
     }
 
     // Transform permissions into a simple string array for the user object

@@ -12,5 +12,5 @@ export default async function DashboardStaffPage() {
   if (!hasPermission(user.role, 'Staff:Read')) {
     redirect('/dashboard');
   }
-  return <StaffPageContent />;
+  return <StaffPageContent permissions={user.role.permissions} />;
 }

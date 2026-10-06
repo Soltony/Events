@@ -114,3 +114,48 @@ export async function resetUserFailures(userId: string) {
   });
 }
 
+// --- Super Admin per-account lockout (mirrors the User helpers above) ---
+
+export async function checkSuperAdminLockout(superAdmin: { lockoutUntil: Date | null; failedLoginAttempts: number }) {
+  if (superAdmin.lockoutUntil && superAdmin.lockoutUntil.getTime() > Date.now()) {
+    const timeLeftSeconds = Math.ceil((superAdmin.lockoutUntil.getTime() - Date.now()) / 1000);
+    return { locked: true as const, timeLeftSeconds };
+  }
+  return { locked: false as const, timeLeftSeconds: 0 };
+}
+
+export async function recordSuperAdminFailure(superAdminId: string, opts?: { maxAttempts?: number; lockoutSeconds?: number }) {
+  const maxAttempts = opts?.maxAttempts ?? toInt(process.env.MAX_SUPER_ADMIN_ATTEMPTS, 5);
+  const lockoutSeconds = opts?.lockoutSeconds ?? toSeconds(process.env.SUPER_ADMIN_LOCKOUT_SECONDS, 900);
+
+  const superAdmin = await prisma.superAdmin.findUnique({
+    where: { id: superAdminId },
+    select: { failedLoginAttempts: true, lockoutUntil: true },
+  });
+  if (!superAdmin) return;
+
+  const lockoutExpired = superAdmin.lockoutUntil && superAdmin.lockoutUntil.getTime() <= Date.now();
+  const baseAttempts = lockoutExpired ? 0 : superAdmin.failedLoginAttempts;
+  const nextAttempts = baseAttempts + 1;
+
+  const shouldLock = nextAttempts >= maxAttempts;
+  if (shouldLock) {
+    console.warn(`[RATE_LIMIT] Super Admin locked out: superAdminId=${superAdminId} lockoutSeconds=${lockoutSeconds}`);
+  }
+
+  await prisma.superAdmin.update({
+    where: { id: superAdminId },
+    data: {
+      failedLoginAttempts: shouldLock ? 0 : nextAttempts,
+      lockoutUntil: shouldLock ? new Date(Date.now() + lockoutSeconds * 1000) : null,
+    },
+  });
+}
+
+export async function resetSuperAdminFailures(superAdminId: string) {
+  await prisma.superAdmin.update({
+    where: { id: superAdminId },
+    data: { failedLoginAttempts: 0, lockoutUntil: null },
+  });
+}
+

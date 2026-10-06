@@ -14,6 +14,11 @@ import { randomUUID } from 'crypto';
 import { buildPhoneVariants, normalizeEthiopianPhoneStrict, normalizePhoneNumber } from './utils';
 import { sendPendingEventNotification, sendTempPassword } from '@/lib/email';
 import { hasPermission } from './permissions';
+import {
+  getUserIdleTimeoutSeconds,
+  getUserSessionAbsoluteMaxAgeSeconds,
+  SESSION_TOUCH_THROTTLE_MS,
+} from './session';
 
 // Roles an Admin (or any user with Users:Create) may assign to a newly
 // registered user — excludes Admin/Super Admin to prevent privilege escalation.
@@ -43,7 +48,12 @@ export async function getCurrentUser(): Promise<(User & { role: Role; branch: Br
     if (!JWT_SECRET) {
       throw new Error('JWT_SECRET is not defined');
     }
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; tokenVersion?: number };
+    const decoded = jwt.verify(token, JWT_SECRET) as {
+      userId: string;
+      tokenVersion?: number;
+      sessionId?: string;
+      isGuest?: boolean;
+    };
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
@@ -63,6 +73,38 @@ export async function getCurrentUser(): Promise<(User & { role: Role; branch: Br
 
     if (!user || user.tokenVersion !== decoded.tokenVersion) {
       return null;
+    }
+
+    // Validate the server-side session: exists, not revoked, within the idle +
+    // absolute lifetime windows. (Guests carry no session row.)
+    if (!decoded.isGuest) {
+      if (!decoded.sessionId) {
+        return null;
+      }
+      const session = await prisma.session.findFirst({
+        where: { id: decoded.sessionId, userId: user.id, revokedAt: null },
+        select: { id: true, createdAt: true, lastUsedAt: true },
+      });
+      if (!session) {
+        return null;
+      }
+      const nowMs = Date.now();
+      const idleMs = nowMs - session.lastUsedAt.getTime();
+      const ageMs = nowMs - session.createdAt.getTime();
+      if (
+        idleMs > getUserIdleTimeoutSeconds() * 1000 ||
+        ageMs > getUserSessionAbsoluteMaxAgeSeconds() * 1000
+      ) {
+        await prisma.session
+          .updateMany({ where: { id: session.id, revokedAt: null }, data: { revokedAt: new Date() } })
+          .catch(() => {});
+        return null;
+      }
+      if (idleMs > SESSION_TOUCH_THROTTLE_MS) {
+        prisma.session
+          .update({ where: { id: session.id }, data: { lastUsedAt: new Date() } })
+          .catch(() => {});
+      }
     }
 
     const permissions = user.role.rolePermissions.map(rp => rp.permission.name);
@@ -151,7 +193,7 @@ export async function addUser(data: {
       return { success: false, error: 'You are not allowed to assign this role.' };
     }
 
-    const tempPassword = nanoid(10);
+    const tempPassword = nanoid(12);
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
     // Event Organizer registrations go through Maker-Checker approval: they are

@@ -1,12 +1,18 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { nanoid } from 'nanoid';
 import { sendTempPassword } from '@/lib/email';
 import { checkIpLockout, recordIpFailure } from '@/lib/rate-limit';
+import { verifyCsrf } from '@/lib/csrf';
+import { logAudit, auditRequestContext } from '@/lib/audit';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    if (!verifyCsrf(request)) {
+      return NextResponse.json({ ok: false, message: 'Invalid CSRF token.' }, { status: 403 });
+    }
+
     // Basic IP throttling (best-effort; Request doesn't expose req.ip reliably)
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || '127.0.0.1';
     const ipLock = await checkIpLockout(ip);
@@ -41,7 +47,7 @@ export async function POST(request: Request) {
     }
 
     // Generate temporary password and update the user
-    const tempPassword = nanoid(8);
+    const tempPassword = nanoid(12);
     const hashed = await bcrypt.hash(tempPassword, 10);
 
     await prisma.user.update({
@@ -52,6 +58,17 @@ export async function POST(request: Request) {
         passwordChangeRequired: true,
         tokenVersion: { increment: 1 },
       },
+    });
+
+    await logAudit({
+      action: 'auth.password.reset_issued',
+      severity: 'warning',
+      actorType: 'anonymous',
+      targetType: 'user',
+      targetId: user.id,
+      actorLabel: user.email,
+      detail: { role: roleName, viaTempPassword: true },
+      ...auditRequestContext(request),
     });
 
     // Send temporary password email

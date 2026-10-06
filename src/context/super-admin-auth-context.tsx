@@ -3,6 +3,8 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
+import { ensureCsrfToken } from '@/context/auth-context';
 
 interface SuperAdminRole {
   id: string;
@@ -62,9 +64,13 @@ export function SuperAdminAuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (phoneNumber: string, password: string) => {
     try {
+      await ensureCsrfToken();
       const res = await fetch('/api/super-admin/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': Cookies.get('csrf_token') || '',
+        },
         credentials: 'include',
         body: JSON.stringify({ phoneNumber, password }),
       });
@@ -82,7 +88,12 @@ export function SuperAdminAuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      await fetch('/api/super-admin/auth/logout', { method: 'POST', credentials: 'include' });
+      await ensureCsrfToken().catch(() => {});
+      await fetch('/api/super-admin/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'X-CSRF-Token': Cookies.get('csrf_token') || '' },
+      });
     } finally {
       setSuperAdmin(null);
       router.push('/super-admin/login');

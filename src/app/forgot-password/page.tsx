@@ -12,6 +12,8 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { ensureCsrfToken } from '@/context/auth-context';
+import Cookies from 'js-cookie';
 
 const forgotPasswordSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -33,9 +35,14 @@ export default function ForgotPasswordPage() {
   async function onSubmit(data: ForgotPasswordFormValues) {
     setIsSubmitting(true);
     try {
+      await ensureCsrfToken();
       const resp = await fetch('/api/auth/forgot-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': Cookies.get('csrf_token') || '',
+        },
+        credentials: 'include',
         body: JSON.stringify({ email: data.email }),
       });
 

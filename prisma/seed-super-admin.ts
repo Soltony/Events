@@ -61,6 +61,8 @@ async function main() {
       password: hashedPassword,
       status: 'ACTIVE',
       roleId: superAdminRole.id,
+      // Force a change away from the bootstrap password (from env) on first login.
+      passwordChangeRequired: true,
     },
   });
 

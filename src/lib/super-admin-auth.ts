@@ -5,13 +5,26 @@ import jwt from 'jsonwebtoken';
 import prisma from '@/lib/prisma';
 import { hasPermission } from '@/lib/permissions';
 import { getCurrentUser } from '@/lib/auth';
+import { hashRefreshToken } from '@/lib/session';
 import type { SuperAdmin, Role } from '@prisma/client';
 
 const SUPER_ADMIN_JWT_SECRET = process.env.SUPER_ADMIN_JWT_SECRET;
 
+// Inactivity window for a Super Admin session. After this much idle time the
+// session is revoked and the actor must log in again. The JWT's own `exp`
+// (set at login) provides the absolute session lifetime cap.
+const SUPER_ADMIN_IDLE_TIMEOUT_SECONDS = (() => {
+  const n = Number(process.env.SUPER_ADMIN_IDLE_TIMEOUT_SECONDS);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 30 * 60;
+})();
+// Don't write `lastUsedAt` more often than this (keeps activity tracking cheap).
+const SUPER_ADMIN_SESSION_TOUCH_THROTTLE_MS = 60 * 1000;
+
 interface DecodedSuperAdminToken {
   superAdminId: string;
   type?: string;
+  tokenVersion?: number;
+  sessionId?: string;
 }
 
 // Definitive server-side session lookup for the Super Admin Portal.
@@ -31,7 +44,7 @@ export async function getCurrentSuperAdmin(): Promise<
   try {
     const decoded = jwt.verify(token, SUPER_ADMIN_JWT_SECRET) as DecodedSuperAdminToken;
 
-    if (decoded.type !== 'super_admin_access' || !decoded.superAdminId) {
+    if (decoded.type !== 'super_admin_access' || !decoded.superAdminId || !decoded.sessionId) {
       return null;
     }
 
@@ -52,6 +65,42 @@ export async function getCurrentSuperAdmin(): Promise<
 
     if (!superAdmin || superAdmin.status !== 'ACTIVE') {
       return null;
+    }
+
+    // Global invalidation: bumped on password change / forced logout.
+    if (superAdmin.tokenVersion !== decoded.tokenVersion) {
+      return null;
+    }
+
+    // Server-side session: must exist and not be revoked (logout revokes it).
+    const session = await prisma.superAdminSession.findFirst({
+      where: { id: decoded.sessionId, superAdminId: superAdmin.id, revokedAt: null },
+      select: { id: true, tokenHash: true, lastUsedAt: true },
+    });
+    if (!session) {
+      return null;
+    }
+
+    // Bind the session row to this exact token.
+    if (session.tokenHash !== hashRefreshToken(token)) {
+      return null;
+    }
+
+    // Idle timeout: revoke and reject once inactivity exceeds the window.
+    const idleMs = Date.now() - session.lastUsedAt.getTime();
+    if (idleMs > SUPER_ADMIN_IDLE_TIMEOUT_SECONDS * 1000) {
+      await prisma.superAdminSession
+        .updateMany({ where: { id: session.id, revokedAt: null }, data: { revokedAt: new Date() } })
+        .catch(() => {});
+      return null;
+    }
+
+    // Throttled activity bump so the idle window tracks real usage. Best-effort:
+    // a failed/slow write must never block authentication.
+    if (idleMs > SUPER_ADMIN_SESSION_TOUCH_THROTTLE_MS) {
+      prisma.superAdminSession
+        .update({ where: { id: session.id }, data: { lastUsedAt: new Date() } })
+        .catch(() => {});
     }
 
     const permissions = superAdmin.role.rolePermissions.map((rp) => rp.permission.name);

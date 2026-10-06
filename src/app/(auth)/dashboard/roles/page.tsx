@@ -12,5 +12,5 @@ export default async function DashboardRolesPage() {
   if (!hasPermission(user.role, 'Roles:Read')) {
     redirect('/dashboard');
   }
-  return <RolesPageContent basePath="/dashboard" />;
+  return <RolesPageContent basePath="/dashboard" permissions={user.role.permissions} />;
 }

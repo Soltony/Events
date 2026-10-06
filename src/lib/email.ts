@@ -53,7 +53,9 @@ function createTransporter() {
       pass: SMTP_PASS,
     },
     tls: {
-      rejectUnauthorized: false, // ⚠️ ONLY for development (remove in production)
+      // Verify the SMTP server certificate by default. Accepting self-signed /
+      // unverifiable certs must be an explicit local-dev opt-in.
+      rejectUnauthorized: process.env.SMTP_ALLOW_SELF_SIGNED !== 'true',
     },
   });
 }

@@ -3,22 +3,39 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { shouldUseSecureCookies } from '@/lib/cookie';
 import { normalizeEthiopianPhoneStrict } from '@/lib/utils';
+import { verifyCsrf } from '@/lib/csrf';
+import { logAudit, auditRequestContext } from '@/lib/audit';
+import { getMaxActiveSuperAdminSessions, hashRefreshToken } from '@/lib/session';
 import {
   checkIpLockout,
+  checkSuperAdminLockout,
   getClientIp,
   recordIpFailure,
+  recordSuperAdminFailure,
   resetIpFailures,
+  resetSuperAdminFailures,
 } from '@/lib/rate-limit';
 
 const SUPER_ADMIN_JWT_SECRET = process.env.SUPER_ADMIN_JWT_SECRET;
-const ACCESS_TOKEN_EXPIRES_IN_SECONDS = 60 * 60 * 24; // 1 day
+
+// Absolute session lifetime for the Super Admin portal (default 8h). Inactivity
+// is capped separately by SUPER_ADMIN_IDLE_TIMEOUT_SECONDS in super-admin-auth.ts.
+function getSessionMaxAgeSeconds() {
+  const n = Number(process.env.SUPER_ADMIN_SESSION_MAX_AGE_SECONDS);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 60 * 60 * 8;
+}
 
 export async function POST(req: NextRequest) {
   try {
     if (!SUPER_ADMIN_JWT_SECRET) {
       throw new Error('SUPER_ADMIN_JWT_SECRET environment variable is not set.');
+    }
+
+    if (!verifyCsrf(req)) {
+      return NextResponse.json({ message: 'Invalid CSRF token.' }, { status: 403 });
     }
 
     const ip = `super-admin:${getClientIp(req)}`;
@@ -56,8 +73,23 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    if (!superAdmin || !superAdmin.password || superAdmin.status !== 'ACTIVE') {
+    if (!superAdmin || !superAdmin.password) {
       await recordIpFailure(ip, { maxAttempts: 10, lockoutSeconds: 60 });
+      return NextResponse.json({ message: 'Invalid credentials.' }, { status: 401 });
+    }
+
+    // Per-account lockout (independent of the IP throttle).
+    const accountLock = await checkSuperAdminLockout(superAdmin);
+    if (accountLock.locked) {
+      return NextResponse.json(
+        { message: `Account temporarily locked. Please try again in ${accountLock.timeLeftSeconds} seconds.` },
+        { status: 429 }
+      );
+    }
+
+    if (superAdmin.status !== 'ACTIVE') {
+      await recordIpFailure(ip, { maxAttempts: 10, lockoutSeconds: 60 });
+      await recordSuperAdminFailure(superAdmin.id);
       return NextResponse.json({ message: 'Invalid credentials.' }, { status: 401 });
     }
 
@@ -65,21 +97,86 @@ export async function POST(req: NextRequest) {
 
     if (!isPasswordValid) {
       await recordIpFailure(ip, { maxAttempts: 10, lockoutSeconds: 60 });
+      await recordSuperAdminFailure(superAdmin.id);
+      await logAudit({
+        action: 'superadmin.login.failure',
+        severity: 'warning',
+        actorType: 'superAdmin',
+        actorId: superAdmin.id,
+        actorLabel: superAdmin.phoneNumber,
+        detail: { reason: 'bad_password' },
+        ...auditRequestContext(req),
+      });
       return NextResponse.json({ message: 'Invalid credentials.' }, { status: 401 });
     }
 
     await resetIpFailures(ip);
+    await resetSuperAdminFailures(superAdmin.id);
 
-    await prisma.superAdmin.update({
+    // Invalidate any access tokens minted before this login.
+    const { tokenVersion } = await prisma.superAdmin.update({
       where: { id: superAdmin.id },
-      data: { lastLoginAt: new Date() },
+      data: { tokenVersion: { increment: 1 }, lastLoginAt: new Date() },
+      select: { tokenVersion: true },
     });
 
+    const sessionId = crypto.randomUUID();
+    const sessionMaxAge = getSessionMaxAgeSeconds();
+
     const token = jwt.sign(
-      { superAdminId: superAdmin.id, type: 'super_admin_access' as const },
+      {
+        superAdminId: superAdmin.id,
+        type: 'super_admin_access' as const,
+        tokenVersion,
+        sessionId,
+      },
       SUPER_ADMIN_JWT_SECRET,
-      { expiresIn: ACCESS_TOKEN_EXPIRES_IN_SECONDS }
+      { expiresIn: sessionMaxAge }
     );
+
+    // Concurrency control: cap the number of live sessions per Super Admin.
+    const maxSessions = getMaxActiveSuperAdminSessions();
+    if (maxSessions === 1) {
+      await prisma.superAdminSession.updateMany({
+        where: { superAdminId: superAdmin.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    } else {
+      const activeSessions = await prisma.superAdminSession.findMany({
+        where: { superAdminId: superAdmin.id, revokedAt: null },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true },
+      });
+      const overflow = activeSessions.length - (maxSessions - 1);
+      if (overflow > 0) {
+        await prisma.superAdminSession.updateMany({
+          where: { id: { in: activeSessions.slice(0, overflow).map((s) => s.id) } },
+          data: { revokedAt: new Date() },
+        });
+      }
+    }
+
+    await prisma.superAdminSession.create({
+      data: {
+        id: sessionId,
+        superAdminId: superAdmin.id,
+        tokenHash: hashRefreshToken(token),
+        userAgent: req.headers.get('user-agent') || undefined,
+        ip: getClientIp(req),
+        lastUsedAt: new Date(),
+      },
+    });
+
+    await logAudit({
+      action: 'superadmin.login.success',
+      severity: 'warning',
+      actorType: 'superAdmin',
+      actorId: superAdmin.id,
+      actorLabel: superAdmin.phoneNumber,
+      targetType: 'superAdminSession',
+      targetId: sessionId,
+      ...auditRequestContext(req),
+    });
 
     const permissions = superAdmin.role.rolePermissions.map((rp) => rp.permission.name);
     const { password: _password, ...superAdminWithoutPassword } = superAdmin;
@@ -97,7 +194,7 @@ export async function POST(req: NextRequest) {
       secure: shouldUseSecureCookies(),
       sameSite: 'strict',
       path: '/',
-      maxAge: ACCESS_TOKEN_EXPIRES_IN_SECONDS,
+      maxAge: sessionMaxAge,
     });
 
     return response;

@@ -12,6 +12,7 @@ import { normalizeEthiopianPhoneStrict } from '@/lib/utils';
 import { sendTempPassword } from '@/lib/email';
 import { validatePermissions } from '@/lib/permissions';
 import { requireSuperAdminPermission } from '@/lib/super-admin-auth';
+import { logAudit } from '@/lib/audit';
 
 const serialize = (data: any) => {
   if (!data) return null;
@@ -182,7 +183,7 @@ export async function updateUser(userId: string, data: Partial<User>) {
 }
 
 export async function updateUserRole(userId: string, newRoleId: string) {
-  await requireSuperAdminPermission('Users:Update');
+  const actor = await requireSuperAdminPermission('Users:Update');
 
   const targetUser = await prisma.user.findUnique({ where: { id: userId } });
   if (!targetUser) {
@@ -214,13 +215,23 @@ export async function updateUserRole(userId: string, newRoleId: string) {
     data: { revokedAt: new Date() },
   });
 
+  await logAudit({
+    action: 'user.role.change',
+    severity: 'critical',
+    actorType: 'superAdmin',
+    actorId: actor.id,
+    targetType: 'user',
+    targetId: userId,
+    detail: { fromRoleId: targetUser.roleId, toRoleId: newRoleId, sessionsRevoked: true },
+  });
+
   revalidatePath('/super-admin/users');
   const { password: _password, ...rest } = user;
   return serialize(rest);
 }
 
 export async function updateUserStatus(userId: string, status: UserStatus) {
-  await requireSuperAdminPermission('Users:Update');
+  const actor = await requireSuperAdminPermission('Users:Update');
 
   const targetUser = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
   if (!targetUser) {
@@ -250,6 +261,16 @@ export async function updateUserStatus(userId: string, status: UserStatus) {
     data: { revokedAt: new Date() },
   });
 
+  await logAudit({
+    action: 'user.status.change',
+    severity: 'warning',
+    actorType: 'superAdmin',
+    actorId: actor.id,
+    targetType: 'user',
+    targetId: userId,
+    detail: { from: targetUser.status, to: status, sessionsRevoked: true },
+  });
+
   revalidatePath('/super-admin/users');
   const { password: _password, ...rest } = user;
   return serialize(rest);
@@ -257,7 +278,7 @@ export async function updateUserStatus(userId: string, status: UserStatus) {
 
 export async function deleteUser(userId: string, phoneNumber: string) {
   try {
-    await requireSuperAdminPermission('Users:Delete');
+    const actor = await requireSuperAdminPermission('Users:Delete');
 
     const userToDelete = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
     if (!userToDelete) {
@@ -275,6 +296,16 @@ export async function deleteUser(userId: string, phoneNumber: string) {
     await prisma.attendee.deleteMany({ where: { userId } });
     await prisma.user.delete({ where: { id: userId } });
 
+    await logAudit({
+      action: 'user.delete',
+      severity: 'critical',
+      actorType: 'superAdmin',
+      actorId: actor.id,
+      targetType: 'user',
+      targetId: userId,
+      detail: { phoneNumber, role: userToDelete.role.name },
+    });
+
     revalidatePath('/super-admin/users');
     return { ok: true };
   } catch (err: any) {
@@ -291,14 +322,14 @@ export async function deleteUser(userId: string, phoneNumber: string) {
 }
 
 export async function resetUserPassword(userId: string) {
-  await requireSuperAdminPermission('Users:Update');
+  const actor = await requireSuperAdminPermission('Users:Update');
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
     return { ok: false, message: 'User not found.' };
   }
 
-  const tempPassword = nanoid(8);
+  const tempPassword = nanoid(12);
   const hashed = await bcrypt.hash(tempPassword, 10);
 
   await prisma.user.update({
@@ -309,6 +340,21 @@ export async function resetUserPassword(userId: string) {
       passwordChangeRequired: true,
       tokenVersion: { increment: 1 },
     },
+  });
+
+  await prisma.session.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+
+  await logAudit({
+    action: 'user.password.reset',
+    severity: 'critical',
+    actorType: 'superAdmin',
+    actorId: actor.id,
+    targetType: 'user',
+    targetId: userId,
+    detail: { forcedChange: true, sessionsRevoked: true },
   });
 
   try {
@@ -361,7 +407,7 @@ export async function addUser(
       return { success: false, error: e?.message || 'Permission denied.' };
     }
 
-    const tempPassword = nanoid(10);
+    const tempPassword = nanoid(12);
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
     // Event Organizer registrations go through Maker-Checker approval: they are
@@ -464,7 +510,7 @@ export async function addStaff(
       return { success: false, error: 'Default role "Staff" not found.' };
     }
 
-    const tempPassword = nanoid(10);
+    const tempPassword = nanoid(12);
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
     await prisma.user.create({
@@ -515,7 +561,7 @@ export async function resetStaffPassword(userId: string) {
     return { ok: false, message: 'You do not have permission to manage this staff member.' };
   }
 
-  const tempPassword = nanoid(8);
+  const tempPassword = nanoid(12);
   const hashed = await bcrypt.hash(tempPassword, 10);
 
   await prisma.user.update({
@@ -710,7 +756,7 @@ export async function getRoleById(id: string) {
 }
 
 export async function createRole(data: { name: string; description: string; permissions: string[] }) {
-  await requireSuperAdminPermission('Roles:Create');
+  const actor = await requireSuperAdminPermission('Roles:Create');
   const { name, description, permissions } = data;
   const normalizedPermissions = Array.isArray(permissions)
     ? Array.from(new Set(permissions.map((p) => String(p ?? '').trim()).filter(Boolean)))
@@ -736,13 +782,23 @@ export async function createRole(data: { name: string; description: string; perm
     });
   }
 
+  await logAudit({
+    action: 'role.create',
+    severity: 'warning',
+    actorType: 'superAdmin',
+    actorId: actor.id,
+    targetType: 'role',
+    targetId: role.id,
+    detail: { name, permissions: normalizedPermissions },
+  });
+
   revalidatePath('/super-admin/roles');
   revalidatePath('/super-admin/roles/new');
   return serialize(role);
 }
 
 export async function updateRole(id: string, data: Partial<Role> & { permissions: string | string[] }) {
-  await requireSuperAdminPermission('Roles:Update');
+  const actor = await requireSuperAdminPermission('Roles:Update');
 
   const existingRole = await prisma.role.findUnique({ where: { id }, select: { name: true } });
   if (existingRole?.name === 'Super Admin' && data.name !== undefined && data.name !== 'Super Admin') {
@@ -791,13 +847,23 @@ export async function updateRole(id: string, data: Partial<Role> & { permissions
 
   const role = await prisma.role.findUnique({ where: { id }, include: { rolePermissions: { include: { permission: true } } } });
 
+  await logAudit({
+    action: 'role.update',
+    severity: 'warning',
+    actorType: 'superAdmin',
+    actorId: actor.id,
+    targetType: 'role',
+    targetId: id,
+    detail: { name: data.name ?? existingRole?.name, permissions: permissionsArray },
+  });
+
   revalidatePath('/super-admin/roles');
   revalidatePath(`/super-admin/roles/${id}/edit`);
   return serialize(role);
 }
 
 export async function deleteRole(id: string) {
-  await requireSuperAdminPermission('Roles:Delete');
+  const actor = await requireSuperAdminPermission('Roles:Delete');
 
   const existingRole = await prisma.role.findUnique({ where: { id }, select: { name: true } });
   if (existingRole?.name === 'Super Admin') {
@@ -810,6 +876,15 @@ export async function deleteRole(id: string) {
   }
   await prisma.rolePermission.deleteMany({ where: { roleId: id } });
   const role = await prisma.role.delete({ where: { id } });
+  await logAudit({
+    action: 'role.delete',
+    severity: 'critical',
+    actorType: 'superAdmin',
+    actorId: actor.id,
+    targetType: 'role',
+    targetId: id,
+    detail: { name: existingRole?.name },
+  });
   revalidatePath('/super-admin/roles');
   return serialize(role);
 }

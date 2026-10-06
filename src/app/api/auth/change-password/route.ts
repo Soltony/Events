@@ -7,9 +7,15 @@ import { cookies } from 'next/headers';
 import { validatePasswordAgainstBreaches } from '@/lib/password-policy';
 import { checkIpLockout, getClientIp, recordIpFailure } from '@/lib/rate-limit';
 import { shouldUseSecureCookies } from '@/lib/cookie';
+import { verifyCsrf } from '@/lib/csrf';
+import { logAudit, auditRequestContext } from '@/lib/audit';
 
 export async function POST(req: NextRequest) {
   try {
+    if (!verifyCsrf(req)) {
+      return NextResponse.json({ errors: ['Invalid CSRF token.'] }, { status: 403 });
+    }
+
     const ip = getClientIp(req);
     const ipLock = await checkIpLockout(ip);
     if (ipLock.locked) {
@@ -83,6 +89,16 @@ export async function POST(req: NextRequest) {
     await prisma.session.updateMany({
       where: { userId: user.id, revokedAt: null },
       data: { revokedAt: new Date() },
+    });
+
+    await logAudit({
+      action: 'auth.password.change',
+      severity: 'warning',
+      actorType: 'user',
+      actorId: user.id,
+      actorLabel: user.phoneNumber,
+      detail: { sessionsRevoked: true },
+      ...auditRequestContext(req),
     });
 
     // Clear cookies upon successful password change to force re-login

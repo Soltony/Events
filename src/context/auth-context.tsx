@@ -28,7 +28,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export async function ensureCsrfToken() {
-  if (!Cookies.get('csrf_token') || !Cookies.get('csrf_secret')) {
+  // `csrf_secret` is HttpOnly (not readable here); the readable `csrf_token`
+  // mirror is what we can check and what the API interceptor echoes back.
+  if (!Cookies.get('csrf_token')) {
     try {
       await api.get('/api/csrf-token');
     } catch (error) {
@@ -54,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
 
     try {
+        await ensureCsrfToken().catch(() => {});
         await api.post('/api/auth/logout');
     } catch (error) {
         console.error("Logout API call failed, but user is logged out on client.", error);
@@ -118,6 +121,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function initializeAuth() {
         try {
+            // Make sure the CSRF cookie pair exists before any state-changing request.
+            await ensureCsrfToken().catch(() => {});
             await api.post('/api/auth/refresh');
             await refreshUser();
         } catch (error) {
@@ -135,6 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (data: any): Promise<boolean> => {
     setIsLoading(true);
     try {
+      await ensureCsrfToken();
       await api.post('/api/auth/login', {
         phoneNumber: data.phoneNumber,
         password: data.password,

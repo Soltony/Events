@@ -68,7 +68,16 @@ interface UserWithDetails extends User {
   roleId: string;
 }
 
-export default function UserManagementPage({ basePath = '/super-admin' }: { basePath?: string }) {
+export default function UserManagementPage({
+  basePath = '/super-admin',
+  permissions = [],
+}: {
+  basePath?: string;
+  permissions?: string[];
+}) {
+  const canCreate = permissions.includes('Users:Create');
+  const canUpdate = permissions.includes('Users:Update');
+  const canDelete = permissions.includes('Users:Delete');
   const { toast } = useToast();
   const router = useRouter();
   const [users, setUsers] = useState<UserWithDetails[]>([]);
@@ -252,11 +261,13 @@ export default function UserManagementPage({ basePath = '/super-admin' }: { base
                 <CardTitle>All Users</CardTitle>
                 <CardDescription>Assign roles and manage status for users across the application.</CardDescription>
               </div>
-              <Button asChild style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
-                <Link href={`${basePath}/users/new`}>
-                  <UserPlus className="mr-2 h-4 w-4" /> Add User
-                </Link>
-              </Button>
+              {canCreate && (
+                <Button asChild style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
+                  <Link href={`${basePath}/users/new`}>
+                    <UserPlus className="mr-2 h-4 w-4" /> Add User
+                  </Link>
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               <div className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center">
@@ -393,15 +404,24 @@ export default function UserManagementPage({ basePath = '/super-admin' }: { base
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onSelect={() => (window.location.href = `${basePath}/users/${user.id}/edit`)}>
-                                <Edit className="mr-2 h-4 w-4" /> Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onSelect={() => handleResetPassword(user)}>
-                                <CheckCircle2 className="mr-2 h-4 w-4" /> Reset Password
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive" onSelect={() => setUserToDelete(user)}>
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete
-                              </DropdownMenuItem>
+                              {canUpdate && (
+                                <DropdownMenuItem onSelect={() => (window.location.href = `${basePath}/users/${user.id}/edit`)}>
+                                  <Edit className="mr-2 h-4 w-4" /> Edit
+                                </DropdownMenuItem>
+                              )}
+                              {canUpdate && (
+                                <DropdownMenuItem onSelect={() => handleResetPassword(user)}>
+                                  <CheckCircle2 className="mr-2 h-4 w-4" /> Reset Password
+                                </DropdownMenuItem>
+                              )}
+                              {canDelete && (
+                                <DropdownMenuItem className="text-destructive" onSelect={() => setUserToDelete(user)}>
+                                  <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                </DropdownMenuItem>
+                              )}
+                              {!canUpdate && !canDelete && (
+                                <DropdownMenuItem disabled>No actions available</DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>

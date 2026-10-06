@@ -74,8 +74,12 @@ interface StaffWithDetails extends User {
   branch?: (Branch & { district: District }) | null;
 }
 
-export default function StaffPageContent() {
+export default function StaffPageContent({ permissions = [] }: { permissions?: string[] }) {
   const { toast } = useToast();
+
+  const canCreate = permissions.includes('Staff:Create');
+  const canUpdate = permissions.includes('Staff:Update');
+  const canDelete = permissions.includes('Staff:Delete');
 
   const [staffMembers, setStaffMembers] = useState<StaffWithDetails[]>([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -230,6 +234,7 @@ export default function StaffPageContent() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+          {canCreate && (
           <div className="lg:col-span-2">
             <Card>
               <CardHeader>
@@ -278,8 +283,9 @@ export default function StaffPageContent() {
               </CardContent>
             </Card>
           </div>
+          )}
 
-          <div className="lg:col-span-3">
+          <div className={canCreate ? 'lg:col-span-3' : 'lg:col-span-5'}>
             <Card>
               <CardHeader>
                 <CardTitle>{isSuperAdmin ? 'All Staff Members' : 'Your Staff Members'}</CardTitle>
@@ -330,22 +336,33 @@ export default function StaffPageContent() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={() => setStaffToEdit(staff)}>
-                                  <Edit className="mr-2 h-4 w-4" /> Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => handleResetPassword(staff)}>
-                                  <Mail className="mr-2 h-4 w-4" /> Resend Email
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => handleToggleStatus(staff)}>
-                                  {staff.status === 'ACTIVE' ? (
-                                    <><PowerOff className="mr-2 h-4 w-4" /> Deactivate</>
-                                  ) : (
-                                    <><Power className="mr-2 h-4 w-4" /> Activate</>
-                                  )}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive" onSelect={() => setUserToDelete(staff)}>
-                                  <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                </DropdownMenuItem>
+                                {canUpdate && (
+                                  <DropdownMenuItem onSelect={() => setStaffToEdit(staff)}>
+                                    <Edit className="mr-2 h-4 w-4" /> Edit
+                                  </DropdownMenuItem>
+                                )}
+                                {canUpdate && (
+                                  <DropdownMenuItem onSelect={() => handleResetPassword(staff)}>
+                                    <Mail className="mr-2 h-4 w-4" /> Resend Email
+                                  </DropdownMenuItem>
+                                )}
+                                {canUpdate && (
+                                  <DropdownMenuItem onSelect={() => handleToggleStatus(staff)}>
+                                    {staff.status === 'ACTIVE' ? (
+                                      <><PowerOff className="mr-2 h-4 w-4" /> Deactivate</>
+                                    ) : (
+                                      <><Power className="mr-2 h-4 w-4" /> Activate</>
+                                    )}
+                                  </DropdownMenuItem>
+                                )}
+                                {canDelete && (
+                                  <DropdownMenuItem className="text-destructive" onSelect={() => setUserToDelete(staff)}>
+                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                  </DropdownMenuItem>
+                                )}
+                                {!canUpdate && !canDelete && (
+                                  <DropdownMenuItem disabled>No actions available</DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>

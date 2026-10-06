@@ -4,6 +4,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
+import { ensureCsrfToken } from '@/context/auth-context';
 import {
   ArrowLeft,
   ImageIcon,
@@ -138,9 +140,13 @@ export default function HomeAdsPageContent() {
         reader.onerror = () => reject(new Error('Failed to read file.'));
         reader.readAsDataURL(file);
       });
+      await ensureCsrfToken();
       const response = await fetch('/api/super-admin/upload', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': Cookies.get('csrf_token') || '',
+        },
         credentials: 'include',
         body: JSON.stringify({ file: dataUrl }),
       });

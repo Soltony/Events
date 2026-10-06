@@ -12,5 +12,5 @@ export default async function SuperAdminUsersPage() {
   if (!hasPermission(superAdmin.role, 'Users:Read')) {
     redirect('/super-admin/dashboard');
   }
-  return <UserManagementPage />;
+  return <UserManagementPage permissions={superAdmin.role.permissions} />;
 }

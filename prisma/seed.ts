@@ -129,9 +129,6 @@ async function main() {
 
 
   // 4. Update the Admin User to ensure it has the correct Role ID
-  const adminPassword = 'Admin@123';
-  const hashedPassword = await bcrypt.hash(adminPassword, 10);
-  
   const existingAdmin = await prisma.user.findFirst({
     where: { role: { name: 'Admin' } },
   });
@@ -143,7 +140,16 @@ async function main() {
     });
     console.log(`Admin user (${existingAdmin.email}) role updated.`);
   } else {
-    // Create Admin if it doesn't exist
+    // Create Admin if it doesn't exist. The bootstrap password must come from the
+    // environment — never hard-code a credential in source (same rule as
+    // prisma/seed-super-admin.ts).
+    const adminPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD;
+    if (!adminPassword) {
+      throw new Error(
+        'ADMIN_BOOTSTRAP_PASSWORD must be set in the environment to seed the initial Admin user.'
+      );
+    }
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
     await prisma.user.create({
       data: {
         id: cuid(),
