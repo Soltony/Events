@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Cookies from 'js-cookie';
+import { getCsrfToken } from '@/lib/csrf-client';
 import { ensureCsrfToken } from '@/context/auth-context';
 
 interface SuperAdminRole {
@@ -35,9 +35,11 @@ interface SuperAdminAuthContextType {
 
 const SuperAdminAuthContext = createContext<SuperAdminAuthContextType | undefined>(undefined);
 
-export function SuperAdminAuthProvider({ children }: { children: ReactNode }) {
+/** `hasSession`: whether the request carried a `super_admin_token` cookie (from the layout). */
+export function SuperAdminAuthProvider({ children, hasSession = true }: { children: ReactNode; hasSession?: boolean }) {
   const [superAdmin, setSuperAdmin] = useState<SuperAdmin | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Known up front when there is no session, so server and client render the same state.
+  const [isLoading, setIsLoading] = useState(hasSession);
   const router = useRouter();
 
   const refresh = useCallback(async () => {
@@ -55,12 +57,13 @@ export function SuperAdminAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!hasSession) return;
     (async () => {
       setIsLoading(true);
       await refresh();
       setIsLoading(false);
     })();
-  }, [refresh]);
+  }, [refresh, hasSession]);
 
   const login = useCallback(async (phoneNumber: string, password: string) => {
     try {
@@ -69,7 +72,7 @@ export function SuperAdminAuthProvider({ children }: { children: ReactNode }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-Token': Cookies.get('csrf_token') || '',
+          'X-CSRF-Token': getCsrfToken(),
         },
         credentials: 'include',
         body: JSON.stringify({ phoneNumber, password }),
@@ -92,7 +95,7 @@ export function SuperAdminAuthProvider({ children }: { children: ReactNode }) {
       await fetch('/api/super-admin/auth/logout', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'X-CSRF-Token': Cookies.get('csrf_token') || '' },
+        headers: { 'X-CSRF-Token': getCsrfToken() },
       });
     } finally {
       setSuperAdmin(null);

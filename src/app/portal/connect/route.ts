@@ -1,13 +1,12 @@
-"use server";
-
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import jwt from "jsonwebtoken";
+import { signJwt } from '@/lib/jwt';
 import {
   normalizeEthiopianPhoneStrict,
   normalizePhoneNumber,
 } from "@/lib/utils";
 import { shouldUseSecureCookies } from "@/lib/cookie";
+import { withApiErrorHandling } from '@/lib/api-handler';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const VALIDATE_TOKEN_URL = process.env.VALIDATE_TOKEN_URL;
@@ -33,7 +32,7 @@ function getSafeReturnTo(req: NextRequest) {
   return returnTo;
 }
 
-export async function GET(req: NextRequest) {
+export const GET = withApiErrorHandling(async function GET(req: NextRequest) {
   const returnTo = getSafeReturnTo(req);
 
   if (!VALIDATE_TOKEN_URL || !JWT_SECRET) {
@@ -136,7 +135,7 @@ export async function GET(req: NextRequest) {
       type: "access",
     };
 
-    const internalToken = jwt.sign(internalTokenPayload, JWT_SECRET, {
+    const internalToken = signJwt(internalTokenPayload, JWT_SECRET, {
       expiresIn: "15m",
     });
 
@@ -148,8 +147,9 @@ export async function GET(req: NextRequest) {
       maxAge: COOKIE_MAX_AGE,
     });
 
+    // Read server-side only (cookie-data, pending-order), so it is not exposed to scripts.
     response.cookies.set("phone_number", phoneNumber, {
-      httpOnly: false,
+      httpOnly: true,
       secure,
       sameSite: "strict",
       path: "/",
@@ -161,6 +161,7 @@ export async function GET(req: NextRequest) {
     const message =
       error instanceof Error ? error.message : "SuperApp login failed.";
     console.error("[PORTAL_CONNECT] Error during SuperApp login:", message);
-    return createAuthErrorResponse(message, 502);
+    // Upstream/validation-service messages stay in the server log.
+    return createAuthErrorResponse("SuperApp login failed. Please try again.", 502);
   }
-}
+});

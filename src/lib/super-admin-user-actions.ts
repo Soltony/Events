@@ -10,9 +10,10 @@ import cuid from 'cuid';
 import { Prisma } from '@prisma/client';
 import { normalizeEthiopianPhoneStrict } from '@/lib/utils';
 import { sendTempPassword } from '@/lib/email';
+import { safeErrorMessage } from '@/lib/safe-error';
 import { validatePermissions } from '@/lib/permissions';
 import { requireSuperAdminPermission } from '@/lib/super-admin-auth';
-import { logAudit } from '@/lib/audit';
+import { logAdminAction, logAudit } from '@/lib/audit';
 
 const serialize = (data: any) => {
   if (!data) return null;
@@ -105,7 +106,7 @@ export async function getUserByPhoneNumber(phoneNumber: string) {
 }
 
 export async function updateUser(userId: string, data: Partial<User>) {
-  await requireSuperAdminPermission('Users:Update');
+  const actor = await requireSuperAdminPermission('Users:Update');
 
   const targetUser = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
   if (!targetUser) {
@@ -177,6 +178,17 @@ export async function updateUser(userId: string, data: Partial<User>) {
     throw err;
   }
 
+  await logAdminAction(actor, 'user.update', {
+    severity: roleId && roleId !== targetUser.roleId ? 'critical' : 'info',
+    targetType: 'user',
+    targetId: userId,
+    detail: {
+      changedFields: Object.keys(data).filter((k) => k !== 'password' && (data as any)[k] !== undefined),
+      ...(roleId && roleId !== targetUser.roleId ? { fromRoleId: targetUser.roleId, toRoleId: roleId } : {}),
+      requiresReapproval,
+    },
+  });
+
   revalidatePath('/super-admin/users');
   revalidatePath(`/super-admin/users/${userId}/edit`);
   return serialize(updatedUser);
@@ -218,8 +230,9 @@ export async function updateUserRole(userId: string, newRoleId: string) {
   await logAudit({
     action: 'user.role.change',
     severity: 'critical',
-    actorType: 'superAdmin',
+    actorType: actor.actorType,
     actorId: actor.id,
+    actorLabel: actor.actorLabel,
     targetType: 'user',
     targetId: userId,
     detail: { fromRoleId: targetUser.roleId, toRoleId: newRoleId, sessionsRevoked: true },
@@ -264,8 +277,9 @@ export async function updateUserStatus(userId: string, status: UserStatus) {
   await logAudit({
     action: 'user.status.change',
     severity: 'warning',
-    actorType: 'superAdmin',
+    actorType: actor.actorType,
     actorId: actor.id,
+    actorLabel: actor.actorLabel,
     targetType: 'user',
     targetId: userId,
     detail: { from: targetUser.status, to: status, sessionsRevoked: true },
@@ -299,8 +313,9 @@ export async function deleteUser(userId: string, phoneNumber: string) {
     await logAudit({
       action: 'user.delete',
       severity: 'critical',
-      actorType: 'superAdmin',
+      actorType: actor.actorType,
       actorId: actor.id,
+      actorLabel: actor.actorLabel,
       targetType: 'user',
       targetId: userId,
       detail: { phoneNumber, role: userToDelete.role.name },
@@ -317,7 +332,7 @@ export async function deleteUser(userId: string, phoneNumber: string) {
           'Cannot delete user. They are still linked to other records in the database (e.g., as an event organizer). Please reassign or delete those records first.',
       };
     }
-    return { ok: false, message: err.message ?? 'Unexpected server error.' };
+    return { ok: false, message: safeErrorMessage(err, 'Unexpected server error.') };
   }
 }
 
@@ -350,20 +365,19 @@ export async function resetUserPassword(userId: string) {
   await logAudit({
     action: 'user.password.reset',
     severity: 'critical',
-    actorType: 'superAdmin',
+    actorType: actor.actorType,
     actorId: actor.id,
+    actorLabel: actor.actorLabel,
     targetType: 'user',
     targetId: userId,
     detail: { forcedChange: true, sessionsRevoked: true },
   });
 
-  try {
-    if (user.email) {
-      await sendTempPassword({ email: user.email, phoneNumber: user.phoneNumber, tempPassword });
+  if (user.email) {
+    const mail = await sendTempPassword({ email: user.email, phoneNumber: user.phoneNumber, tempPassword });
+    if (!mail.success) {
+      return { ok: false, message: 'Password was reset, but the email with the new temporary password could not be sent. Try again once email delivery is working.' };
     }
-  } catch (err) {
-    console.error('Failed to send temporary password email:', err);
-    return { ok: false, message: 'Password reset but failed to send email.' };
   }
 
   revalidatePath('/super-admin/users');
@@ -379,8 +393,8 @@ export async function addUser(
     roleId?: string;
     branchId?: string;
   }
-): Promise<{ success: boolean; error?: string; pendingApproval?: boolean }> {
-  await requireSuperAdminPermission('Users:Create');
+): Promise<{ success: boolean; error?: string; pendingApproval?: boolean; warning?: string }> {
+  const actor = await requireSuperAdminPermission('Users:Create');
 
   try {
     let normalizedPhone: string;
@@ -431,11 +445,19 @@ export async function addUser(
       },
     });
 
+    await logAdminAction(actor, 'user.create', {
+      targetType: 'user',
+      targetId: user.id,
+      detail: { phoneNumber: normalizedPhone, roleId: data.roleId ?? null, branchId: data.branchId || null, pendingApproval: isOrganizer },
+    });
+
+    let warning: string | undefined;
     if (!isOrganizer) {
-      await sendTempPassword({ email: data.email, phoneNumber: normalizedPhone, tempPassword });
+      const mail = await sendTempPassword({ email: data.email, phoneNumber: normalizedPhone, tempPassword });
+      if (!mail.success) warning = mail.message;
     }
 
-    return { success: true, pendingApproval: isOrganizer };
+    return { success: true, pendingApproval: isOrganizer, warning };
   } catch (error: any) {
     console.error('Failed to add user:', error);
     if (error.code === 'P2002') {
@@ -446,7 +468,7 @@ export async function addUser(
         return { success: false, error: 'This email address is already in use.' };
       }
     }
-    return { success: false, error: error.message || 'An unexpected error occurred.' };
+    return { success: false, error: safeErrorMessage(error, 'An unexpected error occurred.') };
   }
 }
 
@@ -483,7 +505,7 @@ export async function addStaff(
     phoneNumber: string;
     email: string;
   }
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; warning?: string }> {
   const actor = await requireSuperAdminPermission('Staff:Create');
   const isSuperAdmin = actor.role.name === 'Super Admin';
 
@@ -513,7 +535,7 @@ export async function addStaff(
     const tempPassword = nanoid(12);
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
-    await prisma.user.create({
+    const staff = await prisma.user.create({
       data: {
         id: cuid(),
         firstName: data.firstName,
@@ -530,11 +552,17 @@ export async function addStaff(
       },
     });
 
-    await sendTempPassword({ email: data.email, phoneNumber: normalizedPhone, tempPassword });
+    await logAdminAction(actor, 'staff.create', {
+      targetType: 'user',
+      targetId: staff.id,
+      detail: { phoneNumber: normalizedPhone },
+    });
+
+    const mail = await sendTempPassword({ email: data.email, phoneNumber: normalizedPhone, tempPassword });
 
     revalidatePath('/super-admin/staff');
     revalidatePath('/dashboard/staff');
-    return { success: true };
+    return { success: true, warning: mail.success ? undefined : mail.message };
   } catch (error: any) {
     console.error('Failed to add staff:', error);
     if (error.code === 'P2002') {
@@ -545,7 +573,7 @@ export async function addStaff(
         return { success: false, error: 'This email address is already in use.' };
       }
     }
-    return { success: false, error: error.message || 'An unexpected error occurred.' };
+    return { success: false, error: safeErrorMessage(error, 'An unexpected error occurred.') };
   }
 }
 
@@ -574,13 +602,17 @@ export async function resetStaffPassword(userId: string) {
     },
   });
 
-  try {
-    if (user.email) {
-      await sendTempPassword({ email: user.email, phoneNumber: user.phoneNumber, tempPassword });
+  await logAdminAction(actor, 'staff.password.reset', {
+    severity: 'critical',
+    targetType: 'user',
+    targetId: userId,
+  });
+
+  if (user.email) {
+    const mail = await sendTempPassword({ email: user.email, phoneNumber: user.phoneNumber, tempPassword });
+    if (!mail.success) {
+      return { ok: false, message: 'Password was reset, but the email with the new temporary password could not be sent. Try again once email delivery is working.' };
     }
-  } catch (err) {
-    console.error('Failed to send temporary password email:', err);
-    return { ok: false, message: 'Password reset but failed to send email.' };
   }
 
   revalidatePath('/super-admin/staff');
@@ -629,8 +661,14 @@ export async function updateStaff(
         return { success: false, error: 'This email address is already in use.' };
       }
     }
-    return { success: false, error: error.message || 'An unexpected error occurred.' };
+    return { success: false, error: safeErrorMessage(error, 'An unexpected error occurred.') };
   }
+
+  await logAdminAction(actor, 'staff.update', {
+    targetType: 'user',
+    targetId: userId,
+    detail: { changedFields: ['firstName', 'lastName', 'phoneNumber', 'email'].filter((k) => (data as any)[k] !== (staffToUpdate as any)[k]) },
+  });
 
   revalidatePath('/super-admin/staff');
   revalidatePath('/dashboard/staff');
@@ -659,6 +697,13 @@ export async function updateStaffStatus(userId: string, status: 'ACTIVE' | 'INAC
     data: { revokedAt: new Date() },
   });
 
+  await logAdminAction(actor, 'staff.status.change', {
+    severity: 'critical',
+    targetType: 'user',
+    targetId: userId,
+    detail: { from: staffToUpdate.status, to: status, sessionsRevoked: true },
+  });
+
   revalidatePath('/super-admin/staff');
   revalidatePath('/dashboard/staff');
   return { ok: true };
@@ -680,6 +725,13 @@ export async function deleteStaff(userId: string) {
     await prisma.attendee.deleteMany({ where: { userId } });
     await prisma.user.delete({ where: { id: userId } });
 
+    await logAdminAction(actor, 'staff.delete', {
+      severity: 'critical',
+      targetType: 'user',
+      targetId: userId,
+      detail: { phoneNumber: staffToDelete.phoneNumber, name: `${staffToDelete.firstName} ${staffToDelete.lastName}`.trim() },
+    });
+
     revalidatePath('/super-admin/staff');
     revalidatePath('/dashboard/staff');
     return { ok: true };
@@ -691,7 +743,7 @@ export async function deleteStaff(userId: string) {
         message: 'Cannot delete staff member. They are still linked to other records in the database.',
       };
     }
-    return { ok: false, message: err.message ?? 'Unexpected server error.' };
+    return { ok: false, message: safeErrorMessage(err, 'Unexpected server error.') };
   }
 }
 
@@ -785,8 +837,9 @@ export async function createRole(data: { name: string; description: string; perm
   await logAudit({
     action: 'role.create',
     severity: 'warning',
-    actorType: 'superAdmin',
+    actorType: actor.actorType,
     actorId: actor.id,
+    actorLabel: actor.actorLabel,
     targetType: 'role',
     targetId: role.id,
     detail: { name, permissions: normalizedPermissions },
@@ -850,8 +903,9 @@ export async function updateRole(id: string, data: Partial<Role> & { permissions
   await logAudit({
     action: 'role.update',
     severity: 'warning',
-    actorType: 'superAdmin',
+    actorType: actor.actorType,
     actorId: actor.id,
+    actorLabel: actor.actorLabel,
     targetType: 'role',
     targetId: id,
     detail: { name: data.name ?? existingRole?.name, permissions: permissionsArray },
@@ -879,8 +933,9 @@ export async function deleteRole(id: string) {
   await logAudit({
     action: 'role.delete',
     severity: 'critical',
-    actorType: 'superAdmin',
+    actorType: actor.actorType,
     actorId: actor.id,
+    actorLabel: actor.actorLabel,
     targetType: 'role',
     targetId: id,
     detail: { name: existingRole?.name },
@@ -897,20 +952,20 @@ export async function deleteRole(id: string) {
 // (duplicate names, FK constraints, bad phone numbers) still reach the UI.
 export type OrgActionResult<T> = { data: T; error?: undefined } | { data?: undefined; error: string };
 
+// Never returns raw database/ORM errors to the client (they leak query and schema
+// details); the full error is logged server-side instead.
 function toOrgActionError(error: unknown, fallback: string): string {
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    if (error.code === 'P2002') return 'A record with that name already exists.';
-    if (error.code === 'P2003' || error.code === 'P2014') {
-      return 'This record is still referenced by other records and cannot be modified.';
-    }
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+    return 'A record with that name already exists.';
   }
-  if (error instanceof Error && error.message) return error.message;
-  return fallback;
+  const message = safeErrorMessage(error, fallback);
+  if (message === fallback) console.error('[ORG_ACTION]', fallback, error);
+  return message;
 }
 
 export async function createDistrict(data: { districtName: string; contactPersonName: string; contactPersonPhone: string }): Promise<OrgActionResult<District>> {
   try {
-    await requireSuperAdminPermission('Organization:Create');
+    const actor = await requireSuperAdminPermission('Organization:Create');
     const { districtName, ...rest } = data;
     const normalizedPhone = normalizeEthiopianPhoneStrict(rest.contactPersonPhone);
     const district = await prisma.district.create({
@@ -920,6 +975,7 @@ export async function createDistrict(data: { districtName: string; contactPerson
         contactPersonPhone: normalizedPhone,
       },
     });
+    await logAdminAction(actor, 'district.create', { targetType: 'district', targetId: district.id, detail: { name: district.name } });
     revalidatePath('/super-admin/organization');
     return { data: serialize(district) };
   } catch (error) {
@@ -929,7 +985,7 @@ export async function createDistrict(data: { districtName: string; contactPerson
 
 export async function createBranch(data: { branchName: string; districtId: string; contactPersonName: string; contactPersonPhone: string }): Promise<OrgActionResult<Branch>> {
   try {
-    await requireSuperAdminPermission('Organization:Create');
+    const actor = await requireSuperAdminPermission('Organization:Create');
     const { branchName, ...rest } = data;
     const normalizedPhone = normalizeEthiopianPhoneStrict(rest.contactPersonPhone);
     const branch = await prisma.branch.create({
@@ -939,6 +995,7 @@ export async function createBranch(data: { branchName: string; districtId: strin
         contactPersonPhone: normalizedPhone,
       },
     });
+    await logAdminAction(actor, 'branch.create', { targetType: 'branch', targetId: branch.id, detail: { name: branch.name, districtId: branch.districtId } });
     revalidatePath('/super-admin/organization');
     return { data: serialize(branch) };
   } catch (error) {
@@ -948,7 +1005,7 @@ export async function createBranch(data: { branchName: string; districtId: strin
 
 export async function updateDistrict(id: string, data: { districtName: string; contactPersonName: string; contactPersonPhone: string }): Promise<OrgActionResult<District>> {
   try {
-    await requireSuperAdminPermission('Organization:Update');
+    const actor = await requireSuperAdminPermission('Organization:Update');
     const { districtName, ...rest } = data;
     const normalizedPhone = normalizeEthiopianPhoneStrict(rest.contactPersonPhone);
     const district = await prisma.district.update({
@@ -959,6 +1016,7 @@ export async function updateDistrict(id: string, data: { districtName: string; c
         contactPersonPhone: normalizedPhone,
       },
     });
+    await logAdminAction(actor, 'district.update', { targetType: 'district', targetId: id, detail: { name: district.name } });
     revalidatePath('/super-admin/organization');
     return { data: serialize(district) };
   } catch (error) {
@@ -968,12 +1026,13 @@ export async function updateDistrict(id: string, data: { districtName: string; c
 
 export async function deleteDistrict(id: string): Promise<OrgActionResult<District>> {
   try {
-    await requireSuperAdminPermission('Organization:Delete');
+    const actor = await requireSuperAdminPermission('Organization:Delete');
     const branchCount = await prisma.branch.count({ where: { districtId: id } });
     if (branchCount > 0) {
       return { error: 'This district still has branches assigned to it. Remove or reassign its branches before deleting it.' };
     }
     const district = await prisma.district.delete({ where: { id } });
+    await logAdminAction(actor, 'district.delete', { severity: 'warning', targetType: 'district', targetId: id, detail: { name: district.name } });
     revalidatePath('/super-admin/organization');
     return { data: serialize(district) };
   } catch (error) {
@@ -983,7 +1042,7 @@ export async function deleteDistrict(id: string): Promise<OrgActionResult<Distri
 
 export async function updateBranch(id: string, data: { branchName: string; districtId: string; contactPersonName: string; contactPersonPhone: string }): Promise<OrgActionResult<Branch>> {
   try {
-    await requireSuperAdminPermission('Organization:Update');
+    const actor = await requireSuperAdminPermission('Organization:Update');
     const { branchName, ...rest } = data;
     const normalizedPhone = normalizeEthiopianPhoneStrict(rest.contactPersonPhone);
     const branch = await prisma.branch.update({
@@ -994,6 +1053,7 @@ export async function updateBranch(id: string, data: { branchName: string; distr
         contactPersonPhone: normalizedPhone,
       },
     });
+    await logAdminAction(actor, 'branch.update', { targetType: 'branch', targetId: id, detail: { name: branch.name, districtId: branch.districtId } });
     revalidatePath('/super-admin/organization');
     return { data: serialize(branch) };
   } catch (error) {
@@ -1003,12 +1063,13 @@ export async function updateBranch(id: string, data: { branchName: string; distr
 
 export async function deleteBranch(id: string): Promise<OrgActionResult<Branch>> {
   try {
-    await requireSuperAdminPermission('Organization:Delete');
+    const actor = await requireSuperAdminPermission('Organization:Delete');
     const userCount = await prisma.user.count({ where: { branchId: id } });
     if (userCount > 0) {
       return { error: 'This branch still has users assigned to it. Reassign or remove its users before deleting it.' };
     }
     const branch = await prisma.branch.delete({ where: { id } });
+    await logAdminAction(actor, 'branch.delete', { severity: 'warning', targetType: 'branch', targetId: id, detail: { name: branch.name } });
     revalidatePath('/super-admin/organization');
     return { data: serialize(branch) };
   } catch (error) {
@@ -1016,19 +1077,46 @@ export async function deleteBranch(id: string): Promise<OrgActionResult<Branch>>
   }
 }
 
+// --- Bulk CSV upload validation ---
+// Validated before anything reaches the database, so malformed uploads (wrong encoding,
+// binary files, NUL bytes) get a clear message instead of a driver error.
+const BULK_UPLOAD_MAX_ROWS = 1000;
+const BULK_UPLOAD_MAX_CELL_LENGTH = 200;
+const BULK_UPLOAD_INVALID_DATA =
+  'The uploaded file contains invalid or unsupported data. Please verify the CSV format (UTF-8 text) and try again.';
+// C0 control characters (except tab/CR/LF), DEL, the U+FFFD replacement character left
+// behind by a failed UTF-8 decode, and lone UTF-16 surrogates.
+const INVALID_CELL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\uFFFD]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+
+function validateBulkRows<K extends string>(rows: unknown, keys: readonly K[]): Record<K, string>[] | null {
+  if (!Array.isArray(rows) || rows.length > BULK_UPLOAD_MAX_ROWS) return null;
+  const out: Record<K, string>[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') return null;
+    const clean = {} as Record<K, string>;
+    for (const key of keys) {
+      const value = (row as Record<string, unknown>)[key] ?? '';
+      if (typeof value !== 'string' || value.length > BULK_UPLOAD_MAX_CELL_LENGTH || INVALID_CELL_CHARS.test(value)) {
+        return null;
+      }
+      clean[key] = value.trim();
+    }
+    out.push(clean);
+  }
+  return out;
+}
+
 export async function bulkCreateDistricts(
   rows: { name: string; contactPersonName: string; contactPersonPhone: string }[]
 ): Promise<OrgActionResult<{ created: number; skipped: string[] }>> {
   try {
-    await requireSuperAdminPermission('Organization:Create');
+    const actor = await requireSuperAdminPermission('Organization:Create');
 
-    const cleanedRows = rows
-      .map((row) => ({
-        name: (row.name ?? '').trim(),
-        contactPersonName: (row.contactPersonName ?? '').trim(),
-        contactPersonPhone: (row.contactPersonPhone ?? '').trim(),
-      }))
-      .filter((row) => row.name);
+    const validRows = validateBulkRows(rows, ['name', 'contactPersonName', 'contactPersonPhone'] as const);
+    if (!validRows) {
+      return { error: BULK_UPLOAD_INVALID_DATA };
+    }
+    const cleanedRows = validRows.filter((row) => row.name);
     if (cleanedRows.length === 0) {
       return { error: 'No valid district rows were found in the file.' };
     }
@@ -1076,6 +1164,10 @@ export async function bulkCreateDistricts(
       await prisma.district.createMany({ data: toCreate, skipDuplicates: true });
     }
 
+    await logAdminAction(actor, 'district.bulk_create', {
+      targetType: 'district',
+      detail: { created: toCreate.length, names: toCreate.map((d) => d.name), skipped: skipped.length },
+    });
     revalidatePath('/super-admin/organization');
     return { data: { created: toCreate.length, skipped } };
   } catch (error) {
@@ -1087,15 +1179,12 @@ export async function bulkCreateBranches(
   rows: { name: string; district: string; contactPersonName: string; contactPersonPhone: string }[]
 ): Promise<OrgActionResult<{ created: number; skipped: string[] }>> {
   try {
-    await requireSuperAdminPermission('Organization:Create');
-    const cleanedRows = rows
-      .map((row) => ({
-        name: (row.name ?? '').trim(),
-        district: (row.district ?? '').trim(),
-        contactPersonName: (row.contactPersonName ?? '').trim(),
-        contactPersonPhone: (row.contactPersonPhone ?? '').trim(),
-      }))
-      .filter((row) => row.name && row.district);
+    const actor = await requireSuperAdminPermission('Organization:Create');
+    const validRows = validateBulkRows(rows, ['name', 'district', 'contactPersonName', 'contactPersonPhone'] as const);
+    if (!validRows) {
+      return { error: BULK_UPLOAD_INVALID_DATA };
+    }
+    const cleanedRows = validRows.filter((row) => row.name && row.district);
     if (cleanedRows.length === 0) {
       return { error: 'No valid branch rows were found in the file. Each row needs a "name" and a "district".' };
     }
@@ -1131,6 +1220,10 @@ export async function bulkCreateBranches(
       await prisma.branch.createMany({ data: toCreate });
     }
 
+    await logAdminAction(actor, 'branch.bulk_create', {
+      targetType: 'branch',
+      detail: { created: toCreate.length, names: toCreate.map((b) => b.name), skipped: skipped.length },
+    });
     revalidatePath('/super-admin/organization');
     return { data: { created: toCreate.length, skipped } };
   } catch (error) {
@@ -1176,7 +1269,7 @@ export async function createHomeCarouselAd(data: {
   sortOrder?: number;
   isActive?: boolean;
 }) {
-  await requireSuperAdminPermission('Homepage Carousel:Create');
+  const actor = await requireSuperAdminPermission('Homepage Carousel:Create');
   if (!data.imageUrl || typeof data.imageUrl !== 'string' || !data.imageUrl.trim()) {
     throw new Error('Image is required.');
   }
@@ -1194,6 +1287,7 @@ export async function createHomeCarouselAd(data: {
       isActive: data.isActive !== false,
     },
   });
+  await logAdminAction(actor, 'homead.create', { targetType: 'homeCarouselAd', targetId: ad.id });
   revalidatePath('/');
   revalidatePath('/super-admin/homeads');
   return serialize(ad);
@@ -1210,7 +1304,7 @@ export async function updateHomeCarouselAd(
     isActive?: boolean;
   }
 ) {
-  await requireSuperAdminPermission('Homepage Carousel:Update');
+  const actor = await requireSuperAdminPermission('Homepage Carousel:Update');
   const payload: any = {};
   if (data.imageUrl !== undefined) {
     if (!data.imageUrl || !String(data.imageUrl).trim()) {
@@ -1227,14 +1321,16 @@ export async function updateHomeCarouselAd(
   if (data.isActive !== undefined) payload.isActive = data.isActive;
 
   const ad = await prisma.homeCarouselAd.update({ where: { id }, data: payload });
+  await logAdminAction(actor, 'homead.update', { targetType: 'homeCarouselAd', targetId: id, detail: { changedFields: Object.keys(payload) } });
   revalidatePath('/');
   revalidatePath('/super-admin/homeads');
   return serialize(ad);
 }
 
 export async function deleteHomeCarouselAd(id: number) {
-  await requireSuperAdminPermission('Homepage Carousel:Delete');
+  const actor = await requireSuperAdminPermission('Homepage Carousel:Delete');
   await prisma.homeCarouselAd.delete({ where: { id } });
+  await logAdminAction(actor, 'homead.delete', { severity: 'warning', targetType: 'homeCarouselAd', targetId: id });
   revalidatePath('/');
   revalidatePath('/super-admin/homeads');
   return { ok: true };

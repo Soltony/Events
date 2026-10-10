@@ -2,11 +2,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { signJwt } from '@/lib/jwt';
 import crypto from 'crypto';
 import { shouldUseSecureCookies } from '@/lib/cookie';
 import { normalizeEthiopianPhoneStrict } from '@/lib/utils';
 import { verifyCsrf } from '@/lib/csrf';
+import { toPublicSuperAdmin } from '@/lib/public-profile';
 import { logAudit, auditRequestContext } from '@/lib/audit';
 import { getMaxActiveSuperAdminSessions, hashRefreshToken } from '@/lib/session';
 import {
@@ -18,6 +19,7 @@ import {
   resetIpFailures,
   resetSuperAdminFailures,
 } from '@/lib/rate-limit';
+import { malformedJsonResponse, readJsonBody, withApiErrorHandling } from '@/lib/api-handler';
 
 const SUPER_ADMIN_JWT_SECRET = process.env.SUPER_ADMIN_JWT_SECRET;
 
@@ -28,7 +30,7 @@ function getSessionMaxAgeSeconds() {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 60 * 60 * 8;
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withApiErrorHandling(async function POST(req: NextRequest) {
   try {
     if (!SUPER_ADMIN_JWT_SECRET) {
       throw new Error('SUPER_ADMIN_JWT_SECRET environment variable is not set.');
@@ -47,7 +49,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { phoneNumber, password } = await req.json();
+    const body = await readJsonBody(req);
+    if (!body) return malformedJsonResponse();
+    const { phoneNumber, password } = body;
 
     if (!phoneNumber || !password) {
       return NextResponse.json({ message: 'Phone number and password are required.' }, { status: 400 });
@@ -123,7 +127,7 @@ export async function POST(req: NextRequest) {
     const sessionId = crypto.randomUUID();
     const sessionMaxAge = getSessionMaxAgeSeconds();
 
-    const token = jwt.sign(
+    const token = signJwt(
       {
         superAdminId: superAdmin.id,
         type: 'super_admin_access' as const,
@@ -179,14 +183,10 @@ export async function POST(req: NextRequest) {
     });
 
     const permissions = superAdmin.role.rolePermissions.map((rp) => rp.permission.name);
-    const { password: _password, ...superAdminWithoutPassword } = superAdmin;
 
     const response = NextResponse.json({
       message: 'Login successful.',
-      superAdmin: {
-        ...superAdminWithoutPassword,
-        role: { ...superAdmin.role, permissions },
-      },
+      superAdmin: toPublicSuperAdmin({ ...superAdmin, lastLoginAt: new Date(), permissions }),
     }, { status: 200 });
 
     response.cookies.set('super_admin_token', token, {
@@ -201,6 +201,6 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('[SUPER_ADMIN_LOGIN_ERROR]', error);
-    return new NextResponse(error.message || 'Internal Server Error', { status: 500 });
+    return NextResponse.json({ message: 'An unexpected error occurred. Please try again.' }, { status: 500 });
   }
-}
+});

@@ -17,7 +17,7 @@ function toInt(v: string | undefined, fallback: number) {
 
 export function getClientIp(req: NextRequest): string {
   const forwarded = req.headers.get('x-forwarded-for');
-  const ip = (req.ip ?? forwarded ?? '127.0.0.1').toString();
+  const ip = (forwarded ?? req.headers.get('x-real-ip') ?? '127.0.0.1').toString();
   // If multiple IPs, take first
   return ip.split(',')[0]?.trim() || '127.0.0.1';
 }

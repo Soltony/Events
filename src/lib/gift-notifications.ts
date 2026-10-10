@@ -1,4 +1,5 @@
-'use server';
+// Server-only helper. Deliberately NOT a 'use server' module: it must never be callable
+// from the browser as a server action (it sends email/SMS to arbitrary recipients).
 
 import prisma from '@/lib/prisma';
 import { sendGiftPurchaseConfirmation, sendGiftReceivedNotification } from '@/lib/email';

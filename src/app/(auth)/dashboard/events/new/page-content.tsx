@@ -43,10 +43,10 @@ import {
 
 const locationPriceSchema = z.object({
   location: z.string().min(1, "Location is required."),
-  price: z.coerce.number().min(0, 'Price must be a positive number or zero.'),
-  quantity: z.coerce.number().int().min(1, 'Quantity must be at least 1.'),
-  free: z.boolean().default(false),
-  maxFreeTicketsPerPhone: z.coerce.number().int().min(1, 'Max tickets per phone must be at least 1.').default(5),
+  price: z.coerce.number<number>().min(0, 'Price must be a positive number or zero.'),
+  quantity: z.coerce.number<number>().int().min(1, 'Quantity must be at least 1.'),
+  free: z.boolean(),
+  maxFreeTicketsPerPhone: z.coerce.number<number>().int().min(1, 'Max tickets per phone must be at least 1.'),
 });
 
 const ticketSchema = z.object({
@@ -63,10 +63,10 @@ const eventFormSchema = z.object({
   })).min(1, { message: 'You must have at least one location.'}),
   hint: z.string().optional(),
   startDate: z.date({
-    required_error: 'A start date and time for the event is required.',
+    error: 'A start date and time for the event is required.',
   }),
   endDate: z.date().optional(),
-  category: z.string({ required_error: 'Please select a category.' }),
+  category: z.string({ error: 'Please select a category.' }).min(1, 'Please select a category.'),
   otherCategory: z.string().optional(),
   images: z.array(z.string()).min(1, { message: 'Please upload exactly one image.' }),
   tickets: z.array(ticketSchema).min(1, { message: 'You must have at least one ticket tier.'}),

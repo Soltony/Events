@@ -1,4 +1,5 @@
-'use server';
+// Server-only helper. Deliberately NOT a 'use server' module: it must never be callable
+// from the browser as a server action (it sends SMS under the bank's sender ID).
 
 // Provider-agnostic SMS sender. No gateway has been chosen yet, so this
 // stub logs the message and reports failure until SMS_API_URL/SMS_API_KEY

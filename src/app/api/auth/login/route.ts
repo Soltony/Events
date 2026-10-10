@@ -2,13 +2,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { signJwt } from '@/lib/jwt';
 import { isPasswordExpired } from '@/lib/password-policy';
 import { getMaxActiveSessions, hashRefreshToken } from '@/lib/session';
 import crypto from 'crypto';
 import { shouldUseSecureCookies } from '@/lib/cookie';
 import { normalizeEthiopianPhoneStrict } from '@/lib/utils';
 import { verifyCsrf } from '@/lib/csrf';
+import { toPublicUser } from '@/lib/public-profile';
 import { logAudit, auditRequestContext } from '@/lib/audit';
 import {
   checkIpLockout,
@@ -19,12 +20,13 @@ import {
   resetIpFailures,
   resetUserFailures,
 } from '@/lib/rate-limit';
+import { malformedJsonResponse, readJsonBody, withApiErrorHandling } from '@/lib/api-handler';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const ACCESS_TOKEN_EXPIRES_IN_SECONDS = 60 * 15; // 15 minutes
 const REFRESH_TOKEN_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
-export async function POST(req: NextRequest) {
+export const POST = withApiErrorHandling(async function POST(req: NextRequest) {
   try {
     if (!JWT_SECRET) {
       throw new Error('JWT_SECRET environment variable is not set.');
@@ -43,7 +45,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { phoneNumber, password } = await req.json();
+    const body = await readJsonBody(req);
+    if (!body) return malformedJsonResponse();
+    const { phoneNumber, password } = body;
 
     if (!phoneNumber || !password) {
       return NextResponse.json({ message: 'Phone number and password are required.' }, { status: 400 });
@@ -156,7 +160,7 @@ export async function POST(req: NextRequest) {
       sessionId,
       type: 'access' as 'access',
     };
-    const accessToken = jwt.sign(accessTokenPayload, JWT_SECRET, {
+    const accessToken = signJwt(accessTokenPayload, JWT_SECRET, {
       expiresIn: `${ACCESS_TOKEN_EXPIRES_IN_SECONDS}s`,
     });
 
@@ -167,7 +171,7 @@ export async function POST(req: NextRequest) {
       sessionId,
       type: 'refresh' as 'refresh',
     };
-    const refreshToken = jwt.sign(refreshTokenPayload, JWT_SECRET, {
+    const refreshToken = signJwt(refreshTokenPayload, JWT_SECRET, {
       expiresIn: `${REFRESH_TOKEN_EXPIRES_IN_SECONDS}s`,
     });
 
@@ -216,8 +220,7 @@ export async function POST(req: NextRequest) {
       ...auditRequestContext(req),
     });
 
-    const { password: _, ...userWithoutPassword } = user;
-    const responseUser = { ...userWithoutPassword, tokenVersion: tokenVersion, permissions: userPermissions };
+    const responseUser = { ...toPublicUser(user), permissions: userPermissions };
 
     const response = NextResponse.json({
       message: 'Login successful.',
@@ -225,12 +228,14 @@ export async function POST(req: NextRequest) {
     }, { status: 200 });
     const secure = shouldUseSecureCookies();
 
+    // Cookie outlives the 15-minute JWT inside it (which is still verified on every use) so
+    // the root layout can tell "signed in, access token expired" from "never signed in".
     response.cookies.set('auth_token', accessToken, {
         httpOnly: true,
         secure,
         sameSite: 'strict',
         path: '/',
-        maxAge: ACCESS_TOKEN_EXPIRES_IN_SECONDS,
+        maxAge: REFRESH_TOKEN_EXPIRES_IN_SECONDS,
     });
 
     response.cookies.set('refresh_token', refreshToken, {
@@ -245,6 +250,6 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('[LOGIN_ERROR]', error);
-    return new NextResponse(error.message || 'Internal Server Error', { status: 500 });
+    return NextResponse.json({ message: 'An unexpected error occurred. Please try again.' }, { status: 500 });
   }
-}
+});

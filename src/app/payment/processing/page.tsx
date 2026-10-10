@@ -16,7 +16,7 @@ function ProcessingPaymentContent() {
         const idToUse = transactionId || sessionId;
 
         if (!idToUse) {
-            console.error("No transaction ID or session ID found in URL.");
+            console.warn("No transaction ID or session ID found in URL.");
             router.replace('/payment/failure');
             return;
         }

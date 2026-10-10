@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useSuperAdminAuth } from '@/context/super-admin-auth-context';
 import { ensureCsrfToken } from '@/context/auth-context';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import Cookies from 'js-cookie';
+import { getCsrfToken } from '@/lib/csrf-client';
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, { message: 'Current password is required.' }),
@@ -54,7 +54,7 @@ export default function SuperAdminProfilePage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-Token': Cookies.get('csrf_token') || '',
+          'X-CSRF-Token': getCsrfToken(),
         },
         credentials: 'include',
         body: JSON.stringify({

@@ -9,8 +9,9 @@ import { checkIpLockout, getClientIp, recordIpFailure } from '@/lib/rate-limit';
 import { shouldUseSecureCookies } from '@/lib/cookie';
 import { verifyCsrf } from '@/lib/csrf';
 import { logAudit, auditRequestContext } from '@/lib/audit';
+import { malformedJsonResponse, readJsonBody, withApiErrorHandling } from '@/lib/api-handler';
 
-export async function POST(req: NextRequest) {
+export const POST = withApiErrorHandling(async function POST(req: NextRequest) {
   try {
     if (!verifyCsrf(req)) {
       return NextResponse.json({ errors: ['Invalid CSRF token.'] }, { status: 403 });
@@ -25,7 +26,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { phoneNumber, currentPassword, newPassword } = await req.json();
+    const body = await readJsonBody(req);
+    if (!body) return malformedJsonResponse();
+    const { phoneNumber, currentPassword, newPassword } = body;
 
     if (!phoneNumber || !currentPassword || !newPassword) {
       await recordIpFailure(ip, { maxAttempts: 15, lockoutSeconds: 300 });
@@ -113,4 +116,4 @@ export async function POST(req: NextRequest) {
     console.error('[CHANGE_PASSWORD_ERROR]', error);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
-}
+});

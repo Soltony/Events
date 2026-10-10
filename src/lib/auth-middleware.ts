@@ -5,7 +5,7 @@
 import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
-import jwt from 'jsonwebtoken';
+import { verifyJwt, JsonWebTokenError } from '@/lib/jwt';
 import type { Role, User, Permission, RolePermission } from '@prisma/client';
 import {
   getUserIdleTimeoutSeconds,
@@ -47,7 +47,7 @@ export async function verifyAuth(req: NextRequest): Promise<VerifiedUser | null>
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as DecodedToken;
+    const decoded = verifyJwt(token, JWT_SECRET) as DecodedToken;
 
     const tokenType = (decoded as any).type;
     // Some legacy/internal tokens may not set `type`. Treat missing type as access.
@@ -166,7 +166,7 @@ export async function verifyAuth(req: NextRequest): Promise<VerifiedUser | null>
     return finalUser;
 
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
+    if (error instanceof JsonWebTokenError) {
       console.log('Invalid or expired JWT:', error.message);
     } else {
       console.error('An unexpected error occurred during auth verification:', error);

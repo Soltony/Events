@@ -123,7 +123,11 @@ export default function StaffPageContent({ permissions = [] }: { permissions?: s
       const result = await addStaff(data);
 
       if (result.success) {
-        toast({ title: 'Staff Member Added', description: `An email with credentials has been sent to ${data.email}.` });
+        toast(
+          result.warning
+            ? { variant: 'destructive', title: 'Staff Member Added — Email Not Sent', description: result.warning }
+            : { title: 'Staff Member Added', description: `An email with credentials has been sent to ${data.email}.` }
+        );
         setIsSuccess(true);
         addStaffForm.reset({ firstName: '', lastName: '', phoneNumber: '', email: '' });
         fetchStaff();

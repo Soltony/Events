@@ -23,7 +23,7 @@ const addUserFormSchema = z.object({
   lastName: z.string().min(1, { message: 'Last name is required.' }),
   phoneNumber: z.string().min(10, { message: 'Phone number must be at least 10 digits.' }),
   email: z.string().email({ message: 'Invalid email address.' }),
-  roleId: z.string({ required_error: 'Please select a role.' }),
+  roleId: z.string({ error: 'Please select a role.' }),
   branchId: z.string().optional(),
 });
 
@@ -78,7 +78,9 @@ export default function UserRegistrationPageContent() {
         toast(
           result.pendingApproval
             ? { title: 'Registration Submitted', description: 'The organizer registration is now pending approval.' }
-            : { title: 'User Added', description: `An email with credentials has been sent to ${data.email}.` }
+            : result.warning
+              ? { variant: 'destructive', title: 'User Added — Email Not Sent', description: result.warning }
+              : { title: 'User Added', description: `An email with credentials has been sent to ${data.email}.` }
         );
         setIsSuccess(true);
       } else {

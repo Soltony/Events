@@ -59,7 +59,7 @@ const districtFormSchema = z.object({
 
 const branchFormSchema = z.object({
   branchName: z.string().min(1, 'Branch name is required.'),
-  districtId: z.string({ required_error: 'Please select a district.' }),
+  districtId: z.string({ error: 'Please select a district.' }),
   contactPersonName: z.string().min(1, 'Contact person name is required.'),
   contactPersonPhone: z.string().min(10, 'Contact person phone must be at least 10 digits.'),
 });
@@ -300,6 +300,22 @@ export default function OrganizationPageContent() {
     })));
   };
 
+  // Reads an uploaded CSV as strict UTF-8. Files in another encoding (e.g. UTF-16 "Unicode"
+  // exports from Excel) or binary files are rejected up front with a clear message.
+  const readCsvFile = async (file: File): Promise<string> => {
+    if (file.size > 1024 * 1024) {
+      throw new Error('The CSV file is too large (maximum 1 MB).');
+    }
+    try {
+      const text = new TextDecoder('utf-8', { fatal: true }).decode(await file.arrayBuffer());
+      // eslint-disable-next-line no-control-regex
+      if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(text)) throw new Error();
+      return text;
+    } catch {
+      throw new Error('The uploaded file contains invalid or unsupported data. Please save it as a UTF-8 CSV and try again.');
+    }
+  };
+
   const parseCsvRows = (text: string): string[][] =>
     text
       .split(/\r\n|\n|\r/)
@@ -345,7 +361,7 @@ export default function OrganizationPageContent() {
     if (!bulkDistrictFile) return;
     setIsBulkUploadingDistricts(true);
     try {
-      const text = await bulkDistrictFile.text();
+      const text = await readCsvFile(bulkDistrictFile);
       const records = rowsToRecords(parseCsvRows(text), ['name']);
       const districtRows = records
         .map((r) => ({
@@ -382,7 +398,7 @@ export default function OrganizationPageContent() {
     if (!bulkBranchFile) return;
     setIsBulkUploadingBranches(true);
     try {
-      const text = await bulkBranchFile.text();
+      const text = await readCsvFile(bulkBranchFile);
       const records = rowsToRecords(parseCsvRows(text), ['name', 'district']);
       const branchRows = records
         .map((r) => ({

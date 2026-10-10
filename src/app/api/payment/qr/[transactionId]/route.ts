@@ -1,9 +1,8 @@
-'use server';
-
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { withApiErrorHandling } from '@/lib/api-handler';
 
-export async function GET(
+export const GET = withApiErrorHandling(async function GET(
   _req: NextRequest,
   context: { params: Promise<{ transactionId: string }> }
 ) {
@@ -65,11 +64,11 @@ export async function GET(
     return NextResponse.json(
       {
         error: 'Failed to fetch QR code data',
-        detail: error.message ?? 'Unknown error',
+        detail: 'An unexpected error occurred while fetching the ticket.',
       },
       { status: 500 }
     );
   }
-}
+});
 
 

@@ -1,11 +1,11 @@
-
-
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { randomUUID } from 'crypto';
 import { normalizeEthiopianPhoneStrict } from '@/lib/utils';
 import { verifyAuth } from '@/lib/auth-middleware';
+import { getMaxTicketsPerPhone, OrderError, parseOrderLines, priceOrder } from '@/lib/orders';
+import { withApiErrorHandling } from '@/lib/api-handler';
 
 interface BuyerIdentity {
     purchasedById: string | null;
@@ -14,7 +14,7 @@ interface BuyerIdentity {
 
 // Identifies the buyer for gift attribution. A full account or a JWT-based guest session
 // both resolve via verifyAuth. Many NIB SuperApp visitors, however, only ever carry the
-// SuperApp's plain, client-readable `phone_number` cookie with no JWT at all — that's still
+// SuperApp's plain `phone_number` cookie with no JWT at all — that's still
 // a legitimate identified buyer, just with a phone number as their only identifier.
 async function resolveBuyerIdentity(req: NextRequest): Promise<BuyerIdentity | null> {
     const verified = await verifyAuth(req);
@@ -33,16 +33,24 @@ async function resolveBuyerIdentity(req: NextRequest): Promise<BuyerIdentity | n
     return null;
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withApiErrorHandling(async function POST(req: NextRequest) {
     try {
-        const body = await req.json();
-        const { eventId, tickets, promoCode, attendeeDetails, isGift } = body;
+        let body: any;
+        try {
+            body = await req.json();
+        } catch {
+            return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
+        }
+        const { eventId, tickets, promoCode, attendeeDetails, isGift } = body ?? {};
 
-        if (!eventId || !tickets?.length || !attendeeDetails) {
+        if (!Number.isInteger(eventId) || !Array.isArray(tickets) || tickets.length === 0 || !attendeeDetails) {
             return NextResponse.json({
                 error: 'Invalid request payload',
                 detail: 'Required fields: eventId, tickets[], attendeeDetails.'
             }, { status: 400 });
+        }
+        if (promoCode != null && typeof promoCode !== 'string') {
+            return NextResponse.json({ error: 'Invalid promo code.' }, { status: 400 });
         }
 
         // Best-effort buyer attribution for gifts — see resolveBuyerIdentity for the
@@ -50,7 +58,6 @@ export async function POST(req: NextRequest) {
         // is found, the gift still goes through with purchasedById/purchasedByName left null.
         const buyerIdentity: BuyerIdentity | null = isGift ? await resolveBuyerIdentity(req) : null;
 
-        const totalQuantity = (tickets as Array<{ quantity: number }>).reduce((sum: number, t) => sum + Number(t.quantity), 0);
         const eventRecord = await prisma.event.findUnique({
           where: { id: eventId },
           select: { id: true, startDate: true, endDate: true, status: true },
@@ -65,7 +72,13 @@ export async function POST(req: NextRequest) {
             { status: 400 }
           );
         }
-        
+
+        // Validates every line (positive integer ids/quantities, every ticket type belongs to
+        // this event) and the promo code. Prices are never taken from the client.
+        const priced = await priceOrder(prisma, { eventId, lines: parseOrderLines(tickets), promoCode });
+        const totalQuantity = priced.lines.reduce((sum, l) => sum + l.quantity, 0);
+        const primaryTicketType = priced.lines[0].ticketType;
+
         // This transactionId is our internal reference for the entire purchase flow.
         const transactionId = randomUUID();
 
@@ -86,36 +99,9 @@ export async function POST(req: NextRequest) {
         const recipientName = attendeeDetails.name;
         const recipientUserId: string | undefined = isGift ? undefined : attendeeDetails.userId;
 
-        // Free-ticket limit enforcement (server-side):
-        // Free limits are stored in `ticketType.locationPrices` JSON (to avoid schema migrations).
-        const primaryTicketTypeId = tickets[0].id;
-        const primaryTicketType = await prisma.ticketType.findUnique({
-          where: { id: primaryTicketTypeId },
-          select: { basePrice: true, name: true, locationPrices: true, eventId: true },
-        } as any);
-        if (!primaryTicketType || (primaryTicketType as any).eventId !== eventId) {
-          return NextResponse.json(
-            { error: 'Invalid ticket selection', detail: 'Ticket type does not belong to this event.' },
-            { status: 400 }
-          );
-        }
-
-        const getMaxTicketsPerPhoneFromTicketType = (tt: any): number | null => {
-          if (!tt) return null;
-          const locationFromName = typeof tt.name === 'string' ? tt.name.split(' - ').slice(1).join(' - ') : null;
-
-          const lp = tt.locationPrices ?? tt.locationConfigs ?? [];
-          const entries: any[] = Array.isArray(lp) ? lp : [];
-          const normalizedLocation = locationFromName ? String(locationFromName).trim() : null;
-          const matched = normalizedLocation
-            ? entries.find(e => (e?.location ? String(e.location).trim() : null) === normalizedLocation)
-            : entries[0];
-          const max = matched?.maxTicketsPerPhone ?? matched?.maxFreeTicketsPerPhone;
-          return typeof max === 'number' ? max : null;
-        };
-
-        const max = getMaxTicketsPerPhoneFromTicketType(primaryTicketType as any);
-        if (typeof max === 'number' && max > 0) {
+        // Per-phone limit (stored in `ticketType.locationPrices` JSON).
+        const max = getMaxTicketsPerPhone(primaryTicketType);
+        if (max !== null) {
           const alreadyClaimed = await prisma.attendee.count({
             where: { phoneNumber: normalizedPhone, eventId },
           });
@@ -137,18 +123,19 @@ export async function POST(req: NextRequest) {
             data: {
                 transactionId: transactionId,
                 eventId,
-                ticketTypeId: tickets[0].id, // Store primary ticket type
+                ticketTypeId: primaryTicketType.id, // Store primary ticket type
                 attendeeData: {
                     name: recipientName,
                     phoneNumber: normalizedPhone,
                     userId: recipientUserId,
                     quantity: totalQuantity,
-                    tickets: tickets, // Store all selected ticket details
+                    // Only ids/quantities (plus a name snapshot) — never client-supplied prices.
+                    tickets: priced.lines.map((l) => ({ id: l.id, name: l.ticketType.name, quantity: l.quantity })),
                     isGift: !!isGift,
                     purchasedById,
                     purchasedByName,
                 },
-                promoCode,
+                promoCode: priced.promo ? promoCode.trim() : null,
                 status: 'PENDING',
                 arifpaySessionId: transactionId, // Use this field to store our internal transaction ID
             },
@@ -156,10 +143,13 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({ success: true, transactionId: pendingOrder.transactionId });
     } catch (error: any) {
-        console.error(`Pending order creation failed:`, error.message);
+        if (error instanceof OrderError) {
+            return NextResponse.json({ error: error.message }, { status: error.status });
+        }
+        console.error(`Pending order creation failed:`, error?.message);
         return NextResponse.json({
             error: 'Unexpected server error',
             detail: `An unknown error occurred while creating the pending order.`
         }, { status: 500 });
     }
-}
+});

@@ -14,4 +14,5 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { title: 'Staff Management', path: '/staff', permission: 'Staff:Read' },
   { title: 'Organization', path: '/organization', permission: 'Organization:Read' },
   { title: 'Homepage Carousel', path: '/homeads', permission: 'Homepage Carousel:Read' },
+  { title: 'Audit Log', path: '/audit-logs', permission: 'Audit Logs:Read' },
 ];

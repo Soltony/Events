@@ -2,19 +2,8 @@
 /** @type {import('next').NextConfig} */
 const path = require('path');
 
-const csp = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com",
-  "img-src 'self' blob: data: https://placehold.co https://storage.googleapis.com https://picsum.photos",
-  "font-src 'self' data: https://fonts.gstatic.com",
-  "connect-src 'self' blob: data: https://nominatim.openstreetmap.org",
-  "media-src 'self' blob: data:",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-].join('; ');
-
+// Content-Security-Policy is NOT set here: it is generated per request in
+// src/middleware.ts so every response gets a fresh script/style nonce.
 const securityHeaders = [
   {
     key: 'Strict-Transport-Security',
@@ -35,10 +24,6 @@ const securityHeaders = [
   {
     key: 'Permissions-Policy',
     value: "camera=(self), microphone=(), geolocation=(), payment=()",
-  },
-  {
-    key: 'Content-Security-Policy',
-    value: csp.replace(/\s{2,}/g, ' ').trim(),
   },
 ];
 

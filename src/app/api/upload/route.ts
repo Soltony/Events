@@ -4,6 +4,7 @@ import sharp from 'sharp';
 import { verifyAuth } from '@/lib/auth-middleware';
 import { hasPermission } from '@/lib/permissions';
 import { verifyCsrf } from '@/lib/csrf';
+import { malformedJsonResponse, readJsonBody, withApiErrorHandling } from '@/lib/api-handler';
 
 // Accepted raster image types for event artwork. SVG is deliberately excluded
 // (it can carry script), as is any non-image data URI.
@@ -14,7 +15,7 @@ const MAX_REQUEST_BYTES = 8 * 1024 * 1024; // base64 + JSON overhead headroom
 
 const DATA_URI_RE = /^data:([a-z]+\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/\r\n]+={0,2})$/i;
 
-export async function POST(req: NextRequest) {
+export const POST = withApiErrorHandling(async function POST(req: NextRequest) {
   try {
     if (!verifyCsrf(req)) {
       return NextResponse.json({ success: false, error: 'Invalid CSRF token.' }, { status: 403 });
@@ -33,7 +34,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Payload too large.' }, { status: 413 });
     }
 
-    const { file } = await req.json();
+    const body = await readJsonBody(req);
+    if (!body) return malformedJsonResponse();
+    const { file } = body;
 
     if (!file || typeof file !== 'string') {
       return NextResponse.json({ success: false, error: 'Invalid file data provided. Expected a data URI.' }, { status: 400 });
@@ -79,4 +82,4 @@ export async function POST(req: NextRequest) {
     console.error('Upload API error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error.' }, { status: 500 });
   }
-}
+});

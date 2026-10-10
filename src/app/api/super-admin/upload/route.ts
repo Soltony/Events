@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
 import { requireSuperAdminPermission } from '@/lib/super-admin-auth';
 import { assertSameOriginCsrf } from '@/lib/csrf';
+import { malformedJsonResponse, readJsonBody, withApiErrorHandling } from '@/lib/api-handler';
 
 // Accepted raster image types for carousel artwork. SVG is deliberately excluded
 // (it can carry script), as is any non-image data URI.
@@ -13,7 +14,7 @@ const MAX_REQUEST_BYTES = 8 * 1024 * 1024;
 
 const DATA_URI_RE = /^data:([a-z]+\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/\r\n]+={0,2})$/i;
 
-export async function POST(req: NextRequest) {
+export const POST = withApiErrorHandling(async function POST(req: NextRequest) {
   try {
     if (!assertSameOriginCsrf(req)) {
       return NextResponse.json({ success: false, error: 'Invalid CSRF token.' }, { status: 403 });
@@ -33,7 +34,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Payload too large.' }, { status: 413 });
     }
 
-    const { file } = await req.json();
+    const body = await readJsonBody(req);
+    if (!body) return malformedJsonResponse();
+    const { file } = body;
 
     if (!file || typeof file !== 'string') {
       return NextResponse.json({ success: false, error: 'Invalid file data provided. Expected a data URI.' }, { status: 400 });
@@ -77,4 +80,4 @@ export async function POST(req: NextRequest) {
     console.error('Super admin upload API error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error.' }, { status: 500 });
   }
-}
+});

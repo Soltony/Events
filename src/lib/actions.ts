@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import prisma from './prisma';
 import type { Role, User, TicketType, PromoCode, Event, EventStatus, Branch } from '@prisma/client';
 import { cookies } from 'next/headers';
-import jwt from 'jsonwebtoken';
+import { verifyJwt } from '@/lib/jwt';
 import bcrypt from 'bcryptjs';
 import { nanoid } from 'nanoid';
 import cuid from 'cuid';
@@ -14,6 +14,9 @@ import { randomUUID } from 'crypto';
 import { buildPhoneVariants, normalizeEthiopianPhoneStrict, normalizePhoneNumber } from './utils';
 import { sendPendingEventNotification, sendTempPassword } from '@/lib/email';
 import { hasPermission } from './permissions';
+import { matchPromoCode } from './promo';
+import { safeErrorMessage } from './safe-error';
+import { logAdminAction } from './audit';
 import {
   getUserIdleTimeoutSeconds,
   getUserSessionAbsoluteMaxAgeSeconds,
@@ -48,7 +51,7 @@ export async function getCurrentUser(): Promise<(User & { role: Role; branch: Br
     if (!JWT_SECRET) {
       throw new Error('JWT_SECRET is not defined');
     }
-    const decoded = jwt.verify(token, JWT_SECRET) as {
+    const decoded = verifyJwt(token, JWT_SECRET) as {
       userId: string;
       tokenVersion?: number;
       sessionId?: string;
@@ -167,7 +170,7 @@ export async function addUser(data: {
   email: string;
   roleId: string;
   nibBankAccount: string;
-}): Promise<{ success: boolean; error?: string; pendingApproval?: boolean }> {
+}): Promise<{ success: boolean; error?: string; pendingApproval?: boolean; warning?: string }> {
   const currentUser = await requirePermission('Users:Create');
 
   try {
@@ -201,7 +204,7 @@ export async function addUser(data: {
     // approver with Organizer Approvals:Access approves them.
     const isOrganizer = role.name === 'Organizer';
 
-    await prisma.user.create({
+    const createdUser = await prisma.user.create({
       data: {
         id: cuid(),
         firstName: data.firstName,
@@ -218,11 +221,19 @@ export async function addUser(data: {
       },
     });
 
+    await logAdminAction(currentUser, 'user.create', {
+      targetType: 'user',
+      targetId: createdUser.id,
+      detail: { phoneNumber: normalizedPhone, roleId: data.roleId, branchId: currentUser.branchId, pendingApproval: isOrganizer },
+    });
+
+    let warning: string | undefined;
     if (!isOrganizer) {
-      await sendTempPassword({ email: data.email, phoneNumber: normalizedPhone, tempPassword });
+      const mail = await sendTempPassword({ email: data.email, phoneNumber: normalizedPhone, tempPassword });
+      if (!mail.success) warning = mail.message;
     }
 
-    return { success: true, pendingApproval: isOrganizer };
+    return { success: true, pendingApproval: isOrganizer, warning };
   } catch (error: any) {
     console.error('Failed to add user:', error);
     if (error.code === 'P2002') {
@@ -233,7 +244,7 @@ export async function addUser(data: {
         return { success: false, error: 'This email address is already in use.' };
       }
     }
-    return { success: false, error: error.message || 'An unexpected error occurred.' };
+    return { success: false, error: safeErrorMessage(error, 'An unexpected error occurred.') };
   }
 }
 
@@ -509,6 +520,12 @@ export async function addEvent(data: any) {
       }
     }
 
+    await logAdminAction(user, 'event.create', {
+      targetType: 'event',
+      targetId: newEvent.id,
+      detail: { name: newEvent.name, status: newEvent.status },
+    });
+
     revalidatePath('/dashboard/events');
     revalidatePath('/dashboard');
     revalidatePath('/');
@@ -584,6 +601,16 @@ export async function updateEvent(id: number, data: any) {
         }
     }
 
+    await logAdminAction(user, 'event.update', {
+      targetType: 'event',
+      targetId: id,
+      detail: {
+        changedFields: Object.keys(data ?? {}).filter((k) => data[k] !== undefined),
+        statusBefore: eventToUpdate.status,
+        statusAfter: updatedEvent.status,
+      },
+    });
+
     revalidatePath('/dashboard/events');
     revalidatePath(`/dashboard/events/${id}`);
     revalidatePath(`/dashboard/events/${id}/edit`);
@@ -594,7 +621,7 @@ export async function updateEvent(id: number, data: any) {
 }
 
 export async function updateEventStatus(id: number, status: EventStatus, rejectionReason?: string) {
-    await requirePermission('Event Approvals:Access');
+    const reviewer = await requirePermission('Event Approvals:Access');
 
     const eventToUpdate = await prisma.event.findUnique({ where: { id }});
     if (!eventToUpdate) throw new Error("Event not found");
@@ -605,6 +632,18 @@ export async function updateEventStatus(id: number, status: EventStatus, rejecti
             status: status,
             rejectionReason: status === 'REJECTED' ? rejectionReason : null,
         }
+    });
+
+    await logAdminAction(reviewer, 'event.status.change', {
+        severity: 'critical',
+        targetType: 'event',
+        targetId: id,
+        detail: {
+            name: eventToUpdate.name,
+            from: eventToUpdate.status,
+            to: status,
+            rejectionReason: status === 'REJECTED' ? rejectionReason ?? null : null,
+        },
     });
 
     revalidatePath('/dashboard/events');
@@ -664,6 +703,13 @@ export async function deleteEvent(id: number) {
     prisma.pendingOrder.deleteMany({ where: { eventId: id } }),
     prisma.event.delete({ where: { id } }),
   ]);
+
+  await logAdminAction(user, 'event.delete', {
+    severity: 'critical',
+    targetType: 'event',
+    targetId: id,
+    detail: { name: eventToDelete.name, status: eventToDelete.status, organizerId: eventToDelete.organizerId },
+  });
   
   revalidatePath('/dashboard/events');
   revalidatePath('/');
@@ -719,6 +765,14 @@ export async function addTicketType(
             });
         }
     }
+    await logAdminAction(user, 'ticket_type.create', {
+        targetType: 'event',
+        targetId: eventId,
+        detail: {
+            name: data.name,
+            locations: data.locationPrices.map((c) => ({ location: c.location, price: c.price, quantity: c.quantity })),
+        },
+    });
     revalidatePath(`/dashboard/events/${eventId}`);
 }
 
@@ -778,6 +832,11 @@ export async function updateTicketType(ticketTypeId: number, data: any) {
         locationPrices: nextLocationPrices,
     } as any,
   });
+  await logAdminAction(user, 'ticket_type.update', {
+    targetType: 'ticketType',
+    targetId: ticketTypeId,
+    detail: { eventId: updatedTicketType.eventId, name: updatedTicketType.name, price: data.price, total: data.total },
+  });
   revalidatePath(`/dashboard/events/${updatedTicketType.eventId}`);
   return serialize(updatedTicketType);
 }
@@ -796,6 +855,12 @@ export async function deleteTicketType(ticketTypeId: number) {
   }
 
   await prisma.ticketType.delete({ where: { id: ticketTypeId } });
+  await logAdminAction(user, 'ticket_type.delete', {
+    severity: 'warning',
+    targetType: 'ticketType',
+    targetId: ticketTypeId,
+    detail: { eventId: ticketType.eventId, name: ticketType.name },
+  });
   revalidatePath(`/dashboard/events/${ticketType.eventId}`);
 }
 
@@ -825,6 +890,11 @@ export async function addPromoCode(eventId: number, data: any, allTicketTypes?: 
             maxUses: data.maxUses,
             eventId: eventId,
         }
+    });
+    await logAdminAction(user, 'promo_code.create', {
+        targetType: 'promoCode',
+        targetId: newPromoCode.id,
+        detail: { eventId, code: finalCode, type: data.type, value: data.value, maxUses: data.maxUses },
     });
     revalidatePath(`/dashboard/events/${eventId}`);
     return serialize(newPromoCode);
@@ -859,6 +929,11 @@ export async function updatePromoCode(promoCodeId: number, data: any, allTicketT
             maxUses: data.maxUses,
         },
     });
+    await logAdminAction(user, 'promo_code.update', {
+        targetType: 'promoCode',
+        targetId: promoCodeId,
+        detail: { eventId: updatedPromoCode.eventId, code: finalCode, type: data.type, value: data.value, maxUses: data.maxUses },
+    });
     revalidatePath(`/dashboard/events/${updatedPromoCode.eventId}`);
     return serialize(updatedPromoCode);
 }
@@ -878,6 +953,12 @@ export async function deletePromoCode(promoCodeId: number) {
         }
 
         await prisma.promoCode.delete({ where: { id: promoCodeId } });
+        await logAdminAction(user, 'promo_code.delete', {
+                severity: 'warning',
+                targetType: 'promoCode',
+                targetId: promoCodeId,
+                detail: { eventId: promoCode.eventId },
+        });
         revalidatePath(`/dashboard/events/${promoCode.eventId}`);
         return { ok: true };
     }
@@ -1027,157 +1108,26 @@ export async function updatePasswordFlag(userId: string, passwordChangeRequired:
         where: { id: userId },
         data: { passwordChangeRequired: passwordChangeRequired },
     });
+    if (current.id !== userId) {
+        await logAdminAction(current, 'user.password_flag.update', {
+            targetType: 'user',
+            targetId: userId,
+            detail: { passwordChangeRequired },
+        });
+    }
     revalidatePath('/profile');
 }
 
 
 // Ticket/Attendee Actions
-export async function purchaseTickets(request: {
-  eventId: number;
-  tickets: { id: number; quantity: number, name: string; price: number }[];
-  promoCode?: string;
-  attendeeDetails: {
-    name: string;
-    phone: string;
-    email?: string;
-    userId?: string;
-  };
-}) {
-    const { eventId, tickets, promoCode, attendeeDetails } = request;
-    const user = await getCurrentUser();
-
-    if (!user && !attendeeDetails.phone) {
-        throw new Error("User must be logged in or provide a phone number.");
-    }
-
-    let normalizedPhone: string | null = null;
-    if (attendeeDetails.phone) {
-        normalizedPhone = normalizeEthiopianPhoneStrict(attendeeDetails.phone);
-    }
-
-    const totalRequestedQuantity = tickets.reduce((sum, t) => sum + Number(t.quantity ?? 0), 0);
-
-    return await prisma.$transaction(async (tx) => {
-        let totalAmount = 0;
-        let discountAmount = 0;
-        // Free ticket support:
-        // If all selected ticket tiers have base price of 0, skip payment pages and go straight to confirmation.
-        let allSelectedFree = true;
-        const phoneForLimit = normalizedPhone ?? attendeeDetails.phone;
-
-        for (const ticket of tickets) {
-            const ticketType = await tx.ticketType.findUnique({ where: { id: ticket.id } });
-            if (!ticketType) throw new Error(`Ticket type with ID ${ticket.id} not found.`);
-            if ((ticketType.total - ticketType.sold) < ticket.quantity) {
-                throw new Error(`Not enough tickets available for "${ticketType.name}".`);
-            }
-            totalAmount += Number(ticketType.basePrice) * ticket.quantity;
-            allSelectedFree = allSelectedFree && Number(ticketType.basePrice) === 0;
-
-                        // Per-user limit enforcement (supports legacy maxFreeTicketsPerPhone and new maxTicketsPerPhone)
-                        const locationFromName =
-                            typeof (ticketType as any).name === 'string'
-                                ? String((ticketType as any).name).split(' - ').slice(1).join(' - ')
-                                : null;
-
-                        const lp = (ticketType as any).locationPrices ?? (ticketType as any).locationConfigs ?? [];
-                        const entries: any[] = Array.isArray(lp) ? lp : [];
-
-                        const normalizedLocation = locationFromName ? String(locationFromName).trim() : null;
-                        const matched = normalizedLocation
-                            ? entries.find(e => (e?.location ? String(e.location).trim() : null) === normalizedLocation)
-                            : entries[0];
-
-                        const max = (matched?.maxTicketsPerPhone ?? matched?.maxFreeTicketsPerPhone) as number | null | undefined;
-                        if (typeof max === 'number' && max > 0 && phoneForLimit) {
-                            // Count already claimed tickets for this phone across the event (this treats the limit as an event-level cap)
-                            const alreadyClaimed = await tx.attendee.count({
-                                where: {
-                                    phoneNumber: phoneForLimit,
-                                    eventId: eventId,
-                                },
-                            });
-
-                            // Use totalRequestedQuantity to account for all tickets in this purchase
-                            if (alreadyClaimed + totalRequestedQuantity > max) {
-                                throw new Error('Ticket limit exceeded for this user');
-                            }
-                        }
-        }
-
-        if (promoCode) {
-            const validatedPromo = await validatePromoCode(promoCode, eventId);
-            if (!validatedPromo) throw new Error("Invalid or expired promo code.");
-            
-            if (validatedPromo.type === 'PERCENTAGE') {
-                discountAmount = totalAmount * (Number(validatedPromo.value) / 100);
-            } else {
-                discountAmount = Math.min(totalAmount, Number(validatedPromo.value));
-            }
-            totalAmount -= discountAmount;
-
-            await tx.promoCode.update({
-                where: { id: validatedPromo.id },
-                data: { uses: { increment: 1 } }
-            });
-        }
-        
-        const finalAmount = totalAmount;
-        
-        // This is a placeholder for the actual payment gateway interaction
-        console.log(`Initiating payment for ${finalAmount.toFixed(2)} ETB...`);
-        const paymentSessionId = `MOCK_${''}${randomUUID()}`;
-
-        // Create a single attendee record for the entire purchase
-        const firstTicket = tickets[0];
-        if (!firstTicket) throw new Error("No tickets in purchase request.");
-
-        const totalQuantity = totalRequestedQuantity;
-
-        const newAttendee = await tx.attendee.create({
-            data: {
-                name: attendeeDetails.name,
-                phoneNumber: normalizedPhone ?? attendeeDetails.phone,
-                userId: attendeeDetails.userId || user?.id,
-                eventId: eventId,
-                ticketTypeId: firstTicket.id, // Primary ticket type
-                qrCode: randomUUID(),
-            }
-        });
-
-        // Update ticket counts
-        for (const ticket of tickets) {
-             await tx.ticketType.update({
-                where: { id: ticket.id },
-                data: { sold: { increment: ticket.quantity } }
-            });
-        }
-        
-        const order = await tx.pendingOrder.create({
-            data: {
-                arifpaySessionId: paymentSessionId,
-                transactionId: paymentSessionId, // Using the same for simplicity in mock
-                eventId: eventId,
-                ticketTypeId: firstTicket.id,
-                attendeeData: {
-                    ...attendeeDetails,
-                    phone: normalizedPhone ?? attendeeDetails.phone,
-                    quantity: totalQuantity,
-                    tickets: tickets,
-                },
-                attendeeId: newAttendee.id,
-                status: 'COMPLETED' // Mocking completion
-            }
-        });
-
-        revalidatePath(`/events/${eventId}`);
-        revalidatePath('/dashboard');
-        
-        return serialize({
-            success: true,
-            redirectUrl: allSelectedFree ? `/ticket/${newAttendee.id}/confirmation` : `/payment/success?session_id=${paymentSessionId}`
-        });
-    });
+/**
+ * @deprecated Legacy mock checkout. It issued tickets and marked the order COMPLETED
+ * without collecting payment, and as an exported server action it was callable by any
+ * client. Purchases must go through /api/payment/pending-order followed by
+ * /api/payment/nib/initiate (paid) or /api/payment/complete (free).
+ */
+export async function purchaseTickets(_request: unknown): Promise<never> {
+    throw new Error('This checkout flow is no longer available. Please purchase tickets from the event page.');
 }
 
 export async function getTicketDetailsForConfirmation(identifier: string) {
@@ -1315,33 +1265,8 @@ export async function validatePromoCode(code: string, eventId: number, location?
         }
     });
 
-    for (const promo of promos) {
-        // No restrictions, just match the code
-        if (promo.code === code) return serialize(promo);
-
-        // Check for structured codes
-        if (promo.code.includes(':')) {
-            const parts = promo.code.split(':');
-            const type = parts[0];
-            const value = parts[1];
-            const actualCode = parts[2];
-
-            if (actualCode === code) {
-                if (type === 'TICKET' && ticketTypesInCart) {
-                    if (ticketTypesInCart.some(t => t.name === value)) {
-                        return serialize(promo);
-                    }
-                }
-                if (type === 'LOCATION' && location) {
-                    if (location === value) {
-                        return serialize(promo);
-                    }
-                }
-            }
-        }
-    }
-
-    return null;
+    const match = matchPromoCode(promos, code, location, ticketTypesInCart);
+    return match ? serialize(match) : null;
 }
 
 
@@ -1377,14 +1302,27 @@ export async function checkInAttendee(attendeeIdentifier: number | string) {
             return { error: 'Permission denied.' };
         }
 
-        if (attendee.checkedIn) {
+        // Conditional update: two scanners reading the same ticket concurrently cannot
+        // both admit it.
+        const claimed = attendee.checkedIn
+            ? { count: 0 }
+            : await prisma.attendee.updateMany({
+                where: { id: attendee.id, checkedIn: false },
+                data: { checkedIn: true },
+            });
+        if (claimed.count === 0) {
             return { data: serialize(attendee), error: 'Already Checked In: This ticket has already been used.' };
         }
 
-        const updatedAttendee = await prisma.attendee.update({
+        const updatedAttendee = await prisma.attendee.findUnique({
             where: { id: attendee.id },
-            data: { checkedIn: true },
             include: { event: true, ticketType: true }
+        });
+
+        await logAdminAction(user, 'attendee.check_in', {
+            targetType: 'attendee',
+            targetId: attendee.id,
+            detail: { eventId: attendee.eventId, ticketTypeId: attendee.ticketTypeId },
         });
         
         revalidatePath(`/dashboard/events/${attendee.eventId}`);

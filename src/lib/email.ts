@@ -1,5 +1,5 @@
-'use server';
-
+// Server-only mail helpers. Deliberately NOT a 'use server' module: these functions
+// must never be exposed to the browser as callable server actions.
 import nodemailer from 'nodemailer';
 
 interface SendTempPasswordParams {
@@ -33,6 +33,35 @@ interface SendGiftPurchaseConfirmationParams {
   quantity: number;
 }
 
+export type SendTempPasswordResult = { success: true } | { success: false; message: string };
+
+/** Message shown to administrators when a credentials email could not be delivered. */
+export const TEMP_PASSWORD_EMAIL_FAILED_MESSAGE =
+  'The account was saved, but the credentials email could not be sent. Use "Reset password" to issue a new temporary password once email delivery is working.';
+
+/** Escapes user-controlled values interpolated into email HTML. */
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/** Prevents header injection through user-controlled values in subjects. */
+function headerSafe(value: unknown): string {
+  return String(value ?? '').replace(/[\r\n]+/g, ' ').trim();
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function getAppUrl() {
+  return process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
+}
+
 // 🔹 Create reusable transporter
 function createTransporter() {
   const SMTP_HOST = process.env.SMTP_HOST;
@@ -57,6 +86,10 @@ function createTransporter() {
       // unverifiable certs must be an explicit local-dev opt-in.
       rejectUnauthorized: process.env.SMTP_ALLOW_SELF_SIGNED !== 'true',
     },
+    // Message content is always inline HTML built here; never let it pull in local
+    // files or remote URLs.
+    disableFileAccess: true,
+    disableUrlAccess: true,
   });
 }
 
@@ -67,10 +100,6 @@ export async function sendPendingEventNotification(
   const { adminEmail, eventName, organizerName, eventDate, eventId } = params;
 
   const EMAIL_FROM = process.env.EMAIL_FROM;
-  const APP_URL =
-    process.env.APP_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    'http://localhost:9002';
 
   if (!EMAIL_FROM) {
     console.error('EMAIL_FROM is not configured.');
@@ -80,25 +109,25 @@ export async function sendPendingEventNotification(
   try {
     const transporter = createTransporter();
 
-    const reviewLink = `${APP_URL}/dashboard/events/${eventId}`;
+    const reviewLink = `${getAppUrl()}/dashboard/events/${encodeURIComponent(String(eventId))}`;
 
     await transporter.sendMail({
       from: EMAIL_FROM,
       to: adminEmail,
-      subject: `New Event Pending Approval: ${eventName}`,
+      subject: headerSafe(`New Event Pending Approval: ${eventName}`),
       html: `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
           <h2 style="color: #864b20;">New Event Approval Required</h2>
           <p>A new event has been created and is waiting for your review.</p>
 
           <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px;">
-            <p><strong>Event:</strong> ${eventName}</p>
-            <p><strong>Organizer:</strong> ${organizerName}</p>
-            <p><strong>Date:</strong> ${eventDate}</p>
+            <p><strong>Event:</strong> ${escapeHtml(eventName)}</p>
+            <p><strong>Organizer:</strong> ${escapeHtml(organizerName)}</p>
+            <p><strong>Date:</strong> ${escapeHtml(eventDate)}</p>
           </div>
 
           <p style="margin-top:20px;">
-            <a href="${reviewLink}" style="background:#f6b313;padding:10px 15px;border-radius:5px;text-decoration:none;">
+            <a href="${escapeHtml(reviewLink)}" style="background:#f6b313;padding:10px 15px;border-radius:5px;text-decoration:none;">
               Review Event
             </a>
           </p>
@@ -112,29 +141,27 @@ export async function sendPendingEventNotification(
 
     console.log(`✅ Pending event email sent to ${adminEmail}`);
   } catch (error) {
-    console.error('❌ Failed to send pending event email:', error);
+    console.error('❌ Failed to send pending event email:', errorMessage(error));
     // Do NOT throw → don't break event creation
   }
 }
 
 // 🔹 Send Temporary Password
-export async function sendTempPassword(params: SendTempPasswordParams) {
+// Never returns, logs or otherwise exposes the password: on failure the caller gets a
+// generic message and the administrator must issue a fresh password via "Reset password".
+export async function sendTempPassword(params: SendTempPasswordParams): Promise<SendTempPasswordResult> {
   const { email, phoneNumber, tempPassword } = params;
 
   const EMAIL_FROM = process.env.EMAIL_FROM;
-  const APP_URL =
-    process.env.APP_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    'http://localhost:9002';
-
   if (!EMAIL_FROM) {
-    throw new Error('EMAIL_FROM is not configured.');
+    console.error('❌ Temp password email not sent: EMAIL_FROM is not configured.');
+    return { success: false, message: TEMP_PASSWORD_EMAIL_FAILED_MESSAGE };
   }
 
   try {
     const transporter = createTransporter();
 
-    const loginLink = `${APP_URL}/login`;
+    const loginLink = `${getAppUrl()}/login`;
 
     await transporter.sendMail({
       from: EMAIL_FROM,
@@ -146,16 +173,16 @@ export async function sendTempPassword(params: SendTempPasswordParams) {
 
           <p>Your account has been created.</p>
 
-          <p><strong>Phone:</strong> ${phoneNumber}</p>
-          <p><strong>Password:</strong> 
+          <p><strong>Phone:</strong> ${escapeHtml(phoneNumber)}</p>
+          <p><strong>Password:</strong>
             <span style="font-size:16px;font-weight:bold;">
-              ${tempPassword}
+              ${escapeHtml(tempPassword)}
             </span>
           </p>
 
           <p>You will be required to change this password on first login.</p>
 
-          <a href="${loginLink}" style="background:#f6b313;padding:10px 15px;border-radius:5px;text-decoration:none;">
+          <a href="${escapeHtml(loginLink)}" style="background:#f6b313;padding:10px 15px;border-radius:5px;text-decoration:none;">
             Login
           </a>
 
@@ -167,20 +194,11 @@ export async function sendTempPassword(params: SendTempPasswordParams) {
     });
 
     console.log(`✅ Temp password email sent to ${email}`);
+    return { success: true };
   } catch (error) {
-    console.error('❌ Failed to send temp password email:', error);
-
-    // 🔥 Important fallback (so your system doesn't break)
-    return {
-      success: false,
-      message: 'Email failed, but user created.',
-      tempPassword, // you can show this in UI (securely)
-    };
+    console.error('❌ Failed to send temp password email:', errorMessage(error));
+    return { success: false, message: TEMP_PASSWORD_EMAIL_FAILED_MESSAGE };
   }
-
-  return {
-    success: true,
-  };
 }
 
 // 🔹 Notify a recipient that a ticket was gifted to them
@@ -188,7 +206,6 @@ export async function sendGiftReceivedNotification(params: SendGiftReceivedNotif
   const { email, recipientName, buyerName, eventName, ticketTypeName, quantity } = params;
 
   const EMAIL_FROM = process.env.EMAIL_FROM;
-  const APP_URL = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:9002';
 
   if (!EMAIL_FROM) {
     console.error('EMAIL_FROM is not configured.');
@@ -197,18 +214,19 @@ export async function sendGiftReceivedNotification(params: SendGiftReceivedNotif
 
   try {
     const transporter = createTransporter();
-    const ticketsLink = `${APP_URL}/tickets`;
+    const ticketsLink = `${getAppUrl()}/tickets`;
+    const qty = Number(quantity) || 1;
 
     await transporter.sendMail({
       from: EMAIL_FROM,
       to: email,
-      subject: `🎁 You've received a gifted ticket to ${eventName}!`,
+      subject: headerSafe(`🎁 You've received a gifted ticket to ${eventName}!`),
       html: `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-          <h2 style="color: #864b20;">You've got a gift, ${recipientName}!</h2>
-          <p>${buyerName ? `<strong>${buyerName}</strong> has` : 'Someone has'} gifted you ${quantity > 1 ? `${quantity} tickets` : 'a ticket'} to <strong>${eventName}</strong> (${ticketTypeName}).</p>
+          <h2 style="color: #864b20;">You've got a gift, ${escapeHtml(recipientName)}!</h2>
+          <p>${buyerName ? `<strong>${escapeHtml(buyerName)}</strong> has` : 'Someone has'} gifted you ${qty > 1 ? `${qty} tickets` : 'a ticket'} to <strong>${escapeHtml(eventName)}</strong> (${escapeHtml(ticketTypeName)}).</p>
           <p style="margin-top:20px;">
-            <a href="${ticketsLink}" style="background:#f6b313;padding:10px 15px;border-radius:5px;text-decoration:none;">
+            <a href="${escapeHtml(ticketsLink)}" style="background:#f6b313;padding:10px 15px;border-radius:5px;text-decoration:none;">
               View My Tickets
             </a>
           </p>
@@ -221,7 +239,7 @@ export async function sendGiftReceivedNotification(params: SendGiftReceivedNotif
 
     console.log(`✅ Gift received email sent to ${email}`);
   } catch (error) {
-    console.error('❌ Failed to send gift received email:', error);
+    console.error('❌ Failed to send gift received email:', errorMessage(error));
     // Do NOT throw → notification failure must not affect the completed purchase.
   }
 }
@@ -239,15 +257,16 @@ export async function sendGiftPurchaseConfirmation(params: SendGiftPurchaseConfi
 
   try {
     const transporter = createTransporter();
+    const qty = Number(quantity) || 1;
 
     await transporter.sendMail({
       from: EMAIL_FROM,
       to: email,
-      subject: `Your gift to ${recipientName} is on its way!`,
+      subject: headerSafe(`Your gift to ${recipientName} is on its way!`),
       html: `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
           <h2 style="color: #864b20;">Ticket gifted successfully!</h2>
-          <p>${quantity > 1 ? `${quantity} tickets` : 'A ticket'} to <strong>${eventName}</strong> (${ticketTypeName}) ${quantity > 1 ? 'have' : 'has'} been sent to <strong>${recipientName}</strong>.</p>
+          <p>${qty > 1 ? `${qty} tickets` : 'A ticket'} to <strong>${escapeHtml(eventName)}</strong> (${escapeHtml(ticketTypeName)}) ${qty > 1 ? 'have' : 'has'} been sent to <strong>${escapeHtml(recipientName)}</strong>.</p>
           <p style="font-size: 12px; color: #777;">
             NibTera Tickets
           </p>
@@ -257,7 +276,7 @@ export async function sendGiftPurchaseConfirmation(params: SendGiftPurchaseConfi
 
     console.log(`✅ Gift purchase confirmation email sent to ${email}`);
   } catch (error) {
-    console.error('❌ Failed to send gift purchase confirmation email:', error);
+    console.error('❌ Failed to send gift purchase confirmation email:', errorMessage(error));
     // Do NOT throw → notification failure must not affect the completed purchase.
   }
 }

@@ -3,7 +3,7 @@
 import { cookies } from 'next/headers';
 import prisma from './prisma';
 import type { Role, User, Branch, District } from '@prisma/client';
-import jwt from 'jsonwebtoken';
+import { verifyJwt } from '@/lib/jwt';
 import {
   getUserIdleTimeoutSeconds,
   getUserSessionAbsoluteMaxAgeSeconds,
@@ -32,7 +32,7 @@ export async function getCurrentUser(): Promise<(User & { role: Role & { permiss
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as {
+    const decoded = verifyJwt(token, JWT_SECRET) as {
       userId: string;
       tokenVersion?: number;
       sessionId?: string;

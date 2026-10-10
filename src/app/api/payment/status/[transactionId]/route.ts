@@ -3,10 +3,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { verifyAuth } from '@/lib/auth-middleware';
 import { buildPhoneVariants } from '@/lib/utils';
+import { withApiErrorHandling } from '@/lib/api-handler';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(
+export const GET = withApiErrorHandling(async function GET(
   request: NextRequest,
   context: { params: Promise<{ transactionId: string }> }
 ): Promise<NextResponse> {
@@ -91,4 +92,4 @@ export async function GET(
       { status: 500 }
     );
   }
-}
+});

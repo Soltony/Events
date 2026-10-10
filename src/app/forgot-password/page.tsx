@@ -13,7 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { ensureCsrfToken } from '@/context/auth-context';
-import Cookies from 'js-cookie';
+import { getCsrfToken } from '@/lib/csrf-client';
 
 const forgotPasswordSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-Token': Cookies.get('csrf_token') || '',
+          'X-CSRF-Token': getCsrfToken(),
         },
         credentials: 'include',
         body: JSON.stringify({ email: data.email }),

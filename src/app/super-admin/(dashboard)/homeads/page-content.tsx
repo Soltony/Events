@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import Cookies from 'js-cookie';
+import { getCsrfToken } from '@/lib/csrf-client';
 import { ensureCsrfToken } from '@/context/auth-context';
 import {
   ArrowLeft,
@@ -145,7 +145,7 @@ export default function HomeAdsPageContent() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-Token': Cookies.get('csrf_token') || '',
+          'X-CSRF-Token': getCsrfToken(),
         },
         credentials: 'include',
         body: JSON.stringify({ file: dataUrl }),

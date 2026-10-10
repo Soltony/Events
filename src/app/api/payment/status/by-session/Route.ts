@@ -2,13 +2,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
-import jwt from 'jsonwebtoken';
+import { verifyJwt, JsonWebTokenError } from '@/lib/jwt';
+import { withApiErrorHandling } from '@/lib/api-handler';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_req: NextRequest) {
+export const GET = withApiErrorHandling(async function GET(_req: NextRequest) {
   try {
     if (!JWT_SECRET) {
       throw new Error('JWT_SECRET environment variable is not set.');
@@ -21,7 +22,7 @@ export async function GET(_req: NextRequest) {
       return NextResponse.json({ status: 'NOT_AUTHENTICATED' }, { status: 401 });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    const decoded = verifyJwt(token, JWT_SECRET) as { userId: string };
     const userId = decoded.userId;
 
     if (!userId) {
@@ -47,9 +48,9 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json(order);
   } catch (error) {
     console.error('by-session status error', error);
-    if (error instanceof jwt.JsonWebTokenError) {
+    if (error instanceof JsonWebTokenError) {
       return NextResponse.json({ error: 'Invalid token.' }, { status: 401 });
     }
     return NextResponse.json({ error: 'Failed to check status' }, { status: 500 });
   }
-}
+});

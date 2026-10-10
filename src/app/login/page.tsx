@@ -6,7 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Loader2, ArrowRight, Phone, Lock, ArrowLeft } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
-import { useAuth } from '@/context/auth-context';
+import { postLoginPath, useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
 
 const loginFormSchema = z.object({
@@ -25,8 +26,19 @@ const loginFormSchema = z.object({
 type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 export default function LoginPage() {
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
+  const restoreChecked = useRef(false);
+
+  // The middleware sends full page loads with an expired 15-minute access token here; if
+  // AuthProvider restores the session from the refresh token, go back where the user was.
+  // Runs once, for the initial session check only — a manual login navigates via login().
+  useEffect(() => {
+    if (isLoading || restoreChecked.current) return;
+    restoreChecked.current = true;
+    if (user && !user.isGuest) router.replace(postLoginPath());
+  }, [isLoading, user, router]);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),

@@ -5,8 +5,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth-middleware';
+import { withApiErrorHandling } from '@/lib/api-handler';
 
-export async function GET(req: NextRequest) {
+export const GET = withApiErrorHandling(async function GET(req: NextRequest) {
   const user = await verifyAuth(req);
 
   if (!user) {
@@ -19,4 +20,4 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({ message: 'Access granted', user: { id: user.id, role: user.role.name } });
-}
+});

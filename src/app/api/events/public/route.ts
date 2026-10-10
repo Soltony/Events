@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getPublicEvents } from '@/lib/actions';
+import { withApiErrorHandling } from '@/lib/api-handler';
 
-export async function GET() {
+export const GET = withApiErrorHandling(async function GET() {
   try {
     const events = await getPublicEvents();
     return NextResponse.json(events);
@@ -12,6 +13,6 @@ export async function GET() {
       { status: 500 }
     );
   }
-}
+});
 
 

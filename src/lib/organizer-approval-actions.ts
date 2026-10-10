@@ -8,6 +8,7 @@ import { nanoid } from 'nanoid';
 import bcrypt from 'bcryptjs';
 import { sendTempPassword } from '@/lib/email';
 import { requireSuperAdminPermission } from '@/lib/super-admin-auth';
+import { logAdminAction } from '@/lib/audit';
 
 const serialize = (data: any) => {
   if (!data) return null;
@@ -44,7 +45,7 @@ export async function getOrganizerRegistrations(status?: UserStatus | 'all') {
 }
 
 export async function approveOrganizer(userId: string) {
-  await requireSuperAdminPermission(APPROVAL_PERMISSION);
+  const actor = await requireSuperAdminPermission(APPROVAL_PERMISSION);
 
   const target = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
   if (!target || target.role.name !== 'Organizer') {
@@ -74,16 +75,25 @@ export async function approveOrganizer(userId: string) {
     data: { revokedAt: new Date() },
   });
 
+  await logAdminAction(actor, 'organizer.approve', {
+    severity: 'critical',
+    targetType: 'user',
+    targetId: userId,
+    detail: { phoneNumber: target.phoneNumber, previousStatus: target.status },
+  });
+
+  let warning: string | undefined;
   if (target.email) {
-    await sendTempPassword({ email: target.email, phoneNumber: target.phoneNumber, tempPassword });
+    const mail = await sendTempPassword({ email: target.email, phoneNumber: target.phoneNumber, tempPassword });
+    if (!mail.success) warning = mail.message;
   }
 
   revalidateOrganizerApprovalPaths();
-  return { success: true };
+  return { success: true, warning };
 }
 
 export async function rejectOrganizer(userId: string, reason?: string) {
-  await requireSuperAdminPermission(APPROVAL_PERMISSION);
+  const actor = await requireSuperAdminPermission(APPROVAL_PERMISSION);
 
   const target = await prisma.user.findUnique({ where: { id: userId }, include: { role: true } });
   if (!target || target.role.name !== 'Organizer') {
@@ -105,6 +115,13 @@ export async function rejectOrganizer(userId: string, reason?: string) {
   await prisma.session.updateMany({
     where: { userId: userId, revokedAt: null },
     data: { revokedAt: new Date() },
+  });
+
+  await logAdminAction(actor, 'organizer.reject', {
+    severity: 'warning',
+    targetType: 'user',
+    targetId: userId,
+    detail: { phoneNumber: target.phoneNumber, previousStatus: target.status, reason: reason || null },
   });
 
   revalidateOrganizerApprovalPaths();

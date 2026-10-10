@@ -2,19 +2,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
-import jwt from 'jsonwebtoken';
+import { signJwt, verifyJwt } from '@/lib/jwt';
 import { hashRefreshToken } from '@/lib/session';
 import { checkIpLockout, getClientIp, recordIpFailure, resetIpFailures } from '@/lib/rate-limit';
 import { shouldUseSecureCookies } from '@/lib/cookie';
+import { auditRequestContext, logAudit } from '@/lib/audit';
+import { withApiErrorHandling } from '@/lib/api-handler';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const ACCESS_TOKEN_EXPIRES_IN_SECONDS = 60 * 15; // 15 minutes
 const REFRESH_TOKEN_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
-export async function POST(req: NextRequest) {
+export const POST = withApiErrorHandling(async function POST(req: NextRequest) {
   if (!JWT_SECRET) {
     console.error('JWT_SECRET environment variable is not set.');
     return NextResponse.json({ message: 'Server configuration error.' }, { status: 500 });
+  }
+
+  const cookieStore = await cookies();
+  const refreshTokenFromCookie = cookieStore.get('refresh_token')?.value;
+
+  // No token is simply "not signed in", not a guessing attempt, so it must not count toward
+  // the IP lockout: visitors sharing one public IP (office NAT, mobile carrier) would
+  // otherwise lock signed-in users on that IP out of refreshing their session.
+  if (!refreshTokenFromCookie) {
+    return NextResponse.json({ message: 'No refresh token provided.' }, { status: 401 });
   }
 
   const ip = getClientIp(req);
@@ -26,16 +38,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const cookieStore = await cookies();
-  const refreshTokenFromCookie = cookieStore.get('refresh_token')?.value;
-
-  if (!refreshTokenFromCookie) {
-    await recordIpFailure(ip, { maxAttempts: 25, lockoutSeconds: 300 });
-    return NextResponse.json({ message: 'No refresh token provided.' }, { status: 401 });
-  }
-
   try {
-    const decoded = jwt.verify(refreshTokenFromCookie, JWT_SECRET) as {
+    const decoded = verifyJwt(refreshTokenFromCookie, JWT_SECRET) as {
       userId: string;
       tokenVersion?: number;
       sessionId?: string;
@@ -94,6 +98,17 @@ export async function POST(req: NextRequest) {
         where: { id: decoded.sessionId },
         data: { revokedAt: new Date() },
       });
+      await logAudit({
+        action: 'auth.refresh.reuse_detected',
+        severity: 'critical',
+        actorType: 'user',
+        actorId: user.id,
+        actorLabel: user.phoneNumber,
+        targetType: 'session',
+        targetId: decoded.sessionId,
+        ...auditRequestContext(req),
+        detail: { sessionRevoked: true },
+      });
       const response = NextResponse.json({ message: 'Invalid refresh token.' }, { status: 401 });
       const secure = shouldUseSecureCookies();
       response.cookies.set('refresh_token', '', { httpOnly: true, secure, sameSite: 'strict', path: '/api/auth/refresh', maxAge: -1 });
@@ -104,7 +119,7 @@ export async function POST(req: NextRequest) {
     // --- Issue new access token ---
     const userPermissions = user.role.rolePermissions.map(p => p.permission.name);
 
-    const newAccessToken = jwt.sign(
+    const newAccessToken = signJwt(
       {
         userId: user.id,
         role: user.role.name,
@@ -118,7 +133,7 @@ export async function POST(req: NextRequest) {
     );
 
     // --- Rotate refresh token ---
-    const newRefreshToken = jwt.sign(
+    const newRefreshToken = signJwt(
       {
         userId: user.id,
         tokenVersion: user.tokenVersion,
@@ -132,12 +147,14 @@ export async function POST(req: NextRequest) {
     const response = NextResponse.json({ success: true, message: 'Token refreshed' });
     const secure = shouldUseSecureCookies();
 
+    // Cookie outlives the 15-minute JWT inside it (which is still verified on every use) so
+    // the root layout can tell "signed in, access token expired" from "never signed in".
     response.cookies.set('auth_token', newAccessToken, {
       httpOnly: true,
       secure,
       sameSite: 'strict',
       path: '/',
-      maxAge: ACCESS_TOKEN_EXPIRES_IN_SECONDS,
+      maxAge: REFRESH_TOKEN_EXPIRES_IN_SECONDS,
     });
 
     response.cookies.set('refresh_token', newRefreshToken, {
@@ -166,4 +183,4 @@ export async function POST(req: NextRequest) {
     response.cookies.set('auth_token', '', { httpOnly: true, secure, sameSite: 'strict', path: '/', maxAge: -1 });
     return response;
   }
-}
+});

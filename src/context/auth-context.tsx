@@ -4,9 +4,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import api from '@/lib/api';
+import api, { refreshSession } from '@/lib/api';
 import type { User, Role, Branch } from '@prisma/client';
-import Cookies from 'js-cookie';
+import { ensureCsrfToken } from '@/lib/csrf-client';
 import { navItems } from '@/components/main-nav';
 
 interface UserWithRole extends User {
@@ -27,24 +27,35 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export async function ensureCsrfToken() {
-  // `csrf_secret` is HttpOnly (not readable here); the readable `csrf_token`
-  // mirror is what we can check and what the API interceptor echoes back.
-  if (!Cookies.get('csrf_token')) {
-    try {
-      await api.get('/api/csrf-token');
-    } catch (error) {
-      console.error('[ensureCsrfToken] Failed to obtain CSRF token:', error);
-      throw error;
-    }
-  }
+// Importing csrf-client also installs the fetch wrapper that adds X-CSRF-Token to
+// Server Action and other same-origin state-changing requests (AuthProvider is in the root layout).
+export { ensureCsrfToken } from '@/lib/csrf-client';
+
+/**
+ * Where to go after signing in: the `next` page the middleware recorded when it redirected
+ * to /login, if it is a same-site path (never `//host` or `/\host`, which would leave the site).
+ */
+export function postLoginPath(): string {
+  if (typeof window === 'undefined') return '/dashboard';
+  const next = new URLSearchParams(window.location.search).get('next') ?? '';
+  const isLocalPath = next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\');
+  return isLocalPath ? next : '/dashboard';
 }
 
 const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+/** Session cookie state computed by the root layout (see sessionState in src/app/layout.tsx). */
+export type SessionState = 'none' | 'active' | 'expired';
+
+/**
+ * `session`: without a session cookie there is nothing to restore, so no API call is made;
+ * with an expired access token the session is refreshed first instead of failing /me with 401.
+ */
+export function AuthProvider({ children, session = 'active' }: { children: ReactNode; session?: SessionState }) {
   const [user, setUser] = useState<UserWithRole | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Known up front when there is no session, so server and client render the same
+  // "signed out" state and no update races hydration.
+  const [isLoading, setIsLoading] = useState(session !== 'none');
   const router = useRouter();
   const { toast } = useToast();
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -120,10 +131,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function initializeAuth() {
+        if (session === 'none') return;
         try {
-            // Make sure the CSRF cookie pair exists before any state-changing request.
             await ensureCsrfToken().catch(() => {});
-            await api.post('/api/auth/refresh');
+            if (session === 'expired') await refreshSession();
+            // Should the access token still be rejected, the api.ts interceptor refreshes once
+            // and retries; a valid access token costs no refresh call at all.
             await refreshUser();
         } catch (error) {
             // This is expected if there's no valid refresh token.
@@ -134,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }
     initializeAuth();
-  }, [refreshUser]);
+  }, [refreshUser, session]);
 
 
   const login = async (data: any): Promise<boolean> => {
@@ -160,7 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // in the AuthGuard. The router.push will trigger the guard.
       // A small delay can help ensure the state is propagated.
       setTimeout(() => {
-        router.push('/dashboard');
+        router.push(postLoginPath());
         router.refresh(); // This might still be useful to reload server components
       }, 100);
 

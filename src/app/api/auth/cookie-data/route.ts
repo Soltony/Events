@@ -1,15 +1,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import jwt from 'jsonwebtoken';
+import { verifyJwt } from '@/lib/jwt';
 import prisma from '@/lib/prisma';
 import { normalizePhoneNumber } from '@/lib/utils';
+import { withApiErrorHandling } from '@/lib/api-handler';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // This route provides non-sensitive session data for the client,
 // including data from the secure auth token and the insecure guest cookie.
-export async function GET(req: NextRequest) {
+export const GET = withApiErrorHandling(async function GET(req: NextRequest) {
     const cookieStore = await cookies();
     let responseData: { [key: string]: any } = {};
 
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
     const authToken = cookieStore.get('auth_token')?.value;
     if (authToken && JWT_SECRET) {
         try {
-            const decoded = jwt.verify(authToken, JWT_SECRET) as { userId: string, phoneNumber?: string };
+            const decoded = verifyJwt(authToken, JWT_SECRET) as { userId: string, phoneNumber?: string };
             if (decoded.userId) {
                 // Include the userId so client-side can request tickets by user id
                 responseData.userId = decoded.userId;
@@ -37,7 +38,7 @@ export async function GET(req: NextRequest) {
         }
     }
 
-    // 2. Check for the client-readable phone_number cookie (for SuperApp guests)
+    // 2. Check for the phone_number cookie (for SuperApp guests)
     const guestPhoneCookie = cookieStore.get('phone_number')?.value;
     if (guestPhoneCookie && !responseData.phoneNumber) {
         // Only use the guest cookie if a logged-in user's phone isn't already set
@@ -51,6 +52,7 @@ export async function GET(req: NextRequest) {
     if (Object.keys(responseData).length > 0) {
         return NextResponse.json({ success: true, data: responseData });
     } else {
-        return NextResponse.json({ success: false, message: "No session data found." }, { status: 404 });
+        // Anonymous visitor: a normal state, not an error (callers treat it as "no prefill").
+        return NextResponse.json({ success: false, data: null, message: "No session data found." });
     }
-}
+});

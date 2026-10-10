@@ -42,7 +42,7 @@ const editUserFormSchema = z.object({
   lastName: z.string().min(1, { message: 'Last name is required.' }),
   phoneNumber: z.string().min(10, { message: 'Phone number must be at least 10 digits.' }),
   email: z.string().email({ message: 'Invalid email address.' }),
-  roleId: z.string({ required_error: 'Please select a role.' }),
+  roleId: z.string({ error: 'Please select a role.' }).min(1, 'Please select a role.'),
   branchId: z.string().optional().nullable(),
   nibBankAccount: z
     .string()

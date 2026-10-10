@@ -2,8 +2,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireSuperAdminPermission } from '@/lib/super-admin-auth';
 import { getPermissionsGroups } from '@/lib/permissions';
+import { withApiErrorHandling } from '@/lib/api-handler';
 
-export async function GET(req: NextRequest) {
+export const GET = withApiErrorHandling(async function GET(req: NextRequest) {
   try {
     await requireSuperAdminPermission('Roles:Read');
   } catch {
@@ -11,4 +12,4 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({ permissions: getPermissionsGroups() }, { status: 200 });
-}
+});

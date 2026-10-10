@@ -86,10 +86,10 @@ interface EventDetails extends Event {
 
 const locationPriceSchema = z.object({
   location: z.string().min(1, "Location is required."),
-  price: z.coerce.number().min(0, 'Price must be a positive number.'),
-  quantity: z.coerce.number().int().min(1, 'Quantity must be at least 1.'),
-  free: z.boolean().default(false),
-  maxFreeTicketsPerPhone: z.coerce.number().int().min(1, 'Max tickets per phone must be at least 1.').default(5),
+  price: z.coerce.number<number>().min(0, 'Price must be a positive number.'),
+  quantity: z.coerce.number<number>().int().min(1, 'Quantity must be at least 1.'),
+  free: z.boolean(),
+  maxFreeTicketsPerPhone: z.coerce.number<number>().int().min(1, 'Max tickets per phone must be at least 1.'),
 });
 
 const addTicketTypeSchema = z.object({
@@ -101,13 +101,13 @@ const addTicketTypeSchema = z.object({
 type AddTicketTypeFormValues = z.infer<typeof addTicketTypeSchema>;
 
 const addPromoCodeSchema = z.object({
-  restrictionType: z.enum(['NONE', 'TICKET', 'LOCATION']).default('NONE'),
+  restrictionType: z.enum(['NONE', 'TICKET', 'LOCATION']),
   ticketTypeId: z.string().optional(),
   location: z.string().optional(),
   code: z.string().min(3, { message: "Promo code must be at least 3 characters." }).max(20, { message: "Promo code cannot exceed 20 characters."}),
   type: z.enum(['PERCENTAGE', 'FIXED']),
-  value: z.coerce.number().min(0, { message: "Value must be a positive number." }),
-  maxUses: z.coerce.number().int().min(1, { message: "Usage limit must be at least 1." }),
+  value: z.coerce.number<number>().min(0, { message: "Value must be a positive number." }),
+  maxUses: z.coerce.number<number>().int().min(1, { message: "Usage limit must be at least 1." }),
 });
 
 type AddPromoCodeFormValues = z.infer<typeof addPromoCodeSchema>;

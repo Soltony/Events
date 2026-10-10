@@ -44,10 +44,10 @@ const eventFormSchema = z.object({
   })).min(1, { message: 'You must have at least one location.'}),
   hint: z.string().optional(),
   startDate: z.date({
-    required_error: 'A start date and time for the event is required.',
+    error: 'A start date and time for the event is required.',
   }),
   endDate: z.date().optional(),
-  category: z.string({ required_error: 'Please select a category.' }),
+  category: z.string({ error: 'Please select a category.' }).min(1, 'Please select a category.'),
   otherCategory: z.string().optional(),
   images: z.array(z.string()).length(1, { message: 'Please upload exactly one image.' }),
 }).refine(data => {

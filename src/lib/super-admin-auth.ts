@@ -1,7 +1,7 @@
 'use server';
 
 import { cookies } from 'next/headers';
-import jwt from 'jsonwebtoken';
+import { verifyJwt } from '@/lib/jwt';
 import prisma from '@/lib/prisma';
 import { hasPermission } from '@/lib/permissions';
 import { getCurrentUser } from '@/lib/auth';
@@ -42,7 +42,7 @@ export async function getCurrentSuperAdmin(): Promise<
   }
 
   try {
-    const decoded = jwt.verify(token, SUPER_ADMIN_JWT_SECRET) as DecodedSuperAdminToken;
+    const decoded = verifyJwt(token, SUPER_ADMIN_JWT_SECRET) as DecodedSuperAdminToken;
 
     if (decoded.type !== 'super_admin_access' || !decoded.superAdminId || !decoded.sessionId) {
       return null;
@@ -127,9 +127,13 @@ export async function requireSuperAdmin() {
   return superAdmin;
 }
 
-interface AdminPortalActor {
+export interface AdminPortalActor {
   id: string;
   role: Role & { permissions: string[] };
+  // Which identity table `id` refers to, plus a human-readable snapshot — recorded on
+  // every audit entry so actions are attributable to an individual administrator.
+  actorType: 'superAdmin' | 'user';
+  actorLabel: string;
 }
 
 // Resolves the acting identity for the shared admin-portal action layer
@@ -142,9 +146,21 @@ interface AdminPortalActor {
 async function getCurrentAdminActor(): Promise<AdminPortalActor | null> {
   const superAdmin = await getCurrentSuperAdmin();
   if (superAdmin) {
-    return superAdmin;
+    return {
+      id: superAdmin.id,
+      role: superAdmin.role,
+      actorType: 'superAdmin',
+      actorLabel: `${superAdmin.fullName} (${superAdmin.phoneNumber})`,
+    };
   }
-  return getCurrentUser();
+  const user = await getCurrentUser();
+  if (!user) return null;
+  return {
+    id: user.id,
+    role: user.role,
+    actorType: 'user',
+    actorLabel: `${`${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()} (${user.phoneNumber})`,
+  };
 }
 
 export async function requireSuperAdminPermission(permission: string | string[]) {

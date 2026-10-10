@@ -14,6 +14,7 @@ export const PERMISSIONS_GROUPS: Record<string, string[]> = {
   Performance: ['Overview', 'Branch Comparison', 'District Comparison'],
   'Organizer Approvals': ['Access'],
   'Event Approvals': ['Access'],
+  'Audit Logs': ['Read'],
 };
 
 export const FLAT_PERMISSIONS: string[] = Object.entries(PERMISSIONS_GROUPS).flatMap(([cat, actions]) =>

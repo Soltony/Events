@@ -1,15 +1,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import jwt from 'jsonwebtoken';
+import { verifyJwt } from '@/lib/jwt';
 import prisma from '@/lib/prisma';
 import { shouldUseSecureCookies } from '@/lib/cookie';
 import { verifyCsrf } from '@/lib/csrf';
 import { logAudit, auditRequestContext } from '@/lib/audit';
+import { withApiErrorHandling } from '@/lib/api-handler';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-export async function POST(req: NextRequest) {
+export const POST = withApiErrorHandling(async function POST(req: NextRequest) {
   try {
     if (!verifyCsrf(req)) {
       return NextResponse.json({ message: 'Invalid CSRF token.' }, { status: 403 });
@@ -18,8 +19,8 @@ export async function POST(req: NextRequest) {
     const cookieStore = await cookies();
     // `refresh_token` is path-scoped to /api/auth/refresh so it is NOT sent
     // here; `auth_token` (path "/") is. Resolve the session id from whichever
-    // token we actually have, verifying when possible and falling back to an
-    // unverified decode so an expired access token can still end the session.
+    // token we actually have. The signature is always verified; only expiry is
+    // ignored, so an expired access token can still end its own session.
     const authToken = cookieStore.get('auth_token')?.value;
     const refreshToken = cookieStore.get('refresh_token')?.value;
 
@@ -31,9 +32,9 @@ export async function POST(req: NextRequest) {
         if (!token) continue;
         let claims: any;
         try {
-          claims = jwt.verify(token, JWT_SECRET);
+          claims = verifyJwt(token, JWT_SECRET, { ignoreExpiration: true });
         } catch {
-          claims = jwt.decode(token);
+          continue;
         }
         if (claims?.userId && claims?.sessionId) {
           userId = claims.userId;
@@ -70,4 +71,4 @@ export async function POST(req: NextRequest) {
     console.error('[LOGOUT_ERROR]', error);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
-}
+});

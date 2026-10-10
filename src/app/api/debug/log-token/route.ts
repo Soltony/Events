@@ -1,8 +1,9 @@
 // app/api/debug/log-token/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth-middleware';
+import { malformedJsonResponse, readJsonBody, withApiErrorHandling } from '@/lib/api-handler';
 
-export async function POST(req: NextRequest) {
+export const POST = withApiErrorHandling(async function POST(req: NextRequest) {
   try {
     const user = await verifyAuth(req);
     if (!user) {
@@ -12,7 +13,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Permission denied.' }, { status: 403 });
     }
 
-    const { paymentToken, transactionId } = await req.json();
+    const body = await readJsonBody(req);
+    if (!body) return malformedJsonResponse();
+    const { paymentToken, transactionId } = body;
 
     if (!paymentToken || !transactionId) {
       return NextResponse.json({ success: false, error: "Missing token or transactionId" }, { status: 400 });
@@ -25,6 +28,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, message: "Token logged successfully" });
   } catch (err: any) {
     console.error('[DEBUG] Failed to log payment token:', err);
-    return NextResponse.json({ success: false, error: err.message || 'Unknown error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Unexpected server error.' }, { status: 500 });
   }
-}
+});

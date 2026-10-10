@@ -1,35 +1,37 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { randomUUID } from 'crypto';
 import { notifyGiftPurchase } from '@/lib/gift-notifications';
+import { auditRequestContext, logAudit } from '@/lib/audit';
+import { fulfilPendingOrder, OrderAlreadyCompletedError, OrderError, pricePendingOrder } from '@/lib/orders';
+import { withApiErrorHandling } from '@/lib/api-handler';
 
-export async function POST(req: NextRequest) {
+/**
+ * Completes a FREE order without the payment gateway. Paid orders can only be completed
+ * by the verified NIB payment callback — the total is recomputed server-side here and any
+ * order that costs more than zero is refused.
+ */
+export const POST = withApiErrorHandling(async function POST(req: NextRequest) {
+    let transactionId: string | null = null;
     try {
-        const body = await req.json();
-        const { id } = body as { id?: string };
-        if (!id) {
+        let body: any;
+        try {
+            body = await req.json();
+        } catch {
+            return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
+        }
+        const id = body?.id;
+        if (typeof id !== 'string' || !id) {
             return NextResponse.json({
                 error: 'Invalid request',
                 detail: 'Body must include the transaction ID as "id".'
             }, { status: 400 });
         }
+        transactionId = id;
 
-        const order = await prisma.pendingOrder.findFirst({
-            where: {
-                transactionId: id
-            },
-            include: {
-                event: {
-                    select: {
-                        name: true,
-                        startDate: true,
-                        endDate: true,
-                        status: true,
-                    },
-                },
-            },
+        const order = await prisma.pendingOrder.findUnique({
+            where: { transactionId: id },
+            include: { event: { select: { name: true, startDate: true, endDate: true, status: true } } },
         });
 
         if (!order) {
@@ -40,10 +42,7 @@ export async function POST(req: NextRequest) {
         }
 
         if (order.status === 'COMPLETED') {
-            return NextResponse.json(
-              { message: 'Already completed', attendeeId: order.attendeeId ?? null },
-              { status: 200 }
-            );
+            return NextResponse.json({ message: 'Already completed', attendeeId: order.attendeeId ?? null }, { status: 200 });
         }
         const eventEndTime = order.event.endDate ? new Date(order.event.endDate) : new Date(order.event.startDate);
         if (order.event.status !== 'APPROVED' || eventEndTime.getTime() < Date.now()) {
@@ -53,106 +52,60 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Simulate success by calling the notify logic via DB operations
-        const { name, phoneNumber, userId, quantity, isGift, purchasedById, purchasedByName } = order.attendeeData as {
-            name: string, phoneNumber?: string, userId?: string, quantity: number,
-            isGift?: boolean, purchasedById?: string | null, purchasedByName?: string | null,
-        };
-
-        const createdAttendee = await prisma.$transaction(async (tx) => {
-            if (!order.ticketTypeId) {
-                throw new Error('Missing ticketTypeId');
-            }
-            const ticketType = await tx.ticketType.findUnique({ where: { id: order.ticketTypeId } });
-            if (!ticketType) {
-                throw new Error('Ticket type not found');
-            }
-            const qty = quantity || 1;
-
-            // Per-user limit enforcement during completion (race-condition safe).
-            {
-                const locationFromName =
-                  typeof (ticketType as any).name === 'string'
-                    ? String((ticketType as any).name).split(' - ').slice(1).join(' - ')
-                    : null;
-
-                const lp = (ticketType as any).locationPrices ?? (ticketType as any).locationConfigs ?? [];
-                const entries: any[] = Array.isArray(lp) ? lp : [];
-                const normalizedLocation = locationFromName ? String(locationFromName).trim() : null;
-                const matched = normalizedLocation
-                  ? entries.find(e => (e?.location ? String(e.location).trim() : null) === normalizedLocation)
-                  : entries[0];
-                const max = matched?.maxTicketsPerPhone ?? matched?.maxFreeTicketsPerPhone as number | null | undefined;
-                if (typeof max === 'number' && max > 0) {
-                    if (!phoneNumber) {
-                        throw new Error('Permission denied.');
-                    }
-                    const alreadyClaimed = await tx.attendee.count({
-                        where: {
-                            phoneNumber: phoneNumber,
-                            eventId: order.eventId,
-                        },
-                    });
-                    if (alreadyClaimed + qty > max) {
-                        throw new Error('Ticket limit exceeded for this user');
-                    }
-                }
-            }
-
-            const attendees = Array.from({ length: qty }).map(() => ({
-                name,
-                phoneNumber,
-                eventId: order.eventId,
-                ticketTypeId: ticketType.id,
-                userId,
-                checkedIn: false,
-                qrCode: randomUUID(),
-                isGift: !!isGift,
-                purchasedById: purchasedById ?? null,
-                purchasedByName: purchasedByName ?? null,
-            }));
-            await tx.attendee.createMany({ data: attendees });
-            await tx.ticketType.update({ where: { id: ticketType.id }, data: { sold: { increment: qty } } });
-            const last = await tx.attendee.findFirst({
-                where: { eventId: order.eventId, name, phoneNumber, userId },
-                orderBy: { createdAt: 'desc' }
+        const { totalCents } = await pricePendingOrder(prisma, order);
+        if (totalCents !== 0) {
+            await logAudit({
+                action: 'payment.free_completion.rejected',
+                severity: 'critical',
+                actorType: 'anonymous',
+                targetType: 'PendingOrder',
+                targetId: String(order.id),
+                ...auditRequestContext(req),
+                detail: { reason: 'order_requires_payment', totalCents },
             });
-            if (order.promoCode) {
-                const promo = await tx.promoCode.findFirst({ where: { code: order.promoCode, eventId: order.eventId } });
-                if (promo) {
-                    await tx.promoCode.update({ where: { id: promo.id }, data: { uses: { increment: qty } } });
-                }
-            }
-            await tx.pendingOrder.update({ where: { id: order.id }, data: { status: 'COMPLETED', attendeeId: last?.id } });
-            return { attendee: last, ticketTypeName: ticketType.name };
-        });
+            return NextResponse.json(
+              { error: 'Payment required', detail: 'This order must be paid through the payment gateway.' },
+              { status: 402 }
+            );
+        }
+
+        const result = await prisma.$transaction((tx) =>
+            fulfilPendingOrder(tx, order, { enforcePerPhoneLimit: true })
+        );
 
         revalidatePath(`/events/${order.eventId}`);
         revalidatePath('/');
         revalidatePath('/tickets');
 
-        if (isGift && phoneNumber) {
+        if (result.data.isGift && result.phoneNumber) {
             notifyGiftPurchase({
-                recipientPhone: phoneNumber,
-                buyerId: purchasedById ?? null,
-                buyerName: purchasedByName ?? null,
+                recipientPhone: result.phoneNumber,
+                buyerId: result.data.purchasedById ?? null,
+                buyerName: result.data.purchasedByName ?? null,
                 eventName: order.event.name,
-                ticketTypeName: createdAttendee.ticketTypeName,
-                quantity: quantity || 1,
+                ticketTypeName: result.ticketTypeName ?? 'ticket',
+                quantity: result.quantity,
             }).catch((err) => console.error('Gift notification error:', err));
         }
 
-        return NextResponse.json({ message: 'Completed', attendeeId: createdAttendee.attendee?.id });
-    } catch (e: any) {
+        return NextResponse.json({ message: 'Completed', attendeeId: result.attendeeId });
+    } catch (e) {
+        if (e instanceof OrderAlreadyCompletedError) {
+            const order = transactionId
+                ? await prisma.pendingOrder.findUnique({ where: { transactionId }, select: { attendeeId: true } }).catch(() => null)
+                : null;
+            return NextResponse.json({ message: 'Already completed', attendeeId: order?.attendeeId ?? null }, { status: 200 });
+        }
+        if (e instanceof OrderError) {
+            return NextResponse.json({ error: 'Failed to complete order', detail: e.message }, { status: e.status });
+        }
         console.error('Complete payment error', e);
-        const message = e?.message || 'An error occurred while issuing ticket(s) and finalizing the order.';
-        const status = String(message).includes('maximum number of free tickets') ? 400 : 500;
         return NextResponse.json(
           {
             error: 'Failed to complete order',
-            detail: message,
+            detail: 'An error occurred while issuing ticket(s) and finalizing the order.',
           },
-          { status }
+          { status: 500 }
         );
     }
-}
+});

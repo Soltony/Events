@@ -6,8 +6,9 @@ import { sendTempPassword } from '@/lib/email';
 import { checkIpLockout, recordIpFailure } from '@/lib/rate-limit';
 import { verifyCsrf } from '@/lib/csrf';
 import { logAudit, auditRequestContext } from '@/lib/audit';
+import { malformedJsonResponse, readJsonBody, withApiErrorHandling } from '@/lib/api-handler';
 
-export async function POST(request: NextRequest) {
+export const POST = withApiErrorHandling(async function POST(request: NextRequest) {
   try {
     if (!verifyCsrf(request)) {
       return NextResponse.json({ ok: false, message: 'Invalid CSRF token.' }, { status: 403 });
@@ -23,7 +24,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    const body = await readJsonBody(request);
+    if (!body) return malformedJsonResponse();
     const email = body?.email?.toString().trim().toLowerCase();
 
     if (!email) {
@@ -73,10 +75,8 @@ export async function POST(request: NextRequest) {
 
     // Send temporary password email
     if (user.email) {
-      try {
-        await sendTempPassword({ email: user.email, phoneNumber: user.phoneNumber || '', tempPassword });
-      } catch (err) {
-        console.error('Failed to send temporary password email:', err);
+      const mail = await sendTempPassword({ email: user.email, phoneNumber: user.phoneNumber || '', tempPassword });
+      if (!mail.success) {
         return NextResponse.json({ ok: false, message: 'Password reset succeeded but failed to send email.' }, { status: 500 });
       }
     }
@@ -86,4 +86,4 @@ export async function POST(request: NextRequest) {
     console.error('Error in admin forgot-password route:', err);
     return NextResponse.json({ ok: false, message: 'Internal server error.' }, { status: 500 });
   }
-}
+});

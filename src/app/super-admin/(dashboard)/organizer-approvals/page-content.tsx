@@ -105,8 +105,12 @@ export default function OrganizerApprovalsPageContent({ basePath = '/super-admin
   const handleApprove = async (organizer: OrganizerRegistration) => {
     setActionLoading(organizer.id);
     try {
-      await approveOrganizer(organizer.id);
-      toast({ title: 'Organizer Approved', description: `${organizer.firstName} ${organizer.lastName} can now access the system.` });
+      const result = await approveOrganizer(organizer.id);
+      toast(
+        result.warning
+          ? { variant: 'destructive', title: 'Organizer Approved — Email Not Sent', description: result.warning }
+          : { title: 'Organizer Approved', description: `${organizer.firstName} ${organizer.lastName} can now access the system.` }
+      );
       await fetchData();
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error?.message || 'Failed to approve organizer.' });

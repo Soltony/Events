@@ -5,7 +5,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, UserPlus, ShieldCheck, UserCog, Building, Images } from 'lucide-react';
+import { Users, UserPlus, ShieldCheck, UserCog, Building, Images, ScrollText } from 'lucide-react';
 import { SETTINGS_NAV_ITEMS } from '@/lib/settings-nav-items';
 
 const cardDetails: Record<string, { icon: ReactNode; description: string; buttonText: string }> = {
@@ -38,6 +38,11 @@ const cardDetails: Record<string, { icon: ReactNode; description: string; button
     icon: <Images className="h-5 w-5" />,
     description: 'Manage homepage banners, promotional images, and display order.',
     buttonText: 'Go to Homepage Carousel',
+  },
+  '/audit-logs': {
+    icon: <ScrollText className="h-5 w-5" />,
+    description: 'Review who performed each administrative and security-relevant action, and when.',
+    buttonText: 'View Audit Log',
   },
 };
 

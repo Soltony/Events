@@ -2,8 +2,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTicketsForUser } from '@/lib/actions';
 import { verifyAuth } from '@/lib/auth-middleware';
+import { withApiErrorHandling } from '@/lib/api-handler';
 
-export async function GET(req: NextRequest) {
+export const GET = withApiErrorHandling(async function GET(req: NextRequest) {
   try {
     const user = await verifyAuth(req);
     if (!user) {
@@ -17,8 +18,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ data: tickets });
   } catch (error) {
     console.error('Error fetching tickets:', error);
-    const message = error instanceof Error ? error.message : 'Failed to fetch tickets';
-    const status = message === 'Permission denied.' ? 403 : 500;
-    return NextResponse.json({ error: message }, { status });
+    const denied = error instanceof Error && error.message === 'Permission denied.';
+    return NextResponse.json(
+      { error: denied ? 'Permission denied.' : 'Failed to fetch tickets' },
+      { status: denied ? 403 : 500 }
+    );
   }
-}
+});
