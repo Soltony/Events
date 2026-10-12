@@ -1,5 +1,6 @@
 'use client';
 
+import { INPUT_LIMITS } from '@/lib/input-limits';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray, Control, useWatch } from 'react-hook-form';
 import * as z from 'zod';
@@ -52,7 +53,7 @@ const locationPriceSchema = z.object({
 const ticketSchema = z.object({
   name: z.string().min(1, { message: "Ticket name can't be empty."}),
   description: z.string().optional(),
-  locationPrices: z.array(locationPriceSchema).min(1, "You must add at least one location configuration."),
+  locationPrices: z.array(locationPriceSchema).min(1, "You must add at least one location configuration.").max(INPUT_LIMITS.locationPricesPerTier, `At most ${INPUT_LIMITS.locationPricesPerTier} location configurations.`),
 });
 
 const eventFormSchema = z.object({
@@ -60,7 +61,7 @@ const eventFormSchema = z.object({
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   locations: z.array(z.object({
     value: z.string().min(3, { message: "Location can't be empty."}),
-  })).min(1, { message: 'You must have at least one location.'}),
+  })).min(1, { message: 'You must have at least one location.'}).max(INPUT_LIMITS.eventLocations, { message: `At most ${INPUT_LIMITS.eventLocations} locations.` }),
   hint: z.string().optional(),
   startDate: z.date({
     error: 'A start date and time for the event is required.',
@@ -68,8 +69,8 @@ const eventFormSchema = z.object({
   endDate: z.date().optional(),
   category: z.string({ error: 'Please select a category.' }).min(1, 'Please select a category.'),
   otherCategory: z.string().optional(),
-  images: z.array(z.string()).min(1, { message: 'Please upload exactly one image.' }),
-  tickets: z.array(ticketSchema).min(1, { message: 'You must have at least one ticket tier.'}),
+  images: z.array(z.string()).min(1, { message: 'Please upload exactly one image.' }).max(INPUT_LIMITS.eventImages, { message: `At most ${INPUT_LIMITS.eventImages} images.` }),
+  tickets: z.array(ticketSchema).min(1, { message: 'You must have at least one ticket tier.'}).max(INPUT_LIMITS.ticketTiers, { message: `At most ${INPUT_LIMITS.ticketTiers} ticket tiers.` }),
 }).refine(data => {
     if (data.category === 'Other') {
         return !!data.otherCategory && data.otherCategory.length > 0;

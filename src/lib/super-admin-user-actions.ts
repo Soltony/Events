@@ -14,6 +14,7 @@ import { safeErrorMessage } from '@/lib/safe-error';
 import { validatePermissions } from '@/lib/permissions';
 import { requireSuperAdminPermission } from '@/lib/super-admin-auth';
 import { logAdminAction, logAudit } from '@/lib/audit';
+import { assertMaxItems, INPUT_LIMITS } from '@/lib/input-limits';
 
 const serialize = (data: any) => {
   if (!data) return null;
@@ -810,6 +811,7 @@ export async function getRoleById(id: string) {
 export async function createRole(data: { name: string; description: string; permissions: string[] }) {
   const actor = await requireSuperAdminPermission('Roles:Create');
   const { name, description, permissions } = data;
+  assertMaxItems(permissions, INPUT_LIMITS.rolePermissions, 'permissions');
   const normalizedPermissions = Array.isArray(permissions)
     ? Array.from(new Set(permissions.map((p) => String(p ?? '').trim()).filter(Boolean)))
     : [];
@@ -864,6 +866,9 @@ export async function updateRole(id: string, data: Partial<Role> & { permissions
   let permissionsArray: string[];
 
   if (typeof data.permissions === 'string') {
+    if (data.permissions.length > 16 * 1024) {
+      throw new Error('Invalid permissions format: payload too large.');
+    }
     try {
       permissionsArray = JSON.parse(data.permissions);
     } catch (e) {
@@ -872,6 +877,7 @@ export async function updateRole(id: string, data: Partial<Role> & { permissions
   } else {
     permissionsArray = data.permissions ?? [];
   }
+  assertMaxItems(permissionsArray, INPUT_LIMITS.rolePermissions, 'permissions');
 
   permissionsArray = Array.isArray(permissionsArray)
     ? Array.from(new Set(permissionsArray.map((p) => String(p ?? '').trim()).filter(Boolean)))

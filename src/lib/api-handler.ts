@@ -28,14 +28,47 @@ export function apiErrorResponse(message: string, status: number) {
 }
 
 /**
- * Parses a JSON object request body. Returns null (instead of throwing) for an empty,
- * malformed or non-object body, so callers can answer 400 rather than crash with a 500.
+ * Default cap for JSON API bodies; upload routes pass a larger limit. src/middleware.ts
+ * enforces the same limits on Content-Length (413) before any route handler runs.
+ */
+export const DEFAULT_MAX_JSON_BYTES = 64 * 1024;
+
+/** Reads the raw body, or null as soon as it exceeds `maxBytes` (stops reading at the cap). */
+async function readBodyText(req: Request, maxBytes: number): Promise<string | null> {
+  const declared = Number(req.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > maxBytes) return null;
+  if (!req.body) return '';
+
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+/**
+ * Parses a JSON object request body of at most `maxBytes`. Returns null (instead of
+ * throwing) for an empty, malformed, oversized or non-object body, so callers can answer
+ * 400 rather than crash with a 500 — and oversized input is never handed to JSON.parse
+ * or any downstream validation.
  */
 export async function readJsonBody<T extends Record<string, any> = Record<string, any>>(
   req: Request,
+  { maxBytes = DEFAULT_MAX_JSON_BYTES }: { maxBytes?: number } = {},
 ): Promise<T | null> {
+  const text = await readBodyText(req, maxBytes);
+  if (text === null) return null;
   try {
-    const body = await req.json();
+    const body = JSON.parse(text);
     return body !== null && typeof body === 'object' && !Array.isArray(body) ? (body as T) : null;
   } catch {
     return null;

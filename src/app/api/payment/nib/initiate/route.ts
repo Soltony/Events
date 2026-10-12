@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { centsToAmountString, OrderError, pricePendingOrder, toCents } from '@/lib/orders';
-import { withApiErrorHandling } from '@/lib/api-handler';
+import { readJsonBody, withApiErrorHandling } from '@/lib/api-handler';
 
 // Logging policy: never log the SuperApp token, the signature string (it embeds the
 // merchant key), request/response payloads, or the NIB payment token. Log only internal
@@ -14,10 +14,8 @@ const NIB_TIMEOUT_MS = 60_000;
 
 export const POST = withApiErrorHandling(async function POST(req: NextRequest) {
   try {
-    let body: any;
-    try {
-      body = await req.json();
-    } catch {
+    const body: any = await readJsonBody(req);
+    if (!body) {
       return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
     }
 

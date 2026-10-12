@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 import { normalizeEthiopianPhoneStrict } from '@/lib/utils';
 import { verifyAuth } from '@/lib/auth-middleware';
 import { getMaxTicketsPerPhone, OrderError, parseOrderLines, priceOrder } from '@/lib/orders';
-import { withApiErrorHandling } from '@/lib/api-handler';
+import { readJsonBody, withApiErrorHandling } from '@/lib/api-handler';
 
 interface BuyerIdentity {
     purchasedById: string | null;
@@ -35,10 +35,8 @@ async function resolveBuyerIdentity(req: NextRequest): Promise<BuyerIdentity | n
 
 export const POST = withApiErrorHandling(async function POST(req: NextRequest) {
     try {
-        let body: any;
-        try {
-            body = await req.json();
-        } catch {
+        const body: any = await readJsonBody(req);
+        if (!body) {
             return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
         }
         const { eventId, tickets, promoCode, attendeeDetails, isGift } = body ?? {};

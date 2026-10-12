@@ -2,6 +2,7 @@
 
 'use client';
 
+import { INPUT_LIMITS } from '@/lib/input-limits';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -95,7 +96,7 @@ const locationPriceSchema = z.object({
 const addTicketTypeSchema = z.object({
   name: z.string().min(1, { message: "Ticket name is required." }),
   description: z.string().optional(),
-  locationPrices: z.array(locationPriceSchema).min(1, "You must add at least one location configuration."),
+  locationPrices: z.array(locationPriceSchema).min(1, "You must add at least one location configuration.").max(INPUT_LIMITS.locationPricesPerTier, `At most ${INPUT_LIMITS.locationPricesPerTier} location configurations.`),
 });
 
 type AddTicketTypeFormValues = z.infer<typeof addTicketTypeSchema>;

@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import { ArrowLeft, ChevronDown, ChevronRight, Loader2, Search } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, Loader2, Search, ShieldCheck, ShieldAlert } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,12 +13,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { getAuditLogs, type AuditLogFilters, type AuditLogRow } from '@/lib/audit-log-actions';
+import {
+  getAuditLogs,
+  verifyAuditLogIntegrity,
+  type AuditIntegrityReport,
+  type AuditLogFilters,
+  type AuditLogRow,
+} from '@/lib/audit-log-actions';
 
 const SEVERITY_VARIANT: Record<string, 'secondary' | 'outline' | 'destructive'> = {
   info: 'secondary',
   warning: 'outline',
   critical: 'destructive',
+};
+
+const OUTCOME_VARIANT: Record<string, 'secondary' | 'outline' | 'destructive'> = {
+  success: 'secondary',
+  failure: 'outline',
+  denied: 'destructive',
 };
 
 const ACTOR_TYPE_LABEL: Record<string, string> = {
@@ -40,16 +52,31 @@ export default function AuditLogsPageContent() {
 
   const [search, setSearch] = useState('');
   const [severity, setSeverity] = useState<NonNullable<AuditLogFilters['severity']>>('all');
+  const [outcome, setOutcome] = useState<NonNullable<AuditLogFilters['outcome']>>('all');
   const [actorType, setActorType] = useState<NonNullable<AuditLogFilters['actorType']>>('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+
+  const [verifying, setVerifying] = useState(false);
+  const [integrity, setIntegrity] = useState<AuditIntegrityReport | null>(null);
+
+  const verify = async () => {
+    setVerifying(true);
+    try {
+      setIntegrity(await verifyAuditLogIntegrity());
+    } catch {
+      toast({ variant: 'destructive', title: 'Error', description: 'Could not verify the audit log.' });
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const load = useCallback(
     async (cursor?: string) => {
       const append = !!cursor;
       append ? setLoadingMore(true) : setLoading(true);
       try {
-        const result = await getAuditLogs({ search, severity, actorType, from, to, cursor });
+        const result = await getAuditLogs({ search, severity, outcome, actorType, from, to, cursor });
         setRows((prev) => (append ? [...prev, ...result.rows] : result.rows));
         setNextCursor(result.nextCursor);
       } catch {
@@ -58,7 +85,7 @@ export default function AuditLogsPageContent() {
         append ? setLoadingMore(false) : setLoading(false);
       }
     },
-    [search, severity, actorType, from, to, toast],
+    [search, severity, outcome, actorType, from, to, toast],
   );
 
   useEffect(() => {
@@ -77,10 +104,59 @@ export default function AuditLogsPageContent() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Audit Log</h1>
           <p className="text-muted-foreground">
-            Who performed each administrative and security-relevant action, when, and from where. Read-only.
+            Who performed each administrative and security-relevant action, when, from where, and whether it succeeded.
+            Read-only and tamper-evident.
           </p>
         </div>
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+          <div className="space-y-1.5">
+            <CardTitle>Integrity</CardTitle>
+            <CardDescription>
+              Every entry is sealed into a SHA-256 hash chain by the database, which also rejects edits and deletions.
+              Verify the chain to detect any tampering.
+            </CardDescription>
+          </div>
+          <Button variant="outline" onClick={verify} disabled={verifying}>
+            {verifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+            Verify integrity
+          </Button>
+        </CardHeader>
+        {integrity && (
+          <CardContent className="text-sm">
+            {integrity.ok ? (
+              <div className="flex items-start gap-2 text-green-700 dark:text-green-400">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>
+                  Chain intact: {integrity.checkedRows} entries verified
+                  {integrity.firstSeq && integrity.lastSeq ? ` (#${integrity.firstSeq}–#${integrity.lastSeq})` : ''}.
+                </span>
+              </div>
+            ) : (
+              <div className="space-y-2 text-destructive">
+                <div className="flex items-start gap-2">
+                  <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>Tampering detected: {integrity.problems.length} problem(s) found in {integrity.checkedRows} entries.</span>
+                </div>
+                <ul className="ml-6 list-disc font-mono text-xs">
+                  {integrity.problems.map((p) => (
+                    <li key={`${p.id}-${p.problem}`}>
+                      {p.seq ? `#${p.seq}` : '(no seq)'} {p.id}: {p.problem.replace('_', ' ')}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {integrity.headHash && (
+              <div className="mt-2 break-all text-xs text-muted-foreground">
+                Latest hash: <span className="font-mono">{integrity.headHash}</span>
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
 
       <Card>
         <CardHeader>
@@ -89,7 +165,7 @@ export default function AuditLogsPageContent() {
         </CardHeader>
         <CardContent>
           <form
-            className="grid gap-3 md:grid-cols-2 lg:grid-cols-6"
+            className="grid gap-3 md:grid-cols-2 lg:grid-cols-7"
             onSubmit={(e) => {
               e.preventDefault();
               load();
@@ -108,6 +184,15 @@ export default function AuditLogsPageContent() {
                 <SelectItem value="critical">Critical</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={outcome} onValueChange={(v) => setOutcome(v as typeof outcome)}>
+              <SelectTrigger><SelectValue placeholder="Result" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All results</SelectItem>
+                <SelectItem value="success">Success</SelectItem>
+                <SelectItem value="failure">Failure</SelectItem>
+                <SelectItem value="denied">Denied</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={actorType} onValueChange={(v) => setActorType(v as typeof actorType)}>
               <SelectTrigger><SelectValue placeholder="Actor type" /></SelectTrigger>
               <SelectContent>
@@ -120,7 +205,7 @@ export default function AuditLogsPageContent() {
             </Select>
             <Input type="date" aria-label="From date" value={from} onChange={(e) => setFrom(e.target.value)} />
             <Input type="date" aria-label="To date" value={to} onChange={(e) => setTo(e.target.value)} />
-            <div className="lg:col-span-6 flex justify-end">
+            <div className="lg:col-span-7 flex justify-end">
               <Button type="submit" disabled={loading} style={{ backgroundColor: '#FBBF24', color: '#422006' }}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Apply filters
@@ -147,6 +232,7 @@ export default function AuditLogsPageContent() {
                   <TableHead className="w-8" />
                   <TableHead>When</TableHead>
                   <TableHead>Action</TableHead>
+                  <TableHead>Result</TableHead>
                   <TableHead>Severity</TableHead>
                   <TableHead>Performed by</TableHead>
                   <TableHead>Target</TableHead>
@@ -165,6 +251,9 @@ export default function AuditLogsPageContent() {
                         <TableCell className="whitespace-nowrap">{format(new Date(row.createdAt), 'yyyy-MM-dd HH:mm:ss')}</TableCell>
                         <TableCell className="font-mono text-xs">{row.action}</TableCell>
                         <TableCell>
+                          <Badge variant={OUTCOME_VARIANT[row.outcome] ?? 'secondary'}>{row.outcome}</Badge>
+                        </TableCell>
+                        <TableCell>
                           <Badge variant={SEVERITY_VARIANT[row.severity] ?? 'secondary'}>{row.severity}</Badge>
                         </TableCell>
                         <TableCell>
@@ -181,10 +270,12 @@ export default function AuditLogsPageContent() {
                       {isOpen && (
                         <TableRow>
                           <TableCell />
-                          <TableCell colSpan={6}>
+                          <TableCell colSpan={7}>
                             <div className="space-y-2 text-xs">
+                              <div><span className="font-semibold">Entry:</span> {row.seq ? `#${row.seq}` : '—'} ({row.id})</div>
                               <div><span className="font-semibold">Actor ID:</span> {row.actorId || '—'}</div>
                               <div><span className="font-semibold">User agent:</span> {row.userAgent || '—'}</div>
+                              <div className="break-all"><span className="font-semibold">Hash:</span> <span className="font-mono">{row.hash || '—'}</span></div>
                               <pre className="max-h-64 overflow-auto rounded bg-muted p-3 whitespace-pre-wrap break-all">
                                 {row.detail ? JSON.stringify(row.detail, null, 2) : 'No additional detail.'}
                               </pre>

@@ -16,7 +16,8 @@ import { sendPendingEventNotification, sendTempPassword } from '@/lib/email';
 import { hasPermission } from './permissions';
 import { matchPromoCode } from './promo';
 import { safeErrorMessage } from './safe-error';
-import { logAdminAction } from './audit';
+import { logAccessDenied, logAdminAction } from './audit';
+import { assertMaxItems, INPUT_LIMITS } from './input-limits';
 import {
   getUserIdleTimeoutSeconds,
   getUserSessionAbsoluteMaxAgeSeconds,
@@ -138,6 +139,7 @@ async function requireAuthenticatedUser() {
 async function requirePermission(permission: string) {
   const user = await requireAuthenticatedUser();
   if (!hasPermission(user.role, permission)) {
+    await logAccessDenied(user, permission);
     throw new Error('Permission denied.');
   }
   return user;
@@ -146,6 +148,7 @@ async function requirePermission(permission: string) {
 async function requireAdmin() {
   const user = await requireAuthenticatedUser();
   if (user.role.name !== 'Admin') {
+    await logAccessDenied(user, 'role:Admin');
     throw new Error('Permission denied.');
   }
   return user;
@@ -418,9 +421,19 @@ export async function getEventDetails(id: number) {
     return serialize(event);
 }
 
+function assertEventArrayLimits(locations: unknown, images: unknown, tickets: unknown) {
+    assertMaxItems(locations, INPUT_LIMITS.eventLocations, 'locations');
+    assertMaxItems(images, INPUT_LIMITS.eventImages, 'images');
+    assertMaxItems(tickets, INPUT_LIMITS.ticketTiers, 'ticket tiers');
+    for (const ticket of Array.isArray(tickets) ? tickets : []) {
+        assertMaxItems(ticket?.locationPrices, INPUT_LIMITS.locationPricesPerTier, 'ticket locations');
+    }
+}
+
 export async function addEvent(data: any) {
     const { tickets, startDate, endDate, otherCategory, locations, images, ...eventData } = data;
     const user = await requirePermission('Events:Create');
+    assertEventArrayLimits(locations, images, tickets);
 
     let nibBankAccount = user.nibBankAccount;
 
@@ -535,6 +548,7 @@ export async function addEvent(data: any) {
 export async function updateEvent(id: number, data: any) {
     const { startDate, endDate, otherCategory, locations, images, tickets, ...eventData } = data;
     const user = await requirePermission('Events:Update');
+    assertEventArrayLimits(locations, images, tickets);
 
     const eventToUpdate = await prisma.event.findUnique({ where: { id }});
     if (!eventToUpdate) throw new Error("Event not found");
@@ -721,18 +735,20 @@ export async function deleteEvent(id: number) {
 // approver with Event Approvals:Access — so reviewing a submission can never
 // double as editing it. Once the event is no longer pending, the existing
 // Admin-or-owner rule applies as before.
-function assertCanEditEventContent(
+async function assertCanEditEventContent(
   user: { id: string; role: { name: string } },
-  event: { organizerId: string; status: EventStatus }
+  event: { id?: number; organizerId: string; status: EventStatus }
 ) {
   const isOwner = event.organizerId === user.id;
   if (event.status === 'PENDING') {
     if (!isOwner) {
+      await logAccessDenied(user, 'event:owner', { eventId: event.id, eventStatus: event.status });
       throw new Error('Only the event organizer can edit this event while it is pending approval.');
     }
     return;
   }
   if (user.role.name !== 'Admin' && !isOwner) {
+    await logAccessDenied(user, 'event:owner-or-Admin', { eventId: event.id });
     throw new Error('Permission denied.');
   }
 }
@@ -746,9 +762,11 @@ export async function addTicketType(
   }
 ) {
     const user = await requirePermission('Events:Update');
+    if (!Array.isArray(data?.locationPrices)) throw new Error('Invalid ticket locations.');
+    assertMaxItems(data.locationPrices, INPUT_LIMITS.locationPricesPerTier, 'ticket locations');
     const event = await prisma.event.findUnique({ where: { id: eventId } });
     if (!event) throw new Error('Event not found');
-    assertCanEditEventContent(user, event);
+    await assertCanEditEventContent(user, event);
 
     for (const config of data.locationPrices) {
         if (config.location && config.price >= 0 && config.quantity >= 0) {
@@ -785,7 +803,7 @@ export async function updateTicketType(ticketTypeId: number, data: any) {
   if (!ticketType) throw new Error('Ticket type not found');
   const event = await prisma.event.findUnique({ where: { id: ticketType.eventId }, select: { organizerId: true, status: true } });
   if (!event) throw new Error('Event not found');
-  assertCanEditEventContent(user, event);
+  await assertCanEditEventContent(user, event);
 
   const parsedLocationFromName =
     typeof data.name === 'string' ? data.name.split(' - ').slice(1).join(' - ') : null;
@@ -847,7 +865,7 @@ export async function deleteTicketType(ticketTypeId: number) {
   if (!ticketType) throw new Error('Ticket type not found');
   const event = await prisma.event.findUnique({ where: { id: ticketType.eventId }, select: { organizerId: true, status: true } });
   if (!event) throw new Error('Event not found');
-  assertCanEditEventContent(user, event);
+  await assertCanEditEventContent(user, event);
 
   const attendeeCount = await prisma.attendee.count({ where: { ticketTypeId: ticketTypeId } });
   if (attendeeCount > 0) {
@@ -867,10 +885,11 @@ export async function deleteTicketType(ticketTypeId: number) {
 
 export async function addPromoCode(eventId: number, data: any, allTicketTypes?: TicketType[]) {
     const user = await requirePermission('Events:Update');
+    assertMaxItems(allTicketTypes, INPUT_LIMITS.clientTicketTypes, 'ticket types');
 
     const event = await prisma.event.findUnique({ where: { id: eventId }, select: { organizerId: true, status: true } });
     if (!event) throw new Error('Event not found.');
-    assertCanEditEventContent(user, event);
+    await assertCanEditEventContent(user, event);
 
     let finalCode = data.code;
     if (data.restrictionType === 'TICKET' && data.ticketTypeId && allTicketTypes) {
@@ -902,13 +921,14 @@ export async function addPromoCode(eventId: number, data: any, allTicketTypes?: 
 
 export async function updatePromoCode(promoCodeId: number, data: any, allTicketTypes?: TicketType[]) {
     const user = await requirePermission('Events:Update');
+    assertMaxItems(allTicketTypes, INPUT_LIMITS.clientTicketTypes, 'ticket types');
 
     const existing = await prisma.promoCode.findUnique({ where: { id: promoCodeId }, select: { eventId: true } });
     if (!existing) throw new Error('Promo code not found.');
 
     const event = await prisma.event.findUnique({ where: { id: existing.eventId }, select: { organizerId: true, status: true } });
     if (!event) throw new Error('Associated event not found.');
-    assertCanEditEventContent(user, event);
+    await assertCanEditEventContent(user, event);
 
     let finalCode = data.code;
     if (data.restrictionType === 'TICKET' && data.ticketTypeId && allTicketTypes) {
@@ -946,7 +966,7 @@ export async function deletePromoCode(promoCodeId: number) {
 
         const event = await prisma.event.findUnique({ where: { id: promoCode.eventId }, select: { organizerId: true, status: true } });
         if (!event) throw new Error('Associated event not found.');
-        assertCanEditEventContent(user, event);
+        await assertCanEditEventContent(user, event);
 
         if (promoCode.uses > 0) {
                 throw new Error('Cannot delete promo code, it has already been used.');
@@ -1102,6 +1122,7 @@ export async function getReportsData(dateRange?: DateRange, eventNameSearch?: st
 export async function updatePasswordFlag(userId: string, passwordChangeRequired: boolean): Promise<void> {
     const current = await requireAuthenticatedUser();
     if (current.id !== userId && current.role.name !== 'Admin') {
+        await logAccessDenied(current, 'self-or-Admin', { action: 'user.password_flag.update', targetUserId: userId });
         throw new Error('Permission denied.');
     }
     await prisma.user.update({
@@ -1175,6 +1196,7 @@ export async function getTicketsForUser(
     // Only allow requesting your own tickets unless you're Admin.
     if (authRequester.role.name !== 'Admin') {
         if (userId && userId !== authRequester.id) {
+            await logAccessDenied(authRequester, 'self-or-Admin', { action: 'tickets.read', targetUserId: userId });
             throw new Error('Permission denied.');
         }
         // Phone-number lookups (Admin excepted above): allowed only for the requester's own
@@ -1239,6 +1261,7 @@ export async function getTicketsByUserId(userId: string | null) {
   if (!userId) return [];
 
   if (requester.role.name !== 'Admin' && requester.id !== userId) {
+    await logAccessDenied(requester, 'self-or-Admin', { action: 'tickets.read', targetUserId: userId });
     throw new Error('Permission denied.');
   }
 
@@ -1299,6 +1322,7 @@ export async function checkInAttendee(attendeeIdentifier: number | string) {
 
         // Non-admins can only check in attendees for their own events
         if (user.role.name !== 'Admin' && attendee.event.organizerId !== user.id) {
+            await logAccessDenied(user, 'event:owner-or-Admin', { action: 'attendee.check_in', attendeeId: attendee.id, eventId: attendee.eventId });
             return { error: 'Permission denied.' };
         }
 

@@ -226,11 +226,19 @@ model AuditLog {
   ip         String?
   userAgent  String?
   detail     Json?
+  outcome    String   @default("success") // success | failure | denied
   createdAt  DateTime @default(now())
+  // Tamper-evidence hash chain. All three are assigned by the AuditLog BEFORE INSERT
+  // trigger (see migration 20261012090000_audit_log_hardening) — never set them from
+  // the application. The table is append-only at the database level.
+  seq        BigInt?  @unique
+  prevHash   String?
+  hash       String?
 
   @@index([action, createdAt])
   @@index([actorId, createdAt])
   @@index([targetType, targetId])
+  @@index([outcome, createdAt])
 }
 
 model HomeCarouselAd {

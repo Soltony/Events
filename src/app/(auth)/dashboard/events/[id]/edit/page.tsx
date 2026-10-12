@@ -2,6 +2,7 @@
 
 'use client';
 
+import { INPUT_LIMITS } from '@/lib/input-limits';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
@@ -41,7 +42,7 @@ const eventFormSchema = z.object({
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   locations: z.array(z.object({
     value: z.string().min(3, { message: "Location can't be empty."}),
-  })).min(1, { message: 'You must have at least one location.'}),
+  })).min(1, { message: 'You must have at least one location.'}).max(INPUT_LIMITS.eventLocations, { message: `At most ${INPUT_LIMITS.eventLocations} locations.` }),
   hint: z.string().optional(),
   startDate: z.date({
     error: 'A start date and time for the event is required.',

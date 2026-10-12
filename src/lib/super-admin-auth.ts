@@ -6,6 +6,7 @@ import prisma from '@/lib/prisma';
 import { hasPermission } from '@/lib/permissions';
 import { getCurrentUser } from '@/lib/auth';
 import { hashRefreshToken } from '@/lib/session';
+import { logAccessDenied } from '@/lib/audit';
 import type { SuperAdmin, Role } from '@prisma/client';
 
 const SUPER_ADMIN_JWT_SECRET = process.env.SUPER_ADMIN_JWT_SECRET;
@@ -170,6 +171,7 @@ export async function requireSuperAdminPermission(permission: string | string[])
   }
   const permissions = Array.isArray(permission) ? permission : [permission];
   if (!permissions.some((p) => hasPermission(actor.role, p))) {
+    await logAccessDenied(actor, permissions.length === 1 ? permissions[0] : permissions);
     throw new Error('Permission denied.');
   }
   return actor;

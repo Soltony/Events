@@ -10,15 +10,19 @@ import prisma from '@/lib/prisma';
  * status changes, deletions, approvals) should call `logAudit`. Writes are
  * best-effort: a logging failure must never break the request it describes.
  *
- * The log is append-only from the application's point of view: nothing in the
- * codebase updates or deletes AuditLog rows, and the viewer is read-only.
+ * The log is append-only: nothing in the codebase updates or deletes AuditLog rows,
+ * the viewer is read-only, and the database itself rejects UPDATE/DELETE/TRUNCATE and
+ * links every row into a SHA-256 hash chain (migration 20261012090000_audit_log_hardening).
  */
 
 export type AuditSeverity = 'info' | 'warning' | 'critical';
+/** Result of the audited action: completed, attempted but failed, or refused for lack of permission. */
+export type AuditOutcome = 'success' | 'failure' | 'denied';
 
 export interface AuditEntry {
   action: string; // dot-namespaced, e.g. "auth.login.success", "role.delete"
   severity?: AuditSeverity;
+  outcome?: AuditOutcome; // inferred from the action name when omitted
   actorType?: 'user' | 'superAdmin' | 'system' | 'anonymous';
   actorId?: string | null;
   actorLabel?: string | null; // phone / email / name snapshot
@@ -33,6 +37,13 @@ function contextFromHeaders(h: Headers) {
   const fwd = h.get('x-forwarded-for');
   const ip = (fwd ? fwd.split(',')[0]?.trim() : '') || h.get('x-real-ip') || null;
   return { ip, userAgent: h.get('user-agent') };
+}
+
+// Older call sites encode the result in the action name ("auth.login.failure").
+function inferOutcome(action: string): AuditOutcome {
+  if (action.startsWith('authz.denied')) return 'denied';
+  if (/\.(failure|rejected|reuse_detected)$/.test(action)) return 'failure';
+  return 'success';
 }
 
 export function auditRequestContext(req: NextRequest | Request) {
@@ -55,6 +66,7 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
       data: {
         action: entry.action,
         severity: entry.severity ?? 'info',
+        outcome: entry.outcome ?? inferOutcome(entry.action),
         actorType: entry.actorType ?? null,
         actorId: entry.actorId ?? null,
         actorLabel: entry.actorLabel ?? null,
@@ -105,14 +117,34 @@ export async function logAdminAction(
     targetId?: string | number | null;
     detail?: Record<string, unknown>;
     severity?: AuditSeverity;
+    outcome?: AuditOutcome;
   } = {},
 ): Promise<void> {
   await logAudit({
     action,
     severity: opts.severity ?? 'info',
+    outcome: opts.outcome,
     ...describeActor(actor),
     targetType: opts.targetType ?? null,
     targetId: opts.targetId == null ? null : String(opts.targetId),
     detail: opts.detail ?? null,
+  });
+}
+
+/**
+ * Records an authenticated administrator being refused an operation for lack of
+ * permission, so attempts on privileged functions are attributable too.
+ */
+export async function logAccessDenied(
+  actor: AuditActor,
+  required: string | string[],
+  detail: Record<string, unknown> = {},
+): Promise<void> {
+  await logAudit({
+    action: 'authz.denied',
+    severity: 'warning',
+    outcome: 'denied',
+    ...describeActor(actor),
+    detail: { required, ...detail },
   });
 }

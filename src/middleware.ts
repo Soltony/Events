@@ -132,6 +132,41 @@ function checkRequestOrigin(request: NextRequest): NextResponse | null {
   return null;
 }
 
+// Request-size limits, enforced here (before any route parses or validates input) and again
+// while reading in readJsonBody (src/lib/api-handler.ts). Server Actions are capped by
+// experimental.serverActions.bodySizeLimit in next.config.js.
+const MAX_API_BODY_BYTES = 64 * 1024;
+const MAX_UPLOAD_BODY_BYTES = 8 * 1024 * 1024; // base64 image (5 MB decoded) + JSON overhead
+const UPLOAD_PATHS = new Set(["/api/upload", "/api/super-admin/upload"]);
+
+/**
+ * Body-size gate for every state-changing /api/* request and the payment callback:
+ *   - Content-Length above the route's limit   → 413 JSON
+ *   - malformed Content-Length                 → 400 JSON
+ *   - chunked body with no Content-Length      → 411 JSON (cannot be bounded up front)
+ */
+function checkBodySize(request: NextRequest): NextResponse | null {
+  const { pathname } = request.nextUrl;
+  const hasBodyRoute =
+    STATE_CHANGING_METHODS.has(request.method) &&
+    (pathname.startsWith("/api/") || pathname === "/portal/payment-callback");
+  if (!hasBodyRoute) return null;
+
+  const declared = request.headers.get("content-length");
+  if (declared === null) {
+    return request.headers.get("transfer-encoding") ? jsonError("Content-Length required.", 411) : null;
+  }
+  const bytes = /^\d+$/.test(declared.trim()) ? Number(declared.trim()) : NaN;
+  if (!Number.isSafeInteger(bytes)) {
+    return jsonError("Invalid Content-Length header.", 400);
+  }
+  const limit = UPLOAD_PATHS.has(pathname) ? MAX_UPLOAD_BODY_BYTES : MAX_API_BODY_BYTES;
+  if (bytes > limit) {
+    return jsonError("Request body is too large.", 413);
+  }
+  return null;
+}
+
 /** Cookies that make a request act as a signed-in user or identified guest. */
 const SESSION_COOKIES = ["auth_token", "refresh_token", "super_admin_token", "superapp_token", "phone_number"];
 
@@ -246,6 +281,9 @@ async function authGate(request: NextRequest): Promise<NextResponse | null> {
 
 export async function middleware(request: NextRequest) {
   try {
+    const sizeRejection = checkBodySize(request);
+    if (sizeRejection) return sizeRejection;
+
     const originRejection = checkRequestOrigin(request);
     if (originRejection) return originRejection;
 

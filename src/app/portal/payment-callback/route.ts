@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma';
 import { notifyGiftPurchase } from '@/lib/gift-notifications';
 import { auditRequestContext, logAudit } from '@/lib/audit';
 import { fulfilPendingOrder, OrderAlreadyCompletedError, OrderError, toCents } from '@/lib/orders';
-import { withApiErrorHandling } from '@/lib/api-handler';
+import { readJsonBody, withApiErrorHandling } from '@/lib/api-handler';
 
 /**
  * NIB payment gateway callback.
@@ -43,10 +43,8 @@ export const POST = withApiErrorHandling(async function POST(request: NextReques
       detail: { reason, ...detail },
     });
 
-  let body: any;
-  try {
-    body = await request.json();
-  } catch {
+  const body: any = await readJsonBody(request);
+  if (!body) {
     return reject('Invalid JSON', 400);
   }
 

@@ -8,12 +8,13 @@
     "start": "next start -p 3002",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate && node scripts/strip-dependency-tests.mjs",
     "db:seed-perms": "tsx scripts/seed-permissions.ts",
     "seed:super-admin": "tsx prisma/seed-super-admin.ts",
     "test:security": "tsx scripts/verify-security-fixes.ts",
     "test:jwt": "tsx scripts/verify-jwt-rejection.ts",
-    "test:csrf": "node scripts/verify-csrf-cookies.mjs"
+    "test:csrf": "node scripts/verify-csrf-cookies.mjs",
+    "test:audit": "tsx scripts/verify-audit-log.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

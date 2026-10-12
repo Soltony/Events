@@ -1,5 +1,5 @@
 /**
- * Self-checks for security-critical helpers (VA-003 / VA-013 / VA-020 remediation).
+ * Self-checks for security-critical helpers (VA-003 / VA-013 / VA-020 / VA-026 remediation).
  * Run: npx tsx scripts/verify-security-fixes.ts
  * Pure unit checks — no database or network access.
  */
@@ -11,6 +11,8 @@ import { signJwt, verifyJwt } from '../src/lib/jwt';
 import { centsToAmountString, OrderError, parseOrderLines, priceOrder, toCents } from '../src/lib/orders';
 import { matchPromoCode } from '../src/lib/promo';
 import { safeErrorMessage } from '../src/lib/safe-error';
+import { DEFAULT_MAX_JSON_BYTES, readJsonBody } from '../src/lib/api-handler';
+import { assertMaxItems, INPUT_LIMITS } from '../src/lib/input-limits';
 
 const SECRET = 'test-secret-for-unit-checks';
 const b64 = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
@@ -131,6 +133,31 @@ async function main() {
     assert.equal(safeErrorMessage(known, 'Generic.'), 'A record with that value already exists.');
     assert.equal(safeErrorMessage(new TypeError("Cannot read properties of undefined (reading 'x')"), 'Generic.'), 'Generic.');
     assert.equal(safeErrorMessage(new Error('Permission denied.'), 'Generic.'), 'Permission denied.');
+  });
+
+  console.log('Input size limits (VA-026)');
+  const streamed = (text: string) =>
+    new Request('http://x/api', {
+      method: 'POST',
+      body: new ReadableStream({ start(c) { c.enqueue(new TextEncoder().encode(text)); c.close(); } }),
+      duplex: 'half',
+    } as RequestInit);
+  await check('readJsonBody parses a body within the limit', async () => {
+    assert.deepEqual(await readJsonBody(streamed('{"a":1}')), { a: 1 });
+  });
+  await check('readJsonBody refuses an oversized body without Content-Length', async () => {
+    assert.equal(await readJsonBody(streamed(`{"x":"${'a'.repeat(DEFAULT_MAX_JSON_BYTES)}"}`)), null);
+  });
+  await check('readJsonBody refuses a declared Content-Length over the limit', async () => {
+    const req = new Request('http://x/api', { method: 'POST', body: '{}', headers: { 'content-length': '999999' } });
+    assert.equal(await readJsonBody(req, { maxBytes: 1024 }), null);
+  });
+  await check('assertMaxItems bounds network-supplied arrays', () => {
+    assert.doesNotThrow(() => assertMaxItems(undefined, 2, 'items'));
+    assert.doesNotThrow(() => assertMaxItems([1, 2], 2, 'items'));
+    assert.throws(() => assertMaxItems([1, 2, 3], 2, 'items'), /Too many items/);
+    assert.throws(() => assertMaxItems('nope', 2, 'items'), /Invalid items/);
+    assert.throws(() => assertMaxItems(new Array(INPUT_LIMITS.rolePermissions + 1).fill('x'), INPUT_LIMITS.rolePermissions, 'permissions'));
   });
 
   console.log(`\nAll ${passed} checks passed.`);

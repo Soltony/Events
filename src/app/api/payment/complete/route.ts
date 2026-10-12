@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { notifyGiftPurchase } from '@/lib/gift-notifications';
 import { auditRequestContext, logAudit } from '@/lib/audit';
 import { fulfilPendingOrder, OrderAlreadyCompletedError, OrderError, pricePendingOrder } from '@/lib/orders';
-import { withApiErrorHandling } from '@/lib/api-handler';
+import { readJsonBody, withApiErrorHandling } from '@/lib/api-handler';
 
 /**
  * Completes a FREE order without the payment gateway. Paid orders can only be completed
@@ -14,10 +14,8 @@ import { withApiErrorHandling } from '@/lib/api-handler';
 export const POST = withApiErrorHandling(async function POST(req: NextRequest) {
     let transactionId: string | null = null;
     try {
-        let body: any;
-        try {
-            body = await req.json();
-        } catch {
+        const body: any = await readJsonBody(req);
+        if (!body) {
             return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
         }
         const id = body?.id;

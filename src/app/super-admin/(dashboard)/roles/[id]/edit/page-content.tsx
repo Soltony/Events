@@ -1,6 +1,7 @@
 
 'use client';
 
+import { INPUT_LIMITS } from '@/lib/input-limits';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
@@ -33,7 +34,7 @@ import { Switch } from '@/components/ui/switch';
 const roleFormSchema = z.object({
   name: z.string().min(3, { message: 'Role name must be at least 3 characters.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
-  permissions: z.array(z.string()).refine((value) => value.some((item) => item), {
+  permissions: z.array(z.string()).max(INPUT_LIMITS.rolePermissions).refine((value) => value.some((item) => item), {
     message: 'You have to select at least one permission.',
   }),
 });

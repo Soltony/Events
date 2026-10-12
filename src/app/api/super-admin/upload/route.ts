@@ -34,7 +34,7 @@ export const POST = withApiErrorHandling(async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Payload too large.' }, { status: 413 });
     }
 
-    const body = await readJsonBody(req);
+    const body = await readJsonBody(req, { maxBytes: MAX_REQUEST_BYTES });
     if (!body) return malformedJsonResponse();
     const { file } = body;
 
