@@ -124,9 +124,12 @@ const docNoSecFetch = await fetch(`${BASE}/super-admin/login`, { redirect: 'manu
 ok(!(await isCsrf403(docNoSecFetch)), 'page load without Sec-Fetch headers (Accept text/html) not CSRF-gated', docNoSecFetch.status);
 const img = await scripted('/images/favicon.ico', session, { accept: 'image/*' }, 'image');
 ok(!(await isCsrf403(img)), 'static image with session not CSRF-gated', img.status);
-const anon = await scripted('/api/events/public', null);
+// Plain fetch() to API routes: no RSC header (Next 16 redirects RSC requests lacking a valid _rsc hash).
+const apiFetch = (path, cookie) =>
+  fetch(`${BASE}${path}`, { redirect: 'manual', headers: { accept: '*/*', 'sec-fetch-dest': 'empty', ...(cookie ? { cookie } : {}) } });
+const anon = await apiFetch('/api/events/public', null);
 ok(anon.status === 200, 'anonymous scripted read not CSRF-gated', anon.status);
-const tokenEndpoint = await scripted('/api/csrf-token', session);
+const tokenEndpoint = await apiFetch('/api/csrf-token', session);
 ok(tokenEndpoint.status === 200, '/api/csrf-token reachable without a token (bootstrap)', tokenEndpoint.status);
 
 // 6. Origin check still precedes CSRF; safe methods are unaffected.

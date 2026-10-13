@@ -279,7 +279,7 @@ async function authGate(request: NextRequest): Promise<NextResponse | null> {
   return null;
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   try {
     const sizeRejection = checkBodySize(request);
     if (sizeRejection) return sizeRejection;

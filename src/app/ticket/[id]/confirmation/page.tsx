@@ -68,7 +68,7 @@ function ConfirmationContent() {
       }
     }
 
-    async function fetchTicketAndGenerateQR() {
+    const fetchTicketAndGenerateQR = async () => {
       try {
         setLoading(true);
         const ticketDetails = await getTicketDetailsForConfirmation(identifier);
